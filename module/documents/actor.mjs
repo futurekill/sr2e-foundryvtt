@@ -1607,7 +1607,9 @@ export class SR2EActor extends Actor {
           // Show the portrait on the token too (square art, rotation locked);
           // the SVG fallback needs neither.
           ...(variant ? { lockRotation: true, texture: { src: img, fit: "cover" } } : {})
-        }
+        },
+        // Summoned, so present (nature-spirits.mjs): even an uncontrolled spirit with no token departs at sunrise.
+        flags: { sr2e: { summoned: true } }
       });
     } catch (err) {
       console.error("SR2E | Could not create spirit actor:", err);

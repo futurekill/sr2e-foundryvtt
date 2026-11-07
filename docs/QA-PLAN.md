@@ -313,6 +313,7 @@ and any **red console errors**. File them wherever the group tracks issues
       and the shaman can summon another nature spirit at once. With "Nature spirits depart
       at sunrise and sunset" on, advance world time past 18:00 → the same, once. Turn off
       "Delete departed nature spirits" → the actor stays with 0 services, marked departed.
+      Create a nature spirit by hand in the sidebar (no token) → the ☀ button leaves it alone (0.141.1).
 
 - [ ] **Limits (p.139–140):** a shaman with a nature spirit still owing services
       cannot summon another; a mage with Charisma-many bound elementals must release

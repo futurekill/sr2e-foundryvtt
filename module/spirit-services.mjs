@@ -13,21 +13,31 @@ import { daysPresent, chargeDaysPlan, spiritServiceStatus } from "./rules/sr2e-r
 import { placeSummonedToken, tokensOf } from "./placement.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
-const isElemental = (a) => a?.type === "spirit" && a.system?.spiritType === "elemental";
-const dayLength = () => {
+/** A spirit actor that is an elemental. */
+export const isElemental = (a) => a?.type === "spirit" && a.system?.spiritType === "elemental";
+/** The game clock's hour and day, in seconds, from the core calendar (one reading for every spirit rule). */
+export function calendarLengths() {
   const d = game.time?.calendar?.days ?? {};
-  return (d.secondsPerMinute ?? 60) * (d.minutesPerHour ?? 60) * (d.hoursPerDay ?? 24);
-};
+  const hourLength = (d.secondsPerMinute ?? 60) * (d.minutesPerHour ?? 60);
+  return { hourLength, dayLength: hourLength * (d.hoursPerDay ?? 24) };
+}
+const dayLength = () => calendarLengths().dayLength;
+/** GM + owner user ids, for a spirit's whispers. */
 const audience = (a) => game.users.filter(u => u.isGM || a.testUserPermission(u, "OWNER")).map(u => u.id);
 /** An informational card: its failure never interrupts a committed action. */
-async function note(spirit, html, whisper = false) {
+export async function note(spirit, html, whisper = false) {
   try {
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: spirit }), ...(whisper ? { whisper: audience(spirit) } : {}),
       content: `<div class="sr2e-item-card">${html}</div>` });
   } catch (e) { console.warn("SR2E | spirit service note failed", e); }
 }
 
-/** The one queue for a spirit's services (elementalTransition uses it too). */
+/**
+ * The one queue for a spirit's services (elementalTransition uses it too).
+ * shortcut: the queue is per client, so the GM and the owner spending the same spirit's LAST service at the same
+ * instant can both succeed (one service lost). Rare at one table; move spends onto the GM's request queue
+ * (vr2ic.mjs `request`) if it ever bites.
+ */
 export const serviceQueue = (spirit, fn) => enqueueAttack(`svc:${spirit.uuid}`, fn);
 
 export function statusOf(spirit) {

@@ -5795,6 +5795,7 @@ export function registerSR2EQuenchTests() {
           await mage.update({ "system.boundSpirits": [old.uuid] });
           await withFaces(Array(12).fill(5), () => mage.rollConjuring({ force: 1, kind: "elemental", domain: "fire", materials: false }));
           assert.lengthOf(newSpirits().filter(a => a.id !== old.id), 1);
+          assert.isTrue(!!newSpirits().find(a => a.id !== old.id).getFlag("sr2e", "summoned"), "a summon is marked (nature-spirit departure reads it)");
         });
       });
 
@@ -6943,8 +6944,9 @@ export function registerSR2EQuenchTests() {
         while (Date.now() - t0 < ms) { if (await fn()) return true; await new Promise(r => setTimeout(r, 50)); }
         return false;
       };
-      const mkSpirit = (name, system = {}) => Actor.create({ name: `Quench NS ${name}`, type: "spirit",
-        system: { spiritType: "nature", force: 3, services: 2, ...system } });
+      // A summoned spirit carries the summon's marker (actor.mjs); `spare` is a GM's ready-made one without it.
+      const mkSpirit = (name, system = {}, { spare = false } = {}) => Actor.create({ name: `Quench NS ${name}`, type: "spirit",
+        system: { spiritType: "nature", force: 3, services: 2, ...system }, ...(spare ? {} : { flags: { sr2e: { summoned: true } } }) });
       const tokenOn = async (scene, actor, link, x = 200) => (await scene.createEmbeddedDocuments("Token", [{
         ...(await actor.getTokenDocument()).toObject(), actorLink: link, x, y: 200 }]))[0];
       const depart = () => ns.natureSpiritsDepart({ reason: "Quench", scope, quiet: true });
@@ -7007,6 +7009,18 @@ export function registerSR2EQuenchTests() {
         assert.isFalse(canvas.scene.tokens.has(t1.id)); assert.isFalse(canvas.scene.tokens.has(t2.id));
         assert.isTrue(game.actors.has(elem.id), "elemental untouched");
         assert.isTrue(canvas.scene.tokens.has(te.id));
+      });
+
+      it("a ready-made nature spirit in the sidebar (never summoned, on no scene) isn't present, so it stays", async () => {
+        const spare = await mkSpirit("Spare Forest", {}, { spare: true });
+        const gone = await depart();
+        assert.isTrue(game.actors.has(spare.id), "kept");
+        assert.notInclude(gone ?? [], spare.name);
+        assert.isFalse(!!spare.getFlag("sr2e", "departed"), "not marked");
+        // Once the GM puts it on a scene, it is present and departs.
+        await tokenOn(canvas.scene, spare, true);
+        await depart();
+        assert.isFalse(game.actors.has(spare.id), "on a scene: it goes");
       });
 
       it("an unlinked token its delta made an elemental is detached and survives two runs (a retry reuses the detached actor)", async () => {

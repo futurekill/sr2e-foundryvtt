@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.141.1 — 2026-11-06
+
+### Fixed
+- **Nature spirits at sunrise and sunset** (SR2E p.139): only spirits that are present depart, meaning every
+  summoned one and any nature spirit on a scene. A ready-made nature spirit the GM keeps in the sidebar (never
+  summoned, no token) used to be deleted at the first sunrise or sunset with the setting on; it's now left alone.
+  New summons are marked as summoned, so even an uncontrolled one whose token was never placed still departs.
+
+### Changed
+- Spirit services, elementals and nature spirits share one copy of their calendar, whisper and "is it an
+  elemental" helpers (no behavior change).
+
 ## 0.141.0 — 2026-11-06
 
 ### Added

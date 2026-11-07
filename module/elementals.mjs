@@ -13,14 +13,16 @@
  * Out of scope, and left to the GM exactly as before: calling and presence
  * (p.140–141), line of sight, physical service (the manual service counter),
  * delegation to another character, long-term binding for days, Aid Study, and
- * Spell Defense aid. Combat Turns are counted by hand (the −1 Turn button);
- * there is no cross-client lock (no socket relay at this table's host), so one
- * person should drive an elemental at a time.
+ * Spell Defense aid. Combat Turns are counted by hand (the −1 Turn button).
+ * Steps are queued per client (see serviceQueue's shortcut note), so one person
+ * should drive an elemental at a time.
  */
 import { elementalAidsCategory, planElementalTransition } from "./rules/sr2e-rules.mjs";
 import { exclusiveBlock } from "./restricted-spells.mjs";
 import { enqueueAttack } from "./engagement.mjs";
-import { serviceQueue, chargeDaysUpdate, afterSpend } from "./spirit-services.mjs";
+import { serviceQueue, chargeDaysUpdate, afterSpend, isElemental, note } from "./spirit-services.mjs";
+
+export { isElemental };
 
 /** Spirit (and spell) uuids with a transition in flight on THIS client. */
 const IN_FLIGHT = new Set();
@@ -37,11 +39,6 @@ function combatHasActor(combat, actor) {
 }
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
-
-/** A spirit actor that is an elemental. */
-export function isElemental(actor) {
-  return actor?.type === "spirit" && actor.system?.spiritType === "elemental";
-}
 
 /** Resolve a uuid synchronously, tolerating world-load order and bad input. */
 function sync(uuid) {
@@ -235,98 +232,96 @@ export async function elementalTransition(spirit, kind, args = {}, opts = {}) {
 const STARTS_SERVICE = new Set(["aid", "startAid", "aidStudy", "startSustain", "recall"]);
 
 async function runTransition(spirit, kind, args, opts, refuse) {
-  {
-    if (kind === "finishExpire") {
-      if (!spirit.system.pendingExpireSpellUuid) return refuse("nothing is expiring");
-      const done = await completeExpiry(spirit);
-      return { ok: done };
-    }
-    if (STARTS_SERVICE.has(kind) && spirit.getFlag("sr2e", "fighting")) {
-      return refuse("it is fighting — Stand down first (one service at a time, p.141)");
-    }
-    const planArgs = { n: args.n, spellUuid: args.spell?.uuid, combatId: args.combatId,
-                       seq: args.seq, round: args.round, timingAlive: args.timingAlive,
-                       // Only used when an aid service starts (its new identity).
-                       instanceId: foundry.utils.randomID() };
-    if (kind === "startSustain") {
-      const why = sustainRefusal(spirit, args.spell);
-      if (why) return refuse(why);
-      // A fresh Combat Turn clock; the combat is the one the mage is fighting
-      // in right now, if any (its first boundary is then free).
-      const caster = args.spell.parent;
-      const combat = game.combats?.find(c => c.started && combatHasActor(c, caster));
-      planArgs.instanceId = foundry.utils.randomID();
-      planArgs.combatId = combat?.id ?? "";
-    }
-    if (kind === "consumeFree") {
-      // Mark the free turn passed AND the latest boundary of its combat as
-      // processed, so that boundary's recovery card cannot charge it again.
-      const caster = sync(spirit.system.conjurerUuid);
-      const combat = game.combats?.get(spirit.system.sustainCombatId)
-        ?? game.combats?.find(c => c.started && combatHasActor(c, caster));
-      planArgs.combatId = combat?.id ?? "";
-      planArgs.seq = combat?.getFlag("sr2e", "boundarySeq") ?? 0;
-    }
-    if (kind === "takeOver" || kind === "endService") {
-      // The spell comes back to the magician's own concentration: an exclusive
-      // spell may not end up sharing it (p.133).
-      const held = spirit.system.sustainingSpellUuid ? sync(spirit.system.sustainingSpellUuid) : null;
-      if (held?.system?.sustaining && held.parent) {
-        const why = exclusiveBlock(held.parent, { adding: held });
-        if (why) return refuse(why);
-      }
-    }
-    if (kind === "combatBoundary" || kind === "consumeFree") {
-      // The same check for the automatic step and for a recovery card: whoever
-      // runs it must be able to finish an expiry on the caster too.
-      const caster = sync(spirit.system.conjurerUuid);
-      if (!caster?.isOwner) return { ok: false, outcome: "failed", reason: "cannot update the mage" };
-    }
-    const plan = planElementalTransition(spirit.system, kind, planArgs);
-    if (plan.skip) return { ok: true, outcome: "skip" };
-    if (plan.refuse) return refuse(plan.refuse);
-    // Presence (p.141's 24-hour rule): starting a service means it is here.
-    // A depletion (Force used up — it vanishes) first charges the owed days,
-    // then stops the clock, in the same update.
-    const update = { ...plan.update };
-    const servicesBefore = spirit.system.services ?? 0;
-    const since = spirit.getFlag("sr2e", "presentSince");
-    const usedAfter = update["system.forceUsed"] ?? spirit.system.forceUsed ?? 0;
-    const depleting = kind !== "recall" && (spirit.system.force ?? 0) - usedAfter <= 0;
-    // Any service action shows it is here — a legacy elemental already busy
-    // before presence was tracked picks up its clock on its next transition.
-    if (!Number.isFinite(since) && !depleting && kind !== "finishExpire") update["flags.sr2e.presentSince"] = game.time.worldTime;
-    if (Number.isFinite(since) && depleting) {
-      const charge = chargeDaysUpdate(spirit, update["system.services"] ?? servicesBefore);
-      if (charge) update["system.services"] = charge.plan.services;
-      delete update["flags.sr2e.presentSince"];
-      update["flags.sr2e.-=presentSince"] = null;
-    }
-    try {
-      await spirit.update(update);
-    } catch (err) {
-      console.error("SR2E | elemental update failed", err);
-      return { ok: false, outcome: "failed", committed: false, reason: "the update was rejected" };
-    }
-    // The expiry completes BEFORE any chat: a failed notice must never leave a
-    // spell running on an elemental whose Force is spent.
-    const expiredOk = plan.expire ? await completeExpiry(spirit) : true;
-    if (!opts.quiet) {
-      try {
-        await ChatMessage.create({
-          speaker: ChatMessage.getSpeaker({ actor: spirit }),
-          content: `<div class="sr2e-item-card"><strong>${esc(spirit.name)}</strong> ${esc(plan.message)}.</div>`
-        });
-      } catch (err) { console.warn("SR2E | elemental notice failed", err); }
-    }
-    await afterSpend(spirit, servicesBefore, spirit.system.services ?? 0);
-    if (!expiredOk) {
-      return { ok: false, outcome: "pending", committed: true,
-               reason: "the spell could not be ended yet — Finish on its sheet", message: plan.message };
-    }
-    return { ok: true, outcome: plan.outcome ?? "done", expired: !!plan.expire, message: plan.message,
-             dice: plan.dice };
+  if (kind === "finishExpire") {
+    if (!spirit.system.pendingExpireSpellUuid) return refuse("nothing is expiring");
+    const done = await completeExpiry(spirit);
+    return { ok: done };
   }
+  if (STARTS_SERVICE.has(kind) && spirit.getFlag("sr2e", "fighting")) {
+    return refuse("it is fighting — Stand down first (one service at a time, p.141)");
+  }
+  const planArgs = { n: args.n, spellUuid: args.spell?.uuid, combatId: args.combatId,
+                     seq: args.seq, round: args.round, timingAlive: args.timingAlive,
+                     // Only used when an aid service starts (its new identity).
+                     instanceId: foundry.utils.randomID() };
+  if (kind === "startSustain") {
+    const why = sustainRefusal(spirit, args.spell);
+    if (why) return refuse(why);
+    // A fresh Combat Turn clock; the combat is the one the mage is fighting
+    // in right now, if any (its first boundary is then free).
+    const caster = args.spell.parent;
+    const combat = game.combats?.find(c => c.started && combatHasActor(c, caster));
+    planArgs.instanceId = foundry.utils.randomID();
+    planArgs.combatId = combat?.id ?? "";
+  }
+  if (kind === "consumeFree") {
+    // Mark the free turn passed AND the latest boundary of its combat as
+    // processed, so that boundary's recovery card cannot charge it again.
+    const caster = sync(spirit.system.conjurerUuid);
+    const combat = game.combats?.get(spirit.system.sustainCombatId)
+      ?? game.combats?.find(c => c.started && combatHasActor(c, caster));
+    planArgs.combatId = combat?.id ?? "";
+    planArgs.seq = combat?.getFlag("sr2e", "boundarySeq") ?? 0;
+  }
+  if (kind === "takeOver" || kind === "endService") {
+    // The spell comes back to the magician's own concentration: an exclusive
+    // spell may not end up sharing it (p.133).
+    const held = spirit.system.sustainingSpellUuid ? sync(spirit.system.sustainingSpellUuid) : null;
+    if (held?.system?.sustaining && held.parent) {
+      const why = exclusiveBlock(held.parent, { adding: held });
+      if (why) return refuse(why);
+    }
+  }
+  if (kind === "combatBoundary" || kind === "consumeFree") {
+    // The same check for the automatic step and for a recovery card: whoever
+    // runs it must be able to finish an expiry on the caster too.
+    const caster = sync(spirit.system.conjurerUuid);
+    if (!caster?.isOwner) return { ok: false, outcome: "failed", reason: "cannot update the mage" };
+  }
+  const plan = planElementalTransition(spirit.system, kind, planArgs);
+  if (plan.skip) return { ok: true, outcome: "skip" };
+  if (plan.refuse) return refuse(plan.refuse);
+  // Presence (p.141's 24-hour rule): starting a service means it is here.
+  // A depletion (Force used up — it vanishes) first charges the owed days,
+  // then stops the clock, in the same update.
+  const update = { ...plan.update };
+  const servicesBefore = spirit.system.services ?? 0;
+  const since = spirit.getFlag("sr2e", "presentSince");
+  const usedAfter = update["system.forceUsed"] ?? spirit.system.forceUsed ?? 0;
+  const depleting = kind !== "recall" && (spirit.system.force ?? 0) - usedAfter <= 0;
+  // Any service action shows it is here — a legacy elemental already busy
+  // before presence was tracked picks up its clock on its next transition.
+  if (!Number.isFinite(since) && !depleting && kind !== "finishExpire") update["flags.sr2e.presentSince"] = game.time.worldTime;
+  if (Number.isFinite(since) && depleting) {
+    const charge = chargeDaysUpdate(spirit, update["system.services"] ?? servicesBefore);
+    if (charge) update["system.services"] = charge.plan.services;
+    delete update["flags.sr2e.presentSince"];
+    update["flags.sr2e.-=presentSince"] = null;
+  }
+  try {
+    await spirit.update(update);
+  } catch (err) {
+    console.error("SR2E | elemental update failed", err);
+    return { ok: false, outcome: "failed", committed: false, reason: "the update was rejected" };
+  }
+  // The expiry completes BEFORE any chat: a failed notice must never leave a
+  // spell running on an elemental whose Force is spent.
+  const expiredOk = plan.expire ? await completeExpiry(spirit) : true;
+  if (!opts.quiet) {
+    try {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: spirit }),
+        content: `<div class="sr2e-item-card"><strong>${esc(spirit.name)}</strong> ${esc(plan.message)}.</div>`
+      });
+    } catch (err) { console.warn("SR2E | elemental notice failed", err); }
+  }
+  await afterSpend(spirit, servicesBefore, spirit.system.services ?? 0);
+  if (!expiredOk) {
+    return { ok: false, outcome: "pending", committed: true,
+             reason: "the spell could not be ended yet — Finish on its sheet", message: plan.message };
+  }
+  return { ok: true, outcome: plan.outcome ?? "done", expired: !!plan.expire, message: plan.message,
+           dice: plan.dice };
 }
 
 /**
@@ -354,17 +349,8 @@ export async function releaseElemental(spirit) {
 // cross-client coordination: two people advancing the same combat at the same
 // instant, or a manual −1 racing it, can lose or duplicate one charge.
 
-/** GM + owner user ids for a spirit's whispers. */
-function audience(spirit) {
-  return game.users.filter(u => u.isGM || spirit.testUserPermission(u, "OWNER")).map(u => u.id);
-}
-
-async function whisper(spirit, html) {
-  try {
-    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: spirit }), whisper: audience(spirit),
-      content: `<div class="sr2e-item-card">${html}</div>` });
-  } catch (err) { console.warn("SR2E | elemental notice failed", err); }
-}
+/** A private card to the GM and the spirit's owners (never interrupts the step). */
+const whisper = (spirit, html) => note(spirit, html, true);
 
 /** Whether a sustain's recorded timing combat still runs with its mage in it. */
 function timingAlive(spirit, combatId) {

@@ -8,6 +8,7 @@
  * filtered by `liveBoundSpirits` and pruned by the conjurer's own next write.
  */
 import { sunBoundaryCrossed, nextSunBoundary } from "./rules/sr2e-rules.mjs";
+import { calendarLengths } from "./spirit-services.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const isActiveGM = () => !!game.users?.activeGM?.isSelf;
@@ -39,10 +40,7 @@ export function registerNatureSpiritSettings() {
 
 /** Day/hour lengths from the core calendar, and the configured hours. */
 function clock() {
-  const d = game.time?.calendar?.days ?? {};
-  const hourLength = (d.secondsPerMinute ?? 60) * (d.minutesPerHour ?? 60);
-  return { hourLength, dayLength: hourLength * (d.hoursPerDay ?? 24),
-           sunrise: setting("sunriseHour", 6), sunset: setting("sunsetHour", 18) };
+  return { ...calendarLengths(), sunrise: setting("sunriseHour", 6), sunset: setting("sunsetHour", 18) };
 }
 
 /** The summon card's note: when this nature spirit will go. */
@@ -68,6 +66,9 @@ function snapshot(scope = () => true) {
     // kept on purpose (with deletion on, a surviving actor is retried).
     const linkedLeft = tokens.some(t => t.actorLink && t.actorId === a.id);
     if (departed(a) && !linkedLeft && !deleteOn) continue;
+    // Only a spirit that is PRESENT departs: summoned (a conjurer, or the summon's marker) or on a scene. A GM's
+    // ready-made nature spirit waiting in the sidebar is none of these, and is never deleted.
+    if (!a.system.conjurerUuid && !a.getFlag("sr2e", "summoned") && !tokens.some(t => t.actorId === a.id)) continue;
     actors.push(a.id);
   }
   const unlinked = [], detach = [];
