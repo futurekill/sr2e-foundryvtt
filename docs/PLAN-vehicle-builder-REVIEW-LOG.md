@@ -162,3 +162,40 @@ Read-only checks against the exact system commit passed for selected-chassis pri
 
 VERDICT: APPROVED
 **Release 2 approved in 3 rounds: system 0.142.1 + Rigger 2 module 0.6.0.**
+
+## Code (release 3) round 1 — Codex (fresh session; system 6606321, module 26ad62a)
+
+1. **[P1] Armor and Signature bonuses count twice after saving.** [vehicle-workshop.mjs:433](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/vehicle-workshop.mjs:433) writes mod-adjusted values into base stats, while `VehicleData.prepareDerivedData()` adds installed armor/signature ratings again.
+   **Reproduction:** Gasoline Sedan, +100 kg Load, Standard Vehicle Armor rating 1 → Review Armor 1 → saved effective Armor **2**, contrary to p.127. RAM rating 1 similarly contributes twice.
+   **Fix:** Separate base and effective stats and apply each mod bonus exactly once through a shared calculation.
+
+2. **[P1] Saving an open Workshop overwrites subsequent item edits.** [vehicle-workshop.mjs:411](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/vehicle-workshop.mjs:411) unconditionally writes ratings from the constructor’s snapshot.
+   **Reproduction:** Open a vehicle with flagged Armor rating 1; change that item to rating 2 on its sheet; save the still-open Workshop → rating silently returns to **1**. A read-only harness reproduced this. Newly added customizations also remain absent from its capacity validation.
+   **Fix:** Reconcile against current embedded items before validation, preserving external changes or reporting conflicts with locally edited fields.
+
+3. **[P1] Legacy conversion silently takes ownership of customizations.** [vehicle-workshop.mjs:114](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/vehicle-workshop.mjs:114) classifies every v1 mod as a design mod; the interface provides removal but no customization classification.
+   **Reproduction:** Open a v1 vehicle containing an unflagged aftermarket mod; save conversion → that item acquires `designMod=true` and contributes design DP. Remove it in the Workshop and save again → the original customization is deleted.
+   **Fix:** Add the planned conversion classification control and preserve unflagged customizations unless explicitly accepted as design mods.
+
+4. **[P2] Changing chassis retains the previous driving-skill override.** [vehicle-workshop.mjs:430](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/vehicle-workshop.mjs:430) writes `system.skill` only when the new mapping is nonempty.
+   **Reproduction:** Create a motorcycle → `skill="bike"`; reopen, select Sedan and a compatible plant, then update → the sedan still uses **Bike** because the override survives.
+   **Fix:** Always write `system.skill`, including an empty string when the new chassis uses its type default.
+
+5. **[P2] Stat controls mistake mod-adjusted ratings for purchased ratings.** [vehicle-workshop.mjs:348](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/vehicle-workshop.mjs:348) derives the starting rating from effective stats; `canUp` uses the same incorrect comparison.
+   **Reproduction:** Gasoline Sedan starts at Speed 100, maximum 160; install Turbocharging 1, then click Speed **max** → buys only 45 points and displays **160**, instead of buying 60 and displaying **175**. Further increases are disabled despite remaining legal design headroom.
+   **Fix:** Calculate option limits and purchases from pre-mod ratings, displaying mod-adjusted ratings separately.
+
+VERDICT: REVISE
+### Claude's response (fixes: system f72d959, module 286a7e6)
+- **#1 accepted:** the engine returns `modEffects` (the design mods' Armor/Signature) and the Workshop saves stats
+  without them; `VehicleData` counts every mod's `effects.armor`/`effects.signature` once (falling back to the old
+  Rating rule for a mod without effects). Ablative armor got its p.127 effect (2 × level, at most Body).
+- **#2 accepted:** a save first catches up with the vehicle's items (`#refreshFromActor`): items added or removed
+  elsewhere join or leave, a rating changed on the sheet wins unless it was also changed here (then both are named).
+  A save that had to catch up only warns, and the next save writes.
+- **#3 accepted (it was in the plan, §1c):** a converted old design's mods carry an "in design / customization" toggle;
+  a customization stays unflagged and is never deleted.
+- **#4 accepted:** `system.skill` is always written.
+- **#5 accepted:** the engine returns `optionStats` (what the options alone bought); the steppers, their limits and
+  "max" use them, and show the mod-adjusted value beside them.
+- Quench `sr2e.vehicles` 9/9 (a new test covers all five); Vitest 33 in vehicle-design.
