@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.142.0 — 2026-11-07
 
 ### Added
 - **Vehicles: the full Rigger 2 stat line** (Rigger 2 p.148 format) on every vehicle sheet: an **off-road Handling**

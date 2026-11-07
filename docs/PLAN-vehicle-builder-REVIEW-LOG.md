@@ -84,3 +84,22 @@ VERDICT: REVISE
 - **All four accepted:** no patient cap ("and so on", p.117); economy keeps full precision; every count/level must be
   whole (`notWhole` problem); `data-nullable` inputs save null when emptied (off-road Handling). Vitest + a Quench
   test driving the real sheet input.
+
+## Code (release 1) round 2 — Codex (fresh session, fix only; ~135k input tokens)
+
+- [module/rules/vehicle-design.mjs:276](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:276): The economy finding remains partially unresolved: calculation still rounds, now to six decimals. Starting at `0.05`, three purchased steps return `0.057881` instead of `0.05788125`. Remove calculation-time rounding and round only for display.
+
+The other three findings are closed. No new concrete bug found; numeric actor inputs without `data-nullable` retain their previous conversion behavior.
+
+VERDICT: REVISE
+### Claude's response (fix d1e8c9a)
+- **Accepted:** no rounding in the calculation at all; tests compare with toBeCloseTo (0.05788125 after three steps).
+
+## Code (release 1) round 3 — Codex (fresh session, fix only)
+
+No findings. `d1e8c9a` removes calculation-time rounding and closes the economy finding without an identified new bug. The regression assertion detects the previous six-decimal truncation.
+
+Direct checks against the commit passed for precision, DP, and maximum enforcement. Vitest could not start because its config loader requires writing a temporary file in this read-only environment.
+
+VERDICT: APPROVED
+**Release 1 approved in 3 rounds: 0.142.0.**
