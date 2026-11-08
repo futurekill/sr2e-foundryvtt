@@ -71,3 +71,36 @@ describe("capacity by origin (plan C2.4)", () => {
     expect(vehicleCapacity({ cargo: 20 }, [nitro(1, "done")]).cfUsed).toBe(2);   // customized first: 2 CF (p.121)
   });
 });
+
+// The generated Rigger 2 mods (../sr2e-rigger-2/packs-src), when that module is checked out next to the system.
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+const PACK = new URL("../../sr2e-rigger-2/packs-src/r2-vehicle-mods/", import.meta.url);
+const havePack = existsSync(PACK);
+const item = (name) => {
+  const f = readdirSync(PACK).find(f => f.endsWith(".json") && JSON.parse(readFileSync(new URL(f, PACK), "utf8")).name === name);
+  const d = JSON.parse(readFileSync(new URL(f, PACK), "utf8"));
+  return { ...d.system, name: d.name };
+};
+describe.skipIf(!havePack)("the Rigger 2 mods' customization data (book p.120–146)", () => {
+  it("every customizable mod with a price quotes on a plain car (no unworkable formula)", () => {
+    const v = car({ plantCost: 20000, engineCustomCost: 25000, cargoFree: 999, loadFree: 99999 });
+    const bad = [];
+    for (const f of readdirSync(PACK).filter(f => f.endsWith(".json"))) {
+      const d = JSON.parse(readFileSync(new URL(f, PACK), "utf8"));
+      if (d.system.custom?.customizable === false || !Object.keys(d.system.custom?.formulas ?? {}).length && !d.system.custom?.market?.length) continue;   // printed without specs
+      const q = customizationQuote({ ...d.system, name: d.name }, 1, v);
+      if (q.problems.some(p => /worked out|no customization price/.test(p))) bad.push(`${d.name}: ${q.problems.join("; ")}`);
+    }
+    expect(bad).toEqual([]);
+  });
+  it("examples: turbocharging 2 on a 50,000¥ car; Datajack port on a bike; ECM 8 = 7.5M¥ (ruling 11); rigger adaptation 2,800¥ (ruling 13)", () => {
+    expect(customizationQuote(item("Turbocharging / Superconductive Drive"), 2, car()).price).toBe(110000);
+    const bike = car({ traits: vehicleTraits({ category: "bike" }) });
+    const dj = customizationQuote(item("Datajack Port"), 1, bike);
+    expect([dj.price, dj.baseTime, dj.tn]).toEqual([5000, 112, 8]);
+    const ecm = customizationQuote(item("Electronic Countermeasures (ECM)"), 8, car({ cargoFree: 99, loadFree: 999 }));
+    expect([ecm.price, ecm.cf, ecm.load, ecm.restricted, ecm.baseTime]).toEqual([7500000, 12, 150, "military", 128]);
+    expect(customizationQuote(item("Rigger Adaptation"), 1, car()).price).toBe(2800);
+    expect(customizationQuote(item("Nitrous Oxide Injectors"), 4, car()).price).toBe(3 * 3500 + 7000);
+  });
+});

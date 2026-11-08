@@ -2092,7 +2092,7 @@ export class VehicleData extends SR2EDataModel {
     const pair = this.handlingOffRoad != null;
     const base = { handling: pair ? { onRoad: this.handling, offRoad: this.handlingOffRoad } : this.handling,
       speed: this.speed, acceleration: this.acceleration, load: this.load, cargo: this.cargo, armor: this.armor,
-      signature: this.signature, economy: this.economy };
+      signature: this.signature, economy: this.economy, sensor: this.sensor, autonav: this.autonav, pilot: this.pilot };
     this.baseConverted = this.design.version !== 2 || this.design.baseVersion >= 2;
     let eff;
     if (this.baseConverted) eff = applyModEffects(base, mods, ctx).stats;
@@ -2104,7 +2104,7 @@ export class VehicleData extends SR2EDataModel {
     this.effective = {
       handling: typeof h === "object" && h !== null ? h.onRoad : h, handlingOffRoad: typeof h === "object" && h !== null ? h.offRoad : null,
       speed: eff.speed, acceleration: eff.acceleration, load: eff.load, cargo: eff.cargo, armor: eff.armor,
-      signature: eff.signature, economy: eff.economy
+      signature: eff.signature, economy: eff.economy, sensor: eff.sensor, autonav: eff.autonav, pilot: eff.pilot
     };
     // Usable Cargo and Load: the effective gross − the design options − every mod's consumption (the one capacity
     // rule, module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).

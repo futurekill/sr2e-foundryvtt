@@ -195,7 +195,9 @@ export function tireFactor(tire, family, key) {
   return 1;
 }
 
-const EFFECT_KEYS = ["handling", "handlingOff", "speed", "acceleration", "signature", "armor", "cargo", "economyMult", "speedMult"];
+const EFFECT_KEYS = ["handling", "handlingOff", "speed", "acceleration", "load", "signature", "armor", "cargo", "economyMult", "speedMult"];
+/** Absolute ratings (plan C2.6): the vehicle's rating becomes at least the mod's (Sensors, autonav, remote pilot). */
+const SET_KEYS = { sensorSet: "sensor", autonavSet: "autonav", pilotSet: "pilot" };
 
 /**
  * THE mod-effect pass (customization plan C1.2): the base stats plus every installed mod's effects (p.120–146). A
@@ -209,8 +211,13 @@ const EFFECT_KEYS = ["handling", "handlingOff", "speed", "acceleration", "signat
  */
 export function applyModEffects(base = {}, mods = [], { category = "", transport = false, build = {}, dbwSplit = null, tires = "" } = {}) {
   const problems = [];
-  const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
+  const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, load: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
   const live = mods.filter(m => modCounts(m) || modBaked(m));
+  const sets = {};
+  for (const m of live.filter(modCounts)) for (const [k, stat] of Object.entries(SET_KEYS)) {
+    const e = modEffect(m, k, { category, transport, build });
+    if (e?.value != null) sets[stat] = Math.max(sets[stat] ?? -Infinity, e.value);
+  }
   // Groups: a levels family is one group; every other item its own.
   const groups = new Map();
   live.forEach((m, i) => {
@@ -261,11 +268,12 @@ export function applyModEffects(base = {}, mods = [], { category = "", transport
   const stats = { ...base, handling,
     speed: base.speed == null ? null : pct(Math.floor((num0(base.speed) + fx.speed) * fx.speedMult), "speed"),   // floats: "round down" (p.144)
     acceleration: base.acceleration == null ? null : pct(num0(base.acceleration) + fx.acceleration, "acceleration"),
-    load: base.load == null ? null : pct(num0(base.load), "load"),
+    load: base.load == null ? null : pct(num0(base.load) + fx.load, "load"),
     cargo: num0(base.cargo) + fx.cargo,
     armor: num0(base.armor) + fx.armor,
     signature: base.signature == null ? null : num0(base.signature) + fx.signature,
     economy: base.economy == null ? null : base.economy * fx.economyMult };
+  for (const [stat, v] of Object.entries(sets)) stats[stat] = Math.max(num0(base[stat]), v);
   return { stats, fx, dbwSplit: split, problems, tire };
 }
 
@@ -324,8 +332,11 @@ export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad 
     const custom = ["parts", "tested", "done"].includes(m.custom?.state ?? "");
     const f = m.custom?.formulas ?? {};
     const at = { ...m, rating: R };
-    const cf = custom && f.cf != null && f.cf !== "" ? (evalExpr(String(f.cf), modVars(at, build)) ?? 0) : modCf(at, build);
-    const ld = custom && f.load != null && f.load !== "" ? (evalExpr(String(f.load), modVars(at, build)) ?? 0) : modLoad(at, build);
+    const row = custom && f.set ? (m.custom?.market ?? [])[Math.max(1, Math.min(R, (m.custom?.market ?? []).length)) - 1] ?? {} : {};
+    const cf = custom && row.cf != null ? (R > 0 ? num0(row.cf) : 0)
+      : custom && f.cf != null && f.cf !== "" ? (evalExpr(String(f.cf), modVars(at, build)) ?? 0) : modCf(at, build);
+    const ld = custom && row.load != null ? (R > 0 ? num0(row.load) : 0)
+      : custom && f.load != null && f.load !== "" ? (evalExpr(String(f.load), modVars(at, build)) ?? 0) : modLoad(at, build);
     return { cf, ld };
   };
   let modsCf = 0, modsLoad = 0;

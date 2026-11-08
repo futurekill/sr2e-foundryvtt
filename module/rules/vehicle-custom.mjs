@@ -60,9 +60,11 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
   const problems = [];
   const traits = v.traits ?? new Set();
   const key = familyOf(m);
-  const rated = (m.custom?.max && Object.keys(m.custom.max).length) || /R/.test(Object.values(m.custom?.formulas ?? {}).join(" "));
+  // A rating-table item (autonav, sensors, ECM…: formulas.set) is bought AT a rating: R is that rating, nothing stacks.
+  const set = !!m.custom?.formulas?.set;
+  const rated = set || (m.custom?.max && Object.keys(m.custom.max).length) || /R/.test(Object.values(m.custom?.formulas ?? {}).join(" "));
   const R = rated ? Math.max(1, Math.floor(num0(levels))) : 1;
-  const R0 = familyLevels(v.items ?? [], key, v.synthetic?.[key] ?? 0);
+  const R0 = set ? 0 : familyLevels(v.items ?? [], key, v.synthetic?.[key] ?? 0);
   const R1 = R0 + R;
   const eff = v.effective ?? {};
   const vars = { R, R0, R1, B: num0(v.body), P: num0(v.pilot), C: num0(v.chassisDP), E: num0(v.plantDP),
@@ -80,11 +82,13 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
   };
 
   if (m.custom?.customizable === false) problems.push("it can only be installed during design");
-  const price = ev("partsCost");
-  if (price.f == null) problems.push("it has no customization price");
-  const tn = ev("tn"), base = ev("baseTime");
-  const cf = ev("cf"), load = ev("load");
   const row = marketRow(m, R1);
+  if (set && R > (m.custom?.market?.length ?? 0)) problems.push(`it comes in ratings 1–${m.custom?.market?.length ?? 0}`);
+  const fromRow = (k, e) => e.f == null && row[k] != null ? { f: String(row[k]), value: num0(row[k]) } : e;
+  const price = fromRow("cost", ev("partsCost"));
+  if (price.f == null) problems.push("it has no customization price");
+  const tn = ev("tn"), base = fromRow("baseTime", ev("baseTime"));
+  const cf = fromRow("cf", ev("cf")), load = fromRow("load", ev("load"));
   if (row.restricted === "unavailable") problems.push("it isn't available");
 
   // The maximum, on the family total (p.120).
@@ -111,7 +115,7 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
   const procedure = m.custom?.procedure || "test";
   return { ok: problems.length === 0, problems, price: price.value == null ? null : Math.round(price.value * 100) / 100,
     availability: row.availability ?? "", streetIndex: row.streetIndex ?? null, restricted: row.restricted ?? "",
-    tn: tn.value, baseTime: base.value, baseUnit: m.custom?.formulas?.baseUnit || "hours", procedure,
+    tn: tn.value, baseTime: base.value, baseUnit: row.baseUnit || m.custom?.formulas?.baseUnit || "hours", procedure,
     fixedHours: num0(m.custom?.fixedHours), skills: [...(m.custom?.skills ?? [])], combine: m.custom?.combine || "lowest",
     equipment: m.custom?.equipment ?? "", cf: needCf, load: needLoad, R, R0, R1 };
 }

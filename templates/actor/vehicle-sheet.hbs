@@ -77,14 +77,17 @@
       <div class="stat-item">
         <label>Pilot</label>
         <input type="number" name="system.pilot" value="{{system.pilot}}" />
+        {{#if (ne system.effective.pilot system.pilot)}}<span class="stat-effective" title="With its modifications (base {{system.pilot}})">→ {{system.effective.pilot}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Sensor</label>
         <input type="number" name="system.sensor" value="{{system.sensor}}" />
+        {{#if (ne system.effective.sensor system.sensor)}}<span class="stat-effective" title="With its modifications (base {{system.sensor}})">→ {{system.effective.sensor}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Autonav</label>
         <input type="number" name="system.autonav" value="{{system.autonav}}" />
+        {{#if (ne system.effective.autonav system.autonav)}}<span class="stat-effective" title="With its modifications (base {{system.autonav}})">→ {{system.effective.autonav}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label title="Cargo Factor. The number after the arrow is what's still free once design options and every modification take their share (Rigger 2 p.113, p.115).">Cargo (CF)</label>
