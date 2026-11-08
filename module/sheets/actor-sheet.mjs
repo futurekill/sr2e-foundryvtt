@@ -2079,6 +2079,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       .map(i => ({ id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) }));
     context.tabs = this._getTabs();
     context.design = this._prepareDesign();
+    context.tireChoices = this.document.system.schema.fields.tires.choices;
     context.baseConvert = game.user.isGM && !this.document.system.baseConverted ? this.document.getFlag("sr2e", "baseConvert") : null;
     return context;
   }

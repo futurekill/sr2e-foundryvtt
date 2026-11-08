@@ -304,6 +304,20 @@ describe("one capacity rule and build-relative mod costs", () => {
     expect(applyModEffects(base, [dbw(1, {}), { ...dbw(1, {}), custom: { state: "factory" } }], { category: "car" }).stats.acceleration).toBe(10);
   });
 
+  it("ruling 14: tires (p.146) — standard halve suspension/Handling mods, the book's assumed tires, the wrong tires", () => {
+    const base = { handling: { onRoad: 6, offRoad: 8 }, speed: 100, acceleration: 10, load: 100, cargo: 3, armor: 0, signature: 2, economy: 6 };
+    const imp = { name: "Improved Suspension", modKey: "improved-suspension", rating: 2, effects: { handling: "-R" } };
+    const ors = { name: "Off-Road Suspension", modKey: "off-road-suspension", rating: 2, effects: { handling: "R", handlingOff: "-R" } };
+    const h = (mods, tires) => applyModEffects(base, mods, { category: "car", tires }).stats.handling;
+    expect(h([imp], "")).toEqual({ onRoad: 4, offRoad: 8 });            // assumed dual-purpose: full −2
+    expect(h([imp], "standard")).toEqual({ onRoad: 5, offRoad: 8 });    // halved: −1
+    expect(h([imp], "offRoad")).toEqual({ onRoad: 6, offRoad: 8 });     // negated on-road
+    expect(h([ors], "")).toEqual({ onRoad: 8, offRoad: 6 });            // off-road tires assumed: full
+    expect(h([ors], "performance")).toEqual({ onRoad: 8, offRoad: 8 }); // negated off-road; the on-road cost stays
+    // Boats have no tires: control surfaces work in full.
+    expect(applyModEffects({ ...base, handling: 4 }, [{ name: "CS", modKey: "improved-control-surfaces", rating: 2, effects: { handling: "-R" } }], { category: "boat", tires: "standard" }).stats.handling).toBe(2);
+  });
+
   it("code review R3 round 2: one effect resolver (category override, legacy Rating) for the engine and the sheet", () => {
     const catMod = { name: "X", rating: 1, effects: { armor: "R", "armor@car": "2 x R" } };
     const legacy = { name: "Old armor", rating: 1, modType: "armor" };

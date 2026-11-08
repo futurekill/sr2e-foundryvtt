@@ -16,6 +16,10 @@
   the GM chooses on its sheet: **Reapply the design**, or **Keep as edited** (it becomes a production vehicle with its
   current stats; its design modifications become factory equipment).
 - Drive-by-wire's +10% split is stored on the drive-by-wire item.
+- **Tires** (Rigger 2 p.146): a vehicle has a tire type (Workshop option and vehicle sheet). Standard tires halve
+  suspension and Handling modifications, performance tires don't work off-road with an off-road suspension, off-road
+  tires cancel improved suspension and drive-by-wire on the road; left unset, a vehicle has the tires the book
+  assumes (dual-purpose with drive-by-wire or improved suspension).
 
 ## 0.143.0 — 2026-11-07
 

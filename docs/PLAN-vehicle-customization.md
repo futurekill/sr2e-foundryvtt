@@ -30,6 +30,15 @@ modification. Design (Design Points) stays the Workshop's design mode.
 8. Engine customization's "original power plant cost" (p.120) = plant Design Points × the vehicle's Mark-Up × 100¥
    for a Workshop design; for a production vehicle the GM enters it once.
 9. Engine-failure Stress (p.120 / p.25) = Phase 2.
+11. ECM / ECCM / Sensor level-8 customization costs printed "7.5¥", "2.5¥", "1.25¥" are millions (7.5M¥ …).
+12. ECCM levels 1 and 3 (110,000¥, 350,000¥) stay as printed.
+13. Rigger adaptation's parts cost is 2,800¥ (the stray second "2,500¥" line is ignored).
+14. **Tires are modelled** (p.146; added to C1 after sign-off): a vehicle's tire type (`system.tires`, "" = as the
+    book assumes: dual-purpose with drive-by-wire / improved suspension, off-road tires with only off-road suspension,
+    else standard). Standard tires halve (round down) suspension/Handling mod effects; performance tires negate
+    off-road suspension off-road; off-road tires negate improved suspension / DBW on-road and halve them off-road;
+    dual-purpose run all. Wheeled ground vehicles only (`tireFactor`, vehicle-design.mjs). C3 checks the required
+    tires when such a mod is bought.
 10. Several skills without a printed combination rule: time = base time ÷ the **lowest** success count among the tests
     (each must succeed). Drive-by-wire sums (p.124).
 

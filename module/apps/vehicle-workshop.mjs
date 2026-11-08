@@ -246,6 +246,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
         row: this.tables.fuel?.[pp.engine] },
       signature: { levels: num(d.signature), value: r.stats.signature },
       smartMaterials: !!d.smartMaterials,
+      tires: { has: ["bike", "car"].includes(ch.category), value: d.tires ?? "", fitted: r.tire ?? null },
       takeoff: { allowed: ch.category === "fixedWing", value: d.takeoff },
       hydrofoil: { allowed: ch.category === "boat" && ch.subtype !== "skiff" && pp.engine !== "sail", value: !!d.hydrofoil },
       amenities: d.amenities, medical: num(d.medicalPatients), agility: num(d.structuralAgility),
@@ -508,7 +509,7 @@ export function workshopUpdate(design, r, ch, pp, name) {
     "system.fuelType": String(s.fuelType ?? ""), "system.fuelSize": num(s.fuelSize), "system.fuelUnit": String(s.fuelUnit ?? ""),
     "system.otherFeatures": (s.accessories ?? []).join(", "),
     "system.designPointValue": num(r.dp), "system.cost": num(r.price),
-    "system.design.version": 2, "system.design.baseVersion": 2, "system.design.category": ch.category ?? "", "system.design.transport": isTransport(ch), "system.design.chassisKey": design.chassisKey, "system.design.powerPlantKey": design.powerPlantKey,
+    "system.design.version": 2, "system.design.baseVersion": 2, "system.tires": String(design.tires ?? ""), "system.design.category": ch.category ?? "", "system.design.transport": isTransport(ch), "system.design.chassisKey": design.chassisKey, "system.design.powerPlantKey": design.powerPlantKey,
     "system.design.choices": foundry.utils.deepClone(design),
     "system.design.optionCf": num(r.options?.cf), "system.design.optionLoad": num(r.options?.load), "system.design.restrictedCf": num(r.options?.restrictedCf)
   };

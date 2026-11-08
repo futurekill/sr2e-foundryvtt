@@ -157,6 +157,31 @@ export const familyLevels = (mods, key) => mods.filter(m => (m.modKey || m.key) 
 export const modCounts = (m) => { const st = m.custom?.state ?? m.state ?? ""; return st === "" || st === "done"; };
 export const modBaked = (m) => (m.custom?.state ?? m.state) === "factory";
 
+/**
+ * Tires (p.146; ruling 14). Standard tires halve (round down) the effect of any suspension or Handling modification;
+ * performance tires suit improved suspension and drive-by-wire but negate off-road suspension off-road; off-road tires
+ * suit off-road suspension but negate improved suspension / drive-by-wire on-road (and halve them off-road, "as
+ * standard tires"); dual-purpose tires run everything. Unset ("auto"): a vehicle with improved suspension or
+ * drive-by-wire is assumed to have dual-purpose tires (p.146), one with only off-road suspension off-road tires (it
+ * requires them), anything else standard. Only wheeled ground vehicles (bikes, cars) have tires.
+ */
+export const TIRE_FAMILIES = new Set(["drive-by-wire", "improved-suspension", "off-road-suspension"]);
+export function tireType(tires, keys, category) {
+  if (!["bike", "car"].includes(category)) return null;
+  if (tires) return tires;
+  if (keys.has("drive-by-wire") || keys.has("improved-suspension")) return "dualPurpose";
+  return keys.has("off-road-suspension") ? "offRoad" : "standard";
+}
+export function tireFactor(tire, family, key) {
+  if (!tire || !TIRE_FAMILIES.has(family) || !["handling", "handlingOff"].includes(key)) return 1;
+  const offRoadSusp = family === "off-road-suspension";
+  if (tire === "dualPurpose") return 1;
+  if (tire === "standard") return 0.5;
+  if (tire === "performance") return offRoadSusp && key === "handlingOff" ? 0 : 1;
+  if (tire === "offRoad") return offRoadSusp ? 1 : key === "handling" ? 0 : 0.5;
+  return 1;
+}
+
 const EFFECT_KEYS = ["handling", "handlingOff", "speed", "acceleration", "signature", "armor", "cargo", "economyMult", "speedMult"];
 
 /**
@@ -169,7 +194,7 @@ const EFFECT_KEYS = ["handling", "handlingOff", "speed", "acceleration", "signat
  * @param {object[]} mods  mod system data (+ name, modKey, rating, custom.state, design)
  * @param {object} ctx  { category, transport, build, dbwSplit (fallback split when the DBW item has none) }
  */
-export function applyModEffects(base = {}, mods = [], { category = "", transport = false, build = {}, dbwSplit = null } = {}) {
+export function applyModEffects(base = {}, mods = [], { category = "", transport = false, build = {}, dbwSplit = null, tires = "" } = {}) {
   const problems = [];
   const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
   const live = mods.filter(m => modCounts(m) || modBaked(m));
@@ -181,6 +206,8 @@ export function applyModEffects(base = {}, mods = [], { category = "", transport
     groups.get(key).push(m);
   });
   const evalAt = (m, k, R) => modEffect({ ...m, rating: R }, k, { category, transport, build });
+  const familyOf = (m) => m.modKey || m.key || (/off-?road suspension/i.test(m.name ?? "") ? "off-road-suspension" : "");
+  const tire = tireType(tires, new Set(live.filter(modCounts).map(familyOf).filter(Boolean)), category);
   let armorTotal = 0, armorBaked = 0;
   for (const items of groups.values()) {
     const rep = items[0];
@@ -194,7 +221,8 @@ export function applyModEffects(base = {}, mods = [], { category = "", transport
       const eB = baked || allBaked ? evalAt(rep, k, allBaked ? total : baked) : null;
       const vB = eB?.value ?? (k.endsWith("Mult") ? 1 : 0);
       if (k === "armor") { armorTotal += eT.value; armorBaked += vB; }
-      if (k.endsWith("Mult")) fx[k] *= vB ? eT.value / vB : eT.value; else fx[k] += eT.value - vB;
+      if (k.endsWith("Mult")) fx[k] *= vB ? eT.value / vB : eT.value;
+      else fx[k] += Math.trunc((eT.value - vB) * tireFactor(tire, familyOf(rep), k));   // halved effects round down (p.146)
     }
   }
   // Drive-by-wire: ONE +10% (never per level, never twice), split among Acceleration / Speed / Load in whole percents.
@@ -225,7 +253,7 @@ export function applyModEffects(base = {}, mods = [], { category = "", transport
     armor: num0(base.armor) + fx.armor,
     signature: base.signature == null ? null : num0(base.signature) + fx.signature,
     economy: base.economy == null ? null : base.economy * fx.economyMult };
-  return { stats, fx, dbwSplit: split, problems };
+  return { stats, fx, dbwSplit: split, problems, tire };
 }
 
 const AIRCRAFT = new Set(["fixedWing", "rotor", "vector"]);
@@ -509,7 +537,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     acceleration: accel.value, load: load.value, cargo, armor: num0(cell(ch.armor)), signature, economy,
     sensor: cell(ch.sensor), autonav: cell(ch.autonav), pilot: cell(ch.pilot) };
   const eff = applyModEffects(baseStats, mods.filter(m => m.design !== false),
-    { category: cat, transport: isTransport(ch), build, dbwSplit: design.dbwSplit });
+    { category: cat, transport: isTransport(ch), build, dbwSplit: design.dbwSplit, tires: design.tires ?? "" });
   for (const p of eff.problems) problem(p.code, p.msg, p.page);
   // Turbocharging in design: no further than the plant's maximum Speed × 1.25 (rounded down), but always 1 level (p.122).
   const turbo = familyLevels(mods.filter(m => m.design !== false), "turbocharging");
@@ -517,7 +545,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     problem("turboMax", `Turbocharging can raise Speed only to ${Math.floor(speed.max * 1.25)} (the maximum × 1.25), or by 1 level.`, "p.122");
   handling = eff.stats.handling; speed.value = eff.stats.speed; accel.value = eff.stats.acceleration; load.value = eff.stats.load;
   economy = eff.stats.economy;
-  const sigFinal = eff.stats.signature, dbwSplit = eff.dbwSplit, fx = { cargo: eff.stats.cargo - cargo };
+  const sigFinal = eff.stats.signature, dbwSplit = eff.dbwSplit, fx = { cargo: eff.stats.cargo - cargo }, tire = eff.tire;
 
   const cargoFinal = cargo + fx.cargo;
   const cap = vehicleCapacity({ cargo: cargoFinal, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf }, mods, build);
@@ -537,7 +565,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   return { valid: problems.length === 0, problems, dpLines: lines, dp, stats,
     limits: { speed: speed.max, acceleration: accel.max, load: load.max, cargo: cargoMax, economy: ecoMax },
     options: { cf: Math.round(optCf * 100) / 100, load: optLoad, restrictedCf },
-    budgets: cap, markUp, designNuyen, optionStats, baseStats,
+    budgets: cap, markUp, designNuyen, optionStats, baseStats, tire,
     // Design Points × Mark-Up × 100, plus what design-installed tires and the like cost in ¥ (p.115, p.146).
     price: designPrice(dp, markUp.total, num0(design.markUp?.round)) + designNuyen };
 }

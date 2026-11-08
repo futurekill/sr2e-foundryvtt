@@ -135,6 +135,17 @@
       <div class="ws-grid">
         <label class="ws-check" title="p.117: 100 DP; Handling −1, a +1 on Stress Tests, maxima ×1.15, Mark-Up +0.5, Availability +4">
           <input type="checkbox" data-field="smartMaterials" {{#if optionsStep.smartMaterials}}checked{{/if}} /> Smart materials <span class="ws-muted">100 DP</span></label>
+        {{#if optionsStep.tires.has}}
+        <label class="ws-check" title="p.146: standard tires halve suspension and Handling modifications; performance tires suit improved suspension and drive-by-wire; off-road tires suit off-road suspension; dual-purpose suit all. Special tires are paid in ¥.">
+          Tires
+          <select data-field="tires">
+            <option value="" {{#unless optionsStep.tires.value}}selected{{/unless}}>As the book assumes{{#if optionsStep.tires.fitted}} ({{optionsStep.tires.fitted}}){{/if}}</option>
+            <option value="standard" {{#if (eq optionsStep.tires.value "standard")}}selected{{/if}}>Standard</option>
+            <option value="performance" {{#if (eq optionsStep.tires.value "performance")}}selected{{/if}}>Performance</option>
+            <option value="offRoad" {{#if (eq optionsStep.tires.value "offRoad")}}selected{{/if}}>Off-road</option>
+            <option value="dualPurpose" {{#if (eq optionsStep.tires.value "dualPurpose")}}selected{{/if}}>Dual-purpose</option>
+          </select></label>
+        {{/if}}
         <label class="ws-check {{#unless optionsStep.takeoff.allowed}}ws-off{{/unless}}" title="p.116: fixed-wing aircraft only">
           Takeoff/landing
           <select data-field="takeoff" {{#unless optionsStep.takeoff.allowed}}disabled{{/unless}}>

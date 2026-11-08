@@ -43,6 +43,10 @@
         {{#if (ne system.effective.handlingOffRoad system.handlingOffRoad)}}<span class="stat-effective" title="With its modifications (base {{system.handlingOffRoad}})">→ {{system.effective.handlingOffRoad}}</span>{{/if}}
       </div>
       <div class="stat-item">
+        <label title="Rigger 2 p.146: standard tires halve suspension and Handling modifications">Tires</label>
+        <select name="system.tires">{{selectOptions tireChoices selected=system.tires}}</select>
+      </div>
+      <div class="stat-item">
         <label>Speed</label>
         <input type="number" name="system.speed" value="{{system.speed}}" />
         {{#if (ne system.effective.speed system.speed)}}<span class="stat-effective" title="With its modifications (base {{system.speed}})">→ {{system.effective.speed}}</span>{{/if}}

@@ -1984,6 +1984,9 @@ export class NPCData extends SR2EDataModel {
 /**
  * Data model for Vehicles.
  */
+/** A production vehicle's body category from its driving skill (customization plan C2.8; tires need bike/car). */
+const CATEGORY_BY_SKILL = { bike: "bike", car: "car", hovercraft: "hovercraft", motorboat: "boat", sailboat: "boat", rotor: "rotor", winged: "fixedWing", vectorThrust: "vector" };
+
 export class VehicleData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
@@ -2047,6 +2050,8 @@ export class VehicleData extends SR2EDataModel {
       }),
       // The Rigger 2 stat line (p.148 format) beyond the ratings above. All additive: nothing existing changes meaning.
       handlingOffRoad: new fields.NumberField({ integer: true, initial: null, nullable: true, min: 0 }),
+      // Tires (Rigger 2 p.146): "" = as the book assumes (dual-purpose with drive-by-wire / improved suspension, else standard).
+      tires: new fields.StringField({ initial: "", blank: true, choices: { "": "As fitted (book default)", standard: "Standard", performance: "Performance", offRoad: "Off-road", dualPurpose: "Dual-purpose" } }),
       stallSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       economy: new fields.NumberField({ initial: 0, min: 0 }),
       economyUnit: new fields.StringField({ initial: "", blank: true }),
@@ -2076,7 +2081,8 @@ export class VehicleData extends SR2EDataModel {
     // (design.baseVersion < 2) still has its design mods baked in, so only Armor/Signature are added, as before.
     const items = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod");
     const build = { body: this.body, pilot: this.pilot };
-    const ctx = { category: this.design.category, transport: this.design.transport, build };
+    const ctx = { category: this.design.category || CATEGORY_BY_SKILL[this.skill] || (this.vehicleType === "ground" ? "car" : ""),
+      transport: this.design.transport, build, tires: this.tires };
     const mods = items.map(i => ({ ...i.system, name: i.name, designMod: !!i.flags?.sr2e?.designMod }));
     const pair = this.handlingOffRoad != null;
     const base = { handling: pair ? { onRoad: this.handling, offRoad: this.handlingOffRoad } : this.handling,
