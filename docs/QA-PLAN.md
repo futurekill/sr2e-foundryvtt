@@ -1077,4 +1077,12 @@ If those five all work, the core loop is healthy.
       "Create New Actors" gets a warning, nothing is created.
 - [ ] A production vehicle (no design) → Workshop → save: the confirmation lists the changed stats; Cancel changes
       nothing.
+- [ ] **Customization C1:** drag Rigger 2's Turbocharging onto a production car (rating 1): the sheet shows "Speed
+      100 → 115", "Accel → +10", "Signature → −1"; a Handling Test uses the modified Handling; the character's Vehicles
+      tab shows the modified stats. Delete it: back to the printed stats.
+- [ ] A vehicle designed in 0.143.0 (Workshop) loads in 0.144.0 with the same stats it showed before; its sheet's
+      Handling/Speed boxes now hold the design-option values and the arrows show the modified ones.
+- [ ] Edit such a vehicle's Speed by hand in 0.143.0, then load 0.144.0 as GM: a notice on its sheet lists the
+      difference; "Keep as edited" keeps its stats and free Cargo/Load and makes its design mods factory equipment;
+      "Reapply the design" restores the design's stats.
 

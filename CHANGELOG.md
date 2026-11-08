@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Modifications change a vehicle's stats on its sheet, wherever they came from** (vehicle customization, release 1;
+  docs/PLAN-vehicle-customization.md): a turbocharger, drive-by-wire, suspension, armor and so on added to an existing
+  vehicle now raise its Speed, Acceleration, lower its Handling, etc. exactly as Rigger 2 prints (p.120–146), not just
+  its Armor and Signature. The sheet shows the stored stat and, beside it, the stat with the modifications; vehicle
+  tests, ramming (both vehicles), the test dialog and a character's Vehicles tab use the modified stats.
+
+### Changed
+- A vehicle stores its stats WITHOUT its modifications; every installed mod's effect is worked out on top, by the
+  same rule the Workshop uses. Vehicles saved by the 0.143.0 Workshop are converted automatically when the GM loads
+  the world (with the Rigger 2 module on). One whose stats were edited after it was designed is left as it was until
+  the GM chooses on its sheet: **Reapply the design**, or **Keep as edited** (it becomes a production vehicle with its
+  current stats; its design modifications become factory equipment).
+- Drive-by-wire's +10% split is stored on the drive-by-wire item.
+
 ## 0.143.0 — 2026-11-07
 
 ### Added

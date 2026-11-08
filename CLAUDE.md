@@ -211,8 +211,12 @@ Vehicle design (docs/PLAN-vehicle-builder.md, in progress): `module/rules/vehicl
 Rigger 2 design rules live (pure; `designVehicle` + the shared `vehicleCapacity` the data model also calls: usable
 cargo/load = gross − design options − every mod). Vehicles store GROSS Cargo/Load. Rulings: Acceleration 2 DP/pt; the
 Handling floor binds the final rating incl. Smart Materials; CF fractional. The Workshop
-(`module/apps/vehicle-workshop.mjs`, release 3) is the only designer: it saves BASE stats (gross Cargo/Load, Armor and
-Signature WITHOUT the design mods' `modEffects`, because `VehicleData` adds every mod's own once) and owns only the
+(`module/apps/vehicle-workshop.mjs`, release 3) is the only designer: it saves BASE stats (`designVehicle().baseStats`:
+design options only, no mod effect; gross Cargo/Load). EVERY installed mod's effects are derived on top by ONE pass,
+`applyModEffects` (customization plan C1, docs/PLAN-vehicle-customization.md), into `VehicleData.effective` — readers
+use `effective*`, never the stored stats. Item `custom.state`: "" / "done" installed, "factory" already in the base,
+"parts" / "tested" not working yet, "removed" gone. A 0.143.0 design (`design.baseVersion` < 2) is converted by
+`module/vehicle-base.mjs`'s pending pass; until then only Armor/Signature are added. The Workshop and owns only the
 mod items flagged `flags.sr2e.designMod`; unflagged mods are customizations it never edits or deletes. Mod stat
 effects in design are `VehicleModData.effects` formulas; option steppers read `optionStats` (options only), never the
 mod-adjusted stats.
