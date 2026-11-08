@@ -2043,6 +2043,9 @@ export class VehicleData extends SR2EDataModel {
         // The chassis' category and whether it's a transport/tractor, for mods' per-category effects (modEffect).
         category: new fields.StringField({ initial: "", blank: true }),
         transport: new fields.BooleanField({ initial: false }),
+        // Classification traits for per-class customization values (plan C2.8): drone, transport, tractor, truck,
+        // zeppelin, electricAircraft. The Workshop writes them; the GM ticks them on a production vehicle.
+        traits: new fields.ArrayField(new fields.StringField(), { initial: [] }),
         // The design options' fixed consumption (fuel tank, hydrofoil, amenities, medical gear), for the capacity rule.
         optionCf: new fields.NumberField({ initial: 0, min: 0 }),
         optionLoad: new fields.NumberField({ initial: 0, min: 0 }),
@@ -2051,6 +2054,8 @@ export class VehicleData extends SR2EDataModel {
       // The Rigger 2 stat line (p.148 format) beyond the ratings above. All additive: nothing existing changes meaning.
       handlingOffRoad: new fields.NumberField({ integer: true, initial: null, nullable: true, min: 0 }),
       // Tires (Rigger 2 p.146): "" = as the book assumes (dual-purpose with drive-by-wire / improved suspension, else standard).
+      // A production vehicle's power plant cost in ¥, entered by the GM (engine customization parts, R2 p.120; ruling 8).
+      plantCost: new fields.NumberField({ initial: null, nullable: true, min: 0 }),
       tires: new fields.StringField({ initial: "", blank: true, choices: { "": "As fitted (book default)", standard: "Standard", performance: "Performance", offRoad: "Off-road", dualPurpose: "Dual-purpose" } }),
       stallSpeed: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       economy: new fields.NumberField({ initial: 0, min: 0 }),

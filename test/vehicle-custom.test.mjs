@@ -1,0 +1,73 @@
+// Vehicle customization (Rigger 2 p.118–146; docs/PLAN-vehicle-customization.md): quotes, maxima, time, capacity.
+import { describe, it, expect } from "vitest";
+import { customizationQuote, installTime, vehicleTraits, specFormula, installSkills } from "../module/rules/vehicle-custom.mjs";
+import { vehicleCapacity } from "../module/rules/vehicle-design.mjs";
+
+const car = (extra = {}) => ({ traits: vehicleTraits({ category: "car" }), body: 3, cost: 50000, plantCost: null,
+  effective: { handling: 4, handlingOffRoad: 8, armor: 0, speed: 160 }, speedPreTurbo: 160, items: [], cargoFree: 10, loadFree: 500, ...extra });
+const turbo = { name: "Turbocharging", modKey: "turbocharging", stack: "levels", effects: { speed: "15 x R" },
+  custom: { formulas: { partsCost: "V x 1.1 x R", tn: "R1 + 2", "tn@drone": "R1 + 3", "tn@hovercraft": "R1 + 3", baseTime: "8 x R" },
+    max: { basis: "stat:speed", value: "S0 x 1.5", round: "down", minOneLevel: true }, market: [{ availability: "6/12 days", streetIndex: 1.5 }],
+    skills: ["vehicleBR"], equipment: "Vehicle facility" } };
+
+describe("customization quotes (p.119–146)", () => {
+  it("turbocharging: ¥ = original cost × 1.1 per level; TN = levels + 2 (ground), + 3 (drones); time 8 h per level (p.122)", () => {
+    const q = customizationQuote(turbo, 2, car());
+    expect([q.ok, q.price, q.tn, q.baseTime, q.availability, q.streetIndex]).toEqual([true, 110000, 4, 16, "6/12 days", 1.5]);
+    const drone = customizationQuote(turbo, 1, car({ traits: vehicleTraits({ category: "car", drone: true }) }));
+    expect(drone.tn).toBe(4);
+  });
+  it("the maximum counts the levels already there, design included (p.120); turbo up to Speed × 1.5, always 1 level", () => {
+    const have = [{ ...turbo, rating: 3, custom: { ...turbo.custom, state: "" } }];
+    // 160 × 1.5 = 240: 3 + 2 = 5 levels → 160 + 75 = 235 fits; 3 + 3 = 6 → 250 doesn't.
+    expect(customizationQuote(turbo, 2, car({ items: have })).ok).toBe(true);
+    expect(customizationQuote(turbo, 3, car({ items: have })).problems.join()).toMatch(/maximum is 240/);
+    // A slow vehicle (Speed 20: × 1.5 = 30) can still take one level (+15 → 35).
+    expect(customizationQuote(turbo, 1, car({ speedPreTurbo: 20, effective: { speed: 20 } })).ok).toBe(true);
+  });
+  it("an unknown input blocks the purchase, never 0: engine customization needs the power plant cost (ruling 8)", () => {
+    const ec = { name: "Engine Customization (Speed)", modKey: "engine-custom-speed", custom: { formulas: { partsCost: "N x (1.25 + 0.15 x R0) x R" } } };
+    expect(customizationQuote(ec, 1, car()).problems.join()).toMatch(/power plant cost/);
+    expect(customizationQuote(ec, 1, car({ plantCost: 20000 })).price).toBe(25000);
+  });
+  it("per-class prices: off-road suspension cars × 1.35, bikes × 1.2, transports/tractors × 1.5 (p.125)", () => {
+    const ors = { name: "Off-Road Suspension", modKey: "off-road-suspension", custom: { formulas: { partsCost: "V x 1.35 x R", "partsCost@bike": "V x 1.2 x R", "partsCost@transport": "V x 1.5 x R", "partsCost@tractor": "V x 1.5 x R" } } };
+    expect(customizationQuote(ors, 1, car()).price).toBe(67500);
+    expect(customizationQuote(ors, 1, car({ traits: vehicleTraits({ category: "car", transport: true }) })).price).toBe(75000);
+    expect(specFormula(ors, "partsCost", vehicleTraits({ category: "bike" }))).toBe("V x 1.2 x R");
+  });
+  it("room: CF and Load must be free (p.118); a design-only mod can't be customized", () => {
+    const c = { name: "Crane", custom: { formulas: { partsCost: "100", cf: "35" } } };
+    expect(customizationQuote(c, 1, car()).problems.join()).toMatch(/needs 35 CF/);
+    expect(customizationQuote({ name: "SA", custom: { customizable: false, formulas: { partsCost: "1" } } }, 1, car()).ok).toBe(false);
+  });
+  it("armor's TN uses the DESIRED rating: A1 = current Armor + the points added (p.127)", () => {
+    const armor = { name: "Concealed Armor", modKey: "concealed-armor", effects: { armor: "R" }, custom: { formulas: { partsCost: "2000 x R", tn: "ceil(A1 / 3)" } } };
+    expect(customizationQuote(armor, 4, car({ effective: { armor: 3, speed: 160 } })).tn).toBe(3);   // 7 ÷ 3 rounded up
+  });
+});
+
+describe("installation (p.118, p.124; ruling 10)", () => {
+  it("time = base ÷ successes; several tests: the lowest count, drive-by-wire sums; a failed test, no time", () => {
+    expect(installTime(80, [{ successes: 4 }])).toBe(20);
+    expect(installTime(480, [{ successes: 2 }, { successes: 3 }, { successes: 1 }])).toBe(480);
+    expect(installTime(480, [{ successes: 2 }, { successes: 3 }, { successes: 1 }], "sum")).toBe(80);
+    expect(installTime(80, [{ successes: 2 }, { successes: 0 }])).toBeNull();
+  });
+  it("skill tokens map to the vehicle's B/R skill", () => {
+    expect(installSkills(["vehicleBR", "electronicsBR"], vehicleTraits({ category: "boat" }))).toEqual(["Boats (B/R)", "Electronics (B/R)"]);
+    expect(installSkills(["vehicleBR"], vehicleTraits({ category: "rotor" }))).toEqual(["Aircraft (B/R)"]);
+  });
+});
+
+describe("capacity by origin (plan C2.4)", () => {
+  it("a customized item uses its customization CF; a levels family's fixed part counts once", () => {
+    const concealed = (R, state) => ({ name: "Concealed", modKey: "concealed-armor", stack: "levels", rating: R, cfPerLevel: 2, custom: { state, formulas: { cf: "3 x R" } } });
+    // design 2 points × 2 CF + customized 1 point × 3 CF = 7 (p.127)
+    expect(vehicleCapacity({ cargo: 20 }, [concealed(2, ""), concealed(1, "done")]).cfUsed).toBe(7);
+    const nitro = (R, state) => ({ name: "Nitrous", modKey: "nitrous", stack: "levels", rating: R, cfConsumed: 1.5, custom: { state, formulas: { cf: "2" } } });
+    // design nitrous 1.5 CF (fixed) + a customized level: fixed part once, per-level 0 → 1.5
+    expect(vehicleCapacity({ cargo: 20 }, [nitro(2, ""), nitro(1, "done")]).cfUsed).toBe(1.5);
+    expect(vehicleCapacity({ cargo: 20 }, [nitro(1, "done")]).cfUsed).toBe(2);   // customized first: 2 CF (p.121)
+  });
+});

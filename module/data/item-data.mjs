@@ -1417,7 +1417,23 @@ export class VehicleModData extends SR2EDataModel {
       // drive-by-wire's +10% split { acceleration, speed, load }.
       custom: new fields.SchemaField({
         state: new fields.StringField({ initial: "", blank: true }),
-        choice: new fields.ObjectField({ initial: {} })
+        choice: new fields.ObjectField({ initial: {} }),
+        // Customization Specifications (Rigger 2 p.119–146; plan C2.2). `formulas`: partsCost, tn, baseTime, cf, load
+        // (cf/load absent = as in design, "0" = none), each optionally per vehicle trait as "key@trait" (bike, car,
+        // drone, transport, tractor, truck, zeppelin, electricAircraft…), over R R0 R1 B P C E EDP EY V N H HO A0 A1 S0 S.
+        customizable: new fields.BooleanField({ initial: true }),
+        formulas: new fields.ObjectField({ initial: {} }),
+        // Availability / Street Index per rating (row i = rating i+1; one row = every rating); restricted: "" |
+        // "military" | "unavailable" (no Street Index: not on the street).
+        market: new fields.ArrayField(new fields.ObjectField(), { initial: [] }),
+        // { basis: "rating" | "stat:<key>", value (formula), round: "down" | "up", minOneLevel } — on the family total.
+        max: new fields.ObjectField({ initial: {} }),
+        procedure: new fields.StringField({ initial: "test", blank: true }),   // "test" | "fixed" (ablative armor)
+        fixedHours: new fields.NumberField({ initial: 0, min: 0 }),
+        skills: new fields.ArrayField(new fields.StringField(), { initial: [] }),   // vehicleBR, computerBR, electronicsBR…
+        combine: new fields.StringField({ initial: "lowest", blank: true }),        // ruling 10; "sum" (drive-by-wire p.124)
+        equipment: new fields.StringField({ initial: "", blank: true }),
+        pageCust: new fields.StringField({ initial: "", blank: true })
       }),
       restrictions: new fields.ArrayField(new fields.StringField(), { initial: [] }),
       // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).

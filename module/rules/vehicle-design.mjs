@@ -41,7 +41,18 @@ export function evalExpr(v, vars = {}) {
       i++;
       return Math[f[1]](...args);
     }
-    if (/[A-Z]/.test(peek() ?? "")) { const k = src[i++]; if (!(k in vars)) throw new Error(`unknown ${k}`); return Number(vars[k]) || 0; }
+    // Identifiers: an upper-case letter, then upper-case letters / digits (R0, S0, HO, EY); the longest one that's a
+    // known variable wins, so "B" in "60B" still reads as the variable B.
+    const id = /^[A-Z][A-Z0-9]*/.exec(src.slice(i));
+    if (id) {
+      let k = id[0];
+      while (k.length > 1 && !(k in vars)) k = k.slice(0, -1);
+      if (!(k in vars)) throw new Error(`unknown ${k}`);
+      i += k.length;
+      const val = Number(vars[k]);
+      if (vars[k] == null || !Number.isFinite(val)) throw new Error(`missing ${k}`);   // an unknown input blocks, never 0
+      return val;
+    }
     if (peek() === "(") { i++; const r = expr(); if (peek() !== ")") throw new Error("paren"); i++; return r; }
     if (peek() === "-") { i++; return -atom(); }
     throw new Error(`unexpected ${peek()}`);
@@ -71,7 +82,9 @@ export function evalExpr(v, vars = {}) {
 }
 
 /** A formula's syntax is valid (all variables set to 1): for validators. */
-export const formulaOk = (f) => !f || evalExpr(f, { R: 1, B: 1, P: 1, C: 1, E: 1, K: 1, L: 1 }) !== null;
+/** Every variable a mod formula may use (customization plan C2.3). */
+export const FORMULA_VARS = ["R", "R0", "R1", "B", "P", "C", "E", "K", "L", "EDP", "EY", "V", "N", "H", "HO", "A0", "A1", "S0", "S", "STR"];
+export const formulaOk = (f) => !f || evalExpr(f, Object.fromEntries(FORMULA_VARS.map(k => [k, 1]))) !== null;
 
 /** A Power Plant Table cell, B = the chassis' Body. */
 export const evalCell = (v, body = 0) => evalExpr(v, { B: body });
@@ -304,7 +317,27 @@ export const modLoad = (m = {}, build = {}) => ratedValue(m.rating, m.loadReduct
 export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad = 0, restrictedCf = 0 } = {}, mods = [], build = {}) {
   // Factory equipment is already in a production vehicle's printed figures; a removed item takes nothing (plan C1.3).
   mods = mods.filter(m => !["factory", "removed"].includes(m.custom?.state ?? m.state ?? ""));
-  const modsCf = mods.reduce((s, m) => s + modCf(m, build), 0), modsLoad = mods.reduce((s, m) => s + modLoad(m, build), 0);
+  // Each item by its origin's spec (plan C2.4): a customization (bought through the flow) by its Customization
+  // Specifications when they give CF / Load, otherwise as in design. A "levels" family counts its FIXED part — f(0)
+  // of its earliest item — once, and each item its per-level part f(R) − f(0).
+  const use = (m, R) => {
+    const custom = ["parts", "tested", "done"].includes(m.custom?.state ?? "");
+    const f = m.custom?.formulas ?? {};
+    const at = { ...m, rating: R };
+    const cf = custom && f.cf != null && f.cf !== "" ? (evalExpr(String(f.cf), modVars(at, build)) ?? 0) : modCf(at, build);
+    const ld = custom && f.load != null && f.load !== "" ? (evalExpr(String(f.load), modVars(at, build)) ?? 0) : modLoad(at, build);
+    return { cf, ld };
+  };
+  let modsCf = 0, modsLoad = 0;
+  const seen = new Set();
+  for (const m of mods) {
+    const fam = m.stack === "levels" ? (m.modKey || m.key || "") : "";
+    const full = use(m, num0(m.rating));
+    if (!fam) { modsCf += full.cf; modsLoad += full.ld; continue; }
+    const zero = use(m, 0);
+    modsCf += full.cf - zero.cf; modsLoad += full.ld - zero.ld;
+    if (!seen.has(fam)) { seen.add(fam); modsCf += zero.cf; modsLoad += zero.ld; }
+  }
   const cfUsed = num0(optionCf) + modsCf, loadUsed = num0(optionLoad) + modsLoad;
   const round = (n) => Math.round(n * 100) / 100;
   return { cargo: num0(cargo), load: num0(load), cfUsed: round(cfUsed), loadUsed: round(loadUsed),
