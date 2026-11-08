@@ -1038,6 +1038,7 @@ SR2E.registerVehicleDesignTables = function registerVehicleDesignTables({ chassi
   Object.assign(SR2E.vehicleDesignTables.powerPlants, keyed(powerPlants));
   Object.assign(SR2E.vehicleDesignTables.fuel, fuel);
   Object.assign(SR2E.vehicleDesignTables.markUp, markUp);
+  Hooks.callAll("sr2e.vehicleDesignTables", SR2E.vehicleDesignTables);   // module/vehicle-base.mjs waits for this
   return SR2E.vehicleDesignTables;
 };
 

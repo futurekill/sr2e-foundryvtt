@@ -110,6 +110,9 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     // design proposes its mods as design mods (the old tab counted them all); the owner marks any as a customization.
     this.mods = [];
     for (const i of this.actor?.items ?? []) if (i.type === "vehicle_mod") this.mods.push(this.#modFromItem(i, this.convertMods));
+    // Drive-by-wire's split lives on its item (plan C1.5); the Workshop edits it as part of the design.
+    const dbwItem = this.mods.find(m => !m.customization && m.system.modKey === "drive-by-wire" && Object.keys(m.system.custom?.choice ?? {}).length);
+    if (dbwItem) this.design.dbwSplit = { ...dbwItem.system.custom.choice };
     this.catalog = null;
     this.removed = new Set();   // item ids removed here, deleted on save
   }
@@ -158,7 +161,9 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /** The engine's view of the mods: design mods as design, customizations as `design: false`. */
   engineMods() {
-    return this.mods.map(m => ({ ...m.system, name: m.name, design: !m.customization }));
+    // The design's own DBW split (this.design.dbwSplit) is the one being edited here, not the saved item's choice.
+    return this.mods.map(m => ({ ...m.system, name: m.name, design: !m.customization,
+      custom: { ...(m.system.custom ?? {}), choice: m.customization ? m.system.custom?.choice : {} } }));
   }
 
   result() { return designVehicle(this.design, this.tables, { mods: this.engineMods() }); }
@@ -460,7 +465,9 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     const keepIds = new Set(mine.map(m => m.itemId).filter(Boolean));
     const toDelete = actor.items.filter(i => i.type === "vehicle_mod" && i.getFlag("sr2e", "designMod") && !keepIds.has(i.id)).map(i => i.id);
     if (toDelete.length) await actor.deleteEmbeddedDocuments("Item", toDelete);
-    const updates = mine.filter(m => m.itemId && actor.items.get(m.itemId)).map(m => ({ _id: m.itemId, "system.rating": num(m.system.rating), "flags.sr2e.designMod": true }));
+    const choiceFor = (m) => m.system.modKey === "drive-by-wire" ? { acceleration: 10, speed: 0, load: 0, ...(this.design.dbwSplit ?? {}) } : (m.system.custom?.choice ?? {});
+    for (const m of mine) m.system.custom = { ...(m.system.custom ?? {}), choice: choiceFor(m) };
+    const updates = mine.filter(m => m.itemId && actor.items.get(m.itemId)).map(m => ({ _id: m.itemId, "system.rating": num(m.system.rating), "system.custom.choice": choiceFor(m), "flags.sr2e.designMod": true }));
     for (const m of mine) m.loadedRating = num(m.system.rating);
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
     const creates = mine.filter(m => !m.itemId).map(m => ({ name: m.name, type: "vehicle_mod", img: m.img, system: m.system, flags: { sr2e: { designMod: true, wsUid: m.uid } } }));
@@ -473,6 +480,8 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
         if (m) Object.assign(m, { itemId: doc.id, loadedRating: num(doc.system.rating), loadedSys: sansRating(doc.system) });
       }
     }
+    // What was just written is the new "loaded" state, so the next save doesn't mistake it for an edit made elsewhere.
+    for (const m of mine) { const it = actor.items.get(m.itemId); if (it) Object.assign(m, { loadedRating: num(it.system.rating), loadedSys: sansRating(it.system) }); }
   }
 }
 
@@ -481,7 +490,8 @@ const sansRating = (sys) => JSON.stringify({ ...(sys?.toObject?.() ?? sys), rati
 
 /** The actor update a design writes: BASE stats (gross Cargo/Load), the vehicle type, the stored design. */
 export function workshopUpdate(design, r, ch, pp, name) {
-  const s = r.stats;
+  // BASE stats (plan C1): design options only; the sheet applies every mod's effects on top (applyModEffects).
+  const s = { ...r.stats, ...r.baseStats };
   const t = vehicleTypeFor(ch);
   const pair = typeof s.handling === "object";
   return {
@@ -489,7 +499,7 @@ export function workshopUpdate(design, r, ch, pp, name) {
     "system.vehicleType": t.vehicleType, "system.skill": t.skill ?? "",
     "system.handling": pair ? s.handling.onRoad : s.handling, "system.handlingOffRoad": pair ? s.handling.offRoad : null,
     "system.speed": num(s.speed), "system.stallSpeed": num(s.stallSpeed), "system.acceleration": num(s.acceleration),
-    "system.body": num(s.body), "system.armor": num(s.armor) - num(r.modEffects?.armor), "system.signature": num(s.signature) - num(r.modEffects?.signature),
+    "system.body": num(s.body), "system.armor": num(s.armor), "system.signature": num(s.signature),
     "system.pilot": num(s.pilot), "system.sensor": num(s.sensor), "system.autonav": num(s.autonav),
     "system.cargo": num(s.cargo), "system.load": num(s.load),
     "system.seating": String(s.seating ?? ""), "system.seatingExtra": num(s.seatingExtra), "system.entryPoints": String(s.entryPoints ?? ""),
@@ -498,7 +508,7 @@ export function workshopUpdate(design, r, ch, pp, name) {
     "system.fuelType": String(s.fuelType ?? ""), "system.fuelSize": num(s.fuelSize), "system.fuelUnit": String(s.fuelUnit ?? ""),
     "system.otherFeatures": (s.accessories ?? []).join(", "),
     "system.designPointValue": num(r.dp), "system.cost": num(r.price),
-    "system.design.version": 2, "system.design.category": ch.category ?? "", "system.design.transport": isTransport(ch), "system.design.chassisKey": design.chassisKey, "system.design.powerPlantKey": design.powerPlantKey,
+    "system.design.version": 2, "system.design.baseVersion": 2, "system.design.category": ch.category ?? "", "system.design.transport": isTransport(ch), "system.design.chassisKey": design.chassisKey, "system.design.powerPlantKey": design.powerPlantKey,
     "system.design.choices": foundry.utils.deepClone(design),
     "system.design.optionCf": num(r.options?.cf), "system.design.optionLoad": num(r.options?.load), "system.design.restrictedCf": num(r.options?.restrictedCf)
   };

@@ -149,6 +149,85 @@ export function modEffect(m = {}, key, { category = "", transport = false, build
   return null;
 }
 
+/** The installed levels of a mod family (its modKey) among these mods. */
+export const familyLevels = (mods, key) => mods.filter(m => (m.modKey || m.key) === key).reduce((t, m) => t + num0(m.rating), 0);
+
+/** What an item's customization state means (plan C1.3): "" legacy/ordinary and "done" are installed; "factory" is
+ * already in the base; "parts"/"tested" are bought but not working yet; "removed" is gone. */
+export const modCounts = (m) => { const st = m.custom?.state ?? m.state ?? ""; return st === "" || st === "done"; };
+export const modBaked = (m) => (m.custom?.state ?? m.state) === "factory";
+
+const EFFECT_KEYS = ["handling", "handlingOff", "speed", "acceleration", "signature", "armor", "cargo", "economyMult", "speedMult"];
+
+/**
+ * THE mod-effect pass (customization plan C1.2): the base stats plus every installed mod's effects (p.120–146). A
+ * "levels" family (`stack: "levels"`, one system bought in level batches) is evaluated once on its total levels, so
+ * constant terms apply once; anything else per item. Effects are INCREMENTAL over baked levels (factory items):
+ * additive E(total) − E(baked), multipliers E(total) ÷ E(baked). Then drive-by-wire's single +10% (p.124) and armor's
+ * +1 Handling per 6 points added (p.127). Used by designVehicle and VehicleData, so the Workshop and the sheet agree.
+ * @param {object} base  { handling (number | {onRoad, offRoad}), speed, acceleration, load, cargo, armor, signature, economy, … }
+ * @param {object[]} mods  mod system data (+ name, modKey, rating, custom.state, design)
+ * @param {object} ctx  { category, transport, build, dbwSplit (fallback split when the DBW item has none) }
+ */
+export function applyModEffects(base = {}, mods = [], { category = "", transport = false, build = {}, dbwSplit = null } = {}) {
+  const problems = [];
+  const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
+  const live = mods.filter(m => modCounts(m) || modBaked(m));
+  // Groups: a levels family is one group; every other item its own.
+  const groups = new Map();
+  live.forEach((m, i) => {
+    const key = m.stack === "levels" && (m.modKey || m.key) ? `fam:${m.modKey || m.key}` : `item:${i}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(m);
+  });
+  const evalAt = (m, k, R) => modEffect({ ...m, rating: R }, k, { category, transport, build });
+  let armorTotal = 0, armorBaked = 0;
+  for (const items of groups.values()) {
+    const rep = items[0];
+    const total = items.reduce((t, m) => t + num0(m.rating), 0);
+    const baked = items.filter(modBaked).reduce((t, m) => t + num0(m.rating), 0);
+    const allBaked = items.every(modBaked);
+    for (const k of EFFECT_KEYS) {
+      const eT = evalAt(rep, k, total);
+      if (!eT) continue;
+      if (eT.value == null) { problems.push({ code: "badFormula", msg: `${rep.name}: its ${k} effect "${eT.formula}" can't be worked out.`, page: rep.page ?? "p.118" }); continue; }
+      const eB = baked || allBaked ? evalAt(rep, k, allBaked ? total : baked) : null;
+      const vB = eB?.value ?? (k.endsWith("Mult") ? 1 : 0);
+      if (k === "armor") { armorTotal += eT.value; armorBaked += vB; }
+      if (k.endsWith("Mult")) fx[k] *= vB ? eT.value / vB : eT.value; else fx[k] += eT.value - vB;
+    }
+  }
+  // Drive-by-wire: ONE +10% (never per level, never twice), split among Acceleration / Speed / Load in whole percents.
+  const dbws = live.filter(m => (m.modKey || m.key) === "drive-by-wire" && num0(m.rating) > 0);
+  let split = null;
+  if (dbws.length && !dbws.some(modBaked)) {
+    const owner = dbws.find(m => m.design !== false && m.designMod !== false) ?? dbws[0];
+    const raw = { acceleration: 10, speed: 0, load: 0, ...(owner.custom?.choice && Object.keys(owner.custom.choice).length ? owner.custom.choice : (dbwSplit ?? {})) };
+    split = Object.fromEntries(["acceleration", "speed", "load"].map(k => [k, num0(raw[k])]));
+    const vals = Object.values(split);
+    if (vals.some(v => v < 0 || !Number.isInteger(v)) || vals.reduce((a, b) => a + b, 0) !== 10)
+      problems.push({ code: "dbwSplit", msg: "Drive-by-wire's +10% must be split in whole percents adding up to 10 (Acceleration, Speed, Load).", page: "p.124" });
+  }
+  const pct = (v, k) => v == null || !split?.[k] ? v : Math.round(v * (1 + split[k] / 100));
+  // Armor: +1 Handling per 6 points added (p.127), counted on the total incl. baked points.
+  const armorHandling = Math.floor(armorTotal / 6) - Math.floor(armorBaked / 6);
+  fx.handling += armorHandling; fx.handlingOff += armorHandling;
+  let handling = typeof base.handling === "object" && base.handling !== null ? { ...base.handling } : base.handling;
+  if (typeof handling === "object" && handling !== null) {
+    handling.onRoad = num0(handling.onRoad) + fx.handling;
+    if (handling.offRoad != null) handling.offRoad = num0(handling.offRoad) + fx.handlingOff;
+  } else if (handling != null) handling += fx.handling;
+  const stats = { ...base, handling,
+    speed: base.speed == null ? null : pct(Math.floor((num0(base.speed) + fx.speed) * fx.speedMult), "speed"),   // floats: "round down" (p.144)
+    acceleration: base.acceleration == null ? null : pct(num0(base.acceleration) + fx.acceleration, "acceleration"),
+    load: base.load == null ? null : pct(num0(base.load), "load"),
+    cargo: num0(base.cargo) + fx.cargo,
+    armor: num0(base.armor) + fx.armor,
+    signature: base.signature == null ? null : num0(base.signature) + fx.signature,
+    economy: base.economy == null ? null : base.economy * fx.economyMult };
+  return { stats, fx, dbwSplit: split, problems };
+}
+
 const AIRCRAFT = new Set(["fixedWing", "rotor", "vector"]);
 /**
  * Why a mod can't go on this build (its printed maximum and restrictions, p.118–146), as messages. `ctx`: { category,
@@ -195,6 +274,8 @@ export const modLoad = (m = {}, build = {}) => ratedValue(m.rating, m.loadReduct
  * `build` gives formulas their Body etc.
  */
 export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad = 0, restrictedCf = 0 } = {}, mods = [], build = {}) {
+  // Factory equipment is already in a production vehicle's printed figures; a removed item takes nothing (plan C1.3).
+  mods = mods.filter(m => !["factory", "removed"].includes(m.custom?.state ?? m.state ?? ""));
   const modsCf = mods.reduce((s, m) => s + modCf(m, build), 0), modsLoad = mods.reduce((s, m) => s + modLoad(m, build), 0);
   const cfUsed = num0(optionCf) + modsCf, loadUsed = num0(optionLoad) + modsLoad;
   const round = (n) => Math.round(n * 100) / 100;
@@ -422,46 +503,21 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   // What the design options alone bought (the option steppers' limits apply to these, not to mod-adjusted stats).
   const optionStats = { speed: speed.bought, acceleration: accel.bought, load: load.bought, cargo,
     handling: typeof handling === "object" ? { ...handling } : handling };
-  // Stat effects of the mods installed in design (p.120–146), and drive-by-wire's one-time +10% (p.124).
-  const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
-  const transport = isTransport(ch);
-  for (const m of mods) {
-    if (m.design === false) continue;
-    for (const k of Object.keys(fx)) {
-      const e = modEffect(m, k, { category: cat, transport, build });
-      if (!e) continue;
-      if (e.value == null) { problem("badFormula", `${m.name}: its ${k} effect "${e.formula}" can't be worked out.`, m.page ?? "p.118"); continue; }
-      if (k.endsWith("Mult")) fx[k] *= e.value; else fx[k] += e.value;
-    }
-  }
-  // Drive-by-wire: ONE +10% (not per level), split among Acceleration / Speed / Load in whole percents (p.124).
-  const dbw = mods.find(m => m.design !== false && keyOf(m) === "drive-by-wire" && num0(m.rating) > 0);
-  let dbwSplit = null;
-  if (dbw) {
-    const raw = { acceleration: 10, speed: 0, load: 0, ...(design.dbwSplit ?? {}) };
-    dbwSplit = Object.fromEntries(["acceleration", "speed", "load"].map(k => [k, num0(raw[k])]));
-    const vals = Object.values(dbwSplit);
-    if (vals.some(v => v < 0 || !Number.isInteger(v)) || vals.reduce((a, b) => a + b, 0) !== 10)
-      problem("dbwSplit", "Drive-by-wire's +10% must be split in whole percents adding up to 10 (Acceleration, Speed, Load).", "p.124");
-  }
-  const pct = (v, k) => v == null || !dbwSplit?.[k] ? v : Math.round(v * (1 + dbwSplit[k] / 100));
-  const preTurbo = speed.value;
-  if (speed.value != null) speed.value = pct(Math.floor((speed.value + fx.speed) * fx.speedMult), "speed");   // floats: "round down" (p.144)
-  // Turbocharging: no further than the vehicle's maximum Speed × 1.25 (rounded down), but always 1 level (p.122).
-  const turbo = mods.find(m => m.design !== false && keyOf(m) === "turbocharging" && num0(m.rating) > 1);
-  if (turbo && speed.max != null && preTurbo != null && preTurbo + 15 * num0(turbo.rating) > Math.floor(speed.max * 1.25))
+  // The BASE stats: every design option applied (engine customization included), no mod-item effect. The Workshop saves
+  // these; the mods' effects are applied on top by applyModEffects, here and in VehicleData (customization plan C1).
+  const baseStats = { handling: typeof handling === "object" ? { ...handling } : handling, speed: speed.value,
+    acceleration: accel.value, load: load.value, cargo, armor: num0(cell(ch.armor)), signature, economy,
+    sensor: cell(ch.sensor), autonav: cell(ch.autonav), pilot: cell(ch.pilot) };
+  const eff = applyModEffects(baseStats, mods.filter(m => m.design !== false),
+    { category: cat, transport: isTransport(ch), build, dbwSplit: design.dbwSplit });
+  for (const p of eff.problems) problem(p.code, p.msg, p.page);
+  // Turbocharging in design: no further than the plant's maximum Speed × 1.25 (rounded down), but always 1 level (p.122).
+  const turbo = familyLevels(mods.filter(m => m.design !== false), "turbocharging");
+  if (turbo > 1 && speed.max != null && speed.value != null && speed.value + 15 * turbo > Math.floor(speed.max * 1.25))
     problem("turboMax", `Turbocharging can raise Speed only to ${Math.floor(speed.max * 1.25)} (the maximum × 1.25), or by 1 level.`, "p.122");
-  if (accel.value != null) accel.value = pct(accel.value + fx.acceleration, "acceleration");
-  load.value = pct(load.value, "load");
-  // Armor: +1 Handling per 6 points added (p.127).
-  const armorHandling = Math.floor(fx.armor / 6);
-  fx.handling += armorHandling; fx.handlingOff += armorHandling;
-  if (fx.handling || fx.handlingOff) {
-    if (typeof handling === "object") { handling.onRoad += fx.handling; handling.offRoad += fx.handlingOff; }
-    else handling += fx.handling;
-  }
-  if (economy != null && fx.economyMult !== 1) economy *= fx.economyMult;
-  const sigFinal = signature == null ? null : signature + fx.signature;
+  handling = eff.stats.handling; speed.value = eff.stats.speed; accel.value = eff.stats.acceleration; load.value = eff.stats.load;
+  economy = eff.stats.economy;
+  const sigFinal = eff.stats.signature, dbwSplit = eff.dbwSplit, fx = { cargo: eff.stats.cargo - cargo };
 
   const cargoFinal = cargo + fx.cargo;
   const cap = vehicleCapacity({ cargo: cargoFinal, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf }, mods, build);
@@ -471,7 +527,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   const dp = Math.round(lines.reduce((s, l) => s + l.dp, 0) * 100) / 100;
   const markUp = markUpFactor(cat, design.markUp ?? {}, tables.markUp ?? {}, { smartMaterials: sm });
   const stats = {
-    handling, body, armor: num0(cell(ch.armor)) + fx.armor, speed: speed.value, stallSpeed: cell(pp.speed?.stall),
+    handling, body, armor: eff.stats.armor, speed: speed.value, stallSpeed: cell(pp.speed?.stall),
     acceleration: accel.value, load: load.value, cargo: cargoFinal, signature: sigFinal, dbwSplit,
     autonav: cell(ch.autonav), pilot: cell(ch.pilot), sensor: cell(ch.sensor),
     seating: ch.seating ?? "", seatingExtra, entryPoints: ch.entry ?? "", setupTime: ch.setup ?? "", ltProfile: design.takeoff ? design.takeoff.toUpperCase() : (ch.lt ?? ch.ltProfile ?? ""),
@@ -481,10 +537,7 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   return { valid: problems.length === 0, problems, dpLines: lines, dp, stats,
     limits: { speed: speed.max, acceleration: accel.max, load: load.max, cargo: cargoMax, economy: ecoMax },
     options: { cf: Math.round(optCf * 100) / 100, load: optLoad, restrictedCf },
-    budgets: cap, markUp, designNuyen, optionStats,
-    // The design mods' Armor and Signature: the sheet adds every mod's own (VehicleData.modArmor), so a save stores the
-    // stats without them.
-    modEffects: { armor: fx.armor, signature: fx.signature },
+    budgets: cap, markUp, designNuyen, optionStats, baseStats,
     // Design Points × Mark-Up × 100, plus what design-installed tires and the like cost in ¥ (p.115, p.146).
     price: designPrice(dp, markUp.total, num0(design.markUp?.round)) + designNuyen };
 }

@@ -4191,3 +4191,6 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-workshop .ws-dbw legend { padding: 0 4px; }
 .sr2e-workshop .ws-dbw .ws-hint { flex-basis: 100%; margin: 0; }
 .sr2e-workshop .ws-dbw input { width: 48px; }
+.sr2e-vehicle-sheet .vehicle-base-notice { border: 1px solid var(--sr2e-gold-dim); padding: 6px 10px; margin: 6px 0; }
+.sr2e-vehicle-sheet .vehicle-base-notice ul { margin: 4px 0 4px 18px; }
+.sr2e-vehicle-sheet .vehicle-base-notice button { width: auto; margin-right: 6px; }

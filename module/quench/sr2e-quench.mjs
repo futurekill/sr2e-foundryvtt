@@ -12892,6 +12892,61 @@ export function registerSR2EQuenchTests() {
         assert.notOk(item.getFlag("sr2e", "designMod"), "stays a customization");
         await w2.close();
       });
+
+      it("customization plan C1: a customization's effects reach the sheet and the tests; a design saves its base", async function () {
+        this.timeout(20000);
+        const v = await Actor.create({ name: "Quench Vehicle C1", type: "vehicle", system: { handling: 4, handlingOffRoad: 8, speed: 100, acceleration: 10, load: 200, cargo: 6, economy: 6 } });
+        made.push(v);
+        await v.createEmbeddedDocuments("Item", [{ name: "Turbocharging", type: "vehicle_mod", system: { rating: 2, modKey: "turbocharging",
+          effects: { speed: "15 x R", acceleration: "10 x R", signature: "-R", economyMult: "0.95^R" } } }]);
+        assert.deepEqual([v.system.speed, v.system.effective.speed, v.system.effectiveAcceleration, v.system.effectiveSignature], [100, 130, 30, 0],
+          "stored base untouched; the sheet derives +30 Speed, +20 Accel, −2 Signature from the default 2 (p.122)");
+        const t = v.items.getName("Turbocharging");
+        await t.update({ "system.custom.state": "parts" });
+        assert.equal(v.system.effective.speed, 100, "bought but not installed: no effect");
+        await t.update({ "system.custom.state": "done" });
+        assert.equal(v.system.effective.speed, 130);
+        await v.createEmbeddedDocuments("Item", [{ name: "Drive-by-Wire", type: "vehicle_mod", system: { rating: 1, modKey: "drive-by-wire", effects: { handling: "-R", handlingOff: "-R" } } }]);
+        assert.deepEqual([v.system.effectiveHandling, v.system.effectiveHandlingOffRoad, v.system.effectiveAcceleration], [3, 7, 33], "−1 Handling; the +10% on Acceleration by default (p.124)");
+      });
+
+      it("customization plan C1.6: a 0.143.0 design converts to its base; an edited one waits for the GM; keep-as-edited", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(30000);
+        const { designVehicle } = await import("../rules/vehicle-design.mjs");
+        const B = await import("../vehicle-base.mjs");
+        const T = CONFIG.SR2E.vehicleDesignTables;
+        const choices = { chassisKey: "sportsCar", powerPlantKey: "gasoline-cars-sports-car", load: 100 };
+        const dbw = { name: "Drive-by-Wire System", type: "vehicle_mod", flags: { sr2e: { designMod: true } },
+          system: { rating: 1, modKey: "drive-by-wire", dpFormula: "C x 1.75 x R", effects: { handling: "-R", handlingOff: "-R" } } };
+        const r = designVehicle(choices, T, { mods: [{ ...dbw.system, name: dbw.name, design: true }] });
+        // What 0.143.0 stored: the stats WITH the design mods' effects (Armor/Signature without).
+        const old143 = (extra = {}) => ({ type: "vehicle", system: { handling: r.stats.handling.onRoad, handlingOffRoad: r.stats.handling.offRoad,
+          speed: r.stats.speed, acceleration: r.stats.acceleration, load: r.stats.load, cargo: r.stats.cargo, economy: r.stats.economy,
+          armor: 0, signature: r.baseStats.signature, design: { version: 2, chassisKey: choices.chassisKey, powerPlantKey: choices.powerPlantKey, choices, category: "car" }, ...extra } });
+        const a = await Actor.create({ name: "Quench Vehicle Old143", ...old143() });
+        made.push(a);
+        await a.createEmbeddedDocuments("Item", [dbw]);
+        assert.isFalse(a.system.baseConverted);
+        const shown = { ...a.system.effective };
+        assert.equal(await B.convertVehicle(a), "converted");
+        assert.deepEqual([a.system.design.baseVersion, a.system.handling, a.system.acceleration], [2, r.baseStats.handling.onRoad, r.baseStats.acceleration], "the base is stored");
+        assert.deepEqual([a.system.effective.handling, a.system.effective.acceleration, a.system.effective.speed], [shown.handling, shown.acceleration, shown.speed], "the sheet shows what it showed");
+        assert.deepEqual(a.items.getName("Drive-by-Wire System").system.custom.choice, { acceleration: 10, speed: 0, load: 0 }, "the split moved onto the item");
+        // Edited after design: not converted; the GM chooses.
+        const e = await Actor.create({ name: "Quench Vehicle Edited143", ...old143() });
+        made.push(e);
+        await e.createEmbeddedDocuments("Item", [dbw]);
+        await e.update({ "system.speed": 999 });
+        assert.equal(await B.convertVehicle(e), "edited");
+        assert.equal(e.getFlag("sr2e", "baseConvert").diff[0].field, "speed");
+        const free = [e.system.cargoFree, e.system.loadFree];
+        await B.keepAsEdited(e);
+        assert.deepEqual([e.system.design.version, e.system.speed, e.items.getName("Drive-by-Wire System").system.custom.state], [1, 999, "factory"],
+          "a production vehicle with its current stats; the design mod is factory equipment");
+        assert.deepEqual([e.system.cargoFree, e.system.loadFree], free, "the same free space");
+        assert.equal(e.system.effective.handling, e.system.handling, "factory equipment isn't applied twice");
+      });
     }, { displayName: "SR2E: Vehicles" });
 
     quench.registerBatch("sr2e.vr2-options", (context) => {

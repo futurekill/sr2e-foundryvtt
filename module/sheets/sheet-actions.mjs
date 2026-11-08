@@ -3176,8 +3176,8 @@ async function promptRamOptions(actor, myVehicle) {
   const tv = targetActor?.type === "vehicle" ? targetActor : null;
   const oppName = tv?.name ?? "";
   const oBody = tv?.system?.body ?? 2;
-  const oArmor = tv?.system?.armor ?? 0;
-  const oHand = tv?.system?.handling ?? 3;
+  const oArmor = tv?.system?.effectiveArmor ?? 0;
+  const oHand = tv?.system?.effectiveHandling ?? 3;
 
   const controlAvail = actor.system.dicePools?.control?.value ?? 0;
 
@@ -3277,7 +3277,7 @@ async function promptEscapeOptions(actor) {
 }
 
 async function promptVehicleTestOptions(actor, vehicle) {
-  const handling  = vehicle.system.handling ?? 3;
+  const handling  = vehicle.system.effectiveHandling ?? 3;
   const vcr       = actor.system.vehicleControlRig ?? 0;
   const vcrMod    = -2 * vcr;
   const damageMod = vehicle.system.damageTnMod ?? 0;

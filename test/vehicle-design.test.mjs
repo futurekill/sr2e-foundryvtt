@@ -3,7 +3,7 @@
 // p.116, Mark-Up Factors Table p.114). User rulings 2026-11-07: Acceleration 2 DP/pt; the Handling floor binds the
 // final rating, Smart Materials included; CF stays fractional.
 import { describe, it, expect } from "vitest";
-import { modEffect, evalCell, designVehicle, engineCustomizationDP, markUpFactor, designPrice, vehicleCapacity, modDesignDP, modCf, modLoad } from "../module/rules/vehicle-design.mjs";
+import { applyModEffects, modEffect, evalCell, designVehicle, engineCustomizationDP, markUpFactor, designPrice, vehicleCapacity, modDesignDP, modCf, modLoad } from "../module/rules/vehicle-design.mjs";
 
 const tables = {
   chassis: {
@@ -279,8 +279,29 @@ describe("one capacity rule and build-relative mod costs", () => {
     const r = designVehicle(base, tables, { mods: [turbo, armor] });
     expect(r.problems).toEqual([]);
     expect([r.optionStats.speed, r.stats.speed]).toEqual([270, 285]);   // the max applies to 270, not 285
-    expect(r.modEffects).toEqual({ armor: 2, signature: -1 });
+    expect([r.baseStats.armor, r.baseStats.signature, r.baseStats.speed]).toEqual([0, 2, 270]);   // the save stores these
     expect([r.stats.armor, r.stats.signature]).toEqual([2, 1]);
+  });
+
+  it("customization plan C1: one effect pass — levels families once, factory levels baked, states, one DBW +10%", () => {
+    const base = { handling: { onRoad: 4, offRoad: 8 }, speed: 160, acceleration: 10, load: 100, cargo: 3, armor: 0, signature: 2, economy: 6 };
+    const ors = (R, state = "") => ({ name: "Off-Road Suspension", modKey: "off-road-suspension", stack: "levels", rating: R, custom: { state },
+      effects: { handling: "R", handlingOff: "-R", speed: "-15", economyMult: "1.15" } });
+    // A design level + a customization level: −2 off-road, −15 Speed ONCE, ×1.15 Economy ONCE (p.125).
+    const two = applyModEffects(base, [ors(1), ors(1, "done")], { category: "car" }).stats;
+    expect([two.handling.offRoad, two.handling.onRoad, two.speed, two.economy]).toEqual([6, 6, 145, 6 * 1.15]);
+    // Bought but not installed: no effect.
+    expect(applyModEffects(base, [ors(1, "parts")], { category: "car" }).stats.speed).toBe(160);
+    // Five factory armor points (already in the base) + one customized: crosses six → Handling +1, Armor +1 (p.127).
+    const armor = (R, state) => ({ name: "Armor", modKey: "standard-armor", stack: "levels", rating: R, custom: { state }, effects: { armor: "R" } });
+    const a = applyModEffects({ ...base, armor: 5 }, [armor(5, "factory"), armor(1, "done")], { category: "car" }).stats;
+    expect([a.armor, a.handling.onRoad]).toEqual([6, 5]);
+    // Drive-by-wire: one +10% even with two DBW items; the split comes from the item's choice.
+    const dbw = (R, choice) => ({ name: "DBW", modKey: "drive-by-wire", stack: "levels", rating: R, custom: { state: "", choice }, effects: { handling: "-R", handlingOff: "-R" } });
+    const d = applyModEffects(base, [dbw(1, { speed: 10, acceleration: 0, load: 0 }), dbw(1, {})], { category: "car" }).stats;
+    expect([d.speed, d.acceleration, d.handling.onRoad]).toEqual([176, 10, 2]);
+    // A factory DBW: its +10% is already in the base, a customized level adds none.
+    expect(applyModEffects(base, [dbw(1, {}), { ...dbw(1, {}), custom: { state: "factory" } }], { category: "car" }).stats.acceleration).toBe(10);
   });
 
   it("code review R3 round 2: one effect resolver (category override, legacy Rating) for the engine and the sheet", () => {
@@ -291,7 +312,7 @@ describe("one capacity rule and build-relative mod costs", () => {
     expect(modEffect(legacy, "armor").value).toBe(1);
     expect(modEffect({ name: "Y", rating: 3 }, "armor")).toBeNull();
     const r = designVehicle({ chassisKey: "sportsCar", powerPlantKey: "gasSports", load: 160 }, tables, { mods: [catMod, legacy] });
-    expect([r.stats.armor, r.modEffects.armor]).toEqual([3, 3]);   // what the sheet adds back from the same items
+    expect([r.stats.armor, r.baseStats.armor]).toEqual([3, 0]);   // the sheet adds the same items' 3 back
   });
 });
 

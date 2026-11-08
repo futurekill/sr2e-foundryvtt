@@ -7,7 +7,7 @@ import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs"
 import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
-import { vehicleCapacity, modEffect } from "../rules/vehicle-design.mjs";
+import { vehicleCapacity, modEffect, applyModEffects, modCounts } from "../rules/vehicle-design.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -2034,6 +2034,9 @@ export class VehicleData extends SR2EDataModel {
         // Version 1 = the old Design tab's fields above, never repriced on load.
         version: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
         choices: new fields.ObjectField({ initial: {} }),
+        // 2 = the stored stats are the BASE (design options only; every mod's effects are derived on top, plan C1). A v2
+        // design saved by 0.143.0 (baked design-mod effects) stays 0 until converted (module/vehicle-base.mjs).
+        baseVersion: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
         // The chassis' category and whether it's a transport/tractor, for mods' per-category effects (modEffect).
         category: new fields.StringField({ initial: "", blank: true }),
         transport: new fields.BooleanField({ initial: false }),
@@ -2067,37 +2070,48 @@ export class VehicleData extends SR2EDataModel {
     // Destroyed at 10 — vehicle damage levels per SR2E p.109.
     this.conditionMonitor.max = 10;
 
-    // Installed modifications that adjust vehicle stats (Rigger 2). Armor mods
-    // (Standard/Concealed/Ablative Vehicle Armor) add their Rating in Armor
-    // Points; signature mods (Thermal Baffles, RAM, Active Thermal Masking) add
-    // to Signature. Kept as a derived bonus so the base stat stays editable
-    // (effective = base + mod bonus); see effectiveArmor / effectiveSignature.
-    // A mod with an Armor / Signature effect formula (Rigger 2 p.122–134: turbocharging −1 per level, turrets −1,
-    // ablative 2 × level up to Body) counts by it, once; one without, by its Rating as before. The Workshop saves
-    // stats without its design mods' share for that reason.
-    let modArmor = 0, modSignature = 0;
-    for (const item of (this.parent?.items ?? [])) {
-      if (item.type !== "vehicle_mod") continue;
-      const ctx = { category: this.design.category, transport: this.design.transport, build: { body: this.body, pilot: this.pilot } };
-      modArmor += modEffect(item.system, "armor", ctx)?.value ?? 0;
-      modSignature += modEffect(item.system, "signature", ctx)?.value ?? 0;
+    // The effective stats (docs/PLAN-vehicle-customization.md C1): the stored stats are the BASE and every installed
+    // mod's effects come on top, from the ONE effect pass the Workshop also uses (applyModEffects). Recomputed from the
+    // stored fields every preparation, never written back. A 0.143.0 Workshop design that isn't converted yet
+    // (design.baseVersion < 2) still has its design mods baked in, so only Armor/Signature are added, as before.
+    const items = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod");
+    const build = { body: this.body, pilot: this.pilot };
+    const ctx = { category: this.design.category, transport: this.design.transport, build };
+    const mods = items.map(i => ({ ...i.system, name: i.name, designMod: !!i.flags?.sr2e?.designMod }));
+    const pair = this.handlingOffRoad != null;
+    const base = { handling: pair ? { onRoad: this.handling, offRoad: this.handlingOffRoad } : this.handling,
+      speed: this.speed, acceleration: this.acceleration, load: this.load, cargo: this.cargo, armor: this.armor,
+      signature: this.signature, economy: this.economy };
+    this.baseConverted = this.design.version !== 2 || this.design.baseVersion >= 2;
+    let eff;
+    if (this.baseConverted) eff = applyModEffects(base, mods, ctx).stats;
+    else {
+      const add = (k) => mods.filter(modCounts).reduce((t, m) => t + (modEffect(m, k, ctx)?.value ?? 0), 0);
+      eff = { ...base, armor: (Number(this.armor) || 0) + add("armor"), signature: (Number(this.signature) || 0) + add("signature") };
     }
-    this.modArmor = modArmor;
-    this.modSignature = modSignature;
-    // Usable Cargo and Load: gross − the design options − EVERY mod on the vehicle (the one capacity rule,
-    // module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
-    const mods = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod").map(i => i.system);
-    const cap = vehicleCapacity({ cargo: this.cargo, load: this.load, optionCf: this.design.optionCf,
-      optionLoad: this.design.optionLoad, restrictedCf: this.design.restrictedCf }, mods, { body: this.body, pilot: this.pilot });
+    const h = eff.handling;
+    this.effective = {
+      handling: typeof h === "object" && h !== null ? h.onRoad : h, handlingOffRoad: typeof h === "object" && h !== null ? h.offRoad : null,
+      speed: eff.speed, acceleration: eff.acceleration, load: eff.load, cargo: eff.cargo, armor: eff.armor,
+      signature: eff.signature, economy: eff.economy
+    };
+    // Usable Cargo and Load: the effective gross − the design options − every mod's consumption (the one capacity
+    // rule, module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
+    const cap = vehicleCapacity({ cargo: this.effective.cargo, load: this.effective.load, optionCf: this.design.optionCf,
+      optionLoad: this.design.optionLoad, restrictedCf: this.design.restrictedCf }, mods, build);
     this.cargoFree = cap.cargoFree;
     this.loadFree = cap.loadFree;
   }
 
-  /** Effective Armor = base + armor-mod Armor Points. */
-  get effectiveArmor() { return (this.armor || 0) + (this.modArmor || 0); }
-
-  /** Effective Signature = base + signature-mod bonuses. */
-  get effectiveSignature() { return (this.signature || 0) + (this.modSignature || 0); }
+  /** Effective ratings: the stored base + installed mods' effects (prepareDerivedData). */
+  get effectiveArmor() { return this.effective?.armor ?? this.armor ?? 0; }
+  get effectiveSignature() { return this.effective?.signature ?? this.signature ?? 0; }
+  get effectiveHandling() { return this.effective?.handling ?? this.handling ?? 0; }
+  get effectiveHandlingOffRoad() { return this.effective?.handlingOffRoad ?? this.handlingOffRoad; }
+  get effectiveAcceleration() { return this.effective?.acceleration ?? this.acceleration ?? 0; }
+  /** What the effective stats add to the base, for the sheet's "base → effective" display. */
+  get modArmor() { return this.effectiveArmor - (this.armor || 0); }
+  get modSignature() { return this.effectiveSignature - (this.signature || 0); }
 
   /**
    * Current vehicle damage level (SR2E p.109).
@@ -2125,7 +2139,7 @@ export class VehicleData extends SR2EDataModel {
   /** Cruising speed after the damage speed multiplier (p.109). */
   get effectiveSpeed() {
     const factor = CONFIG.SR2E.vehicleDamageMods[this.damageLevel]?.speed ?? 1;
-    return Math.floor(this.speed * factor);
+    return Math.floor((this.effective?.speed ?? this.speed) * factor);
   }
 
   /** The driving skill key for this vehicle (override or type default). */

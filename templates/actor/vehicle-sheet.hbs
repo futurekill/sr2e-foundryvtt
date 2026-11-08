@@ -19,20 +19,33 @@
     </div>
   </div>
 
+  {{#if baseConvert}}
+  <div class="sr2e-notice vehicle-base-notice">
+    <p><strong>This vehicle was edited after it was designed.</strong> Since system 0.144.0 a vehicle stores its stats
+      without its modifications and adds every mod's effect on top. These stats differ from what its design gives:</p>
+    <ul>{{#each baseConvert.diff}}<li>{{field}}: stored {{stored}}, design {{design}}</li>{{/each}}</ul>
+    <p>Until you choose, it works as before.</p>
+    <button type="button" data-action="reapplyDesign">Reapply the design</button>
+    <button type="button" data-action="keepAsEdited" title="It becomes a production vehicle with the stats it has now; its design mods become factory equipment">Keep as edited</button>
+  </div>
+  {{/if}}
   <fieldset class="vehicle-stats">
     <legend>Vehicle Statistics</legend>
     <div class="stat-grid">
       <div class="stat-item">
         <label title="On-road (or the only rating). Ground vehicles also have an off-road rating (Rigger 2 p.109).">Handling</label>
         <input type="number" name="system.handling" value="{{system.handling}}" />
+        {{#if (ne system.effective.handling system.handling)}}<span class="stat-effective" title="With its modifications (base {{system.handling}})">→ {{system.effective.handling}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label title="Off-road Handling, for bikes and cars (Rigger 2 p.109). Blank for vehicles with one rating.">Off-road</label>
         <input type="number" name="system.handlingOffRoad" value="{{system.handlingOffRoad}}" placeholder="—" data-nullable />
+        {{#if (ne system.effective.handlingOffRoad system.handlingOffRoad)}}<span class="stat-effective" title="With its modifications (base {{system.handlingOffRoad}})">→ {{system.effective.handlingOffRoad}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Speed</label>
         <input type="number" name="system.speed" value="{{system.speed}}" />
+        {{#if (ne system.effective.speed system.speed)}}<span class="stat-effective" title="With its modifications (base {{system.speed}})">→ {{system.effective.speed}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label title="Fixed-wing aircraft: the stall speed (Rigger 2 p.117). 0 for everything else.">Stall</label>
@@ -41,6 +54,7 @@
       <div class="stat-item">
         <label>Accel</label>
         <input type="number" name="system.acceleration" value="{{system.acceleration}}" />
+        {{#if (ne system.effective.acceleration system.acceleration)}}<span class="stat-effective" title="With its modifications (base {{system.acceleration}})">→ {{system.effective.acceleration}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Body</label>
@@ -49,12 +63,12 @@
       <div class="stat-item">
         <label>Armor</label>
         <input type="number" name="system.armor" value="{{system.armor}}" />
-        {{#if system.modArmor}}<span class="stat-effective" title="Base {{system.armor}} + {{system.modArmor}} from armor mods">→ {{system.effectiveArmor}}</span>{{/if}}
+        {{#if system.modArmor}}<span class="stat-effective" title="Base {{system.armor}} + {{system.modArmor}} from modifications">→ {{system.effectiveArmor}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Signature</label>
         <input type="number" name="system.signature" value="{{system.signature}}" />
-        {{#if system.modSignature}}<span class="stat-effective" title="Base {{system.signature}} + {{system.modSignature}} from signature mods">→ {{system.effectiveSignature}}</span>{{/if}}
+        {{#if system.modSignature}}<span class="stat-effective" title="Base {{system.signature}} + {{system.modSignature}} from modifications">→ {{system.effectiveSignature}}</span>{{/if}}
       </div>
       <div class="stat-item">
         <label>Pilot</label>

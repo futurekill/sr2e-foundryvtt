@@ -1409,6 +1409,16 @@ export class VehicleModData extends SR2EDataModel {
       // A key may end in @<category> (bike, car, boat, fixedWing, rotor…) or @transport to apply only there; the specific
       // key wins over the plain one. E.g. Drive-by-Wire { handling: "-R", handlingOff: "-R" }.
       effects: new fields.ObjectField({ initial: {} }),
+      // "levels": one system bought in level batches (turbocharging, armor, drive-by-wire…): its family's effects are
+      // worked out once on the total; "" / "instance": independent equipment (docs/PLAN-vehicle-customization.md C2.4).
+      stack: new fields.StringField({ initial: "", blank: true }),
+      // Customization (plan C1.3 / C3): state "" = ordinary installed equipment, "factory" = already in a production
+      // vehicle's printed stats, "parts" / "tested" = bought, not working yet, "done" = installed; choice = e.g.
+      // drive-by-wire's +10% split { acceleration, speed, load }.
+      custom: new fields.SchemaField({
+        state: new fields.StringField({ initial: "", blank: true }),
+        choice: new fields.ObjectField({ initial: {} })
+      }),
       restrictions: new fields.ArrayField(new fields.StringField(), { initial: [] }),
       // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).
       modKey: new fields.StringField({ initial: "", blank: true }),

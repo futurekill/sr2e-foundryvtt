@@ -2009,7 +2009,7 @@ export class SR2EActor extends Actor {
     const damageMod  = vehicle.system.damageTnMod ?? 0;
 
     const tn = Math.max(2,
-      vehicle.system.handling + terrainMod + vcrMod + damageMod + otherMod + defaultingPenalty
+      vehicle.system.effectiveHandling + terrainMod + vcrMod + damageMod + otherMod + defaultingPenalty
     );
 
     const typeLabel = RL({ handling: "HandlingTest", position: "PositionTest", crash: "CrashTest" }[testType] ?? "VehicleTest");
@@ -2112,7 +2112,7 @@ export class SR2EActor extends Actor {
     const mySkillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
     const mySkill = mySkillItem?.system?.rating ?? Math.max(1, this.system.reaction?.value ?? 1);
 
-    const myDice = Math.max(1, mySkill + (myVehicle.system.body ?? 1) + myHalfArmor - (myVehicle.system.handling ?? 0));
+    const myDice = Math.max(1, mySkill + (myVehicle.system.body ?? 1) + myHalfArmor - (myVehicle.system.effectiveHandling ?? 0));
     const myTN   = Math.max(2, (opp.body ?? 1) + oppHalfArmor - terrainMod);
 
     const oppDice = Math.max(1, (opp.skill ?? 0) + (opp.body ?? 1) + oppHalfArmor - (opp.handling ?? 0));

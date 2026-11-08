@@ -77,14 +77,14 @@
 
         {{!-- Vehicle Stats --}}
         <div class="vehicle-stats-row flexrow">
-          <span class="vehicle-stat" title="Handling">Hand: {{vehicle.system.handling}}</span>
-          <span class="vehicle-stat" title="Speed">Spd: {{vehicle.system.speed}}</span>
-          <span class="vehicle-stat" title="Acceleration">Acc: {{vehicle.system.acceleration}}</span>
+          <span class="vehicle-stat" title="Handling">Hand: {{vehicle.system.effectiveHandling}}</span>
+          <span class="vehicle-stat" title="Speed">Spd: {{vehicle.system.effective.speed}}</span>
+          <span class="vehicle-stat" title="Acceleration">Acc: {{vehicle.system.effectiveAcceleration}}</span>
           <span class="vehicle-stat" title="Body">Body: {{vehicle.system.body}}</span>
-          <span class="vehicle-stat" title="Armor">Armor: {{vehicle.system.armor}}</span>
+          <span class="vehicle-stat" title="Armor">Armor: {{vehicle.system.effectiveArmor}}</span>
           <span class="vehicle-stat" title="Pilot">Pilot: {{vehicle.system.pilot}}</span>
           <span class="vehicle-stat" title="Sensor">Sensor: {{vehicle.system.sensor}}</span>
-          <span class="vehicle-stat" title="Signature">Sig: {{vehicle.system.signature}}</span>
+          <span class="vehicle-stat" title="Signature">Sig: {{vehicle.system.effectiveSignature}}</span>
         </div>
 
         {{!-- Vehicle Condition Monitor --}}

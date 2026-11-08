@@ -2038,6 +2038,12 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     actions: {
       switchTab: SHARED_ACTIONS.switchTab,
       openWorkshop: async function () { (await import("../apps/vehicle-workshop.mjs")).openVehicleWorkshop(this.document); },
+      reapplyDesign: async function () { (await import("../vehicle-base.mjs")).reapplyDesign(this.document); },
+      keepAsEdited: async function () {
+        const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Keep as edited?" },
+          content: "<p>The vehicle becomes a production vehicle with the stats it has now. Its design is dropped (it can't be reopened in the Workshop as a design) and its design mods become factory equipment.</p>" });
+        if (ok) (await import("../vehicle-base.mjs")).keepAsEdited(this.document);
+      },
       fireWeapon: onFireVehicleWeapon,
       editItem: onEditItem,
       deleteItem: onDeleteItem,
@@ -2073,6 +2079,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       .map(i => ({ id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) }));
     context.tabs = this._getTabs();
     context.design = this._prepareDesign();
+    context.baseConvert = game.user.isGM && !this.document.system.baseConverted ? this.document.getFlag("sr2e", "baseConvert") : null;
     return context;
   }
 
