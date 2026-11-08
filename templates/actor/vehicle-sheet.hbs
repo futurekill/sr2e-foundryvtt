@@ -144,6 +144,9 @@
     <legend class="flexrow">
       <span>Modifications</span>
       {{#if editable}}
+      <button type="button" data-action="customize" class="btn-add" title="Buy and install modifications by the customization rules (Rigger 2 p.118)">
+        <i class="fas fa-wrench"></i> Customize
+      </button>
       <button type="button" data-action="addItem" data-type="vehicle_mod" class="btn-add" title="Add a modification">
         <i class="fas fa-plus"></i>
       </button>
@@ -152,7 +155,9 @@
     <div class="item-list">
       {{#each mods as |mod|}}
       <div class="item-row flexrow" data-item-id="{{mod.id}}" draggable="true">
-        <span class="item-name"><i class="fas fa-wrench"></i> {{mod.name}}</span>
+        <span class="item-name"><i class="fas fa-wrench"></i> {{mod.name}}{{#if mod.stateLabel}} <em class="mod-state" title="{{mod.stateTitle}}">{{mod.stateLabel}}</em>{{/if}}</span>
+        {{#if mod.canTest}}<button type="button" class="mod-step" data-action="installTest" title="Roll the Installation Test (Rigger 2 p.118)">Test</button>{{/if}}
+        {{#if mod.canFinish}}<button type="button" class="mod-step" data-action="finishInstall" title="The installation time has passed: the modification works from now on">Finish</button>{{/if}}
         {{#if mod.rated}}{{#if editable}}
         <label class="item-rating" title="Rating">R <input type="number" data-field="system.rating" value="{{mod.rating}}" min="0" /></label>
         {{else}}<span class="item-meta">R{{mod.rating}}</span>{{/if}}{{/if}}

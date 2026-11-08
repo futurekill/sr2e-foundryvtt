@@ -216,7 +216,13 @@ design options only, no mod effect; gross Cargo/Load). EVERY installed mod's eff
 `applyModEffects` (customization plan C1, docs/PLAN-vehicle-customization.md), into `VehicleData.effective` — readers
 use `effective*`, never the stored stats. Item `custom.state`: "" / "done" installed, "factory" already in the base,
 "parts" / "tested" not working yet, "removed" gone. A 0.143.0 design (`design.baseVersion` < 2) is converted by
-`module/vehicle-base.mjs`'s pending pass; until then only Armor/Signature are added. The Workshop and owns only the
+`module/vehicle-base.mjs`'s pending pass; until then only Armor/Signature are added.
+Customizing an existing vehicle (`module/vehicle-customize.mjs`, rules in `module/rules/vehicle-custom.mjs`) is a
+REQUEST record on the vehicle (`flags.sr2e.custRequests`): only the active GM ADMITS (re-quoted on the live vehicle,
+admitted-undelivered purchases reserved), the REQUESTING client (the payer's usual money writer) charges inside
+`moneyQueue(payer)` with the receipt `flags.sr2e.custReceipts.<id>` in the same update, the GM delivers the item with
+`_id` = the request id (`keepId`), then `flags.sr2e.custDelivery.<id>` = "delivered". Removal writes "removed" FIRST;
+recovery never recreates it. Never charge or create these items any other way. The Workshop and owns only the
 mod items flagged `flags.sr2e.designMod`; unflagged mods are customizations it never edits or deletes. Mod stat
 effects in design are `VehicleModData.effects` formulas; option steppers read `optionStats` (options only), never the
 mod-adjusted stats.

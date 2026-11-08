@@ -2038,6 +2038,22 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     actions: {
       switchTab: SHARED_ACTIONS.switchTab,
       openWorkshop: async function () { (await import("../apps/vehicle-workshop.mjs")).openVehicleWorkshop(this.document); },
+      customize: async function () { (await import("../apps/vehicle-customize-app.mjs")).openVehicleCustomize(this.document); },
+      installTest: async function (event, target) {
+        const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+        if (!item) return;
+        const workers = game.actors.filter(a => a.type === "character" && a.isOwner);
+        if (!workers.length) return ui.notifications.warn("You need a character to do the work.");
+        const options = workers.map(a => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+        const uuid = await foundry.applications.api.DialogV2.prompt({ window: { title: `Install ${item.name}` },
+          content: `<p>Who does the work? (A mechanic contact: the GM rolls for them.)</p><select name="worker">${options}</select>`,
+          ok: { label: "Roll", callback: (event, button) => button.form.elements.worker.value } });
+        if (uuid) (await import("../vehicle-customize.mjs")).installationTest(this.document, item, fromUuidSync(uuid));
+      },
+      finishInstall: async function (event, target) {
+        const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+        if (item) (await import("../vehicle-customize.mjs")).finishInstallation(this.document, item);
+      },
       reapplyDesign: async function () { (await import("../vehicle-base.mjs")).reapplyDesign(this.document); },
       keepAsEdited: async function () {
         const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Keep as edited?" },
@@ -2046,7 +2062,14 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       },
       fireWeapon: onFireVehicleWeapon,
       editItem: onEditItem,
-      deleteItem: onDeleteItem,
+      // A bought customization is removed with its terminal record first, so recovery never brings it back (plan C3.6).
+      deleteItem: async function (event, target) {
+        const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+        if (!item?.system?.custom?.receipt?.id) return onDeleteItem.call(this, event, target);
+        const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: `Remove ${item.name}?` },
+          content: "<p>It was bought as a customization. Removing it is final (no refund: the GM's call).</p>" });
+        if (ok) (await import("../vehicle-customize.mjs")).removeCustomization(this.document, item);
+      },
       addItem: onAddItem
     }
   };
@@ -2076,7 +2099,13 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     context.weapons = this.document.items.filter(i => i.isWeaponLike);
     context.mods = this.document.items
       .filter(i => i.type === "vehicle_mod")
-      .map(i => ({ id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) }));
+      .map(i => {
+        const c = i.system.custom ?? {}, st = c.state ?? "";
+        const label = { parts: "parts bought", tested: `test passed: ${c.attempt?.hours ?? "?"} ${c.attempt?.unit ?? "hours"}`, factory: "factory" }[st] ?? "";
+        return { id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) && !["parts", "tested"].includes(st),
+          stateLabel: label, stateTitle: st === "factory" ? "Part of the vehicle as built: already in its stats" : "Not working yet (customization, Rigger 2 p.118)",
+          canTest: this.isEditable && st === "parts" && !!c.receipt?.id, canFinish: this.isEditable && st === "tested" };
+      });
     context.tabs = this._getTabs();
     context.design = this._prepareDesign();
     context.tireChoices = this.document.system.schema.fields.tires.choices;

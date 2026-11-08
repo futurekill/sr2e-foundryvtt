@@ -193,6 +193,15 @@ modification. Design (Design Points) stays the Workshop's design mode.
    finishes an interrupted removal: an item still present whose record is "removed" is deleted (retried on each GM
    `ready`; until then it is treated as removed — no effects, no capacity) (round 4 #3).
 
+## Implementation notes (after sign-off)
+- C3.1 is a separate **Customize** window (`module/apps/vehicle-customize-app.mjs`) sharing the Workshop's catalog
+  loader, not a mode of the Workshop: its columns and actions (price, Availability, test, Buy, purchases in progress)
+  share nothing with the design steps.
+- Engine customization's parts cost sums its per-level multipliers (×1.25, +.15 per further level) over the levels
+  bought; active thermal masking likewise (×2, +.25). RAM prices the difference of the cubed totals.
+- Rating-table items (autonav, sensors, ECM, ECCM, ED, ECD, remote pilot programming, ablative armor) are bought AT a
+  rating (`formulas.set`): price, Availability, CF and Load from that rating's row.
+
 ## Key decisions & tradeoffs
 - Effects derived, never written; base = design options only. Costs: migration with edit-preservation, reader sweep.
 - Families with stack semantics and marginal capacity, instead of one item per mod or editing the design item.

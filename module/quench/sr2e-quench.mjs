@@ -12947,6 +12947,56 @@ export function registerSR2EQuenchTests() {
         assert.deepEqual([e.system.cargoFree, e.system.loadFree], free, "the same free space");
         assert.equal(e.system.effective.handling, e.system.handling, "factory equipment isn't applied twice");
       });
+
+      it("customization C3: request → GM admits → payer pays (receipt in the same write) → delivered as parts → test → Finish → remove is final", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(40000);
+        const C = await import("../vehicle-customize.mjs");
+        const wait = async (pred, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await pause(100); } return false; };
+        const v = await Actor.create({ name: "Quench Vehicle Custom", type: "vehicle", system: { handling: 4, handlingOffRoad: 8, speed: 160, acceleration: 10,
+          load: 300, cargo: 10, body: 3, cost: 50000, skill: "car", fuelType: "gasoline" } });
+        const pc = await Actor.create({ name: "Quench Vehicle Payer", type: "character", system: { nuyen: 200000 } });
+        made.push(v, pc);
+        const catalog = await C.customizationCatalog();
+        const turbo = catalog.find(c => c.name.startsWith("Turbocharging"));
+        const id = await C.requestCustomization(v, turbo, 2, pc);
+        assert.isTrue(await wait(() => v.items.get(id)), "delivered");
+        const it = v.items.get(id);
+        assert.deepEqual([pc.system.nuyen, pc.getFlag("sr2e", "custReceipts")[id].amount, it.system.custom.state, v.system.effective.speed],
+          [200000 - 165000, 165000, "parts", 160], "110,000¥ × Street Index 1.5; parts don't work yet (p.118)");
+        // Levels are locked while bought (a GM change would clear the test; here, the GM's own change is allowed).
+        await pc.createEmbeddedDocuments("Item", [{ name: "Ground Vehicles (B/R)", type: "skill", system: { rating: 6, category: "active" } }]);
+        const orig = CONFIG.Dice.randomUniform; const q = [5, 5, 5, 2, 1, 1]; CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { await C.installationTest(v, it, pc); } finally { CONFIG.Dice.randomUniform = orig; }
+        assert.deepEqual([it.system.custom.state, it.system.custom.attempt.hours], ["tested", 5.33], "base 16 h ÷ 3 successes");
+        await C.finishInstallation(v, it);
+        assert.deepEqual([it.system.custom.state, v.system.effective.speed, v.system.effectiveAcceleration], ["done", 190, 30], "+30 Speed, +20 Accel (p.122)");
+        await C.removeCustomization(v, it);
+        await C.gmProcess(v); await pause(500);
+        assert.notOk(v.items.get(id), "removal is final: recovery never brings it back");
+        assert.equal(v.getFlag("sr2e", "custDelivery")[id], "removed");
+      });
+
+      it("customization C3: no room or wrong class → refused; a GM cancellation of an unpaid purchase charges nothing", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(20000);
+        const C = await import("../vehicle-customize.mjs");
+        const v = await Actor.create({ name: "Quench Vehicle Cramped", type: "vehicle", system: { handling: 4, speed: 100, load: 50, cargo: 1, body: 3, cost: 20000, skill: "car", fuelType: "gasoline" } });
+        const pc = await Actor.create({ name: "Quench Vehicle Poor", type: "character", system: { nuyen: 10 } });
+        made.push(v, pc);
+        const catalog = await C.customizationCatalog();
+        const crane = catalog.find(c => c.name === "Crane");
+        assert.match(C.quoteCustomization(v, crane, 100, catalog).problems.join(), /needs 35 CF/, "room (p.118)");
+        const ics = catalog.find(c => c.name.startsWith("Improved Control Surfaces"));
+        assert.isFalse(C.quoteCustomization(v, ics, 1, catalog).ok, "watercraft only");
+        // The payer can't afford it: the purchase ends unpaid, nothing charged, nothing delivered.
+        const spot = catalog.find(c => c.name === "Spotlight");
+        const id = await C.requestCustomization(v, spot, 1, pc);
+        for (let i = 0; i < 60 && !["unpaid", "paid", "done"].includes(v.getFlag("sr2e", "custRequests")[id]?.state); i++) await pause(100);
+        assert.deepEqual([v.getFlag("sr2e", "custRequests")[id].state, pc.system.nuyen, !!v.items.get(id)], ["unpaid", 10, false]);
+        await C.cancelCustomization(v, id);
+        assert.equal(v.getFlag("sr2e", "custRequests")[id].state, "cancelled");
+      });
     }, { displayName: "SR2E: Vehicles" });
 
     quench.registerBatch("sr2e.vr2-options", (context) => {

@@ -1,0 +1,43 @@
+<div class="sr2e-customize-body">
+  <p class="vc-hint">Modifications fitted to a vehicle after it was built (Rigger 2 p.118): buy the parts (price × Street
+    Index), make the Installation Test on the vehicle's sheet, and click Finish when the time has passed.
+    <strong>{{vehicle.name}}</strong>: {{vehicle.cargoFree}} CF and {{vehicle.loadFree}} kg free; original cost {{vehicle.cost}}¥.</p>
+  {{#if unresolved.length}}<p class="vc-warn">The GM must first set the family of: {{#each unresolved}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} (on the item).</p>{{/if}}
+
+  {{#if requests.length}}
+  <h3>Purchases</h3>
+  <table class="vc-table">
+    <tbody>
+    {{#each requests}}
+    <tr><td>{{name}}{{#if levels}} ×{{levels}}{{/if}}</td><td>{{#if price}}{{price}}¥{{else}}{{#if quoted}}{{quoted}}¥{{/if}}{{/if}}</td>
+      <td>{{label}}{{#if reason}}: <span class="vc-muted">{{reason}}</span>{{/if}}</td>
+      <td>{{#if canCancel}}<button type="button" data-action="cancel" data-id="{{id}}">Cancel</button>{{/if}}
+        {{#if canDismiss}}<button type="button" data-action="dismiss" data-id="{{id}}" aria-label="Remove from the list"><i class="fas fa-times"></i></button>{{/if}}</td></tr>
+    {{/each}}
+    </tbody>
+  </table>
+  {{/if}}
+
+  <div class="vc-bar">
+    <input type="search" data-filter value="{{filter}}" placeholder="Search: turbo, armor, sensors…" aria-label="Search modifications" />
+    <label>Paid by <select data-payer>
+      {{#each payers}}<option value="{{uuid}}" {{#if (eq uuid ../payer)}}selected{{/if}}>{{name}}</option>{{/each}}
+      {{#if isGM}}<option value="" {{#unless payer}}selected{{/unless}}>No charge (GM)</option>{{/if}}
+    </select></label>
+  </div>
+  <div class="vc-catalog">
+  <table class="vc-table">
+    <thead><tr><th>Modification</th><th>Rating</th><th>Parts</th><th>Availability</th><th>Installation Test (TN)</th><th>Base time</th><th>Takes</th><th></th></tr></thead>
+    <tbody>
+    {{#each rows}}
+    <tr class="{{#if blocked}}vc-blocked{{/if}}" title="{{page}}{{#if equipment}} · {{equipment}}{{/if}}">
+      <td>{{name}}{{#if blocked}}<br><span class="vc-muted">{{blocked}}</span>{{/if}}</td>
+      <td>{{#if rated}}<input type="number" data-levels="{{uuid}}" value="{{levels}}" min="1" {{#if max}}max="{{max}}"{{/if}} aria-label="{{#if set}}Rating{{else}}Levels to add{{/if}}" />{{else}}—{{/if}}</td>
+      <td>{{price}}</td><td>{{market}}</td><td>{{test}}</td><td>{{time}}</td><td>{{room}}</td>
+      <td><button type="button" data-action="buy" data-uuid="{{uuid}}" {{#if blocked}}disabled{{/if}}>Buy</button></td>
+    </tr>
+    {{/each}}
+    </tbody>
+  </table>
+  </div>
+</div>

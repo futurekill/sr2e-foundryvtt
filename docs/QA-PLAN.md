@@ -1077,6 +1077,13 @@ If those five all work, the core loop is healthy.
       "Create New Actors" gets a warning, nothing is created.
 - [ ] A production vehicle (no design) → Workshop → save: the confirmation lists the changed stats; Cancel changes
       nothing.
+- [ ] **Customize (C3):** a production car (Fuel type gasoline, cost 50,000¥) → Customize → Turbocharging, 2 levels,
+      paid by a character with 200,000¥: 165,000¥ (110,000 × SI 1.5) is taken; the item shows "parts bought" and the
+      Speed doesn't change. Test (Ground Vehicles (B/R)) → the card gives the hours; Finish → Speed +30, Accel +20.
+- [ ] Customize as a player: the request waits for the GM's client; a payer without enough nuyen ends "not paid",
+      nothing charged; the GM cancels it. A military-only part (RAM) is refused for players.
+- [ ] Remove a bought modification: confirm; reload: it doesn't come back.
+- [ ] An item with no family key that the catalogs don't know blocks Customize until the GM sets its key.
 - [ ] **Customization C1:** drag Rigger 2's Turbocharging onto a production car (rating 1): the sheet shows "Speed
       100 → 115", "Accel → +10", "Signature → −1"; a Handling Test uses the modified Handling; the character's Vehicles
       tab shows the modified stats. Delete it: back to the printed stats.

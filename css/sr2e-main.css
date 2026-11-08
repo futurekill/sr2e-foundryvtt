@@ -4194,3 +4194,18 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-vehicle-sheet .vehicle-base-notice { border: 1px solid var(--sr2e-gold-dim); padding: 6px 10px; margin: 6px 0; }
 .sr2e-vehicle-sheet .vehicle-base-notice ul { margin: 4px 0 4px 18px; }
 .sr2e-vehicle-sheet .vehicle-base-notice button { width: auto; margin-right: 6px; }
+/* Customize window (docs/PLAN-vehicle-customization.md C3) */
+.sr2e-customize .window-content { padding: 8px 12px; }
+.sr2e-customize .sr2e-customize-body { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.sr2e-customize .vc-hint, .sr2e-customize .vc-muted { color: var(--sr2e-text-dim, #9aa); font-size: 12px; }
+.sr2e-customize .vc-warn { color: var(--sr2e-red, #e55); }
+.sr2e-customize .vc-bar { display: flex; gap: 12px; align-items: center; }
+.sr2e-customize .vc-bar input[type="search"] { flex: 1; }
+.sr2e-customize .vc-catalog { flex: 1; overflow: auto; }
+.sr2e-customize .vc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sr2e-customize .vc-table td, .sr2e-customize .vc-table th { padding: 3px 6px; border-bottom: 1px solid var(--sr2e-line, #333); text-align: left; vertical-align: top; }
+.sr2e-customize .vc-table input[type="number"] { width: 48px; }
+.sr2e-customize .vc-table button { width: auto; padding: 0 8px; line-height: 22px; }
+.sr2e-customize .vc-blocked td:not(:first-child) { opacity: 0.55; }
+.sr2e-vehicle-sheet .mod-state { font-style: normal; font-size: 10px; padding: 0 4px; border: 1px solid var(--sr2e-gold-dim); color: var(--sr2e-gold); }
+.sr2e-vehicle-sheet .mod-step { width: auto; flex: 0 0 auto; padding: 0 6px; line-height: 20px; font-size: 11px; }

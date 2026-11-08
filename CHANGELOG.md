@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Customize an existing vehicle** (Rigger 2 p.118–146; docs/PLAN-vehicle-customization.md): the vehicle sheet's
+  **Customize** button lists every modification the vehicle can take with its parts price (× Street Index),
+  Availability, the Installation Test (skills and Target Number) and base time, and the room it takes; anything it
+  can't take says why (room, the maximum counting levels it already has, the vehicle class, required tires, military
+  only). Buying asks the GM's client to approve it, the payer's money is taken with a receipt in the same write, and
+  the parts arrive on the vehicle. **Test** rolls the Installation Test (base time ÷ successes; several skills: the
+  lowest count, drive-by-wire's three summed) and **Finish** makes it work once the time has passed. Removing a bought
+  modification is final.
+- Modifications now also set **Sensor, Autonav and Pilot** ratings (Sensors, autonav systems, remote-control
+  interface and advanced programming) and change Load (engine customization), on the sheet and the Vehicles tab.
 - **Modifications change a vehicle's stats on its sheet, wherever they came from** (vehicle customization, release 1;
   docs/PLAN-vehicle-customization.md): a turbocharger, drive-by-wire, suspension, armor and so on added to an existing
   vehicle now raise its Speed, Acceleration, lower its Handling, etc. exactly as Rigger 2 prints (p.120–146), not just

@@ -1433,7 +1433,11 @@ export class VehicleModData extends SR2EDataModel {
         skills: new fields.ArrayField(new fields.StringField(), { initial: [] }),   // vehicleBR, computerBR, electronicsBR…
         combine: new fields.StringField({ initial: "lowest", blank: true }),        // ruling 10; "sum" (drive-by-wire p.124)
         equipment: new fields.StringField({ initial: "", blank: true }),
-        pageCust: new fields.StringField({ initial: "", blank: true })
+        pageCust: new fields.StringField({ initial: "", blank: true }),
+        // The purchase that brought it (plan C3.2): { id, payer (uuid or "" = no charge), amount }; the passed
+        // Installation Test (C3.4): { id, by, results [{skill, successes}], ok, hours, unit, spec {levels, choice, tn, baseTime, R0} }.
+        receipt: new fields.ObjectField({ initial: {} }),
+        attempt: new fields.ObjectField({ initial: {} })
       }),
       restrictions: new fields.ArrayField(new fields.StringField(), { initial: [] }),
       // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).
