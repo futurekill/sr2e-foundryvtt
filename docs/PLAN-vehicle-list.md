@@ -46,8 +46,16 @@ releases. Instead:
 - Matching = the created actor's `_stats.compendiumSource` (Foundry sets it on import), else its `vehicleId` flag. A
   name match is never automatic: it only appears, flagged, in the GM's update window.
 
+## Where the code lives (draft 2.1)
+As with the design tables ([[design-engine architecture]]: the system ships the UI, math and registry; Rigger 2 ships
+the data): the R2 module only registers its data, `CONFIG.SR2E.registerVehicleList({ rows, identity })` from
+`data/vehicle-list.json` (generated: per vehicleId the full VehicleData patch, notes, factory items with deterministic
+ids; and the identity map). The system's `module/vehicle-list.mjs` owns the hook, the reconciliation, the update window
+(a GM settings menu that says "needs the Rigger 2 module" when nothing is registered) and the Quench tests. Until the
+data is registered (it loads at `setup`), the hook does nothing.
+
 ## Precedence (ruling 2)
-One shared, idempotent function `applyListRow(target, row)` (R2 module) computes the update for a vehicle: the stat-line
+One shared, idempotent function `listUpdate(target, row)` (system `module/vehicle-list.mjs`) computes the update for a vehicle: the stat-line
 fields above + classification + the factory-equipment reconciliation below. Never applied to a vehicle with any design —
 the system's shared `hasDesign(sys)` = `design.version === 2` OR a legacy design (non-empty `chassisKey` /
 `powerPlantKey` or any improvement > 0) (R1 #6).
