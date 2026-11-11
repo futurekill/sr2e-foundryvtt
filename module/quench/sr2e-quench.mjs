@@ -13087,6 +13087,30 @@ export function registerSR2EQuenchTests() {
         assert.notOk(VL.updateCandidates().find(x => x.uuid === stale.uuid), "idempotent");
       });
 
+      it("Rigger 2 Vehicle List: two unlinked tokens of one vehicle are offered and updated independently", async function () {
+        const L = CONFIG.SR2E.vehicleList;
+        if (!Object.keys(L?.rows ?? {}).length) this.skip();
+        this.timeout(30000);
+        const VL = await import("../vehicle-list.mjs");
+        const src = Object.entries(L.identity).find(([u, e]) => e.name === "Ford Americar" && u.startsWith("Compendium.sr2e."))[0];
+        const base = await Actor.create({ name: "Quench Token Americar", type: "vehicle", _stats: { compendiumSource: src }, prototypeToken: { actorLink: false } });
+        made.push(base);
+        await base.update({ "system.speed": 50, "flags.sr2e.-=r2Stats": null, "flags.sr2e.-=vehicleId": null });
+        const scene = await Scene.create({ name: "Quench Vehicle List Scene", active: false });
+        try {
+          const [t1, t2] = await scene.createEmbeddedDocuments("Token", [
+            { name: "Quench T1", actorId: base.id, actorLink: false, x: 100, y: 100 },
+            { name: "Quench T2", actorId: base.id, actorLink: false, x: 300, y: 100 }]);
+          await t2.actor.update({ "system.speed": 70 });
+          const c1 = VL.updateCandidates().find(x => x.uuid === t1.actor.uuid), c2 = VL.updateCandidates().find(x => x.uuid === t2.actor.uuid);
+          assert.ok(c1 && c2, "each token is its own row");
+          assert.equal(c2.changes.find(ch => ch.key === "speed").from, 70);
+          assert.equal(await VL.applyCandidate(c1), "applied");
+          const row = L.rows["ford-americar"];
+          assert.deepEqual([scene.tokens.get(t1.id).actor.system.speed, scene.tokens.get(t2.id).actor.system.speed, base.system.speed], [row.system.speed, 70, 50]);
+        } finally { await scene.delete(); }
+      });
+
       it("Workshop chassis art: every chassis has a reachable exemplar; sized, rotation-locked token; a chosen picture is kept", async function () {
         if (!haveTables()) this.skip();
         const W = await import("../apps/vehicle-workshop.mjs");
