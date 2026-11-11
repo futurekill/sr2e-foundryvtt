@@ -187,3 +187,86 @@ VERDICT: REVISE
 Accepted as Codex wrote it: the offline exception is removed; a cancellation waits for the payer's writer to
 acknowledge, and the reservation is shown as waiting until then. MAX_ROUNDS (5) reached; round 5's single finding was
 fixed exactly as proposed. Draft 6 goes to the user for sign-off (human gate) before any code.
+
+## Code review (C1–C3) round 1 — Codex (fresh session; system dda22fa..323586c, module since 7bb9e08)
+
+Found concrete failures requiring revision. I used static review and write-free Node reproductions; I did not run Foundry/Quench or modify files.
+
+1. **[P1] Cancellation releases capacity before acknowledgment.** [vehicle-customize.mjs:67](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:67) reserves only `admitted` and `paid` requests. Reproduce: admit a purchase consuming the remaining CF, disconnect its payer, then cancel it. `cancelRequested` immediately disappears from reservations, allowing another purchase while the first debit may still land.
+   **Fix:** Reserve `cancelRequested` purchases until the payer acknowledges cancellation or delivery completes.
+
+2. **[P1] The requesting client can become a second money writer.** [vehicle-customize.mjs:219](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:219) routes payment by requester user, while the picker permits a GM to select any character. Reproduce: with 1,000¥, the GM requests a 900¥ spotlight against a player’s character while that player purchases 700¥ of ordinary equipment. Both client-local queues can read 1,000¥ and commit balances of 100¥ and 300¥; both purchases succeed.
+   **Fix:** Route payment to the payer’s existing exclusive writer, including GM-originated requests.
+
+3. **[P1] Durable payments are not sufficient for GM recovery.** [vehicle-customize.mjs:166](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:166) delivers only requests already marked `paid`. Reproduce: disconnect after the atomic debit/receipt update but before the subsequent request-state update. Reloading the GM leaves the receipted purchase `admitted` and undelivered until the requesting user returns. A write-free reproduction confirmed GM processing makes no writes.
+   **Fix:** Reconcile undelivered receipts independently of the request’s payment-state marker.
+
+4. **[P1] A vetoed item creation permanently loses paid parts.** [vehicle-customize.mjs:198](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:198) does not check the creation result. Reproduce: have `preCreateItem` veto delivery, returning an empty creation result. The code still records `delivered`/`done`, preventing recovery despite no item existing; reproduced with an empty-result stub.
+   **Fix:** Verify that the deterministic item exists before writing the delivery record.
+
+5. **[P1] Finish does not validate installed prerequisites or restrictions.** [vehicle-customize.mjs:241](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:241) calls the pure quote, bypassing `modProblems` and tire checks. Reproduce: buy/test rigger adaptation, remove its sensors or datajack, then Finish. It installs successfully. Pending sensors also qualify during admission, yet Finish never requires their installation.
+   **Fix:** At Finish, run restriction checks against installed/factory prerequisites and the live vehicle configuration.
+
+6. **[P1] Installation does not verify payment provenance.** [vehicle-customize.mjs:274](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:274) never checks a receipt; Test only checks whether the item contains a receipt ID. Reproduce: copy a tested customization onto another otherwise identical vehicle. Its matching attempt can be finished without a payment receipt for that recipient. A matching tested item with no receipt also passed the write-free Finish reproduction.
+   **Fix:** Require a matching durable payer/no-charge receipt, recipient, purchase ID, and nonremoved delivery before Test and Finish.
+
+7. **[P1] Finished purchases can be upgraded for free.** [vehicle-customize.mjs:303](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:303) protects only `parts`/`tested`; the sheet restores rating editing for `done`. Reproduce: buy and finish one turbocharging level, then change its displayed rating to 20. Effects immediately increase without payment, admission, or another installation test.
+   **Fix:** Keep purchased ratings protected after installation and route increases through a new purchase/install transaction.
+
+8. **[P1] “Keep as edited” can leave permanent double application after interruption.** [vehicle-base.mjs:129](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-base.mjs:129) commits the production baseline and completion stamp before converting embedded items. Reproduce: start with stored Armor 0 plus six design armor points; interrupt after the actor update. Stored Armor becomes 6 while the still-installed item adds another 6. Reload skips conversion because `design.version` is already 1.
+   **Fix:** Make conversion a resumable transaction whose completion stamp follows verified item conversion.
+
+9. **[P1] Conversion-created engine factory items suppress subsequent upgrades.** [vehicle-base.mjs:126](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-base.mjs:126) creates factory engine items without effects; `applyModEffects` evaluates the family using its first item. Reproduce: Keep-as-edited a vehicle with design engine Load customization, then install another Load level. With Body 3 and baseline Load 500, the result remains 500 instead of 650; reproduced directly.
+   **Fix:** Give synthetic factory items canonical family effects, or resolve effects independently of the first embedded item.
+
+10. **[P1] Unconverted designs accept purchases whose effects never activate.** [actor-data.mjs:2096](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2096) deliberately applies only Armor/Signature before conversion, but Customize has no corresponding admission gate. Reproduce: leave an edited 0.143.0 design awaiting the GM’s conversion choice, then buy/test/finish turbocharging. Payment and installation complete, but Speed and Acceleration do not change.
+    **Fix:** Block customization admission until the pending base conversion is resolved.
+
+11. **[P2] Legacy family resolution is absent from effects and capacity.** [actor-data.mjs:2091](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2091) passes raw embedded keys/stack values to derivation. Reproduce: retain an old blank-key Off-Road Suspension item and install one current catalog level. Admission recognizes the old item by name, but derivation treats them separately: Speed 100 becomes 70 and Economy 10 becomes 13.225, instead of 85 and 11.5.
+    **Fix:** Use the same resolved family and stacking metadata in admission, effects, and capacity.
+
+12. **[P1] Quote capacity differs from actual capacity.** [vehicle-custom.mjs:111](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-custom.mjs:111) treats missing customization CF as zero and evaluates full consumption instead of the family’s marginal consumption. Reproduce: a Reinforced Bench Seat quotes 0 CF but consumes its inherited 8 CF after payment; conversely, an additional nitrous level is rejected with no free space despite adding zero CF/Load to an existing family.
+    **Fix:** Calculate admission/reservation consumption as the shared capacity function’s before/after difference, including inherited specifications.
+
+13. **[P1] Capacity derivation ignores trait overrides.** [vehicle-design.mjs:337](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-design.mjs:337) reads only plain `cf`/`load`. Reproduce: buy a rotorcraft Ring Mount. The quote reserves the printed 16 CF, but the delivered item consumes only 1 CF, releasing 15 CF for further purchases. Confirmed against p.134 and by Node reproduction.
+    **Fix:** Resolve capacity formulas with the same trait precedence and context used by quoting.
+
+14. **[P2] Engine Speed maximum changes depending on purchase batching.** [vehicle-customize.mjs:83](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:83) excludes turbocharging from `S0` but retains existing engine-customization gains. Reproduce: at Speed 100, buying two engine Speed levels together is rejected at maximum 150; buying and finishing one level first makes the second purchase pass, reaching 160.
+    **Fix:** Use a stable pre-engine-customization baseline and count existing gains exactly once.
+
+15. **[P2] Printed maxima are missing or explicitly discarded.** [vehicle-customize.mjs:106](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:106) blanks `maxRating`; several customization records supply no replacement. Reproduce: with sufficient funds/space, buy a 1,000kg winch for Body 1, whose p.146 maximum is 25kg, or fit two external hardpoints to Body 2, exceeding p.131’s mount-point limit.
+    **Fix:** Encode the printed customization maxima and enforce aggregate mount points during admission and Finish.
+
+16. **[P2] Computer installation tests use nonexistent skill names.** [vehicle-custom.mjs:138](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-custom.mjs:138) returns `Computers` and `Computers (B/R)`, whereas the system uses `Computer` and `Computer (B/R)`. Reproduce: a worker with the canonical Computer skill installs DBW; `rollNamedSkill` misses the owned skill and defaults instead.
+    **Fix:** Resolve installation skills through the canonical skill identities/names.
+
+17. **[P2] External fixed mounts omit their permanent Signature penalty.** [gen-vehicle-mods.mjs:233](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-rigger-2/tools/gen-vehicle-mods.mjs:233) and their customization records contain no Signature effect. Reproduce: install an External Hardpoint on Signature 5; effective Signature remains 5 rather than p.131’s 4. Confirmed against the page render and generated data.
+    **Fix:** Add `signature: "-1"` to both external fixed-mount variants and regenerate their records.
+
+18. **[P2] Required production-vehicle inputs have no editing controls.** [vehicle-sheet.hbs:122](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/templates/actor/vehicle-sheet.hbs:122) exposes fuel but not `plantCost`, body category, or classification traits. Reproduce: open a production vehicle with default null plant cost and attempt engine customization. Purchase is blocked pending GM input, but neither Customize nor the sheet provides that input.
+    **Fix:** Add the approved GM controls for plant cost, body category, and traits.
+
+19. **[P2] Terminally removed items still contribute effects until deletion succeeds.** [actor-data.mjs:2087](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2087) ignores `custDelivery[id] === "removed"`. Reproduce: remove installed armor and interrupt or veto embedded deletion after the terminal flag lands. The item continues providing Armor and consuming Load, although customization context already excludes it.
+    **Fix:** Exclude terminally removed items from effects and capacity immediately, while recovery retries deletion.
+
+VERDICT: REVISE
+### Claude's response (fixes: system 2730664, module cb5b633)
+All 19 accepted.
+- #1 cancelRequested purchases stay reserved. #2 payment runs only on `moneyWriterFor(payer)`: the active player who owns
+  the payer (lowest id), else the active GM — the client that runs that character's ordinary purchases. #3 the GM
+  delivers whenever a durable receipt exists, whatever the request marker says. #4 the delivery record is written only
+  when the item exists. #5 Finish uses the full quote (restrictions, tires, maxima) with only installed/factory items as
+  prerequisites. #6 `verifiedPurchase`: receipt id = item id, delivery record "delivered" on THIS vehicle, the payer's
+  receipt names this vehicle (or the GM's no-charge receipt). #7 a purchase's levels stay locked after Finish (non-GM).
+  #8 Keep as edited is a recorded plan (`flags.sr2e.keepEdited`) finished by `resumeKeepAsEdited`, the stamp last.
+  #9 synthetic engine items carry the family's effects, and a family is evaluated through its effect-bearing item.
+  #10 no customizing while a design conversion is unsettled. #11 items lacking a modKey that the catalogs know by name
+  or source block Customize until the GM's "Fix families" writes modKey/stack (unknown items become "independent").
+  #12 room = the shared capacity rule with the item added minus without (inherited design CF, fixed parts, classes).
+  #13 capacity resolves "cf@trait"/"load@trait" with the vehicle's traits. #14 the Speed maximum's base leaves the
+  family out (and a design option's levels counted once), so batching never matters. #15 crane/winch Body tables and
+  weapon mount points (p.131). #16 Computer / Computer (B/R) / Electronics (B/R) / Firearms (B/R). #17 external fixed
+  mounts −1 Signature. #18 GM inputs on a production vehicle: class, traits, power plant cost. #19 a "removed" record
+  takes the item out of effects and capacity at once.
+- The independent transcription pass 2 (Codex) agrees with pass 1 on every value (sr2e-rigger-2 docs/DESIGN-DATA-CHECK.md).
+- Vitest 1,552; Quench sr2e.vehicles 14/14.
