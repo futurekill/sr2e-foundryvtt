@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.144.0 — 2026-11-11
 
 ### Added
 - **Customize an existing vehicle** (Rigger 2 p.118–146; docs/PLAN-vehicle-customization.md): the vehicle sheet's
