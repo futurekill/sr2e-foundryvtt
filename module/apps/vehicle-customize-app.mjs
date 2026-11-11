@@ -63,10 +63,10 @@ export class VehicleCustomize extends HandlebarsApplicationMixin(ApplicationV2) 
         page: c.system.custom.pageCust };
     });
     const requests = Object.values(this.vehicle.getFlag("sr2e", "custRequests") ?? {}).sort((a, b) => b.created - a.created)
-      .map(q => ({ ...q, label: STATE_LABEL[q.state] ?? q.state, open: !["done", "rejected", "cancelled"].includes(q.state),
+      .map(q => ({ ...q, price: q.price ? `${Number(q.price).toLocaleString()}¥` : "", quoted: q.quoted ? `${Number(q.quoted).toLocaleString()}¥` : "", label: STATE_LABEL[q.state] ?? q.state, open: !["done", "rejected", "cancelled"].includes(q.state),
         canCancel: game.user.isGM && ["pending", "admitted", "unpaid"].includes(q.state), canDismiss: ["rejected", "cancelled", "done", "unpaid"].includes(q.state) }));
     return { rows, filter: this.filter, payers, payer: this.payer, isGM: game.user.isGM, requests,
-      vehicle: { name: this.vehicle.name, cargoFree: ctx.cargoFree, loadFree: ctx.loadFree, cost: ctx.cost, plantCost: ctx.plantCost },
+      vehicle: { name: this.vehicle.name, cargoFree: ctx.cargoFree, loadFree: ctx.loadFree, cost: Number(ctx.cost).toLocaleString(), plantCost: ctx.plantCost },
       unresolved: ctx.unresolved };
   }
 

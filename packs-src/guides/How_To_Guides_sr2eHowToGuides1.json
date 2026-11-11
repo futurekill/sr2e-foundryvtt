@@ -45,6 +45,31 @@
       }
     },
     {
+      "_id": "251f726da8f0d7d0",
+      "name": "Customize a vehicle",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 200000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> fit a turbocharger, armor, sensors or anything else to a vehicle that already exists, by the customization\nrules (Rigger 2 pp.118–146).</p>\n<p><img src=\"systems/sr2e/assets/guides/customize-vehicle.gif\" alt=\"Buying turbocharging, testing the installation and finishing it: Speed 210 → 225\"></p>\n<p><strong>GM, once:</strong> turn on the <strong>Rigger 2</strong> module. For a production vehicle, check its <strong>Fuel type</strong> (under More): engine\nmodifications need it. For engine customization on a production vehicle, enter its <strong>power plant cost</strong> there too.</p>\n<p><strong>The player</strong></p>\n<ol>\n<li><strong>Open Customize</strong> on the vehicle&#39;s sheet (Modifications header).</li>\n<li><strong>Pick the modification.</strong> Each row shows the parts price (with the Street Index), Availability, the Installation\nTest (skill and Target Number), the base time and the room it takes. A row you can&#39;t buy says why. Set the levels\n(or the rating) and <strong>Paid by</strong>, then <strong>Buy</strong>.</li>\n<li><strong>Wait for the GM&#39;s client</strong> to approve it (it checks the vehicle as it is right now). Your character pays; the\nparts appear on the vehicle as <em>parts bought</em>.</li>\n<li><strong>Test.</strong> On the vehicle&#39;s sheet, <strong>Test</strong> on that row: pick who does the work and roll. The card gives the time:\nbase time ÷ successes.</li>\n<li><strong>Finish</strong> when that time has passed in play: the modification works from now on.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>Levels are fixed while a modification is being installed; the GM can change them (the test is then needed again).</li>\n<li>A test that fails keeps the parts; try again.</li>\n<li>Removing a bought modification can&#39;t be undone (no refund unless the GM gives one).</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "2ee6f48dadf6f3ab",
       "name": "Set up a Matrix jackpoint",
       "type": "text",
@@ -59,7 +84,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 200000,
+      "sort": 300000,
       "ownership": {
         "default": -1
       },
@@ -84,7 +109,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
@@ -109,7 +134,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
@@ -134,7 +159,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },

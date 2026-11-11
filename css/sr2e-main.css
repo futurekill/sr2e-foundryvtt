@@ -4202,6 +4202,7 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-customize .vc-bar { display: flex; gap: 12px; align-items: center; }
 .sr2e-customize .vc-bar input[type="search"] { flex: 1; }
 .sr2e-customize .vc-catalog { flex: 1; overflow: auto; }
+.sr2e-customize .sr2e-customize-body h3 { font-size: 13px; margin: 4px 0 0; border: none; }
 .sr2e-customize .vc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .sr2e-customize .vc-table td, .sr2e-customize .vc-table th { padding: 3px 6px; border-bottom: 1px solid var(--sr2e-line, #333); text-align: left; vertical-align: top; }
 .sr2e-customize .vc-table input[type="number"] { width: 48px; }

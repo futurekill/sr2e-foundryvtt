@@ -9,7 +9,7 @@
   <table class="vc-table">
     <tbody>
     {{#each requests}}
-    <tr><td>{{name}}{{#if levels}} ×{{levels}}{{/if}}</td><td>{{#if price}}{{price}}¥{{else}}{{#if quoted}}{{quoted}}¥{{/if}}{{/if}}</td>
+    <tr><td>{{name}}{{#if levels}} ×{{levels}}{{/if}}</td><td>{{#if price}}{{price}}{{else}}{{#if quoted}}{{quoted}}{{/if}}{{/if}}</td>
       <td>{{label}}{{#if reason}}: <span class="vc-muted">{{reason}}</span>{{/if}}</td>
       <td>{{#if canCancel}}<button type="button" data-action="cancel" data-id="{{id}}">Cancel</button>{{/if}}
         {{#if canDismiss}}<button type="button" data-action="dismiss" data-id="{{id}}" aria-label="Remove from the list"><i class="fas fa-times"></i></button>{{/if}}</td></tr>
