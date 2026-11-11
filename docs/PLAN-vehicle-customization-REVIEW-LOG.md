@@ -301,3 +301,21 @@ exists; otherwise it keeps the plan and retries. #3 reservations carry their cat
 are computed through the shared rule over installed items + reservations. #4 `baked` levels (design option + factory)
 are left out of a maximum's base once. #5 Finish uses only installed engine customization levels.
 Vitest 1,553; Quench sr2e.vehicles 14/14.
+
+## Code round 3 — Codex (fix d62e50d)
+
+Read-only review of `d62e50d`, with write-free Node reproductions. Round-2’s five exact reproductions are addressed. A writer who never returns leaves cancellation reserved indefinitely, consistent with the settled no-handoff rule. Two related failures remain:
+
+1. **[P1] Per-request writers still allow concurrent writes to one payer.** [vehicle-customize.mjs:201](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:201) pins requests independently. Reproduce: with the owner offline and 1,000¥ available, admit a 900¥ request assigned to the GM; delay its payment. The owner reconnects and a 700¥ request is assigned to them. Both clients remain authorized for their respective requests and use separate money queues. The reproduction produced debit writes of 100¥ and 300¥ with distinct receipts, allowing both purchases.
+   **Fix:** Enforce one writer per payer across all money operations, retaining that authority until outstanding writes settle before handoff.
+
+2. **[P1] Missing catalog specifications can release a surviving reservation’s fixed capacity.** [vehicle-customize.mjs:104](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:104) falls back to admitted marginal CF/Load. Reproduce: with 2 CF/15 kg free, admit nitrous A for 2 CF/15 kg, then nitrous B for zero additional capacity. Make their catalog entry unavailable and acknowledge cancellation of A. B remains admitted, but the fallback reserves zero; the reproduction reports all 2 CF/15 kg free. Another purchase can consume that space before the catalog returns and B is delivered.
+   **Fix:** Persist full reservation specifications at admission and calculate surviving reservations together from those snapshots, including when catalog entries disappear.
+
+VERDICT: REVISE
+### Claude's response (fix 4072568)
+
+1. Accepted. Admission pins a payer's writer: while any purchase of that payer (any vehicle, unlinked tokens included) is admitted or cancelling with no receipt, a new one gets that same writer (`pendingWriter`). Ordinary gear purchases outside customization keep the system's existing money model (the owner's client), which is out of this review's scope.
+2. Accepted. Admission snapshots the catalog item's system data (minus description) into the request (`spec`); reservations read the snapshot first, so a vanished catalog entry no longer releases a surviving reservation's fixed part.
+
+Quench sr2e.vehicles 15/15 (new R3 test); Vitest 1,553; lint clean.
