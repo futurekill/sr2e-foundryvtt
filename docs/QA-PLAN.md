@@ -1092,4 +1092,9 @@ If those five all work, the core loop is healthy.
 - [ ] Edit such a vehicle's Speed by hand in 0.143.0, then load 0.144.0 as GM: a notice on its sheet lists the
       difference; "Keep as edited" keeps its stats and free Cargo/Load and makes its design mods factory equipment;
       "Reapply the design" restores the design's stats.
+- [ ] **Chassis art** (Rigger 2 ≥ 0.7.0): Workshop → new Sports Car: portrait and token are the Eurocar Westwind,
+      2×4 squares, nose down, rotation locked. Redesign it as an ATV: the picture becomes the ATV's. Set a custom
+      portrait, redesign again: the custom one stays.
+- [ ] Two purchases for one payer on two vehicles while the payer's owner is offline, then the owner logs in and
+      buys a third: all three are charged by the same client (the request's `writer`), and the balance is right.
 
