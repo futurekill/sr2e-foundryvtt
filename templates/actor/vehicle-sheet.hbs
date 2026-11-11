@@ -136,6 +136,15 @@
         <div class="form-group"><label>Street Index:</label><input type="number" name="system.streetIndex" value="{{system.streetIndex}}" step="0.05" /></div>
         <div class="form-group"><label title="The vehicle's Design Point Value (Rigger 2 vehicle list)">Design Points:</label><input type="number" name="system.designPointValue" value="{{system.designPointValue}}" /></div>
         <div class="form-group"><label>Other features:</label><input type="text" name="system.otherFeatures" value="{{system.otherFeatures}}" /></div>
+        {{#if custGM}}
+        <div class="form-group" title="For customization (Rigger 2 p.118): which class prices and limits apply. GM only.">
+          <label>Class (GM):</label>
+          <select name="system.design.category">{{selectOptions custGM.categories selected=custGM.category}}</select>
+          {{#each custGM.traits}}<label class="checkbox"><input type="checkbox" data-action="toggleTrait" data-trait="{{key}}" {{#if on}}checked{{/if}} /> {{key}}</label>{{/each}}
+        </div>
+        <div class="form-group"><label title="Engine customization prices from the power plant's cost (Rigger 2 p.120); a production vehicle has none printed. GM only.">Power plant cost (GM):</label>
+          <input type="number" name="system.plantCost" value="{{custGM.plantCost}}" min="0" placeholder="—" data-nullable /></div>
+        {{/if}}
       </details>
     </fieldset>
   </div>

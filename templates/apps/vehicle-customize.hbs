@@ -2,7 +2,7 @@
   <p class="vc-hint">Modifications fitted to a vehicle after it was built (Rigger 2 p.118): buy the parts (price × Street
     Index), make the Installation Test on the vehicle's sheet, and click Finish when the time has passed.
     <strong>{{vehicle.name}}</strong>: {{vehicle.cargoFree}} CF and {{vehicle.loadFree}} kg free; original cost {{vehicle.cost}}¥.</p>
-  {{#if unresolved.length}}<p class="vc-warn">The GM must first set the family of: {{#each unresolved}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} (on the item).</p>{{/if}}
+  {{#if unresolved.length}}<p class="vc-warn">The GM must first set the family of: {{#each unresolved}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} (on the item).{{#if isGM}} <button type="button" data-action="fixFamilies" title="Take each one's family from the catalog (or mark it independent equipment)">Fix families</button>{{/if}}</p>{{/if}}
 
   {{#if requests.length}}
   <h3>Purchases</h3>

@@ -12997,6 +12997,49 @@ export function registerSR2EQuenchTests() {
         await C.cancelCustomization(v, id);
         assert.equal(v.getFlag("sr2e", "custRequests")[id].state, "cancelled");
       });
+
+      it("customization review C3: receipt-driven recovery, a vetoed delivery stays recoverable, copies aren't purchases, removal hides at once", async function () {
+        if (!haveTables()) this.skip();
+        this.timeout(40000);
+        const C = await import("../vehicle-customize.mjs");
+        const wait = async (pred, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (pred()) return true; await pause(100); } return false; };
+        const mk = async (name) => { const a = await Actor.create({ name, type: "vehicle", system: { handling: 4, speed: 100, acceleration: 10, load: 300, cargo: 10, body: 3, cost: 20000, skill: "car", fuelType: "gasoline" } }); made.push(a); return a; };
+        const v = await mk("Quench Vehicle Recover"), other = await mk("Quench Vehicle Other");
+        const pc = await Actor.create({ name: "Quench Vehicle Payer2", type: "character", system: { nuyen: 100000 } });
+        made.push(pc);
+        const catalog = await C.customizationCatalog();
+        const spot = catalog.find(c => c.name === "Spotlight");
+        // #3: a durable receipt with the request still "admitted" (interrupted before its marker) is delivered.
+        const id = foundry.utils.randomID(16);
+        await pc.update({ [`flags.sr2e.custReceipts.${id}`]: { amount: 900, vehicle: v.uuid, name: spot.name, levels: 1 } });
+        await v.update({ [`flags.sr2e.custRequests.${id}`]: { id, uuid: spot.uuid, name: spot.name, family: "", levels: 1, payer: pc.uuid, userId: game.user.id, state: "admitted", price: 900, created: Date.now() } });
+        await C.gmProcess(v);
+        assert.isTrue(await wait(() => v.items.get(id)), "delivered from the receipt");
+        assert.equal(v.getFlag("sr2e", "custDelivery")[id], "delivered");
+        // #4: a vetoed create records nothing, so the next pass retries.
+        const id2 = foundry.utils.randomID(16);
+        await pc.update({ [`flags.sr2e.custReceipts.${id2}`]: { amount: 900, vehicle: v.uuid, name: spot.name, levels: 1 } });
+        const veto = Hooks.on("preCreateItem", (doc) => doc.id === id2 ? false : undefined);
+        try {
+          await v.update({ [`flags.sr2e.custRequests.${id2}`]: { id: id2, uuid: spot.uuid, name: spot.name, family: "", levels: 1, payer: pc.uuid, userId: game.user.id, state: "paid", price: 900, created: Date.now() } });
+          await C.gmProcess(v); await pause(400);
+          assert.notOk(v.getFlag("sr2e", "custDelivery")?.[id2], "no delivery record without the item");
+        } finally { Hooks.off("preCreateItem", veto); }
+        await C.gmProcess(v);
+        assert.isTrue(await wait(() => v.items.get(id2)), "retried and delivered");
+        // #6: a copy on another vehicle isn't a purchase for it.
+        const [copy] = await other.createEmbeddedDocuments("Item", [v.items.get(id).toObject()], { keepId: true });
+        assert.isFalse(C.verifiedPurchase(other, copy));
+        assert.isTrue(C.verifiedPurchase(v, v.items.get(id)));
+        // #19: the removal record hides it at once (here, armor that isn't deleted yet).
+        const [armor] = await v.createEmbeddedDocuments("Item", [{ name: "Quench Armor", type: "vehicle_mod", system: { rating: 2, modKey: "standard-armor", effects: { armor: "R" } } }]);
+        assert.equal(v.system.effectiveArmor, 2);
+        await v.update({ [`flags.sr2e.custDelivery.${armor.id}`]: "removed" });
+        assert.equal(v.system.effectiveArmor, 0, "gone from the stats before its deletion lands");
+        // #10: an unconverted 0.143.0 design can't be customized until the GM settles it.
+        await other.update({ "system.design.version": 2, "system.design.baseVersion": 0, "system.design.choices": { chassisKey: "sedan" } });
+        assert.match(C.quoteCustomization(other, spot, 1, catalog).problems.join(), /settle this vehicle's design/);
+      });
     }, { displayName: "SR2E: Vehicles" });
 
     quench.registerBatch("sr2e.vr2-options", (context) => {

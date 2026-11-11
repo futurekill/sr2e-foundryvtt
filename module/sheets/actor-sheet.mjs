@@ -2038,6 +2038,13 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     actions: {
       switchTab: SHARED_ACTIONS.switchTab,
       openWorkshop: async function () { (await import("../apps/vehicle-workshop.mjs")).openVehicleWorkshop(this.document); },
+      toggleTrait: async function (event, target) {
+        const t = target.dataset.trait, d = this.document.system.design;
+        if (t === "transport") return this.document.update({ "system.design.transport": !d.transport });
+        const set = new Set(d.traits ?? []);
+        set.has(t) ? set.delete(t) : set.add(t);
+        return this.document.update({ "system.design.traits": [...set] });
+      },
       customize: async function () { (await import("../apps/vehicle-customize-app.mjs")).openVehicleCustomize(this.document); },
       installTest: async function (event, target) {
         const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
@@ -2102,13 +2109,22 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       .map(i => {
         const c = i.system.custom ?? {}, st = c.state ?? "";
         const label = { parts: "parts bought", tested: `test passed: ${c.attempt?.hours ?? "?"} ${c.attempt?.unit ?? "hours"}`, factory: "factory" }[st] ?? "";
-        return { id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) && !["parts", "tested"].includes(st),
+        // A purchase's levels are fixed (a new purchase adds more); the GM may still correct them.
+        const locked = ["parts", "tested"].includes(st) || (!!c.receipt?.id && !game.user.isGM);
+        return { id: i.id, name: i.name, rating: i.system.rating ?? 0, rated: isModRated(i.system) && !locked,
           stateLabel: label, stateTitle: st === "factory" ? "Part of the vehicle as built: already in its stats" : "Not working yet (customization, Rigger 2 p.118)",
           canTest: this.isEditable && st === "parts" && !!c.receipt?.id, canFinish: this.isEditable && st === "tested" };
       });
     context.tabs = this._getTabs();
     context.design = this._prepareDesign();
     context.tireChoices = this.document.system.schema.fields.tires.choices;
+    // GM inputs a production vehicle's customization needs (plan C2.8, ruling 8): body category, traits, plant cost.
+    const d = this.document.system.design;
+    context.custGM = game.user.isGM && d.version !== 2 ? {
+      categories: { "": "From its skill", bike: "Bike", car: "Car", hovercraft: "Hovercraft", boat: "Boat", fixedWing: "Fixed-wing", rotor: "Rotorcraft", vector: "Vector thrust", special: "Special" },
+      category: d.category, plantCost: this.document.system.plantCost,
+      traits: ["drone", "transport", "tractor", "truck", "zeppelin", "electricAircraft"].map(t => ({ key: t, on: (d.traits ?? []).includes(t) || (t === "transport" && d.transport) }))
+    } : null;
     context.baseConvert = game.user.isGM && !this.document.system.baseConverted ? this.document.getFlag("sr2e", "baseConvert") : null;
     return context;
   }

@@ -3,13 +3,10 @@
  * customization costs, where it can be bought, whether the vehicle can take it, and how long it takes to install.
  * No Foundry dependencies; the Workshop's customize mode and the purchase flow call these.
  */
-import { evalExpr, modEffect, modCounts, modBaked } from "./vehicle-design.mjs";
+import { evalExpr, modEffect, modCounts, modBaked, TRAIT_ORDER, specFormula } from "./vehicle-design.mjs";
 
 const num0 = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 
-/** Most specific first (plan C2.8): a "key@trait" override is tried in this order, then the plain key. */
-export const TRAIT_ORDER = ["zeppelin", "tractor", "truck", "transport", "drone", "electricAircraft",
-  "bike", "car", "hovercraft", "boat", "fixedWing", "rotor", "vector", "special"];
 
 /** The traits a vehicle has: its category and the ticked ones. */
 export function vehicleTraits({ category = "", drone = false, transport = false, traits = [] } = {}) {
@@ -20,12 +17,6 @@ export function vehicleTraits({ category = "", drone = false, transport = false,
   return t;
 }
 
-/** A spec formula for this vehicle: the most specific "key@trait" it has, else the plain key. */
-export function specFormula(m, key, traits = new Set()) {
-  const f = m.custom?.formulas ?? {};
-  for (const t of TRAIT_ORDER) if (traits.has(t) && f[`${key}@${t}`] != null && f[`${key}@${t}`] !== "") return String(f[`${key}@${t}`]);
-  return f[key] != null && f[key] !== "" ? String(f[key]) : null;
-}
 
 /** A mod's rule family (plan C2.8b): its modKey, else the caller-resolved key, else none. */
 export const familyOf = (m) => m.modKey || m.resolvedKey || "";
@@ -39,6 +30,13 @@ export function familyLevels(items, key, extra = 0) {
   if (!key) return 0;
   return items.filter(m => familyOf(m) === key && (m.custom?.state ?? "") !== "removed")
     .reduce((t, m) => t + num0(m.rating), num0(extra));
+}
+
+/** Speed before this family (and a design option's levels standing in for it): the base its maximum is taken from. */
+function speedBase(m, v, key, eff) {
+  const without = typeof v.statWithout === "function" ? v.statWithout("speed", key) : (v.speedPreTurbo ?? eff.speed);
+  const synth = num0(v.synthetic?.[key]);
+  return num0(without) - (synth ? (modEffect({ ...m, rating: synth }, "speed")?.value ?? 0) : 0);
 }
 
 /** The market row for a rating: row R1, or the last, or the only one. */
@@ -72,7 +70,7 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
     V: num0(v.cost), N: v.plantCost == null ? null : num0(v.plantCost),
     H: num0(eff.handling), HO: eff.handlingOffRoad == null ? num0(eff.handling) : num0(eff.handlingOffRoad),
     A0: num0(eff.armor), A1: num0(eff.armor) + (modEffect({ ...m, rating: R }, "armor")?.value ?? 0),
-    S0: num0(v.speedPreTurbo ?? eff.speed), S: num0(eff.speed) };
+    S0: speedBase(m, v, key, eff), S: num0(eff.speed) };
   const ev = (k) => {
     const f = specFormula(m, k, traits);
     if (f == null) return { f: null, value: null };
@@ -93,6 +91,12 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
 
   // The maximum, on the family total (p.120).
   const mx = m.custom?.max ?? {};
+  // A Body-indexed table (cranes, winches: p.144, p.146): byBody[B], else the `beyond` formula past its end.
+  if (Array.isArray(mx.byBody) && mx.byBody.length) {
+    const B = Math.floor(num0(v.body));
+    const cap = B < mx.byBody.length ? num0(mx.byBody[B]) : evalExpr(String(mx.beyond ?? "0"), vars);
+    if (cap != null && R1 > cap) problems.push(`its rating ${R1} is over the maximum ${cap} for Body ${B}`);
+  }
   if (mx.value != null && mx.value !== "") {
     const cap = evalExpr(String(mx.value), vars);
     if (cap == null) problems.push(`its maximum "${mx.value}" can't be worked out`);
@@ -101,7 +105,11 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
     } else {
       const stat = String(mx.basis).replace(/^stat:/, "");
       const capR = mx.round === "up" ? Math.ceil(cap - 1e-9) : Math.floor(cap + 1e-9);
-      const before = stat === "speed" ? num0(v.speedPreTurbo ?? eff.speed) : num0(eff[stat]);
+      // The stat without this family (so batching never matters), minus a design option's levels standing in for it
+      // (already in the base), then the family's whole gain at R1 — each level counted once.
+      const without = typeof v.statWithout === "function" ? v.statWithout(stat, key) : (stat === "speed" ? v.speedPreTurbo ?? eff.speed : eff[stat]);
+      const synth = num0(v.synthetic?.[key]);
+      const before = num0(without) - (synth ? (modEffect({ ...m, rating: synth }, stat)?.value ?? 0) : 0);
       const gain = modEffect({ ...m, rating: R1 }, stat)?.value ?? 0;
       const after = before + gain;
       if (after > capR && !(mx.minOneLevel && R1 === 1)) problems.push(`${stat} would reach ${after}; the maximum is ${capR}`);
@@ -135,9 +143,10 @@ export function installSkills(tokens = [], traits = new Set()) {
   const vehicleBR = traits.has("boat") ? "Boats (B/R)"
     : (traits.has("fixedWing") || traits.has("rotor") || traits.has("vector") || traits.has("zeppelin")) ? "Aircraft (B/R)"
     : "Ground Vehicles (B/R)";
-  const map = { vehicleBR, computerBR: "Computers (B/R)", electronicsBR: "Electronics (B/R)", electronics: "Electronics",
-    computer: "Computers", demolitionsBR: "Demolitions (B/R)", cyberBR: "Cybertechnology (B/R)", weaponsBR: "Weapons (B/R)" };
+  // The system's own skill names (config.mjs skill web), so a worker's owned skill is found, not defaulted.
+  const map = { vehicleBR, computerBR: "Computer (B/R)", electronicsBR: "Electronics (B/R)", electronics: "Electronics",
+    computer: "Computer", demolitionsBR: "Demolitions (B/R)", cyberBR: "Biotech (B/R)", weaponsBR: "Firearms (B/R)" };
   return tokens.map(t => map[t] ?? t);
 }
 
-export { modCounts, modBaked };
+export { modCounts, modBaked, TRAIT_ORDER, specFormula };

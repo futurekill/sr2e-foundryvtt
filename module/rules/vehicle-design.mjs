@@ -162,6 +162,17 @@ export function modEffect(m = {}, key, { category = "", transport = false, build
   return null;
 }
 
+/** Most specific first (customization plan C2.8): a "key@trait" override is tried in this order, then the plain key. */
+export const TRAIT_ORDER = ["zeppelin", "tractor", "truck", "transport", "drone", "electricAircraft",
+  "bike", "car", "hovercraft", "boat", "fixedWing", "rotor", "vector", "special"];
+
+/** A customization spec formula for these vehicle traits: the most specific "key@trait" set, else the plain key. */
+export function specFormula(m, key, traits = new Set()) {
+  const f = m.custom?.formulas ?? {};
+  for (const t of TRAIT_ORDER) if (traits.has(t) && f[`${key}@${t}`] != null && f[`${key}@${t}`] !== "") return String(f[`${key}@${t}`]);
+  return f[key] != null && f[key] !== "" ? String(f[key]) : null;
+}
+
 /** The installed levels of a mod family (its modKey) among these mods. */
 export const familyLevels = (mods, key) => mods.filter(m => (m.modKey || m.key) === key).reduce((t, m) => t + num0(m.rating), 0);
 
@@ -230,7 +241,8 @@ export function applyModEffects(base = {}, mods = [], { category = "", transport
   const tire = tireType(tires, new Set(live.filter(modCounts).map(familyOf).filter(Boolean)), category);
   let armorTotal = 0, armorBaked = 0;
   for (const items of groups.values()) {
-    const rep = items[0];
+    // A family's effects come from whichever of its items carries them (a synthetic factory item may carry none).
+    const rep = items.find(m => Object.keys(m.effects ?? {}).length) ?? items[0];
     const total = items.reduce((t, m) => t + num0(m.rating), 0);
     const baked = items.filter(modBaked).reduce((t, m) => t + num0(m.rating), 0);
     const allBaked = items.every(modBaked);
@@ -332,11 +344,12 @@ export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad 
     const custom = ["parts", "tested", "done"].includes(m.custom?.state ?? "");
     const f = m.custom?.formulas ?? {};
     const at = { ...m, rating: R };
+    const cfF = specFormula(m, "cf", build.traits), ldF = specFormula(m, "load", build.traits);   // trait overrides, as quoted
     const row = custom && f.set ? (m.custom?.market ?? [])[Math.max(1, Math.min(R, (m.custom?.market ?? []).length)) - 1] ?? {} : {};
     const cf = custom && row.cf != null ? (R > 0 ? num0(row.cf) : 0)
-      : custom && f.cf != null && f.cf !== "" ? (evalExpr(String(f.cf), modVars(at, build)) ?? 0) : modCf(at, build);
+      : custom && cfF != null ? (evalExpr(cfF, modVars(at, build)) ?? 0) : modCf(at, build);
     const ld = custom && row.load != null ? (R > 0 ? num0(row.load) : 0)
-      : custom && f.load != null && f.load !== "" ? (evalExpr(String(f.load), modVars(at, build)) ?? 0) : modLoad(at, build);
+      : custom && ldF != null ? (evalExpr(ldF, modVars(at, build)) ?? 0) : modLoad(at, build);
     return { cf, ld };
   };
   let modsCf = 0, modsLoad = 0;

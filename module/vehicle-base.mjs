@@ -123,15 +123,34 @@ export async function keepAsEdited(actor) {
     console.warn(`SR2E | ${actor.name}: keeping it as edited would change its stats.`, { base, capAfter, cargoFree: sys.cargoFree, loadFree: sys.loadFree });
     return ui.notifications.warn(`${actor.name} couldn't be kept as edited without changing its stats; nothing was changed. See the console.`);
   }
-  const ecItems = Object.entries(d.choices?.engineCustom ?? {}).filter(([, l]) => Number(l) > 0).map(([k, l]) => ({
-    name: `Engine Customization (${{ speed: "Speed", acceleration: "Acceleration", load: "Load" }[k] ?? k})`, type: "vehicle_mod",
-    system: { modType: "engine", rating: Number(l), modKey: `engine-custom-${k}`, stack: "levels", custom: { state: "factory", choice: {} } } }));
-  await actor.update({ "system.armor": base.armor, "system.signature": base.signature, "system.cargo": base.cargo, "system.load": base.load,
-    "system.design.version": 1, "system.design.baseVersion": 2, "system.design.chassisKey": "", "system.design.powerPlantKey": "",
-    "system.design.optionCf": 0, "system.design.optionLoad": 0, "flags.sr2e.-=baseConvert": null });
-  if (designItems.length) await actor.updateEmbeddedDocuments("Item", designItems.map(i => ({ _id: i.id, "system.custom.state": "factory", "flags.sr2e.-=designMod": null })));
-  if (ecItems.length) await actor.createEmbeddedDocuments("Item", ecItems);
+  // Engine customization levels as factory items, with the family's effects (p.120) so a later customized level is
+  // worked out on the total (review C3 #9).
+  const EC_FX = { speed: { speed: "30 x R" }, acceleration: { acceleration: "2 x R" }, load: { load: "B x 50 x R" } };
+  const ec = Object.entries(d.choices?.engineCustom ?? {}).filter(([, l]) => Number(l) > 0).map(([k, l]) => ({
+    _id: foundry.utils.randomID(16), name: `Engine Customization (${{ speed: "Speed", acceleration: "Acceleration", load: "Load" }[k] ?? k})`, type: "vehicle_mod",
+    system: { modType: "engine", rating: Number(l), modKey: `engine-custom-${k}`, stack: "levels", effects: EC_FX[k] ?? {}, custom: { state: "factory", choice: {} } } }));
+  // A resumable transaction (review C3 #8): the plan first, then the items, then the stats and the stamp; an
+  // interruption anywhere is finished by the pending pass (resumeKeepAsEdited), never applied twice.
+  await actor.update({ "flags.sr2e.keepEdited": { base, items: designItems.map(i => i.id), ec } });
+  await resumeKeepAsEdited(actor);
   ui.notifications.info(`${actor.name} is now a production vehicle with its current stats.`);
+}
+
+/** Finish a recorded "Keep as edited" (idempotent: each step checks what's already done). */
+export async function resumeKeepAsEdited(actor) {
+  const plan = actor.getFlag("sr2e", "keepEdited");
+  if (!plan) return;
+  const items = (plan.items ?? []).map(id => actor.items.get(id)).filter(i => i && i.system.custom?.state !== "factory");
+  if (items.length) await actor.updateEmbeddedDocuments("Item", items.map(i => ({ _id: i.id, "system.custom.state": "factory", "flags.sr2e.-=designMod": null })));
+  const missing = (plan.ec ?? []).filter(e => !actor.items.get(e._id));
+  if (missing.length) {
+    try { await actor.createEmbeddedDocuments("Item", missing, { keepId: true }); }
+    catch (err) { if (missing.some(e => !actor.items.get(e._id))) throw err; }
+  }
+  const b = plan.base;
+  await actor.update({ "system.armor": b.armor, "system.signature": b.signature, "system.cargo": b.cargo, "system.load": b.load,
+    "system.design.version": 1, "system.design.baseVersion": 2, "system.design.chassisKey": "", "system.design.powerPlantKey": "",
+    "system.design.optionCf": 0, "system.design.optionLoad": 0, "flags.sr2e.-=baseConvert": null, "flags.sr2e.-=keepEdited": null });
 }
 
 let running = false;
@@ -143,7 +162,10 @@ export async function convertVehicleBases() {
   const report = { converted: [], edited: [], missingRows: [] };
   try {
     for (const a of allVehicles()) {
-      try { const r = await convertVehicle(a); if (report[r]) report[r].push(a.name); }
+      try {
+        if (a.getFlag("sr2e", "keepEdited")) { await resumeKeepAsEdited(a); continue; }   // an interrupted Keep as edited
+        const r = await convertVehicle(a); if (report[r]) report[r].push(a.name);
+      }
       catch (err) { console.error(`SR2E | converting ${a.name}`, err); }
     }
   } finally { running = false; }

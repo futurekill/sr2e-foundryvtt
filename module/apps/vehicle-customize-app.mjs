@@ -3,7 +3,7 @@
  * customization rules (Rigger 2 p.118–146), each with its parts price, Availability, Street Index, Installation Test
  * and room, and the vehicle's purchases in progress. Buying writes a request (module/vehicle-customize.mjs).
  */
-import { customizationCatalog, customizeContext, quoteCustomization, requestCustomization, cancelCustomization } from "../vehicle-customize.mjs";
+import { customizationCatalog, customizeContext, quoteCustomization, requestCustomization, cancelCustomization, normalizeFamilies } from "../vehicle-customize.mjs";
 import { installSkills } from "../rules/vehicle-custom.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -15,7 +15,7 @@ export class VehicleCustomize extends HandlebarsApplicationMixin(ApplicationV2) 
     id: "sr2e-vehicle-customize-{id}", classes: ["sr2e", "sr2e-customize"], tag: "div",
     window: { title: "Customize", icon: "fas fa-wrench", resizable: true },
     position: { width: 980, height: 720 },
-    actions: { buy: VehicleCustomize.#onBuy, cancel: VehicleCustomize.#onCancel, dismiss: VehicleCustomize.#onDismiss }
+    actions: { buy: VehicleCustomize.#onBuy, cancel: VehicleCustomize.#onCancel, dismiss: VehicleCustomize.#onDismiss, fixFamilies: VehicleCustomize.#onFix }
   };
   static PARTS = { body: { template: "systems/sr2e/templates/apps/vehicle-customize.hbs", scrollable: [".vc-catalog"] } };
 
@@ -85,6 +85,8 @@ export class VehicleCustomize extends HandlebarsApplicationMixin(ApplicationV2) 
     await requestCustomization(this.vehicle, cat, Math.max(1, Number(this.levels[cat.uuid]) || 1), payer);
     this.render();
   }
+
+  static async #onFix() { const n = await normalizeFamilies(this.vehicle); ui.notifications.info(`${n ?? 0} modification(s) given their family.`); this.render(); }
 
   static async #onCancel(event, target) { await cancelCustomization(this.vehicle, target.dataset.id); this.render(); }
 

@@ -2084,10 +2084,14 @@ export class VehicleData extends SR2EDataModel {
     // mod's effects come on top, from the ONE effect pass the Workshop also uses (applyModEffects). Recomputed from the
     // stored fields every preparation, never written back. A 0.143.0 Workshop design that isn't converted yet
     // (design.baseVersion < 2) still has its design mods baked in, so only Armor/Signature are added, as before.
-    const items = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod");
-    const build = { body: this.body, pilot: this.pilot };
-    const ctx = { category: this.design.category || CATEGORY_BY_SKILL[this.skill] || (this.vehicleType === "ground" ? "car" : ""),
-      transport: this.design.transport, build, tires: this.tires };
+    // A bought modification whose removal record is written is gone at once, even before its deletion lands (C3.6).
+    const removed = this.parent?.flags?.sr2e?.custDelivery ?? {};
+    const items = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod" && removed[i.id] !== "removed");
+    const category = this.design.category || CATEGORY_BY_SKILL[this.skill] || (this.vehicleType === "ground" ? "car" : "");
+    // The vehicle's traits, so a customization's per-class CF / Load is the one it was quoted at (plan C2.8).
+    const traits = new Set([...(this.design.traits ?? []), category, ...(this.vehicleType === "drone" ? ["drone"] : []), ...(this.design.transport ? ["transport"] : [])].filter(Boolean));
+    const build = { body: this.body, pilot: this.pilot, traits };
+    const ctx = { category, transport: this.design.transport, build, tires: this.tires };
     const mods = items.map(i => ({ ...i.system, name: i.name, designMod: !!i.flags?.sr2e?.designMod }));
     const pair = this.handlingOffRoad != null;
     const base = { handling: pair ? { onRoad: this.handling, offRoad: this.handlingOffRoad } : this.handling,

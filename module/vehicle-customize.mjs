@@ -12,7 +12,7 @@
  * deletion. Every step re-reads the live documents, so a replay changes nothing.
  */
 import { customizationQuote, vehicleTraits, installTime, installSkills, familyOf } from "./rules/vehicle-custom.mjs";
-import { applyModEffects, modProblems, vehicleCapacity } from "./rules/vehicle-design.mjs";
+import { applyModEffects, modProblems, vehicleCapacity, modCounts, modBaked } from "./rules/vehicle-design.mjs";
 import { moneyQueue, adjustNuyen } from "./money.mjs";
 import { streetPrice } from "./rules/sr2e-rules.mjs";
 import { recomputeDesign } from "./vehicle-base.mjs";
@@ -55,17 +55,20 @@ const deliveryOf = (vehicle, id) => (vehicle.getFlag("sr2e", "custDelivery") ?? 
  * The context for customizationQuote (vehicle-custom.mjs). Admitted purchases not yet delivered count as items in
  * "parts" (their levels and room are reserved), except `skipRequest`.
  */
-export function customizeContext(vehicle, catalog = [], { skipRequest = null, skipItem = null } = {}) {
+export function customizeContext(vehicle, catalog = [], { skipRequest = null, skipItem = null, installedOnly = false } = {}) {
   const sys = vehicle.system, d = sys.design ?? {};
   const r = d.version === 2 ? recomputeDesign(vehicle) : null;
   const category = d.category || CATEGORY_BY_SKILL[sys.skill] || (sys.vehicleType === "ground" ? "car" : sys.vehicleType === "watercraft" ? "boat" : "");
   const traits = vehicleTraits({ category, drone: sys.vehicleType === "drone" || (d.traits ?? []).includes("drone"), transport: d.transport, traits: d.traits ?? [] });
   const items = vehicle.items.filter(i => i.type === "vehicle_mod" && i.id !== skipItem && deliveryOf(vehicle, i.id) !== "removed")
     .map(i => ({ ...i.system.toObject(), name: i.name, id: i.id, resolvedKey: resolveFamily(i, catalog) }));
-  const unresolved = items.filter(i => i.resolvedKey == null).map(i => i.name);
+  // Unknown, or known only by name/source while lacking the modKey the sheet's derivation reads: the GM fixes it first
+  // (normalizeFamilies), so admission, effects and capacity all see the same family (review C3 #11).
+  const unresolved = items.filter(i => i.resolvedKey == null || (!i.modKey && i.resolvedKey !== "independent")).map(i => i.name);
   // Reservations: admitted (and paid) requests not delivered yet.
-  const reserved = requestsOf(vehicle).filter(q => q.id !== skipRequest && ["admitted", "paid"].includes(q.state) && !deliveryOf(vehicle, q.id));
-  for (const q of reserved) items.push({ name: q.name, modKey: q.family, rating: q.levels, custom: { state: "parts" }, reserved: true });
+  // A cancellation keeps its reservation until the payer's writer confirms nothing was charged (review C3 #1).
+  const reserved = requestsOf(vehicle).filter(q => q.id !== skipRequest && ["admitted", "paid", "cancelRequested"].includes(q.state) && !deliveryOf(vehicle, q.id));
+  for (const q of reserved) items.push({ name: q.name, modKey: q.family, rating: q.levels, mountPoints: num(q.mountPoints), custom: { state: "parts" }, reserved: true });
   // Engine customization: the design option's levels stand in for the families (synthetic), and its ¥ cost (EY).
   const ec = d.version === 2 ? (d.choices?.engineCustom ?? {}) : {};
   const synthetic = Object.fromEntries(Object.entries(ENGINE_FAMILIES).map(([k, fam]) => [fam, num(ec[k])]));
@@ -77,17 +80,17 @@ export function customizeContext(vehicle, catalog = [], { skipRequest = null, sk
     ecLevels += n;
     for (let k = 1; k <= n; k++) ecCost += num(plantCost) * (1.25 + 0.15 * (k - 1));
   }
-  // Speed before any turbocharging (turbocharging's maximum, p.122).
+  // A stat without one family (its maximum's base, p.120, p.122): the same at any batching (review C3 #14).
   const base = { handling: sys.handlingOffRoad != null ? { onRoad: sys.handling, offRoad: sys.handlingOffRoad } : sys.handling,
     speed: sys.speed, acceleration: sys.acceleration, load: sys.load, cargo: sys.cargo, armor: sys.armor, signature: sys.signature, economy: sys.economy };
-  const noTurbo = items.filter(i => !i.reserved && familyOf(i) !== "turbocharging");
-  const speedPreTurbo = applyModEffects(base, noTurbo, { category, transport: d.transport, build: { body: sys.body, pilot: sys.pilot }, tires: sys.tires }).stats.speed;
+  const build = { body: sys.body, pilot: sys.pilot, traits };
+  const statWithout = (stat, fam) => applyModEffects(base, items.filter(i => !i.reserved && familyOf(i) !== fam), { category, transport: d.transport, build, tires: sys.tires }).stats[stat];
   // Room left, reservations included.
   const resvCap = vehicleCapacity({ cargo: 0, load: 0 }, reserved.map(q => ({ name: q.name, cfConsumed: num(q.cf), loadReduction: num(q.load) })));
   return { traits, category, body: sys.body, pilot: sys.effective?.pilot ?? sys.pilot, chassisDP: r ? num(r.dpLines[0]?.dp) : 0, plantDP,
     engineCustomDP: r ? r.dpLines.filter(l => l.label.startsWith("Engine customization")).reduce((t, l) => t + l.dp, 0) : 0,
     engineCustomLevels: ecLevels, engineCustomCost: Math.round(ecCost), cost: num(sys.cost), plantCost,
-    effective: sys.effective ?? {}, speedPreTurbo, items, synthetic, unresolved, tires: sys.tires, drone: traits.has("drone"),
+    effective: sys.effective ?? {}, statWithout, build, installedOnly, items, synthetic, unresolved, tires: sys.tires, drone: traits.has("drone"),
     engine: r ? CONFIG.SR2E.vehicleDesignTables?.powerPlants?.[d.powerPlantKey]?.engine : (sys.fuelType || null),
     cargoFree: num(sys.cargoFree) - resvCap.cfUsed, loadFree: num(sys.loadFree) - resvCap.loadUsed };
 }
@@ -99,10 +102,24 @@ export function customizeContext(vehicle, catalog = [], { skipRequest = null, sk
 export function quoteCustomization(vehicle, cat, levels, catalog, { user = game.user, skipRequest = null, ctx = null } = {}) {
   ctx ??= customizeContext(vehicle, catalog, { skipRequest });
   const m = { ...cat.system, name: cat.name };
-  const q = customizationQuote(m, levels, ctx);
+  const q = customizationQuote(m, levels, { ...ctx, cargoFree: null, loadFree: null });
   const problems = [...q.problems];
+  if (!vehicle.system.baseConverted) problems.push("the GM must first settle this vehicle's design (the notice on its sheet)");
+  // Room = what the shared capacity rule charges with the item added, minus without it: inherited design CF, a levels
+  // family's fixed part and per-class values all counted the same way the sheet will (review C3 #12, #13).
+  const real = ctx.items.filter(i => !i.reserved);
+  const before = vehicleCapacity({ cargo: 0, load: 0 }, real, ctx.build);
+  const after = vehicleCapacity({ cargo: 0, load: 0 }, [...real, { ...m, rating: q.R, custom: { ...(m.custom ?? {}), state: "parts" } }], ctx.build);
+  q.cf = Math.round((after.cfUsed - before.cfUsed) * 100) / 100;
+  q.load = Math.round((after.loadUsed - before.loadUsed) * 100) / 100;
+  if (ctx.cargoFree != null && q.cf > num(ctx.cargoFree) + 1e-9) problems.push(`it needs ${q.cf} CF; ${ctx.cargoFree} free`);
+  if (ctx.loadFree != null && q.load > num(ctx.loadFree) + 1e-9) problems.push(`it weighs ${q.load} kg; ${ctx.loadFree} kg of Load free`);
+  // Weapon mounts: hardpoints 2, firmpoints 1, never more than the Body in all (p.131).
+  const mp = ctx.items.reduce((t, i) => t + num(i.mountPoints), 0) + num(m.mountPoints);
+  if (num(m.mountPoints) && mp > num(ctx.body)) problems.push(`weapon mounts would take ${mp} points; Body ${ctx.body} allows ${ctx.body} (p.131)`);
   if (ctx.unresolved.length) problems.push(`the GM must first identify ${ctx.unresolved.join(", ")} (set its family on the item)`);
-  const keys = new Set(ctx.items.map(familyOf).filter(Boolean));
+  // Prerequisites: at Finish only what's installed (or factory) counts, never parts still waiting (review C3 #5).
+  const keys = new Set((ctx.installedOnly ? ctx.items.filter(i => !i.reserved && (modCounts(i) || modBaked(i))) : ctx.items).map(familyOf).filter(Boolean));
   for (const why of modProblems({ ...m, rating: q.R1, maxRating: "" }, { body: ctx.body, pilot: ctx.pilot, engineCustomLevels: ctx.engineCustomLevels },
     { category: ctx.category, engine: ctx.engine, drone: ctx.drone, body: ctx.body, keys, sensor: ctx.effective.sensor, engineCustomLevels: ctx.engineCustomLevels }))
     problems.push(/engine$/.test(why) && !ctx.engine ? `${why}: set the vehicle's fuel type (under More) first` : why);
@@ -111,7 +128,7 @@ export function quoteCustomization(vehicle, cat, levels, catalog, { user = game.
     problems.push(`it needs ${need.map(t => ({ performance: "performance", dualPurpose: "dual-purpose", offRoad: "off-road" })[t]).join(" or ")} tires (p.146)`);
   if (q.restricted === "military" && !user.isGM) problems.push("military only: the GM must arrange it");
   const charged = q.price == null ? null : Math.round(q.streetIndex != null ? streetPrice(q.price, q.streetIndex) : q.price);
-  return { ...q, ok: problems.length === 0, problems, charged, family: familyOf(m) };
+  return { ...q, ok: problems.length === 0, problems, charged, family: familyOf(m), mountPoints: num(m.mountPoints) };
 }
 
 /* ── The request (buyer's client) ────────────────────────────────────────────────────────────────────────────── */
@@ -159,11 +176,13 @@ export function gmProcess(vehicle) {
         else if (!quote.ok) await setRequest(vehicle, live.id, { state: "rejected", reason: quote.problems.join("; ") });
         else if (!live.payer && !requester?.isGM) await setRequest(vehicle, live.id, { state: "rejected", reason: "no payer" });
         else {
-          await setRequest(vehicle, live.id, { state: "admitted", price: live.payer ? quote.charged : 0, cf: quote.cf, load: quote.load });
+          await setRequest(vehicle, live.id, { state: "admitted", price: live.payer ? quote.charged : 0, cf: quote.cf, load: quote.load, mountPoints: quote.mountPoints });
           // No charge (the GM's own decision): the receipt is the GM's, on the vehicle.
           if (!live.payer) await vehicle.update({ [`flags.sr2e.custReceipts.${live.id}`]: { amount: 0, gm: game.user.id }, [`flags.sr2e.custRequests.${live.id}.state`]: "paid" });
         }
-      } else if (live.state === "paid" && !deliveryOf(vehicle, live.id)) await deliver(vehicle, live, catalog);
+      } else if (["admitted", "paid", "cancelRequested"].includes(live.state) && !deliveryOf(vehicle, live.id) && receiptFor(vehicle, live)) {
+        await deliver(vehicle, live, catalog);   // the durable receipt is the proof, not the request's marker (review C3 #3)
+      }
     }
     // Finish an interrupted removal (round 4 #3).
     const removed = vehicle.items.filter(i => deliveryOf(vehicle, i.id) === "removed").map(i => i.id);
@@ -199,7 +218,23 @@ async function deliver(vehicle, req, catalog) {
         _stats: { compendiumSource: cat.uuid } }], { keepId: true });
     } catch (err) { if (!vehicle.items.get(req.id)) throw err; }   // a replay: the server refused the duplicate
   }
+  // Only a delivery that actually landed is recorded (a vetoed create must stay recoverable; review C3 #4).
+  if (!vehicle.items.get(req.id)) return console.warn(`SR2E | ${vehicle.name}: ${req.name} wasn't created; it will be retried.`);
   await vehicle.update({ [`flags.sr2e.custDelivery.${req.id}`]: "delivered", [`flags.sr2e.custRequests.${req.id}.state`]: "done" });
+}
+
+/** GM: give items known only by name or source their catalog family (modKey, stacking), so every rule agrees. */
+export async function normalizeFamilies(vehicle) {
+  if (!game.user.isGM) return;
+  const catalog = await customizationCatalog();
+  const updates = [];
+  for (const i of vehicle.items.filter(i => i.type === "vehicle_mod" && !i.system.modKey)) {
+    const key = resolveFamily(i, catalog) ?? "independent";   // unknown to every catalog: independent equipment
+    const src = catalog.find(c => c.system.modKey === key);
+    updates.push({ _id: i.id, "system.modKey": key, "system.stack": src?.system.stack ?? "" });
+  }
+  if (updates.length) await vehicle.updateEmbeddedDocuments("Item", updates);
+  return updates.length;
 }
 
 /** GM: cancel a request. An admitted one waits for the payer's writer to confirm nothing was charged (round 5). */
@@ -212,13 +247,22 @@ export async function cancelCustomization(vehicle, id) {
 
 /* ── The payer's writer (the requesting client) ──────────────────────────────────────────────────────────────── */
 
-/** Pay this client's admitted requests (and answer cancellations) — inside the payer's money queue. */
+/**
+ * The client that writes this character's money: the active player who owns it (the one whose client runs its
+ * ordinary purchases), else the active GM — never two at once (review C3 #2). Ties: the lowest user id.
+ */
+export function moneyWriterFor(payer) {
+  const owners = game.users.filter(u => u.active && !u.isGM && payer.testUserPermission(u, "OWNER")).sort((a, b) => a.id.localeCompare(b.id));
+  return owners[0] ?? game.users.activeGM ?? null;
+}
+
+/** Pay admitted requests (and answer cancellations) this client writes the money for — inside the payer's queue. */
 export function payerProcess(vehicle) {
   if (vehicle?.type !== "vehicle") return;
   for (const q of requestsOf(vehicle)) {
-    if (q.userId !== game.user.id || !q.payer || !["admitted", "cancelRequested"].includes(q.state)) continue;
+    if (!q.payer || !["admitted", "cancelRequested"].includes(q.state)) continue;
     const payer = fromUuidSync(q.payer);
-    if (!payer) continue;
+    if (!payer || moneyWriterFor(payer)?.id !== game.user.id) continue;
     moneyQueue(payer, async () => {
       const live = vehicle.getFlag("sr2e", "custRequests")?.[q.id];   // re-read inside the queue
       if (!live) return;
@@ -234,18 +278,30 @@ export function payerProcess(vehicle) {
 
 /* ── Installation (p.118, p.120; rulings 7, 10) ──────────────────────────────────────────────────────────────── */
 
-/** The spec an Installation Test is bound to (plan C3.4/C3.5). */
-async function liveSpec(vehicle, item) {
+/**
+ * This item is a purchase made for THIS vehicle (review C3 #6): its receipt names it, the vehicle recorded its
+ * delivery, and the payer's durable receipt (or the GM's no-charge one) exists for this vehicle.
+ */
+export function verifiedPurchase(vehicle, item) {
+  const rec = item.system.custom?.receipt ?? {};
+  if (!rec.id || rec.id !== item.id || deliveryOf(vehicle, item.id) !== "delivered") return false;
+  if (!rec.payer) return !!vehicle.getFlag("sr2e", "custReceipts")?.[item.id];
+  return fromUuidSync(rec.payer)?.getFlag("sr2e", "custReceipts")?.[item.id]?.vehicle === vehicle.uuid;
+}
+
+/** The spec an Installation Test is bound to (plan C3.4/C3.5), from the full quote (restrictions, tires, maxima). */
+async function liveSpec(vehicle, item, { installedOnly = false } = {}) {
   const catalog = await customizationCatalog();
-  const ctx = customizeContext(vehicle, catalog, { skipItem: item.id });
-  const q = customizationQuote({ ...item.system.toObject(), name: item.name, custom: { ...item.system.custom, state: "" } }, item.system.rating, { ...ctx, cargoFree: null, loadFree: null });
+  const ctx = customizeContext(vehicle, catalog, { skipItem: item.id, installedOnly });
+  const cat = { name: item.name, system: { ...item.system.toObject(), custom: { ...item.system.toObject().custom, state: "" } } };
+  const q = quoteCustomization(vehicle, cat, item.system.rating, catalog, { ctx, user: game.users.activeGM ?? game.user });
   return { q, spec: { levels: num(item.system.rating), choice: item.system.custom?.choice ?? {}, tn: q.tn, baseTime: q.baseTime, R0: q.R0 } };
 }
 
 /** Roll the Installation Test for a bought item, by `worker` (a character the user controls). */
 export async function installationTest(vehicle, item, worker) {
   const c = item.system.custom ?? {};
-  if (!c.receipt?.id) return ui.notifications.warn(`${item.name} wasn't bought through Customize.`);
+  if (!verifiedPurchase(vehicle, item)) return ui.notifications.warn(`${item.name} isn't a purchase delivered to ${vehicle.name} through Customize.`);
   if (c.state !== "parts") return ui.notifications.warn(`${item.name} is ${c.state === "tested" ? "already tested: Finish it" : "not waiting to be installed"}.`);
   const { q, spec } = await liveSpec(vehicle, item);
   if (q.procedure === "fixed") {
@@ -274,14 +330,16 @@ export async function installationTest(vehicle, item, worker) {
 export async function finishInstallation(vehicle, item) {
   const c = item.system.custom ?? {};
   if (c.state !== "tested" || !c.attempt?.ok) return ui.notifications.warn(`${item.name} needs a passed Installation Test first.`);
-  const { q, spec } = await liveSpec(vehicle, item);
+  if (!verifiedPurchase(vehicle, item)) return ui.notifications.warn(`${item.name} isn't a purchase delivered to ${vehicle.name} through Customize.`);
+  const { q, spec } = await liveSpec(vehicle, item, { installedOnly: true });
   const a = c.attempt.spec ?? {};
   const same = a.levels === spec.levels && JSON.stringify(a.choice ?? {}) === JSON.stringify(spec.choice ?? {}) && a.tn === spec.tn && a.baseTime === spec.baseTime && a.R0 === spec.R0;
   if (!same) {
     await item.update({ "system.custom.state": "parts", "system.custom.attempt": {} });
     return ui.notifications.warn(`${item.name}: the vehicle or the work changed since the test (levels, existing levels or the test itself); roll the Installation Test again.`);
   }
-  const blocking = q.problems.filter(p => !/needs .* CF|kg of Load free|no customization price/.test(p));
+  // The item already takes its room (checked on the vehicle's totals below); the GM already admitted the market.
+  const blocking = q.problems.filter(p => !/needs .* CF|kg of Load free|no customization price|military only/.test(p));
   if (blocking.length) return ui.notifications.warn(`${item.name} can't be finished: ${blocking.join("; ")}.`);
   if (num(vehicle.system.cargoFree) < -1e-9 || num(vehicle.system.loadFree) < -1e-9) return ui.notifications.warn(`${vehicle.name} is over its Cargo or Load; make room first.`);
   await item.update({ "system.custom.state": "done" });
@@ -300,11 +358,14 @@ export async function removeCustomization(vehicle, item) {
 export function registerVehicleCustomize() {
   // Levels and the drive-by-wire choice are locked while bought; the GM may change them, which clears the test.
   Hooks.on("preUpdateItem", (item, change, options, userId) => {
-    if (item.type !== "vehicle_mod" || !["parts", "tested"].includes(item.system.custom?.state)) return;
+    const st = item.system.custom?.state;
+    // A purchase's levels never change without a new purchase: also once finished (review C3 #7).
+    if (item.type !== "vehicle_mod" || !(["parts", "tested"].includes(st) || (st === "done" && item.system.custom?.receipt?.id))) return;
     const touches = foundry.utils.hasProperty(change, "system.rating") || foundry.utils.hasProperty(change, "system.custom.choice");
     if (!touches) return;
     if (!game.users.get(userId)?.isGM) { if (userId === game.user.id) ui.notifications.warn(`${item.name}'s levels are fixed while it's being installed.`); return false; }
-    if (item.system.custom.state === "tested") foundry.utils.setProperty(change, "system.custom.state", "parts");
+    if (st === "done") return;   // the GM's own call
+    if (st === "tested") foundry.utils.setProperty(change, "system.custom.state", "parts");
     foundry.utils.setProperty(change, "system.custom.attempt", {});
   });
   const touch = (actor) => {

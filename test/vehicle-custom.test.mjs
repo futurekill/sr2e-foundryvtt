@@ -104,3 +104,36 @@ describe.skipIf(!havePack)("the Rigger 2 mods' customization data (book p.120–
     expect(customizationQuote(item("Nitrous Oxide Injectors"), 4, car()).price).toBe(3 * 3500 + 7000);
   });
 });
+
+import { applyModEffects } from "../module/rules/vehicle-design.mjs";
+describe("customization review C3 (round 1)", () => {
+  it("#15 a winch's Load Rating is held to the Winch Capacity Table by Body (p.146)", () => {
+    const winch = { name: "Winch", custom: { formulas: { partsCost: "R x 75" }, max: { byBody: [5, 25, 200, 750, 2000], beyond: "B x B x 750" } } };
+    expect(customizationQuote(winch, 1000, car({ body: 1 })).problems.join()).toMatch(/maximum 25 for Body 1/);
+    expect(customizationQuote(winch, 25, car({ body: 1 })).ok).toBe(true);
+    expect(customizationQuote(winch, 75 * 12 * 12, car({ body: 12 })).ok).toBe(true);   // past the table: Body × Body × 750
+  });
+  it("#14 the Speed maximum doesn't depend on batching: the family is left out of the base, a design option's levels counted once", () => {
+    const ec = { name: "Engine Customization (Speed)", modKey: "engine-custom-speed", effects: { speed: "30 x R" },
+      custom: { formulas: { partsCost: "1" }, max: { basis: "stat:speed", value: "S0 x 1.5", round: "down" } } };
+    // Speed 100 without the family: × 1.5 = 150, so 1 level (130) fits, 2 (160) don't, however they're bought.
+    const without = () => 100;
+    expect(customizationQuote(ec, 2, car({ statWithout: without })).ok).toBe(false);
+    const oneThere = car({ statWithout: without, items: [{ ...ec, rating: 1, custom: { ...ec.custom, state: "done" } }] });
+    expect(customizationQuote(ec, 1, oneThere).ok).toBe(false);
+    // A design option's level is already in the stored speed (130): its 30 isn't counted twice.
+    expect(customizationQuote(ec, 1, car({ statWithout: () => 130, synthetic: { "engine-custom-speed": 1 } })).ok).toBe(false);
+    expect(customizationQuote(ec, 0, car({ statWithout: () => 100 })).R).toBe(1);
+  });
+  it("#13 capacity reads a customization's per-class CF (a door-gun ring mount takes 16 CF on a rotorcraft, p.134)", () => {
+    const ring = { name: "Ring Mount", rating: 0, custom: { state: "done", formulas: { cf: "1", "cf@rotor": "16" } } };
+    expect(vehicleCapacity({ cargo: 30 }, [ring], { traits: new Set(["rotor"]) }).cfUsed).toBe(16);
+    expect(vehicleCapacity({ cargo: 30 }, [ring], { traits: new Set(["car"]) }).cfUsed).toBe(1);
+  });
+  it("#9 a family's effects come from the item that carries them (a synthetic factory item may carry none)", () => {
+    const base = { speed: 100, acceleration: 10, load: 500, cargo: 3, armor: 0, signature: 2, economy: 6 };
+    const factory = { name: "EC (Load)", modKey: "engine-custom-load", stack: "levels", rating: 1, custom: { state: "factory" } };
+    const bought = { name: "EC (Load)", modKey: "engine-custom-load", stack: "levels", rating: 1, effects: { load: "B x 50 x R" }, custom: { state: "done" } };
+    expect(applyModEffects(base, [factory, bought], { build: { body: 3 } }).stats.load).toBe(650);
+  });
+});
