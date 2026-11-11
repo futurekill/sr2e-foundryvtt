@@ -13040,6 +13040,30 @@ export function registerSR2EQuenchTests() {
         await other.update({ "system.design.version": 2, "system.design.baseVersion": 0, "system.design.choices": { chassisKey: "sedan" } });
         assert.match(C.quoteCustomization(other, spot, 1, catalog).problems.join(), /settle this vehicle's design/);
       });
+
+      it("customization review R3: one money writer per payer; a reservation keeps its admitted spec without the catalog", async function () {
+        if (!haveTables()) this.skip();
+        const C = await import("../vehicle-customize.mjs");
+        const v = await Actor.create({ name: "Quench Vehicle Resv", type: "vehicle", system: { handling: 4, speed: 100, acceleration: 10, load: 300, cargo: 10, body: 3, cost: 20000, skill: "car", fuelType: "gasoline" } });
+        const pc = await Actor.create({ name: "Quench Vehicle Payer3", type: "character", system: { nuyen: 1000 } });
+        made.push(v, pc);
+        const catalog = await C.customizationCatalog();
+        const nos = catalog.find(c => c.name === "Nitrous Oxide Injectors");
+        const spec = foundry.utils.deepClone(nos.system); delete spec.description;
+        const req = (id, extra) => ({ id, uuid: nos.uuid, name: nos.name, family: nos.system.modKey, levels: 1, payer: pc.uuid, userId: game.user.id,
+          state: "admitted", price: 900, writer: "quenchNobody0000", created: Date.now(), ...extra });
+        // #1: an unsettled purchase pins the payer's writer for the next one.
+        const id = foundry.utils.randomID(16);
+        await v.update({ [`flags.sr2e.custRequests.${id}`]: req(id) });
+        assert.equal(C.pendingWriter(pc.uuid), "quenchNobody0000");
+        const fromCatalog = C.customizeContext(v, catalog).cargoFree;
+        assert.isBelow(fromCatalog, 10, "the reservation takes room");
+        // #2: the same reservation, its catalog entry gone, still reserves from its snapshot.
+        await v.update({ [`flags.sr2e.custRequests.${id}`]: req(id, { uuid: "Compendium.gone.Item.x", spec }) });
+        assert.equal(C.customizeContext(v, catalog).cargoFree, fromCatalog);
+        await v.update({ [`flags.sr2e.custRequests.-=${id}`]: null });
+        assert.isNull(C.pendingWriter(pc.uuid));
+      });
     }, { displayName: "SR2E: Vehicles" });
 
     quench.registerBatch("sr2e.vr2-options", (context) => {

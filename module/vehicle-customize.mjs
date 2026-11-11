@@ -70,9 +70,10 @@ export function customizeContext(vehicle, catalog = [], { skipRequest = null, sk
   const reserved = requestsOf(vehicle).filter(q => q.id !== skipRequest && ["admitted", "paid", "cancelRequested"].includes(q.state) && !deliveryOf(vehicle, q.id));
   for (const q of reserved) {
     // A reservation takes the catalog item's own spec, so a later purchase of the same family is marginal to it (R2 #3).
-    const cat = catalog.find(c => c.uuid === q.uuid);
-    items.push({ ...(cat ? foundry.utils.deepClone(cat.system) : {}), name: q.name, modKey: q.family || cat?.system?.modKey || "", rating: q.levels,
-      mountPoints: num(q.mountPoints ?? cat?.system?.mountPoints), custom: { ...(cat?.system?.custom ?? {}), state: "parts" }, reserved: true, specless: !cat });
+    // The spec snapshotted at admission, so a catalog change never moves a reservation (review R3 #2).
+    const spec = q.spec ?? catalog.find(c => c.uuid === q.uuid)?.system;
+    items.push({ ...(spec ? foundry.utils.deepClone(spec) : {}), name: q.name, modKey: q.family || spec?.modKey || "", rating: q.levels,
+      mountPoints: num(q.mountPoints ?? spec?.mountPoints), custom: { ...(spec?.custom ?? {}), state: "parts" }, reserved: true, specless: !spec });
   }
   // Engine customization: the design option's levels stand in for the families (synthetic), and its ¥ cost (EY).
   const ec = d.version === 2 ? (d.choices?.engineCustom ?? {}) : {};
@@ -101,7 +102,7 @@ export function customizeContext(vehicle, catalog = [], { skipRequest = null, sk
   const withResv = [...real, ...items.filter(i => i.reserved && !i.specless)];
   const capReal = vehicleCapacity({ cargo: 0, load: 0 }, real, { body: sys.body, pilot: sys.pilot, traits });
   const capResv = vehicleCapacity({ cargo: 0, load: 0 }, withResv, { body: sys.body, pilot: sys.pilot, traits });
-  const lost = reserved.filter(q => !catalog.find(c => c.uuid === q.uuid));
+  const lost = reserved.filter(q => !q.spec && !catalog.find(c => c.uuid === q.uuid));
   const resvCap = { cfUsed: capResv.cfUsed - capReal.cfUsed + lost.reduce((t, q) => t + num(q.cf), 0),
     loadUsed: capResv.loadUsed - capReal.loadUsed + lost.reduce((t, q) => t + num(q.load), 0) };
   return { traits, category, body: sys.body, pilot: sys.effective?.pilot ?? sys.pilot, chassisDP: r ? num(r.dpLines[0]?.dp) : 0, plantDP,
@@ -196,9 +197,13 @@ export function gmProcess(vehicle) {
         else {
           // The payer's money writer is fixed now and never handed over: only its queue pays or acknowledges a
           // cancellation, so nothing it sent can land after the reservation is released (review R2 #1).
+          // One writer per payer: while any of the payer's purchases is unsettled, a new one gets that same writer, so
+          // two clients never charge one payer at once (review R3 #1).
           const payerDoc = live.payer ? fromUuidSync(live.payer) : null;
+          const writer = payerDoc ? pendingWriter(live.payer) ?? moneyWriterFor(payerDoc)?.id ?? "" : "";
+          const spec = foundry.utils.deepClone(cat.system); delete spec.description;
           await setRequest(vehicle, live.id, { state: "admitted", price: live.payer ? quote.charged : 0, cf: quote.cf, load: quote.load,
-            mountPoints: quote.mountPoints, writer: payerDoc ? moneyWriterFor(payerDoc)?.id ?? "" : "" });
+            mountPoints: quote.mountPoints, writer, spec });
           // No charge (the GM's own decision): the receipt is the GM's, on the vehicle.
           if (!live.payer) await vehicle.update({ [`flags.sr2e.custReceipts.${live.id}`]: { amount: 0, gm: game.user.id }, [`flags.sr2e.custRequests.${live.id}.state`]: "paid" });
         }
@@ -273,6 +278,21 @@ export async function cancelCustomization(vehicle, id) {
  * The client that writes this character's money: the active player who owns it (the one whose client runs its
  * ordinary purchases), else the active GM — never two at once (review C3 #2). Ties: the lowest user id.
  */
+/** Every vehicle the GM can see: world actors and unlinked tokens. */
+function allVehicles() {
+  const out = game.actors.filter(a => a.type === "vehicle");
+  for (const sc of game.scenes) for (const t of sc.tokens) if (!t.actorLink && t.actor?.type === "vehicle") out.push(t.actor);
+  return out;
+}
+
+/** The writer already charging this payer: an admitted or cancelling purchase with no receipt yet, on any vehicle. */
+export function pendingWriter(payerUuid) {
+  const payer = fromUuidSync(payerUuid);
+  for (const v of allVehicles()) for (const q of requestsOf(v))
+    if (q.payer === payerUuid && q.writer && ["admitted", "cancelRequested"].includes(q.state) && !payer?.getFlag("sr2e", "custReceipts")?.[q.id]) return q.writer;
+  return null;
+}
+
 export function moneyWriterFor(payer) {
   const owners = game.users.filter(u => u.active && !u.isGM && payer.testUserPermission(u, "OWNER")).sort((a, b) => a.id.localeCompare(b.id));
   return owners[0] ?? game.users.activeGM ?? null;
@@ -398,8 +418,7 @@ export function registerVehicleCustomize() {
   };
   Hooks.on("updateActor", (actor) => touch(actor));
   Hooks.once("ready", () => {
-    for (const a of game.actors) if (a.type === "vehicle") touch(a);
-    for (const sc of game.scenes) for (const t of sc.tokens) if (!t.actorLink && t.actor?.type === "vehicle") touch(t.actor);
+    for (const a of allVehicles()) touch(a);
   });
 }
 
