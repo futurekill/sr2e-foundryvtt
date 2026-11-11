@@ -132,8 +132,7 @@ export async function keepAsEdited(actor) {
   // A resumable transaction (review C3 #8): the plan first, then the items, then the stats and the stamp; an
   // interruption anywhere is finished by the pending pass (resumeKeepAsEdited), never applied twice.
   await actor.update({ "flags.sr2e.keepEdited": { base, items: designItems.map(i => i.id), ec } });
-  await resumeKeepAsEdited(actor);
-  ui.notifications.info(`${actor.name} is now a production vehicle with its current stats.`);
+  if (await resumeKeepAsEdited(actor)) ui.notifications.info(`${actor.name} is now a production vehicle with its current stats.`);
 }
 
 /** Finish a recorded "Keep as edited" (idempotent: each step checks what's already done). */
@@ -147,10 +146,19 @@ export async function resumeKeepAsEdited(actor) {
     try { await actor.createEmbeddedDocuments("Item", missing, { keepId: true }); }
     catch (err) { if (missing.some(e => !actor.items.get(e._id))) throw err; }
   }
+  // Only a fully converted vehicle is stamped: every planned item factory, every engine item present (review R2 #2).
+  const notFactory = (plan.items ?? []).filter(id => actor.items.get(id) && actor.items.get(id).system.custom?.state !== "factory");
+  const notMade = (plan.ec ?? []).filter(e => !actor.items.get(e._id));
+  if (notFactory.length || notMade.length) {
+    console.warn(`SR2E | ${actor.name}: Keep as edited isn't finished yet (items not converted); it will be retried.`, { notFactory, notMade });
+    ui.notifications.warn(`${actor.name}: keeping it as edited didn't finish; it will be retried on the next load.`);
+    return false;
+  }
   const b = plan.base;
   await actor.update({ "system.armor": b.armor, "system.signature": b.signature, "system.cargo": b.cargo, "system.load": b.load,
     "system.design.version": 1, "system.design.baseVersion": 2, "system.design.chassisKey": "", "system.design.powerPlantKey": "",
     "system.design.optionCf": 0, "system.design.optionLoad": 0, "flags.sr2e.-=baseConvert": null, "flags.sr2e.-=keepEdited": null });
+  return true;
 }
 
 let running = false;

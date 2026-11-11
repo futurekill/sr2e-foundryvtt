@@ -137,3 +137,13 @@ describe("customization review C3 (round 1)", () => {
     expect(applyModEffects(base, [factory, bought], { build: { body: 3 } }).stats.load).toBe(650);
   });
 });
+
+describe("customization review C3 (round 2)", () => {
+  it("#4 factory engine levels already in the stored Speed count once toward the maximum (p.120)", () => {
+    const ec = { name: "Engine Customization (Speed)", modKey: "engine-custom-speed", effects: { speed: "30 x R" },
+      custom: { formulas: { partsCost: "1" }, max: { basis: "stat:speed", value: "S0 x 1.5", round: "down" } } };
+    // Kept as edited: stored Speed 130 = 100 + one factory level; another level would reach 160 > 150.
+    const v = car({ statWithout: () => 130, items: [{ ...ec, rating: 1, custom: { ...ec.custom, state: "factory" } }], baked: { "engine-custom-speed": 1 } });
+    expect(customizationQuote(ec, 1, v).problems.join()).toMatch(/maximum is 150/);
+  });
+});

@@ -35,7 +35,7 @@ export function familyLevels(items, key, extra = 0) {
 /** Speed before this family (and a design option's levels standing in for it): the base its maximum is taken from. */
 function speedBase(m, v, key, eff) {
   const without = typeof v.statWithout === "function" ? v.statWithout("speed", key) : (v.speedPreTurbo ?? eff.speed);
-  const synth = num0(v.synthetic?.[key]);
+  const synth = num0((v.baked ?? v.synthetic)?.[key]);   // design-option and factory levels already in the stored speed
   return num0(without) - (synth ? (modEffect({ ...m, rating: synth }, "speed")?.value ?? 0) : 0);
 }
 
@@ -108,7 +108,7 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
       // The stat without this family (so batching never matters), minus a design option's levels standing in for it
       // (already in the base), then the family's whole gain at R1 — each level counted once.
       const without = typeof v.statWithout === "function" ? v.statWithout(stat, key) : (stat === "speed" ? v.speedPreTurbo ?? eff.speed : eff[stat]);
-      const synth = num0(v.synthetic?.[key]);
+      const synth = num0((v.baked ?? v.synthetic)?.[key]);
       const before = num0(without) - (synth ? (modEffect({ ...m, rating: synth }, stat)?.value ?? 0) : 0);
       const gain = modEffect({ ...m, rating: R1 }, stat)?.value ?? 0;
       const after = before + gain;

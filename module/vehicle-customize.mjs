@@ -68,12 +68,22 @@ export function customizeContext(vehicle, catalog = [], { skipRequest = null, sk
   // Reservations: admitted (and paid) requests not delivered yet.
   // A cancellation keeps its reservation until the payer's writer confirms nothing was charged (review C3 #1).
   const reserved = requestsOf(vehicle).filter(q => q.id !== skipRequest && ["admitted", "paid", "cancelRequested"].includes(q.state) && !deliveryOf(vehicle, q.id));
-  for (const q of reserved) items.push({ name: q.name, modKey: q.family, rating: q.levels, mountPoints: num(q.mountPoints), custom: { state: "parts" }, reserved: true });
+  for (const q of reserved) {
+    // A reservation takes the catalog item's own spec, so a later purchase of the same family is marginal to it (R2 #3).
+    const cat = catalog.find(c => c.uuid === q.uuid);
+    items.push({ ...(cat ? foundry.utils.deepClone(cat.system) : {}), name: q.name, modKey: q.family || cat?.system?.modKey || "", rating: q.levels,
+      mountPoints: num(q.mountPoints ?? cat?.system?.mountPoints), custom: { ...(cat?.system?.custom ?? {}), state: "parts" }, reserved: true, specless: !cat });
+  }
   // Engine customization: the design option's levels stand in for the families (synthetic), and its ¥ cost (EY).
   const ec = d.version === 2 ? (d.choices?.engineCustom ?? {}) : {};
   const synthetic = Object.fromEntries(Object.entries(ENGINE_FAMILIES).map(([k, fam]) => [fam, num(ec[k])]));
   const plantDP = r ? num(r.dpLines.find(l => /^Power plant/.test(l.label))?.dp) : 0;
   const plantCost = d.version === 2 && r ? Math.round(plantDP * num(r.markUp?.total) * 100) : (sys.plantCost ?? null);
+  // Levels already in the stored stats (a design option's, factory items'): a maximum's base leaves their gain out once.
+  const baked = { ...synthetic };
+  for (const i of items) if (modBaked(i) && familyOf(i)) baked[familyOf(i)] = num(baked[familyOf(i)]) + num(i.rating);
+  const installedEc = Object.values(ENGINE_FAMILIES).reduce((t, fam) => t + num(synthetic[fam])
+    + items.filter(i => !i.reserved && familyOf(i) === fam && (modCounts(i) || modBaked(i))).reduce((s2, i) => s2 + num(i.rating), 0), 0);
   let ecCost = 0, ecLevels = 0;
   for (const fam of Object.values(ENGINE_FAMILIES)) {
     const n = synthetic[fam] + items.filter(i => familyOf(i) === fam).reduce((t, i) => t + num(i.rating), 0);
@@ -85,12 +95,19 @@ export function customizeContext(vehicle, catalog = [], { skipRequest = null, sk
     speed: sys.speed, acceleration: sys.acceleration, load: sys.load, cargo: sys.cargo, armor: sys.armor, signature: sys.signature, economy: sys.economy };
   const build = { body: sys.body, pilot: sys.pilot, traits };
   const statWithout = (stat, fam) => applyModEffects(base, items.filter(i => !i.reserved && familyOf(i) !== fam), { category, transport: d.transport, build, tires: sys.tires }).stats[stat];
-  // Room left, reservations included.
-  const resvCap = vehicleCapacity({ cargo: 0, load: 0 }, reserved.map(q => ({ name: q.name, cfConsumed: num(q.cf), loadReduction: num(q.load) })));
+  // Room left, reservations included: the shared capacity rule over installed items + reservations (a reservation
+  // whose item left the catalog keeps its admitted CF / Load).
+  const real = items.filter(i => !i.reserved);
+  const withResv = [...real, ...items.filter(i => i.reserved && !i.specless)];
+  const capReal = vehicleCapacity({ cargo: 0, load: 0 }, real, { body: sys.body, pilot: sys.pilot, traits });
+  const capResv = vehicleCapacity({ cargo: 0, load: 0 }, withResv, { body: sys.body, pilot: sys.pilot, traits });
+  const lost = reserved.filter(q => !catalog.find(c => c.uuid === q.uuid));
+  const resvCap = { cfUsed: capResv.cfUsed - capReal.cfUsed + lost.reduce((t, q) => t + num(q.cf), 0),
+    loadUsed: capResv.loadUsed - capReal.loadUsed + lost.reduce((t, q) => t + num(q.load), 0) };
   return { traits, category, body: sys.body, pilot: sys.effective?.pilot ?? sys.pilot, chassisDP: r ? num(r.dpLines[0]?.dp) : 0, plantDP,
     engineCustomDP: r ? r.dpLines.filter(l => l.label.startsWith("Engine customization")).reduce((t, l) => t + l.dp, 0) : 0,
     engineCustomLevels: ecLevels, engineCustomCost: Math.round(ecCost), cost: num(sys.cost), plantCost,
-    effective: sys.effective ?? {}, statWithout, build, installedOnly, items, synthetic, unresolved, tires: sys.tires, drone: traits.has("drone"),
+    effective: sys.effective ?? {}, statWithout, build, installedOnly, items, synthetic, baked, installedEc, unresolved, tires: sys.tires, drone: traits.has("drone"),
     engine: r ? CONFIG.SR2E.vehicleDesignTables?.powerPlants?.[d.powerPlantKey]?.engine : (sys.fuelType || null),
     cargoFree: num(sys.cargoFree) - resvCap.cfUsed, loadFree: num(sys.loadFree) - resvCap.loadUsed };
 }
@@ -107,7 +124,7 @@ export function quoteCustomization(vehicle, cat, levels, catalog, { user = game.
   if (!vehicle.system.baseConverted) problems.push("the GM must first settle this vehicle's design (the notice on its sheet)");
   // Room = what the shared capacity rule charges with the item added, minus without it: inherited design CF, a levels
   // family's fixed part and per-class values all counted the same way the sheet will (review C3 #12, #13).
-  const real = ctx.items.filter(i => !i.reserved);
+  const real = ctx.items.filter(i => !i.reserved || !i.specless);   // installed + reservations with their specs (R2 #3)
   const before = vehicleCapacity({ cargo: 0, load: 0 }, real, ctx.build);
   const after = vehicleCapacity({ cargo: 0, load: 0 }, [...real, { ...m, rating: q.R, custom: { ...(m.custom ?? {}), state: "parts" } }], ctx.build);
   q.cf = Math.round((after.cfUsed - before.cfUsed) * 100) / 100;
@@ -120,8 +137,9 @@ export function quoteCustomization(vehicle, cat, levels, catalog, { user = game.
   if (ctx.unresolved.length) problems.push(`the GM must first identify ${ctx.unresolved.join(", ")} (set its family on the item)`);
   // Prerequisites: at Finish only what's installed (or factory) counts, never parts still waiting (review C3 #5).
   const keys = new Set((ctx.installedOnly ? ctx.items.filter(i => !i.reserved && (modCounts(i) || modBaked(i))) : ctx.items).map(familyOf).filter(Boolean));
-  for (const why of modProblems({ ...m, rating: q.R1, maxRating: "" }, { body: ctx.body, pilot: ctx.pilot, engineCustomLevels: ctx.engineCustomLevels },
-    { category: ctx.category, engine: ctx.engine, drone: ctx.drone, body: ctx.body, keys, sensor: ctx.effective.sensor, engineCustomLevels: ctx.engineCustomLevels }))
+  const ecl = ctx.installedOnly ? ctx.installedEc : ctx.engineCustomLevels;   // Finish: only installed engine levels (R2 #5)
+  for (const why of modProblems({ ...m, rating: q.R1, maxRating: "" }, { body: ctx.body, pilot: ctx.pilot, engineCustomLevels: ecl },
+    { category: ctx.category, engine: ctx.engine, drone: ctx.drone, body: ctx.body, keys, sensor: ctx.effective.sensor, engineCustomLevels: ecl }))
     problems.push(/engine$/.test(why) && !ctx.engine ? `${why}: set the vehicle's fuel type (under More) first` : why);
   const need = TIRE_NEEDS[familyOf(m)];
   if (need && vehicle.system.tires && !need.includes(vehicle.system.tires) && ["bike", "car"].includes(ctx.category))
@@ -176,11 +194,15 @@ export function gmProcess(vehicle) {
         else if (!quote.ok) await setRequest(vehicle, live.id, { state: "rejected", reason: quote.problems.join("; ") });
         else if (!live.payer && !requester?.isGM) await setRequest(vehicle, live.id, { state: "rejected", reason: "no payer" });
         else {
-          await setRequest(vehicle, live.id, { state: "admitted", price: live.payer ? quote.charged : 0, cf: quote.cf, load: quote.load, mountPoints: quote.mountPoints });
+          // The payer's money writer is fixed now and never handed over: only its queue pays or acknowledges a
+          // cancellation, so nothing it sent can land after the reservation is released (review R2 #1).
+          const payerDoc = live.payer ? fromUuidSync(live.payer) : null;
+          await setRequest(vehicle, live.id, { state: "admitted", price: live.payer ? quote.charged : 0, cf: quote.cf, load: quote.load,
+            mountPoints: quote.mountPoints, writer: payerDoc ? moneyWriterFor(payerDoc)?.id ?? "" : "" });
           // No charge (the GM's own decision): the receipt is the GM's, on the vehicle.
           if (!live.payer) await vehicle.update({ [`flags.sr2e.custReceipts.${live.id}`]: { amount: 0, gm: game.user.id }, [`flags.sr2e.custRequests.${live.id}.state`]: "paid" });
         }
-      } else if (["admitted", "paid", "cancelRequested"].includes(live.state) && !deliveryOf(vehicle, live.id) && receiptFor(vehicle, live)) {
+      } else if (["admitted", "paid", "cancelRequested", "cancelled", "unpaid"].includes(live.state) && !deliveryOf(vehicle, live.id) && receiptFor(vehicle, live)) {
         await deliver(vehicle, live, catalog);   // the durable receipt is the proof, not the request's marker (review C3 #3)
       }
     }
@@ -262,7 +284,7 @@ export function payerProcess(vehicle) {
   for (const q of requestsOf(vehicle)) {
     if (!q.payer || !["admitted", "cancelRequested"].includes(q.state)) continue;
     const payer = fromUuidSync(q.payer);
-    if (!payer || moneyWriterFor(payer)?.id !== game.user.id) continue;
+    if (!payer || (q.writer || moneyWriterFor(payer)?.id) !== game.user.id) continue;
     moneyQueue(payer, async () => {
       const live = vehicle.getFlag("sr2e", "custRequests")?.[q.id];   // re-read inside the queue
       if (!live) return;
