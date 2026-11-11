@@ -270,3 +270,34 @@ All 19 accepted.
   takes the item out of effects and capacity at once.
 - The independent transcription pass 2 (Codex) agrees with pass 1 on every value (sr2e-rigger-2 docs/DESIGN-DATA-CHECK.md).
 - Vitest 1,552; Quench sr2e.vehicles 14/14.
+
+## Code review round 2 — Codex (fresh session, fixes only)
+
+Reviewed both fix commits read-only, with static tracing and write-free Node reproductions. No Foundry/Quench run.
+
+Round-1 reproductions #1, #3–#7, and #9–#19 are addressed; #2 remains unsafe across writer changes, and #8 still permits incomplete conversion. Related failures in the fixes follow.
+
+1. **[P1] Writer handoff reintroduces cancellation before payment settles.** [vehicle-customize.mjs:253](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:253) elects a new writer immediately when the payer’s owner becomes inactive. Reproduce: the owner submits a debit/receipt update, disconnects before it lands, and the GM cancels. The GM now qualifies as writer, sees no receipt, acknowledges cancellation, and releases capacity. The outstanding debit can subsequently land; receipt recovery excludes `cancelled`, leaving paid parts stranded. Ownership is also checked only before enqueueing, so queued work survives a writer change.
+   **Fix:** Persist the payment writer and require its queue acknowledgment, or a server-enforced handoff that settles outstanding writes, before transferring authority or releasing capacity.
+
+2. **[P1] Keep as edited stamps completion after vetoed item writes.** [vehicle-base.mjs:143](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-base.mjs:143) checks neither successful factory conversion nor successful engine-item creation before clearing the transaction. Reproduce: stored Armor 0 plus six design armor points; veto their embedded update. The final actor update still stores Armor 6 and stamps conversion complete, while the unchanged armor item adds another six. An empty creation result similarly discards synthetic engine levels permanently. Both unchecked paths were reproduced with stubs.
+   **Fix:** Verify every planned item’s persisted factory state and every synthetic item’s existence before stamping completion; retain the plan on any incomplete write.
+
+3. **[P2] Capacity deltas exclude reservations belonging to the same family.** [vehicle-customize.mjs:110](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:110) removes all reservations before computing the marginal consumption. Reproduce: a vehicle has 2 CF available; admit its first nitrous level, reserving 2 CF/15 kg, then request another level before delivery. The second quote incorrectly requires another 2 CF/15 kg and rejects it, although that family’s fixed consumption is already reserved. Node reproduction returned `it needs 2 CF; 0 free`; after delivery, the same purchase requires zero additional capacity.
+   **Fix:** Compute marginal capacity against installed items plus full specification-bearing reservations, with reservation accounting kept consistent through cancellation and delivery.
+
+4. **[P2] Factory engine levels still inflate the Speed maximum.** [vehicle-custom.mjs:36](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-custom.mjs:36) subtracts synthetic design-option gains but not factory gains already baked into the base. Reproduce: start at Speed 100, take one design engine Speed level, then Keep as edited. The resulting production base is 130 with one factory level. Purchasing another level passes and reaches 160, exceeding the original maximum 150. Node reproduction returned `ok: true`; the calculation uses maximum 195 and predicted Speed 190.
+   **Fix:** Preserve and use the pre-family baseline for factory levels, counting baked gains exactly once in both the maximum and projected result.
+
+5. **[P2] Finish still accepts pending engine customization as an installed prerequisite.** [vehicle-customize.mjs:123](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:123) filters prerequisite keys for `installedOnly`, but passes `engineCustomLevels` calculated from all items and reservations. Reproduce: buy engine Load customization and leave it as `parts`; buy/test Active Thermal Masking, then Finish it. `needsEngineCustom` passes despite no installed engine customization. The installed-only quote reproduced this with no problems.
+   **Fix:** Calculate prerequisite engine levels from installed/factory items and baked design options when validating Finish.
+
+VERDICT: REVISE
+### Claude's response (fix: system d62e50d)
+All 5 accepted. #1 admission records the payer's money writer (`request.writer`); only that client pays or acknowledges a
+cancellation — no handoff, so a debit it sent can't land after the reservation is released; a receipt found under any
+state is still delivered. #2 resumeKeepAsEdited stamps only after every planned item is factory and every engine item
+exists; otherwise it keeps the plan and retries. #3 reservations carry their catalog spec; room and the capacity delta
+are computed through the shared rule over installed items + reservations. #4 `baked` levels (design option + factory)
+are left out of a maximum's base once. #5 Finish uses only installed engine customization levels.
+Vitest 1,553; Quench sr2e.vehicles 14/14.
