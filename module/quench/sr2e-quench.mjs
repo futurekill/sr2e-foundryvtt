@@ -13041,6 +13041,52 @@ export function registerSR2EQuenchTests() {
         assert.match(C.quoteCustomization(other, spot, 1, catalog).problems.join(), /settle this vehicle's design/);
       });
 
+      it("Rigger 2 Vehicle List: imports take the list's stats and factory equipment; duplicates, designs and edited targets are left alone", async function () {
+        const L = CONFIG.SR2E.vehicleList;
+        if (!Object.keys(L?.rows ?? {}).length) this.skip();
+        this.timeout(30000);
+        const VL = await import("../vehicle-list.mjs");
+        const uuidOf = (name) => Object.entries(L.identity).find(([u, e]) => e.name === name && u.startsWith("Compendium.sr2e."))?.[0];
+        const src = uuidOf("Chrysler-Nissan Patrol-1");
+        const pack = game.packs.get("sr2e.vehicles");
+        // Import (the compendium path players and GMs use).
+        const imported = await game.actors.importFromCompendium(pack, src.split(".").pop(), { name: "Quench Patrol-1" });
+        made.push(imported);
+        const row = L.rows["chrysler-nissan-patrol-1"];
+        assert.equal(imported.getFlag("sr2e", "vehicleId"), "chrysler-nissan-patrol-1");
+        assert.deepEqual([imported.system.speed, imported.system.acceleration, imported.system.cost], [row.system.speed, row.system.acceleration, row.system.cost]);
+        const turbo = imported.items.find(i => i.name.startsWith("Turbocharging"));
+        assert.deepEqual([turbo?.system.rating, turbo?.system.custom.state], [2, "factory"]);
+        assert.equal(imported.items.filter(i => i.name === "Pintle Mount").length, 2);
+        // Factory turbocharging is already in the stats: the effective Speed is the printed one.
+        assert.equal(imported.system.effectiveSpeed ?? imported.system.effective.speed, row.system.speed);
+        // A customization counts the two factory levels (p.120): the next level is R1 = 3.
+        const C = await import("../vehicle-customize.mjs");
+        const catalog = await C.customizationCatalog();
+        const turboCat = catalog.find(c => c.name.startsWith("Turbocharging"));
+        if (turboCat) assert.equal(C.quoteCustomization(imported, turboCat, 1, catalog).R1, 3);
+        // A stamped copy (a world duplicate) keeps its own edits.
+        const copyData = imported.toObject(); delete copyData._id; copyData.name = "Quench Patrol-1 copy"; copyData.system.speed = 99;
+        const copy = await Actor.create(copyData);
+        made.push(copy);
+        assert.equal(copy.system.speed, 99);
+        // A designed vehicle never takes list stats.
+        const designed = foundry.utils.mergeObject(foundry.utils.deepClone(copyData), { "system.design.chassisKey": "sedan", flags: { sr2e: { r2Stats: null } } });
+        assert.isNull(VL.importChanges({ ...designed, type: "vehicle", _stats: { compendiumSource: src } }));
+        // The update window: a stale world vehicle is offered; an edit made after the list was built is not overwritten.
+        const stale = await Actor.create({ name: "Quench Stale Patrol", type: "vehicle", system: { speed: 60, handling: 4 }, _stats: { compendiumSource: src } });
+        made.push(stale);
+        await stale.update({ "system.speed": 60, "flags.sr2e.-=r2Stats": null, "flags.sr2e.-=vehicleId": null, "system.cost": 1 });
+        let c = VL.updateCandidates().find(x => x.uuid === stale.uuid);
+        assert.ok(c, "offered");
+        await stale.update({ "system.speed": 61 });
+        assert.equal(await VL.applyCandidate(c), "edited since the list was built");
+        c = VL.updateCandidates().find(x => x.uuid === stale.uuid);
+        assert.equal(await VL.applyCandidate(c), "applied");
+        assert.deepEqual([stale.system.speed, stale.getFlag("sr2e", "vehicleId")], [row.system.speed, "chrysler-nissan-patrol-1"]);
+        assert.notOk(VL.updateCandidates().find(x => x.uuid === stale.uuid), "idempotent");
+      });
+
       it("Workshop chassis art: every chassis has a reachable exemplar; sized, rotation-locked token; a chosen picture is kept", async function () {
         if (!haveTables()) this.skip();
         const W = await import("../apps/vehicle-workshop.mjs");

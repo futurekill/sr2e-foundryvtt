@@ -47,6 +47,7 @@ import { registerCommandSetHooks } from "./command-sets.mjs";
 import { registerVehicleWorkshop, openVehicleWorkshop } from "./apps/vehicle-workshop.mjs";
 import { registerVehicleBase, convertVehicleBases, reapplyDesign, keepAsEdited } from "./vehicle-base.mjs";
 import { registerVehicleCustomize } from "./vehicle-customize.mjs";
+import { registerVehicleList, openVehicleListUpdate } from "./vehicle-list.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
 import { registerPhoneLink } from "./companion/phone-link.mjs";
@@ -540,6 +541,7 @@ Hooks.once("init", async () => {
   registerVehicleWorkshop();
   registerVehicleBase();
   registerVehicleCustomize();
+  registerVehicleList();
   registerAstralWalls();
   registerAstralWallHooks();
   registerNetHooks();
@@ -556,7 +558,7 @@ Hooks.once("init", async () => {
   CONFIG.SR2E = SR2E;
 
   // Public API for macros (hotbar item macros call the interactive attack flow).
-  game.sr2e = Object.assign(game.sr2e ?? {}, { vehicleWorkshop: openVehicleWorkshop, vehicleBase: { convertVehicleBases, reapplyDesign, keepAsEdited }, shapeshift: { shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss }, areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, adjustNuyen: adjustNuyenQueued, payAwards, awardNuyen: awardNuyenDialog, moneySettled: (actor) => moneyQueue(actor, () => true, "settled"), moneyQueue, settingSet, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
+  game.sr2e = Object.assign(game.sr2e ?? {}, { vehicleWorkshop: openVehicleWorkshop, vehicleListUpdate: openVehicleListUpdate, vehicleBase: { convertVehicleBases, reapplyDesign, keepAsEdited }, shapeshift: { shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss }, areas: { createArea, areaDocs, deleteAreas, areaShape, allAreaDocs, cleanupDocs, canCreateArea }, natureSpiritsDepart, startRitual, rollWeaponInteractive, cleanupQuench, consolidateAmmo, adjustNuyen: adjustNuyenQueued, payAwards, awardNuyen: awardNuyenDialog, moneySettled: (actor) => moneyQueue(actor, () => true, "settled"), moneyQueue, settingSet, repairStaleImplants, repairSubRatings, allocateNuyen, canCreateActor, createActorViaGM, resistManipDamage, resolveBlast, resolveShotgunSpread,
     astralAttack, astralDefend, astralUndefended, astralResist, resistRangedDamage, launchFromCard, grantSpellDefense });
 
   // Colour-coded in-combat movement limit (SR2E p.83) — swaps the TokenRuler.

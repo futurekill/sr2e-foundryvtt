@@ -1032,6 +1032,15 @@ SR2E.vehicleDesignTables = { chassis: {}, powerPlants: {}, fuel: {}, markUp: {} 
  * Register the design tables (arrays of rows, or keyed objects). Later wins per key.
  * @param {{chassis?:object[]|object, powerPlants?:object[]|object, fuel?:object, markUp?:object}} data
  */
+/** The Rigger 2 Vehicle List (docs/PLAN-vehicle-list.md): registered by the Rigger 2 module. */
+SR2E.vehicleList = { rows: {}, identity: {} };
+SR2E.registerVehicleList = function registerVehicleList({ rows = {}, identity = {} } = {}) {
+  Object.assign(SR2E.vehicleList.rows, rows);
+  Object.assign(SR2E.vehicleList.identity, identity);
+  Hooks.callAll("sr2e.vehicleList", SR2E.vehicleList);
+  return SR2E.vehicleList;
+};
+
 SR2E.registerVehicleDesignTables = function registerVehicleDesignTables({ chassis = [], powerPlants = [], fuel = {}, markUp = {} } = {}) {
   const keyed = (rows) => Array.isArray(rows) ? Object.fromEntries(rows.map(r => [r.key, r])) : rows;
   Object.assign(SR2E.vehicleDesignTables.chassis, keyed(chassis));
