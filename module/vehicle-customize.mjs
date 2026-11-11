@@ -171,8 +171,9 @@ export async function requestCustomization(vehicle, cat, levels, payer) {
 
 const gmQueues = new Map();
 const isActiveGM = () => game.users.activeGM?.isSelf;
-function inVehicleQueue(vehicle, fn) {
-  const key = vehicle.uuid;
+const inVehicleQueue = (vehicle, fn) => inGmQueue(vehicle.uuid, fn);
+/** One GM-side queue per key: a vehicle's processing, or a payer's admissions (writer choice + its write; review R4 #1). */
+function inGmQueue(key, fn) {
   const run = (gmQueues.get(key) ?? Promise.resolve()).then(fn, fn);
   gmQueues.set(key, run.catch(err => console.error("SR2E | customization", err)));
   return run;
@@ -200,10 +201,13 @@ export function gmProcess(vehicle) {
           // One writer per payer: while any of the payer's purchases is unsettled, a new one gets that same writer, so
           // two clients never charge one payer at once (review R3 #1).
           const payerDoc = live.payer ? fromUuidSync(live.payer) : null;
-          const writer = payerDoc ? pendingWriter(live.payer) ?? moneyWriterFor(payerDoc)?.id ?? "" : "";
           const spec = foundry.utils.deepClone(cat.system); delete spec.description;
-          await setRequest(vehicle, live.id, { state: "admitted", price: live.payer ? quote.charged : 0, cf: quote.cf, load: quote.load,
-            mountPoints: quote.mountPoints, writer, spec });
+          const admit = async () => {
+            const writer = payerDoc ? pendingWriter(live.payer) ?? moneyWriterFor(payerDoc)?.id ?? "" : "";
+            await setRequest(vehicle, live.id, { state: "admitted", price: live.payer ? quote.charged : 0, cf: quote.cf, load: quote.load,
+              mountPoints: quote.mountPoints, writer, spec });
+          };
+          await (live.payer ? inGmQueue(`payer:${live.payer}`, admit) : admit());
           // No charge (the GM's own decision): the receipt is the GM's, on the vehicle.
           if (!live.payer) await vehicle.update({ [`flags.sr2e.custReceipts.${live.id}`]: { amount: 0, gm: game.user.id }, [`flags.sr2e.custRequests.${live.id}.state`]: "paid" });
         }

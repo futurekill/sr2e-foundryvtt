@@ -13041,6 +13041,24 @@ export function registerSR2EQuenchTests() {
         assert.match(C.quoteCustomization(other, spot, 1, catalog).problems.join(), /settle this vehicle's design/);
       });
 
+      it("Workshop chassis art: every chassis has a reachable exemplar; sized, rotation-locked token; a chosen picture is kept", async function () {
+        if (!haveTables()) this.skip();
+        const W = await import("../apps/vehicle-workshop.mjs");
+        const tables = CONFIG.SR2E.vehicleDesignTables;
+        const rows = Object.values(tables.chassis);
+        const missing = rows.filter(c => !c.art?.img).map(c => c.key);
+        assert.deepEqual(missing, [], "every chassis has art");
+        const bad = [];
+        for (const c of rows) if (!(await fetch(c.art.img, { method: "HEAD" })).ok) bad.push(c.art.img);
+        assert.deepEqual(bad, [], "every exemplar file exists");
+        const art = W.chassisArt(tables.chassis.sportsCar);
+        assert.match(art.img, /eurocar-westwind-2000\.webp$/);
+        assert.deepEqual([art["prototypeToken.width"], art["prototypeToken.height"], art["prototypeToken.lockRotation"]], [2, 4, true]);
+        assert.isTrue(W.hasDefaultArt({ img: "icons/svg/car.svg" }, tables));
+        assert.isTrue(W.hasDefaultArt({ img: tables.chassis.atv.art.img }, tables), "another chassis' exemplar is still a default");
+        assert.isFalse(W.hasDefaultArt({ img: "worlds/x/my-car.webp" }, tables), "a chosen picture is kept on redesign");
+      });
+
       it("customization review R3: one money writer per payer; a reservation keeps its admitted spec without the catalog", async function () {
         if (!haveTables()) this.skip();
         const C = await import("../vehicle-customize.mjs");
