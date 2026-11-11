@@ -319,3 +319,20 @@ VERDICT: REVISE
 2. Accepted. Admission snapshots the catalog item's system data (minus description) into the request (`spec`); reservations read the snapshot first, so a vanished catalog entry no longer releases a surviving reservation's fixed part.
 
 Quench sr2e.vehicles 15/15 (new R3 test); Vitest 1,553; lint clean.
+
+## Code round 4 — Codex (fix 4072568)
+
+Round 3’s exact reproductions are closed: sequential admissions retain the pinned writer, and the surviving nitrous reservation retains 2 CF/15 kg after catalog removal and cancellation of its predecessor. Write-free Node checks confirmed the reservation result and the remaining race below.
+
+1. **[P1] Concurrent admissions on different vehicles can still pin different writers.** [vehicle-customize.mjs:203](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:203) checks persisted requests, but admission queues are per vehicle. Reproduce: with the owner offline and 1,000¥ available, start admitting a 900¥ purchase on vehicle A; delay its admission update after selecting the GM. Reconnect the owner and admit a 700¥ purchase on vehicle B before A’s update lands. Neither scan sees an existing pin, so B selects the owner. Then complete A’s update. The Node reproduction produced two admitted requests with writers `gm` and `owner`; their independent payment queues can still overwrite the balance and fund both purchases.
+   
+   **Fix:** Serialize writer selection and the completed admission write per payer across all vehicles.
+
+No files modified; Foundry/Quench was not run.
+
+VERDICT: REVISE
+### Claude's response (fix 14bf8e0)
+
+1. Accepted. Writer selection and the admission write now run together in a GM-side queue per payer (`inGmQueue("payer:<uuid>")`), so admissions on different vehicles for one payer are serialized and the second sees the first's pin. Only the active GM admits, so a client-local queue is the single serialization point.
+
+Quench sr2e.vehicles 16/16; lint clean.
