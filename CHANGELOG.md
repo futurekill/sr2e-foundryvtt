@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **The Rigger 2 Vehicle List** (Rigger 2 module 0.8.0; docs/PLAN-vehicle-list.md): with the Rigger 2 module active,
+  a vehicle the list covers uses its stats (Rigger 2 p.148–166), as Rigger 2 says they supersede earlier ones.
+  - Importing such a vehicle from any compendium (the core vehicles, Rigger Black Book, Fields of Fire, Corporate
+    Security, the Street Samurai Catalog, …) gives it the list's stat line and its factory equipment: turbocharging,
+    thermal baffles, turrets, hardpoints and so on become **factory** items, already in the stats and counted against
+    customization maximums and weapon mount points.
+  - **Rigger 2 stats** (Actors sidebar, GM): lists the vehicles already in the world, unlinked tokens included, with
+    each stat that would change; updates only the ticked ones and skips any edited since the list was built.
+  - A designed vehicle (the Workshop or the old Design tab) is never changed, and neither is a world copy.
+
 ## 0.144.0 — 2026-11-11
 
 ### Added

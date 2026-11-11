@@ -1098,3 +1098,12 @@ If those five all work, the core loop is healthy.
 - [ ] Two purchases for one payer on two vehicles while the payer's owner is offline, then the owner logs in and
       buys a third: all three are charged by the same client (the request's `writer`), and the balance is right.
 
+
+## Rigger 2 Vehicle List (0.145.0; docs/PLAN-vehicle-list.md)
+- [ ] Rigger 2 on: drag the core Chrysler-Nissan Patrol-1 into the world: its stats are the list's (Speed 180,
+      Accel 10, 174,000¥), it has factory Turbocharging 2, and Customize offers turbocharging only from level 3.
+- [ ] Duplicate that vehicle and edit its Speed: the copy keeps the edit.
+- [ ] Actors sidebar → **Rigger 2 stats** (GM): lists old world vehicles and unlinked tokens with their changes;
+      untick one, apply: only the ticked change. Edit a listed vehicle while the window is open, then apply: it's
+      skipped with "edited since the list was built". A Workshop design never appears.
+- [ ] Rigger 2 off: no button, imports keep their compendium stats.

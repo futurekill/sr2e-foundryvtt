@@ -226,6 +226,12 @@ recovery never recreates it. Never charge or create these items any other way. T
 mod items flagged `flags.sr2e.designMod`; unflagged mods are customizations it never edits or deletes. Mod stat
 effects in design are `VehicleModData.effects` formulas; option steppers read `optionStats` (options only), never the
 mod-adjusted stats.
+The Rigger 2 Vehicle List (`module/vehicle-list.mjs`, rules `module/rules/vehicle-list-rules.mjs`,
+docs/PLAN-vehicle-list.md): the R2 module registers `{rows, identity}` (`CONFIG.SR2E.registerVehicleList`; identity =
+compendium source UUID → vehicleId). A `preCreateActor` hook gives an IMPORT (compendiumSource, no duplicateSource, not
+stamped `flags.sr2e.r2Stats`) the row's stats + factory items (`reconcileFactory`); the GM's "Rigger 2 stats" window
+does the same for world vehicles and unlinked tokens, re-checking each target before it writes. Never touch a vehicle
+with `hasDesign` (Workshop or legacy design).
 Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the
