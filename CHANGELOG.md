@@ -11,6 +11,9 @@
   the parts arrive on the vehicle. **Test** rolls the Installation Test (base time ÷ successes; several skills: the
   lowest count, drive-by-wire's three summed) and **Finish** makes it work once the time has passed. Removing a bought
   modification is final.
+- **Designed vehicles get artwork:** a vehicle created in the Workshop starts with a picture and token matching its
+  chassis (Rigger 2 module art: the closest existing vehicle portrait, or a generic one for the chassis), sized by
+  its Body and rotation-locked. Redesigning changes the picture only if nobody has replaced it.
 - Modifications now also set **Sensor, Autonav and Pilot** ratings (Sensors, autonav systems, remote-control
   interface and advanced programming) and change Load (engine customization), on the sheet and the Vehicles tab.
 - **Modifications change a vehicle's stats on its sheet, wherever they came from** (vehicle customization, release 1;

@@ -28,6 +28,33 @@ export function vehicleTypeFor(ch) {
   return { vehicleType: /zeppelin|blimp/i.test(ch.name) ? "aircraft" : "drone", skill: "" };
 }
 
+/** Pictures a vehicle starts with before anyone picks one: these may be replaced by a chassis' exemplar. */
+const DEFAULT_IMAGES = new Set(["", "icons/svg/car.svg", "icons/svg/mystery-man.svg"]);
+
+/**
+ * A chassis' default artwork (Rigger 2 module data `art: { img, aspect }`) as an actor update: the portrait and a token
+ * of the house footprint (width from type and Body, length from the trimmed art's aspect; 1 square = 1 m), rotation
+ * locked. Null when the chassis has none.
+ */
+export function chassisArt(ch) {
+  if (!ch?.art?.img) return null;
+  const b = Number(ch.body) || 0, t = vehicleTypeFor(ch).vehicleType;
+  const w = ch.category === "bike" ? 1
+    : t === "drone" ? (b <= 2 ? 1 : b <= 4 ? 2 : 3)
+    : t === "rotor" ? (b <= 3 ? 8 : 12)
+    : t === "aircraft" || t === "vectored_thrust" ? (/blimp|zeppelin/i.test(ch.name) ? Math.max(8, 4 * b) : 8)
+    : b <= 4 ? 2 : b <= 6 ? 3 : 4;
+  const h = Math.max(1, Math.round(w * (Number(ch.art.aspect) || 1)));
+  return { img: ch.art.img, "prototypeToken.texture.src": ch.art.img, "prototypeToken.texture.fit": "contain",
+    "prototypeToken.width": w, "prototypeToken.height": h, "prototypeToken.lockRotation": true };
+}
+
+/** Whether a vehicle's picture is still one nobody chose (a default, or any chassis' exemplar). */
+export function hasDefaultArt(actor, tables) {
+  const exemplars = new Set(Object.values(tables?.chassis ?? {}).map(c => c.art?.img).filter(Boolean));
+  return DEFAULT_IMAGES.has(actor?.img ?? "") || exemplars.has(actor?.img);
+}
+
 /** A fresh, empty v2 design. */
 const blankDesign = () => ({ chassisKey: "", powerPlantKey: "", speed: 0, acceleration: 0, load: 0, cargo: 0, handling: 0,
   handlingTrack: "onRoad", economySteps: 0, fuelSteps: 0, signature: 0, smartMaterials: false, takeoff: "", hydrofoil: false,
@@ -434,7 +461,9 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     const update = workshopUpdate(this.design, r, ch, pp, this.name);
     if (!this.actor) {
       if (!game.user.can("ACTOR_CREATE")) return ui.notifications.warn("You need the GM's \"Create New Actors\" permission to build a new vehicle (or ask the GM to create it, then edit it here).");
-      const actor = await Actor.create({ name: this.name, type: "vehicle", img: "icons/svg/car.svg", ...foundry.utils.expandObject(update) });
+      // A new vehicle starts with its chassis' exemplar picture and token (the player can change it any time).
+      const art = chassisArt(ch) ?? { img: "icons/svg/car.svg", "prototypeToken.lockRotation": true };
+      const actor = await Actor.create({ name: this.name, type: "vehicle", ...foundry.utils.expandObject({ ...art, ...update }) });
       if (!actor) return;
       this.actor = actor;
       if (this.linkTo?.isOwner) {
@@ -449,7 +478,9 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
           content: `<p>${esc(this.actor.name)} wasn't designed in the Workshop. Saving this design replaces its stats:</p>${diff || "<p>(no stat changes)</p>"}` });
         if (!ok) return;
       }
-      await this.actor.update(update);
+      // A redesign changes the picture only while it's still a default (never one somebody chose).
+      const art = hasDefaultArt(this.actor, this.tables) ? chassisArt(ch) : null;
+      await this.actor.update(art ? { ...update, ...art } : update);
     }
     await this.#reconcileMods();
     ui.notifications.info(`${this.actor.name} saved: ${r.dp} Design Points, ${r.price.toLocaleString()}¥.`);
