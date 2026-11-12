@@ -55,3 +55,10 @@ VERDICT: REVISE
   with the Patrol-1 example. Ambiguous legacy items get a per-vehicle adopt/keep select in the update window
   (`keepAmbiguous`); imports adopt (compendium data, never purchases). Pairing now puts factory items first so "keep"
   stays idempotent (Vitest).
+
+## Round 3 — Codex (fresh session, settled-findings brief)
+No new material findings. The Reconciliation paragraph is sound: adoption supplies family metadata, purchases remain separate, ambiguous legacy items require a reviewed choice, and factory-first pairing makes either choice idempotent. Import adoption is consistent with those rules.
+
+VERDICT: APPROVED
+
+**Plan APPROVED after 3 rounds.**
