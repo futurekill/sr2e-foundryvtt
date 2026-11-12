@@ -184,3 +184,14 @@ rest (2); one Stress-update helper for every writer, with a grep test (3); relea
 writer, which marks the slot `released` (the customization cancel pattern) (4); all-or-nothing reserve (5); missed is
 independent of reservation (6); the current month may already be paid (7); a paid missed month keeps a Restore action,
 1 Good Karma per attempt (ruling) (8).
+
+## Part 2b plan, round 3 — Codex (draft 3, fresh session): REVISE, 5 findings
+1. Control Pool Reaction reads augmented Quickness (MBW's Quickness included). 2. The VR2.0 Hacking Pool is computed as
+Computer + Reaction, not VR2.0 p.18's (Intelligence + MPCP) ÷ 3, so Otto's example can't work. 3. Qualities already on
+actors never get the new `rule`. 4. A replayed charge isn't explicitly idempotent. 5. Month advance isn't recoverable
+mid-way.
+
+### Claude's response (draft 4)
+All taken. 1: natural Quickness under rigger2. 2: confirmed at 300 dpi; an existing VR2.0 bug, fixed in its own patch
+release before 2b. 3: the rule is derived (`qualityRule`, explicit field then pack UUIDs) plus a selector. 4: an existing
+receipt skips to settle. 5: per-vehicle `assessedThrough`; advance only when all are current; ready pass resumes.

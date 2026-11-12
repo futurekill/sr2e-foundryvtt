@@ -251,7 +251,7 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b — the rigger (R2 p.12–19), draft 3 (2026-11-12, after Codex 2b rounds 1–2)
+### 2b — the rigger (R2 p.12–19), draft 4 (2026-11-12, after Codex 2b rounds 1–3)
 _2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
 coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
 overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
@@ -262,7 +262,10 @@ because vehicle customization already uses Rigger 2 rules under both rulesets._
 incl. "" — the StringField blank trap; reload + check `invalidDocumentIds` after the schema add), set in the R2
 module's r2-qualities JSON: `vehicle-empathy`, `simsense-vertigo`, `sensitive-neural-structure`, `spike-resistance`,
 `computer-illiterate`, `gremlins`, plus core/Companion qualities R2 touches if present (`adrenaline-surge`,
-`bio-rejection`). Tiered values come from `pointValue` (|value|). Ware: add `encephalon`, `cerebral-booster` and `vcr`
+`bio-rejection`). Tiered values come from `pointValue` (|value|). Existing copies (B3 #3): the rule is DERIVED like
+`wareRule` — `qualityRule(system.rule, compendiumSource)`: the explicit field, else a table of the R2 (and core/
+Companion) pack UUIDs — so qualities already on actors work without a migration; the quality sheet gets a rule
+selector for copies with neither. Ware: add `encephalon`, `cerebral-booster` and `vcr`
 keys to `WARE_SOURCES`/`wareRule` where detection is name-based today (`mods.vcrLevel`), keeping the old detection as
 the fallback. Move-by-wire keeps its existing identity (`move-by-wire:<level>`, Phase 4's `wareLevel`/working checks —
 B1 #7): no new key. **Content gap:** Vehicle Empathy (Edge, 2, p.16) is
@@ -270,9 +273,11 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
 
 **2b.1 Dice pools (p.16; replaces core p.84–85 under rigger2).**
 - **Control Pool** = Reaction + the VCR's enhancement; "indirect modifiers from cerebral boosters and encephalons
-  apply" = Reaction computed with the Intelligence they raise (today's `naturalReaction` uses Intelligence `.value`,
-  which already includes ware Intelligence; verify a cerebral booster's bonus lands there, else route it). Nothing else
-  adds (wired reflexes etc. never). Core keeps today's formula. Settles R1 #21.
+  apply" = Reaction from Intelligence including the Intelligence they raise. Quickness is the NATURAL one (B3 #1): no
+  ware Quickness — muscle replacement/augmentation and move-by-wire's own Quickness bonus excluded (today's
+  `naturalReaction` reads `quickness.value`, which includes them: fixed under rigger2), cyberlimb averages as the Reaction
+  branch already uses. Nothing else adds (wired reflexes etc. never). Core keeps today's formula. Settles R1 #21. Tested
+  with real MBW items.
 - **Move-by-wire with a VCR** (p.17–18, Monkeywrench example): effective VCR for Reaction/Initiative = max(0, VCR −
   MBW level) (−2 Reaction and −1D6 per level); Control Pool = Reaction + 2 × VCR − MBW level (VCR 3, MBW 1: +4/+2D6,
   pool 9 of 10; MBW 3: no bonus, pool 7; MBW 4: pool 6). The MBW level is the Phase 4 `wareLevel`; a disabled MBW
@@ -301,7 +306,10 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
   a reflex-triggered VCR off (new VCR item boolean `reflexTrigger` (+13,000¥, +0.2 Essence, factory only — never
   retrofitted) and character boolean `vcrOff`, a Simple Action toggle; off = no VCR at all: no rigging, pool, Reaction).
   The +1 sits in `testTnModifiers` next to the existing `computing` test, on Matrix tests (`tnContext.kind ===
-  "matrix"` or the actor in `matrixMode`).
+  "matrix"` or the actor in `matrixMode`). Prerequisite (B3 #2): the VR2.0 Hacking Pool is ⌊(Intelligence + MPCP) ÷ 3⌋
+  (VR2.0 p.18, checked at 300 dpi), but the system computes Computer + Reaction under both Matrix rulesets — an
+  existing VR2.0 bug, fixed in its own patch release BEFORE 2b (Intelligence with ware/magic increases; the optional
+  Multiple Improvements rule and Task Pool dice are noted, not built). Otto's 4 → 2 is an actor-level test.
 - **Encephalon and skillsofts** (p.17): a rigger with an encephalon may run Driving (vehicle) activesofts without
   skillwires, only while rigging. `skillsoft` capacity code gets that exception for vehicle-skill activesofts.
 - **Reflex recorder** (p.17): no effect on a Driving skill while controlling by VCR. The system doesn't automate
@@ -358,7 +366,10 @@ clients install the same item).
   their LISTED prices, not what was paid (Street Index, Availability): new `overheadValue(vehicle)` = the vehicle's
   listed cost (design and factory equipment included) + each installed aftermarket customization's list price
   (re-quoted without Street Index; never the receipt). `vehicleValue` (2a repairs, "total cost") is unchanged.
-- **Month ends** (GM, one vehicle-queue step per vehicle, idempotent by month id): writes
+- **Month ends** is convergent (B3 #5): each vehicle carries `flags.sr2e.overhead.assessedThrough`; the GM raises the
+  setting to m+1 only when every vehicle has `assessedThrough` = m (else it first resumes them), then assesses each
+  vehicle behind, and the GM's ready pass resumes any vehicle still behind. Each per-vehicle step (in its queue,
+  idempotent by month id) writes
   `flags.sr2e.overhead.months.<m> = {amount: ⌈value ÷ 100⌉ + 10 × stress, paid: false, missed: false, tx: null}` and
   resets the counter; any OLDER month not paid — reserved or not (B2 #6: reservation is separate from delinquency) —
   gets `missed: true` and adds 1 Stress (eventId `overhead-missed-<m>`, counted in the new month), once each.
@@ -370,7 +381,8 @@ clients install the same item).
   gets `tx` if unpaid and unreserved; if any is refused, the months already reserved by `tx` are freed (nothing was
   charged) and the payment aborts; (2) inside the payer's `moneyQueue`, the receipt slot
   `flags.sr2e.overheadReceipts.<tx>` is checked (a `released` marker → abort), then ONE character update: nuyen −X,
-  `karma.current` −K, discount usage, receipt `{months, amount, karma}`; (3) GM op **settle**: months reserved by `tx`
+  `karma.current` −K, discount usage, receipt `{months, amount, karma}`; an EXISTING receipt for `tx` means already
+  charged: skip straight to settle (B3 #4, no replayed debit); (3) GM op **settle**: months reserved by `tx`
   with a receipt → `paid`. Recovery: the GM's pass on ready settles reserved months whose receipt exists. **Release**
   (B2 #4, the customization `cancelRequested` pattern): the GM or payer requests it; the PAYER'S money writer
   acknowledges inside the same `moneyQueue`: no receipt → it writes `{released: true}` in the slot (so a charge that
