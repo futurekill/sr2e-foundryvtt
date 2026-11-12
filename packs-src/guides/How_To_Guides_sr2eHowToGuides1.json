@@ -70,6 +70,31 @@
       }
     },
     {
+      "_id": "8be80b88c728b32f",
+      "name": "Update vehicles to the Rigger 2 Vehicle List",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 300000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> give vehicles already in your world the Rigger 2 Vehicle List stats (Rigger 2 pp.148–166), which supersede\nthe core book&#39;s and the other sourcebooks&#39; while the Rigger 2 module is on.</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-list-update.png\" alt=\"The Rigger 2 stats window: each vehicle with the stats and factory equipment that would change\"></p>\n<p><strong>New imports need nothing:</strong> with Rigger 2 on, a vehicle dragged in from any compendium the list covers already\ngets the list&#39;s stats and its factory equipment (and any weapon the book includes).</p>\n<p><strong>The GM</strong></p>\n<ol>\n<li><strong>Open the window:</strong> Actors sidebar → <strong>Rigger 2 stats</strong>.</li>\n<li><strong>Check each row:</strong> every vehicle (unlinked tokens too) with the stats that would change and the factory equipment\nthat would be added or marked. Rows matched only by name, or with an older item at another rating, start\nunticked: check them, and for the older item pick <em>adopt it</em> or <em>keep it as aftermarket</em>.</li>\n<li><strong>Update the ticked vehicles.</strong> Anything edited since the window opened is skipped; open it again to review.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>Designed vehicles (Workshop or the old Design tab) and bought customizations are never changed.</li>\n<li>A world copy you duplicated keeps its own stats; only the window changes vehicles already in the world.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "2ee6f48dadf6f3ab",
       "name": "Set up a Matrix jackpoint",
       "type": "text",
@@ -84,7 +109,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
@@ -109,7 +134,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
@@ -134,7 +159,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
