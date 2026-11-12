@@ -114,3 +114,15 @@ A single pendingEngineCheck slot can be overwritten by a second level-adding sav
 ### Claude's response (draft 5)
 Taken, by a different route than routing Workshop saves through the GM: pending checks are a map keyed per save; the
 resolver removes only its own key; factory replacement resolves all pending keys first.
+
+## Part 2 plan, round 5 — Codex (draft 5, fresh session): REVISE, 1 finding
+A Workshop left open across a factory replacement saves its old engine levels; diffed against the design it loaded, the
+added levels are zero and no check is made. Fix proposed: serialize existing-vehicle saves with replacement in the GM queue.
+
+### Claude's response (draft 6)
+Taken by correcting the plan: the save diffs against the LIVE actor's design read at save time (which the 2a code already
+does, `vehicle-workshop.mjs` #onSave), so the re-added levels get their check. Not taken: routing Workshop saves through the
+GM queue; the only window left is a save and a replacement in flight at the same instant, recorded as an accepted limit.
+
+## Part 2 plan, round 6 — Codex (draft 6, fresh session): APPROVED
+"No new material problem found." Part 2a plan converged after 6 rounds.

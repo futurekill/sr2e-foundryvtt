@@ -223,7 +223,9 @@ and **2b** (rigger-side rules, overhead)._
   never rerolled by later saves. Atomic (R3 #2): the Workshop's save sends the new design (levels, baked ratings) AND
   a pending check `flags.sr2e.pendingEngineChecks.<id> = {addedLevels}` in one update — a MAP, one key per save, so a
   second level-adding save adds its own key and never overwrites the first (R4 #1); the added levels are this save's
-  diff against the design it loaded. The GM queue resolves each key separately and, in one update, writes its record +
+  diff against the LIVE actor's design read at save time, never the copy the Workshop loaded (R5 #1: after a factory
+  replacement zeroes the levels, a still-open Workshop that saves its old levels adds them back and gets a check). Accepted
+  limit: a replacement and a save in flight in the same instant (both clients mid-round-trip) are not serialized. The GM queue resolves each key separately and, in one update, writes its record +
   Stress and removes only that key (`-=<id>`). Keys left by an interruption are resolved by the GM pass on ready;
   factory replacement first resolves every pending key. On create, the pending key is part of the actor's data. `stressPermanent` = the sum of ALL records; a
   record leaves only through factory replacement (R3 #1: p.120 allows no other reduction — removing a customization
