@@ -515,6 +515,20 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
 - [ ] **Damage vs vehicles:** armour mods count; a called Light shot hurts; a Flame Bomb catches a car → the car gets
       its own card and resists with no Power cut; a non-owner player who controls a GM vehicle can resist for it.
 - [ ] **Command:** a drone with Pilot rolls its autopilot against the GM's TN.
+
+### Rigger 2 vehicle ruleset (Part 2a; Quench `sr2e.vehicle-r2`)
+- [ ] Settings → Vehicle ruleset → Rigger 2 → every client reloads. Without the Rigger 2 module the GM gets a notice.
+- [ ] Vehicles tab: Drive, Stress, Speed Rating/max; "Combat (core)" opens Position/Crash only, labelled core rules.
+- [ ] Drive as a rigger jacked into a rigger-adapted vehicle: Rigged mode −2/level and Control Pool; a datajack
+      character on a vehicle with a Datajack Port: Datajack −1; push 2 dice on a Body 3 car → refused past 1 die.
+- [ ] Fail a Driving Test, spend Karma, then Resolve: the Stress Test reads the Stress after the pushed dice; Resolve
+      twice is refused; a system failure posts a Crash Test due card.
+- [ ] A drone with Pilot (nobody controlling it): vehicle sheet → Drive (Pilot).
+- [ ] Exceed speed (+1), GM Stress Test, overhaul (needs the facility box; floor 1 and the permanent part).
+- [ ] Repair: quote → parts arrived → B/R test → take it back (hours left) → resume → finish clears the boxes.
+- [ ] Finish an engine customization → a GM-whispered secret check; failure adds permanent Stress; Factory engine
+      clears it. Workshop: add an engine customization level and save → one check; save again → none.
+- [ ] Back to Core Rulebook: no Rigger 2 panel, the Handling Test is back; Stress values kept.
 - [ ] **Gunnery:** fire a weapon mounted on a linked vehicle (Gunnery skill).
 - [ ] **Rigging (VCR):** jacked-in initiative uses VCR bonuses only; Control Pool = natural Reaction + 2/level; installed VCR cyberware is authoritative.
 

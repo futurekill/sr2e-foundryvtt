@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Vehicle ruleset setting** (world, reloads every client; docs/PLAN-vehicles-phase2.md Part 2): *Core Rulebook*
+  (default) or *Rigger 2*, whose standard vehicle operations supersede the core chapter. Vehicles keep their stats:
+  under Rigger 2 the stored speed is read as the Speed Rating (p.22), which a vehicle may exceed up to ×1.5. Vehicle
+  combat stays the core rules (labelled so) until Rigger 2 vehicle combat is built.
+- Under Rigger 2:
+  - **Drive** (Vehicles tab) is the **Driving Test** (p.20–21): manual, datajack (−1) or rigged (−2 per rig level,
+    Control Pool) control; the Driving Test Modifiers Table; the vehicle's Autonav adds dice; push the vehicle for
+    extra dice at 2 Stress each (at most its Body). A drone with nobody controlling it drives itself on its Pilot
+    (vehicle sheet). After any Karma, **Resolve** applies Stress: a failed test gets the GM's Stress Test, the Rule
+    of One adds 1D6 Stress, and a system failure asks for a Crash Test (p.26).
+  - **Stress** on the vehicle sheet and Vehicles tab, with **Exceed speed** (+1), the GM's **Stress Test**, and a
+    **maintenance overhaul** in a Vehicle Facility (p.26).
+  - **Repairs** as a job (p.26): quote (TN boxes + 2; parts 5% of the vehicle's cost per box), parts arrive, the
+    Build/Repair Test sets the hours, take it back mid-repair and resume, finish.
+  - Speed Rating, maximum and km/h on the sheet; off-road halves it without off-road suspension.
+- **Engine customization can fail** (R2 p.120, both rulesets): finishing an engine customization, or adding engine
+  customization levels in the Workshop, gets the GM's secret check; a failure adds permanent Stress that only a
+  factory engine removes (GM button). Engines customized before this release: a GM "Check engine" button.
+
+### Changed
+- Under Rigger 2 the vehicle test dialog offers only the (core) Position and Crash Tests; the Driving Test replaces
+  the Handling Test.
+
+### Rulings
+- Rigger 2 p.21's worked example (Whiz Kid's Dragon) prints TN 8, but its own rows sum to 7: the table is used.
+- A defaulting driver's Rule of One counts against the dice they rolled for the skill.
+
 ## 0.146.0 — 2026-11-12
 
 ### Added
