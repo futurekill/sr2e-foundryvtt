@@ -3323,7 +3323,9 @@ export async function promptVehicleTestOptions(actor, vehicle, preset = {}) {
   // Spent only on the pool's own client (its player's, else the GM's): one writer per pool.
   const controlAvail = isPoolClient(actor) ? (actor.system.dicePools?.control?.value ?? 0) : 0;
   const controlCap   = Math.min(controlAvail, sk.cap);
-  const type0 = preset.testType ?? "handling";
+  // Under Rigger 2 the Driving Test replaces the Handling Test; Position/Crash stay core until R2 vehicle combat (Part 3).
+  const r2 = (await import("../vehicle-mode.mjs")).isRigger2();
+  const type0 = preset.testType ?? (r2 ? "position" : "handling");
 
   const readOp = (root) => ({
     complex: !!root.querySelector("[name=opComplex]")?.checked,
@@ -3373,7 +3375,7 @@ export async function promptVehicleTestOptions(actor, vehicle, preset = {}) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
         <div class="form-group" style="margin:2px 0;"><label>Test:</label>
           <select id="sr2e-vt-type" name="testType">
-            <option value="handling" ${type0 === "handling" ? "selected" : ""} title="Out of combat (p.183)">Handling Test</option>
+            ${r2 ? "" : `<option value="handling" ${type0 === "handling" ? "selected" : ""} title="Out of combat (p.183)">Handling Test</option>`}
             <option value="position" ${type0 === "position" ? "selected" : ""}>Position Test</option>
             <option value="crash" ${type0 === "crash" ? "selected" : ""}>Crash Test</option>
           </select></div>
@@ -3399,6 +3401,7 @@ export async function promptVehicleTestOptions(actor, vehicle, preset = {}) {
           <tr style="border-top:1px solid rgba(255,255,255,0.15);"><td style="font-weight:bold;padding-top:3px;">Final TN:</td>
             <td id="sr2e-vt-tn" style="text-align:right;font-weight:bold;padding-top:3px;"></td></tr>
         </table>
+        ${r2 ? `<p style="margin:4px 0 0;font-size:10px;color:#d9a441;">Core rules: Rigger 2 vehicle combat comes in a later release. Use Drive for the Rigger 2 Driving Test.</p>` : ""}
         <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">A failed Crash Test crashes the vehicle (SR2E p.107).
           Position Test pool dice stay out of the Control Pool for the rest of the turn (p.105).</p>
       </div>
@@ -4237,6 +4240,15 @@ const SHARED_ACTIONS = {
     const controlled = this.document.system.controlledVehicles ?? [];
     return this.document.update({ "system.linkedVehicles": updated,
       ...(controlled.includes(uuid) ? { "system.controlledVehicles": controlled.filter(v => v !== uuid) } : {}) });
+  },
+
+  /** Rigger 2 Driving Test with a linked vehicle (R2 p.20–21). */
+  drivingTest: async function(event, target) {
+    event.preventDefault();
+    const vehicle = await fromUuid(target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid ?? "");
+    if (!vehicle) return;
+    const vp = await import("../vehicle-play.mjs");
+    return vp.rollDrivingTest(this.document, vehicle, await vp.promptDrivingTest(this.document, vehicle));
   },
 
   /** Take or give up control of a linked vehicle (the GM writes it; SR2E p.104 vehicle commands). */

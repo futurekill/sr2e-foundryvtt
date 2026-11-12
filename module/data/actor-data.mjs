@@ -1,3 +1,4 @@
+import { permanentStress } from "../rules/vehicle-r2-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral } from "../rules/shapeshift-rules.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
@@ -2009,6 +2010,9 @@ export class VehicleData extends SR2EDataModel {
       signature: new fields.NumberField({ integer: true, initial: 2, min: 0 }),
       pilot: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       sensor: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Stress Rating (Rigger 2 p.25–26; docs/PLAN-vehicles-phase2.md 2a.3): written only by the GM vehicle op. Its
+      // permanent part is derived from the engine records (flags.sr2e.engineStress), never stored.
+      stress: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       cargo: new fields.NumberField({ initial: 0, min: 0 }),
       load: new fields.NumberField({ initial: 0, min: 0 }),
       seating: new fields.StringField({ initial: "2" }),
@@ -2085,6 +2089,9 @@ export class VehicleData extends SR2EDataModel {
     // Standard 10-box damage track: Light at 1, Moderate at 3, Serious at 6,
     // Destroyed at 10 — vehicle damage levels per SR2E p.109.
     this.conditionMonitor.max = 10;
+    // Permanent Stress = the engine records' sum (R2 p.120); the Stress Rating never reads below it.
+    this.stressPermanent = permanentStress(this.parent?.flags?.sr2e?.engineStress);
+    this.stressRating = Math.max(this.stress ?? 0, this.stressPermanent);
 
     // The effective stats (docs/PLAN-vehicle-customization.md C1): the stored stats are the BASE and every installed
     // mod's effects come on top, from the ONE effect pass the Workshop also uses (applyModEffects). Recomputed from the

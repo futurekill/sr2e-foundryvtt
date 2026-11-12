@@ -12876,6 +12876,123 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Vehicles in play (core)" });
 
+    // Rigger 2 standard vehicle operations (docs/PLAN-vehicles-phase2.md Part 2a): Stress, the Driving Test, engine
+    // checks, repairs. The GM ops and flows don't read the world setting (the sheets do), so nothing here changes it.
+    quench.registerBatch("sr2e.vehicle-r2", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [], t0 = Date.now();
+      const vp = () => import("../vehicle-play.mjs");
+      const mk = async (d) => { const a = await Actor.create(d); made.push(a); return a; };
+      const since = () => game.messages.filter(m => (m._stats?.createdTime ?? 0) >= t0);
+      const faces = async (u, fn) => { const r = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => u; try { return await fn(); } finally { CONFIG.Dice.randomUniform = r; } };
+      const ALL_FIVES = 0.2, ALL_ONES = 0.99;
+      after(async function () {
+        this.timeout(30000);
+        const ids = since().map(m => m.id);
+        if (ids.length) await ChatMessage.deleteDocuments(ids);
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+
+      describe("Stress", () => {
+        it("a legacy vehicle reads 0; one event applies once; never below the permanent part", async () => {
+          const { adjustStress } = await vp();
+          const v = await mk({ name: "Quench R2 Stress", type: "vehicle", system: { body: 3 } });
+          assert.deepEqual([v.system.stressRating, v.system.stressPermanent], [0, 0]);
+          await adjustStress(v, 3, { eventId: "e1" }); await adjustStress(v, 3, { eventId: "e1" });
+          assert.equal(v.system.stressRating, 3);
+          await v.update({ "flags.sr2e.engineStress.x": { points: 2 } });
+          await adjustStress(v, -5, { eventId: "e2" });
+          assert.equal(v.system.stressRating, 2, "the permanent 2 stays");
+        });
+      });
+
+      describe("Driving Test (R2 p.20–26)", () => {
+        async function driveAndResolve(driver, v, opts) {
+          const { rollDrivingTest, resolveDrivingTest } = await vp();
+          return faces(ALL_ONES, async () => {
+            await rollDrivingTest(driver, v, { mode: "manual", terrain: "normal", otherMod: 0, ...opts });
+            const card = since().filter(m => m.flags?.sr2e?.drivingTest?.vehicleUuid === v.uuid).at(-1);
+            await resolveDrivingTest(card);
+            return card;
+          });
+        }
+        it("pushed dice cost Stress first; a failed test's Stress Test reads that; the Rule of One adds after (Westwind order)", async () => {
+          const v = await mk({ name: "Quench R2 Westwind", type: "vehicle", system: { body: 3, handling: 4, speed: 60 } });
+          const d = await mk({ name: "Quench R2 Driver", type: "character", system: { reaction: { base: 3 } } });
+          await d.createEmbeddedDocuments("Item", [{ name: "Car", type: "skill", system: { rating: 1 } }]);
+          // 1 skill die + 1 pushed (2 Stress) = 2 dice, all 1s: failed; Stress Test 2D6 = 2 vs 2 → nothing; Rule of One
+          // (2 ones ≥ Car 1) → +1D6 = 1 → 3 < 2 × Body 3.
+          const card = await driveAndResolve(d, v, { stressDice: 1 });
+          assert.equal(v.system.stressRating, 3);
+          assert.notOk(since().some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid), "no system failure");
+          const w = ui.notifications.warn; let again = 0; ui.notifications.warn = () => again++;
+          try { await (await vp()).resolveDrivingTest(game.messages.get(card.id)); } finally { ui.notifications.warn = w; }
+          assert.equal(again, 1, "resolved once");
+        });
+        it("Stress reaching 2 × Body from the Rule of One fails a system: a Crash Test is due", async () => {
+          const v = await mk({ name: "Quench R2 Scooter", type: "vehicle", system: { body: 1, handling: 3, speed: 40 } });
+          const d = await mk({ name: "Quench R2 Driver2", type: "character", system: { reaction: { base: 3 } } });
+          await d.createEmbeddedDocuments("Item", [{ name: "Bike", type: "skill", system: { rating: 1 } }]);
+          await v.update({ "system.skill": "bike" });
+          await driveAndResolve(d, v, { stressDice: 1 });   // Body 1: 2 Stress for 1 die; then +1 → 3 ≥ 2
+          assert.equal(v.system.stressRating, 3);
+          assert.ok(since().some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid));
+        });
+        it("a drone drives itself on its Pilot, with no Stress dice", async () => {
+          const { rollDrivingTest } = await vp();
+          const v = await mk({ name: "Quench R2 Drone", type: "vehicle", system: { vehicleType: "drone", body: 1, handling: 3, pilot: 3 } });
+          const res = await faces(ALL_FIVES, () => rollDrivingTest(null, v, { mode: "drone", terrain: "normal", stressDice: 2 }));
+          assert.equal(res.successes, 3, "Pilot 3 dice at TN 3, all 5s");
+          assert.equal(v.system.stressRating, 0);
+        });
+      });
+
+      describe("Engine customization (R2 p.120)", () => {
+        it("the secret check is recorded once with its permanent Stress; the GM pass resolves a Workshop key; a factory engine clears it", async () => {
+          const { engineCheckForInstall, replaceEngine } = await vp();
+          const w = await mk({ name: "Quench R2 Mech", type: "character" });
+          await w.createEmbeddedDocuments("Item", [{ name: "Ground Vehicles (B/R)", type: "skill", system: { rating: 3 } }]);
+          const v = await mk({ name: "Quench R2 Hotrod", type: "vehicle", system: { body: 3, speed: 90 } });
+          const [it] = await v.createEmbeddedDocuments("Item", [{ name: "Engine Customization (Speed)", type: "vehicle_mod",
+            system: { modKey: "engine-custom-speed", rating: 1, custom: { state: "tested", attempt: { id: "att1", ok: true, by: w.uuid,
+              results: [{ skill: "Ground Vehicles (B/R)", successes: 2 }], spec: { tn: 4 } } } } }]);
+          // 3 dice vs TN 8, all 5s: fails; 1D6 = 5 → 3 permanent Stress.
+          await faces(ALL_FIVES, async () => { await engineCheckForInstall(v, it); await engineCheckForInstall(v, it); });
+          assert.equal(Object.keys(v.getFlag("sr2e", "engineStress")).length, 1, "recorded once");
+          assert.deepEqual([v.system.stressRating, v.system.stressPermanent], [3, 3]);
+          // A Workshop save's pending key: 6 dice vs TN 6, all 5s → fails (1D6 5 → 3 more), and the key goes.
+          await faces(ALL_FIVES, async () => {
+            await v.update({ "flags.sr2e.pendingEngineChecks.k1": { addedLevels: 1 } });
+            for (let i = 0; i < 40 && v.getFlag("sr2e", "pendingEngineChecks")?.k1; i++) await new Promise(r => setTimeout(r, 100));
+          });
+          assert.notOk(v.getFlag("sr2e", "pendingEngineChecks")?.k1, "resolved");
+          assert.equal(v.system.stressPermanent, 6);
+          await replaceEngine(v);
+          assert.equal(v.items.filter(i => i.system.modKey?.startsWith("engine-custom")).length, 0);
+          assert.deepEqual([v.system.stressRating, v.system.stressPermanent], [0, 0]);
+        });
+      });
+
+      describe("Repairs (R2 p.26)", () => {
+        it("quote → parts → test → interrupt/resume → finish; a stale job id does nothing", async () => {
+          const { repairOp, vehicleValue } = await vp();
+          const v = await mk({ name: "Quench R2 Wreck", type: "vehicle", system: { body: 3, cost: 40000, conditionMonitor: { value: 3, max: 10 } } });
+          assert.equal(vehicleValue(v), 40000);
+          const q = await repairOp(v, "quote", { boxes: 3 });
+          assert.deepEqual([q.tn, q.baseHours, q.parts], [5, 48, 6000]);
+          assert.isTrue((await repairOp(v, "tested", { jobId: q.id, successes: 2 })).stale, "no parts yet");
+          await repairOp(v, "partsArrived", { jobId: q.id });
+          assert.equal((await repairOp(v, "tested", { jobId: q.id, successes: 3 })).hours, 16);
+          await repairOp(v, "interrupt", { jobId: q.id, hoursLeft: 5 });
+          assert.isTrue((await repairOp(v, "finish", { jobId: q.id })).stale, "can't finish while taken back");
+          await repairOp(v, "resume", { jobId: q.id });
+          assert.isTrue((await repairOp(v, "finish", { jobId: "old" })).stale);
+          await repairOp(v, "finish", { jobId: q.id });
+          assert.equal(v.system.conditionMonitor.value, 0);
+        });
+      });
+    }, { displayName: "SR2E: Vehicles, Rigger 2 operations" });
+
     quench.registerBatch("sr2e.vehicles", (context) => {
       const { it, assert, after } = context;
       const made = [];

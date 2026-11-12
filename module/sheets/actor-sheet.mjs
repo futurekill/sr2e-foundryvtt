@@ -1549,6 +1549,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
           system: vActor.system,
           weapons: vActor.items.filter(i => i.type === "weapon"),
           controlled: (system.controlledVehicles ?? []).includes(uuid),
+          r2: (await import("../vehicle-play.mjs")).r2Context(vActor),
           kph: Math.round((vActor.system.effectiveSpeed ?? 0) * 1.2),   // m/CT × 1.2 = km/h (p.104)
           hasAutopilot: ((vActor.system.vehicleType === "drone" ? vActor.system.effective?.pilot : vActor.system.effective?.autonav) ?? 0) > 0
         });
@@ -2080,7 +2081,23 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
           content: "<p>It was bought as a customization. Removing it is final (no refund: the GM's call).</p>" });
         if (ok) (await import("../vehicle-customize.mjs")).removeCustomization(this.document, item);
       },
-      addItem: onAddItem
+      addItem: onAddItem,
+      // Rigger 2 standard operations (docs/PLAN-vehicles-phase2.md Part 2a).
+      r2Drive: async function () { const vp = await import("../vehicle-play.mjs"); return vp.rollDrivingTest(null, this.document, await vp.promptDrivingTest(null, this.document)); },
+      r2Exceed: async function () { (await import("../vehicle-play.mjs")).exceedSpeed(this.document); },
+      r2StressTest: async function () { (await import("../vehicle-play.mjs")).gmStressTest(this.document); },
+      r2StressAdjust: async function (event, target) {
+        (await import("../vehicle-play.mjs")).adjustStress(this.document, parseInt(target.dataset.delta) || 0, { reason: "edited on the sheet" })
+          .catch(err => ui.notifications.warn(err.message));
+      },
+      r2Overhaul: async function () { (await import("../vehicle-play.mjs")).overhaulFlow(this.document); },
+      r2Repair: async function () { (await import("../vehicle-play.mjs")).repairFlow(this.document); },
+      r2Engine: async function () {
+        const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "Fit a factory engine?" },
+          content: "<p>Every engine customization goes, and with it the permanent Stress it caused (Rigger 2 p.120).</p>" });
+        if (ok) (await import("../vehicle-play.mjs")).replaceEngine(this.document);
+      },
+      r2LegacyEngine: async function () { (await import("../vehicle-play.mjs")).adjudicateLegacyEngines(this.document); }
     }
   };
 
@@ -2129,6 +2146,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       traits: ["drone", "transport", "tractor", "truck", "zeppelin", "electricAircraft"].map(t => ({ key: t, on: (d.traits ?? []).includes(t) || (t === "transport" && d.transport) }))
     } : null;
     context.baseConvert = game.user.isGM && !this.document.system.baseConverted ? this.document.getFlag("sr2e", "baseConvert") : null;
+    context.r2 = (await import("../vehicle-play.mjs")).r2Context(this.document);
     return context;
   }
 

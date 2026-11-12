@@ -1312,6 +1312,19 @@ function _registerSystemSettings() {
     requiresReload: true
   });
 
+  // Vehicle ruleset (docs/PLAN-vehicles-phase2.md Part 2): the core book's vehicle chapter, or Rigger 2's, which
+  // supersedes it. Reload: derived vehicle data and roll logic must never mix the two.
+  game.settings.register("sr2e", "vehicleRuleset", {
+    name: "Vehicle ruleset",
+    hint: "Which vehicle rules the table uses. Core Rulebook is the default. Rigger 2 swaps in its standard vehicle operations: the Driving Test, the Speed Rating (up to ×1.5), Stress, system failures, overhauls and repairs. Vehicle combat stays the core rules until Rigger 2 vehicle combat is built. Vehicles keep their stats; with the Rigger 2 module active, imports use its Vehicle List.",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: { core: "Core Rulebook", rigger2: "Rigger 2" },
+    default: "core",
+    requiresReload: true
+  });
+
   // VR2.0 optional rule "Utility Options" (pp.102–104; docs/PLAN-vr2-part5b.md). Reload: sizes and prices are derived.
   game.settings.register("sr2e", "vr2UtilityOptions", {
     name: "VR2.0 utility options",

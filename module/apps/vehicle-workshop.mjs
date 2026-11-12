@@ -459,6 +459,11 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!ch || !pp) return ui.notifications.warn("Pick a chassis and a power plant first.");
     if (!r.valid) return ui.notifications.warn(`The design has problems: ${r.problems.map(p => p.msg).join(" ")}`);
     const update = workshopUpdate(this.design, r, ch, pp, this.name);
+    // Engine customization levels this save ADDS (against the design as stored now) get the GM's secret failure check
+    // (R2 p.120): one pending key per save, written with the design, resolved by the GM (vehicle-play gmEnginePass).
+    const stored = this.actor?.system?.design?.choices?.engineCustom ?? {};
+    const added = ["speed", "acceleration", "load"].reduce((t, k) => t + Math.max(0, num(this.design.engineCustom?.[k]) - num(stored[k])), 0);
+    if (added > 0) update[`flags.sr2e.pendingEngineChecks.${foundry.utils.randomID(12)}`] = { addedLevels: added };
     if (!this.actor) {
       if (!game.user.can("ACTOR_CREATE")) return ui.notifications.warn("You need the GM's \"Create New Actors\" permission to build a new vehicle (or ask the GM to create it, then edit it here).");
       // A new vehicle starts with its chassis' exemplar picture and token (the player can change it any time).

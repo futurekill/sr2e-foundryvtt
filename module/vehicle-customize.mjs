@@ -11,6 +11,7 @@
  * Removing a bought item writes `custDelivery.<id> = "removed"` first; recovery never recreates it and finishes the
  * deletion. Every step re-reads the live documents, so a replay changes nothing.
  */
+import { isEngineCustomization, engineCheckForInstall } from "./vehicle-play.mjs";
 import { customizationQuote, vehicleTraits, installTime, installSkills, familyOf } from "./rules/vehicle-custom.mjs";
 import { applyModEffects, modProblems, vehicleCapacity, modCounts, modBaked } from "./rules/vehicle-design.mjs";
 import { moneyQueue, adjustNuyen } from "./money.mjs";
@@ -388,6 +389,12 @@ export async function finishInstallation(vehicle, item) {
   const blocking = q.problems.filter(p => !/needs .* CF|kg of Load free|no customization price|military only/.test(p));
   if (blocking.length) return ui.notifications.warn(`${item.name} can't be finished: ${blocking.join("; ")}.`);
   if (num(vehicle.system.cargoFree) < -1e-9 || num(vehicle.system.loadFree) < -1e-9) return ui.notifications.warn(`${vehicle.name} is over its Cargo or Load; make room first.`);
+  // An engine customization: the GM's secret failure check and its Stress land on the vehicle FIRST (R2 p.120); a GM
+  // pass finishes the item if this client stops before the next line.
+  if (isEngineCustomization(item)) {
+    try { await engineCheckForInstall(vehicle, item); }
+    catch (err) { return ui.notifications.warn(`${item.name} can't be finished now: ${err.message}`); }
+  }
   await item.update({ "system.custom.state": "done" });
   ui.notifications.info(`${item.name} is installed on ${vehicle.name}.`);
 }

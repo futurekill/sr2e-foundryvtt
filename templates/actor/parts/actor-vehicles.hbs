@@ -58,9 +58,15 @@
                title="{{#if vehicle.controlled}}You are driving / rigging this vehicle. Click to let go.{{else}}Take control: you drive or rig it now (its Crash Tests, Control Pool and rigged initiative come to you).{{/if}}">
               <i class="fas fa-steering-wheel fa-gamepad"></i> {{#if vehicle.controlled}}Driving{{else}}Control{{/if}}
             </a>
+            {{#if vehicle.r2}}
+            <a class="vehicle-ctrl-btn" data-action="drivingTest"
+               title="Rigger 2 Driving Test (p.20–21): any maneuver that needs a test, in or out of combat">
+              <i class="fas fa-road"></i> Drive
+            </a>
+            {{/if}}
             <a class="vehicle-ctrl-btn" data-action="vehicleTest"
-               title="Handling / Position / Crash Test (SR2E p.105–107)">
-              <i class="fas fa-tachometer-alt"></i> Test
+               title="{{#if vehicle.r2}}Position / Crash Test — core rules (Rigger 2 vehicle combat comes in a later release){{else}}Handling / Position / Crash Test (SR2E p.105–107){{/if}}">
+              <i class="fas fa-tachometer-alt"></i> {{#if vehicle.r2}}Combat (core){{else}}Test{{/if}}
             </a>
             <a class="vehicle-ctrl-btn" data-action="ramVehicle"
                title="Ram another vehicle — target its token to pre-fill stats (SR2E p.107)">
@@ -92,7 +98,12 @@
         {{!-- Vehicle Stats --}}
         <div class="vehicle-stats-row flexrow">
           <span class="vehicle-stat" title="Handling">Hand: {{vehicle.system.effectiveHandling}}</span>
+          {{#if vehicle.r2}}
+          <span class="vehicle-stat" title="Rigger 2 Speed Rating (after damage), max ×1.5 (p.22)">Spd: {{vehicle.r2.speed}}/{{vehicle.r2.maxSpeed}} ({{vehicle.r2.kph}} km/h)</span>
+          <span class="vehicle-stat" title="Stress (Rigger 2 p.25){{#if vehicle.r2.permanent}}; {{vehicle.r2.permanent}} permanent{{/if}}">Stress: {{vehicle.r2.stress}}</span>
+          {{else}}
           <span class="vehicle-stat" title="Cruising speed in m/Combat Turn (after damage); ×1.2 = km/h (SR2E p.104)">Spd: {{vehicle.system.effectiveSpeed}} ({{vehicle.kph}} km/h)</span>
+          {{/if}}
           <span class="vehicle-stat" title="Acceleration">Acc: {{vehicle.system.effectiveAcceleration}}</span>
           <span class="vehicle-stat" title="Body">Body: {{vehicle.system.body}}</span>
           <span class="vehicle-stat" title="Armor">Armor: {{vehicle.system.effectiveArmor}}</span>
