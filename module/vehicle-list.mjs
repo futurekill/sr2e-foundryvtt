@@ -6,7 +6,7 @@
  *    target at a time, re-checking each before it writes.
  * A designed vehicle (Workshop or the old Design tab) is never changed.
  */
-import { hasDesign, listIdentity, statChanges, reconcileFactory, withListNote, nameKey } from "./rules/vehicle-list-rules.mjs";
+import { hasDesign, listIdentity, statChanges, reconcileFactory, withListNote, nameKey, factorySignature } from "./rules/vehicle-list-rules.mjs";
 
 const list = () => CONFIG.SR2E.vehicleList;
 const registered = () => Object.keys(list()?.rows ?? {}).length > 0;
@@ -30,9 +30,16 @@ export function importChanges(data) {
     foundry.utils.setProperty(i, "system.custom.state", "factory");
     foundry.utils.mergeObject(i, { system: { modKey: m.modKey, stack: m.stack } });
   }
-  return { vehicleId: id.vehicleId, patch, items: [...items, ...foundry.utils.deepClone(create)], notes: withListNote(data.system?.notes ?? "", row.notes),
+  return { vehicleId: id.vehicleId, patch, items: [...items, ...freshIds(create, items)], notes: withListNote(data.system?.notes ?? "", row.notes),
     stamp: { source: st.compendiumSource, page: row.page } };
 }
+
+/** Copies of the factory entries to create, re-id'd where the entry's _id is already taken (a bought item, say). */
+const freshIds = (create, items) => create.map(i => {
+  const c = foundry.utils.deepClone(i);
+  if (items.some(x => x._id === c._id)) c._id = foundry.utils.randomID();
+  return c;
+});
 
 /** Everything the update window could change: world vehicles and every unlinked token's synthetic actor (R1 #5). */
 export function updateCandidates() {
@@ -56,7 +63,7 @@ export function updateCandidates() {
     const stamped = src.flags?.sr2e?.vehicleId === id.vehicleId;
     if (!changes.length && !fac.create.length && !fac.mark.length && stamped) continue;
     out.push({ uuid: actor.uuid, label, vehicleId: id.vehicleId, rowName: row.name, byName, changes, patch, fac,
-      snapshot: Object.fromEntries(changes.map(c => [c.key, c.from])), tick: !byName && !fac.ambiguous.length });
+      snapshot: Object.fromEntries(changes.map(c => [c.key, c.from])), equipment: factorySignature(src.items, row.factory), tick: !byName && !fac.ambiguous.length });
   }
   return out;
 }
@@ -72,13 +79,13 @@ export async function applyCandidate(c, { keepAmbiguous = false } = {}) {
     if (JSON.stringify(cur) !== JSON.stringify(v ?? null)) return "edited since the list was built";
   }
   const row = list().rows[c.vehicleId];
+  if (factorySignature(src.items, row.factory) !== c.equipment) return "equipment edited since the list was built";
   const fac = reconcileFactory(src.items, row.factory, { keepAmbiguous });
   await actor.update({ ...c.patch, "system.notes": withListNote(src.system.notes ?? "", row.notes),
     "flags.sr2e.vehicleId": c.vehicleId, "flags.sr2e.r2Stats": { source: src._stats?.compendiumSource ?? "", page: row.page, by: c.byName ? "name" : "identity" } });
   if (fac.mark.length) await actor.updateEmbeddedDocuments("Item", fac.mark.map(m => ({ _id: m._id, "system.rating": m.rating, "system.custom.state": "factory",
     "system.modKey": m.modKey, "system.stack": m.stack })));
-  const missing = fac.create.filter(i => !actor.items.get(i._id));
-  if (missing.length) await actor.createEmbeddedDocuments("Item", foundry.utils.deepClone(missing), { keepId: true });
+  if (fac.create.length) await actor.createEmbeddedDocuments("Item", freshIds(fac.create, src.items), { keepId: true });
   return "applied";
 }
 

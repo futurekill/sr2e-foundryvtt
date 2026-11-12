@@ -2,7 +2,7 @@
 // is checked out (CI: the synthetic cases only).
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { hasDesign, listIdentity, statChanges, reconcileFactory, withListNote } from "../module/rules/vehicle-list-rules.mjs";
+import { hasDesign, listIdentity, statChanges, reconcileFactory, withListNote, factorySignature } from "../module/rules/vehicle-list-rules.mjs";
 
 const LIST_FILE = "../sr2e-rigger-2/data/vehicle-list.json";
 const LIST = existsSync(LIST_FILE) ? JSON.parse(readFileSync(LIST_FILE, "utf8")) : null;
@@ -14,6 +14,8 @@ describe("hasDesign", () => {
     expect(hasDesign({ design: { version: 2 } })).toBe(true);
     expect(hasDesign({ design: { version: 1, chassisKey: "sedan" } })).toBe(true);
     expect(hasDesign({ design: { version: 1, improvements: { armor: 2 } } })).toBe(true);
+    expect(hasDesign(null)).toBe(false);
+    expect(statChanges(null, { system: { speed: 10 } }).patch["system.speed"]).toBe(10);
   });
 });
 
@@ -35,6 +37,24 @@ describe("reconcileFactory", () => {
     const r = reconcileFactory([{ _id: "x", name: "Thermal Baffles", type: "vehicle_mod", system: { rating: 3, custom: {} } }], [fac("Thermal Baffles", 1)]);
     expect(r.ambiguous).toEqual(["Thermal Baffles"]);
     expect(r.mark).toEqual([{ _id: "x", rating: 1, name: "Thermal Baffles", modKey: "", stack: "" }]);
+  });
+  it("deleting the first of two factory copies recreates that copy, not one with the survivor's _id", () => {
+    const want = [fac("Pintle Mount", 1, "p1"), fac("Pintle Mount", 1, "p2")];
+    const r = reconcileFactory([fac("Pintle Mount", 1, "p2")], want);
+    expect(r.create.map(i => i._id)).toEqual(["p1"]);
+    expect(r.mark).toEqual([]);
+  });
+  it("an included weapon is created once and never marked; a same-named mod doesn't pair with it", () => {
+    const gun = { _id: "g", name: "Ares Vanquisher Minigun", type: "weapon", system: { ammo: { current: 1000 } } };
+    expect(reconcileFactory([], [gun]).create).toEqual([gun]);
+    expect(reconcileFactory([{ ...gun, _id: "h" }], [gun])).toEqual({ create: [], mark: [], ambiguous: [] });
+    expect(reconcileFactory([{ _id: "m", name: gun.name, type: "vehicle_mod", system: {} }], [gun]).create).toEqual([gun]);
+  });
+  it("the equipment signature changes when a reconciled item's rating is edited", () => {
+    const want = [fac("Thermal Baffles", 1)];
+    const a = [{ _id: "x", name: "Thermal Baffles", system: { rating: 1, custom: {} } }];
+    expect(factorySignature(a, want)).not.toBe(factorySignature([{ ...a[0], system: { rating: 3, custom: {} } }], want));
+    expect(factorySignature([...a, { _id: "y", name: "Other", system: {} }], want)).toBe(factorySignature(a, want));
   });
   it("an adopted legacy item takes the family metadata so Customize can group it", () => {
     const legacy = { _id: "x", name: "Turbocharging", type: "vehicle_mod", system: { rating: 2, modKey: "", stack: "", custom: {} } };

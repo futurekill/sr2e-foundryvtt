@@ -11,8 +11,8 @@ export const LIST_KEYS = ["vehicleType", "skill", "handling", "handlingOffRoad",
 export const LIST_DESIGN_KEYS = ["category", "transport", "traits"];
 
 /** Any design, the Workshop's (version 2) or the old Design tab's: the list never overrides a designed vehicle. */
-export function hasDesign(sys = {}) {
-  const d = sys.design ?? {};
+export function hasDesign(sys) {
+  const d = sys?.design ?? {};
   if (Number(d.version) === 2) return true;
   if (d.chassisKey || d.powerPlantKey) return true;
   return Object.values(d.improvements ?? {}).some(v => Number(v) > 0);
@@ -36,7 +36,8 @@ const same = (a, b) => Array.isArray(a) || Array.isArray(b)
   : (a ?? null) === (b ?? null) || (a === "" && b == null) || (a == null && b === "");
 
 /** The stat changes: `{ changes: [{key, from, to}], patch: {"system.<key>": to} }` (design keys as `design.<key>`). */
-export function statChanges(sys = {}, row) {
+export function statChanges(sys, row) {
+  sys ??= {};
   const changes = [], patch = {};
   for (const k of LIST_KEYS) {
     const to = row.system[k] ?? null, from = sys[k] ?? null;
@@ -62,29 +63,40 @@ export function statChanges(sys = {}, row) {
  */
 export function reconcileFactory(items = [], factory = [], { keepAmbiguous = false } = {}) {
   const create = [], mark = [], ambiguous = [];
-  const byName = new Map();
-  for (const f of factory) { if (!byName.has(f.name)) byName.set(f.name, []); byName.get(f.name).push(f); }
-  const used = new Set();
-  for (const [name, wanted] of byName) {
-    const have = items.filter(i => i.type !== "weapon" && i.name === name && !i.system?.custom?.receipt?.id && !used.has(i._id))
+  const byKey = Map.groupBy(factory, f => `${f.type ?? "vehicle_mod"}|${f.name}`);
+  for (const wanted of byKey.values()) {
+    const name = wanted[0].name;
+    const type = wanted[0].type ?? "vehicle_mod";
+    const free = items.filter(i => (i.type ?? "vehicle_mod") === type && i.name === name && !i.system?.custom?.receipt?.id)
       .sort((a, b) => (b.system?.custom?.state === "factory") - (a.system?.custom?.state === "factory"));   // factory first: idempotent
-    wanted.forEach((f, k) => {
-      const i = have[k];
-      if (!i) { create.push(f); return; }
+    // An item that is this entry (same _id) pairs with it first, so deleting one of two copies restores THAT copy.
+    const pair = new Map();
+    for (const f of wanted) { const j = free.findIndex(i => i._id === f._id); if (j >= 0) pair.set(f, free.splice(j, 1)[0]); }
+    for (const f of wanted) if (!pair.has(f) && free.length) pair.set(f, free.shift());
+    for (const f of wanted) {
+      const i = pair.get(f);
+      if (!i) { create.push(f); continue; }
+      if (type === "weapon") continue;   // an included weapon: present is enough (no rating or factory state)
       const rating = Number(f.system?.rating ?? 1), cur = Number(i.system?.rating ?? 0), state = i.system?.custom?.state ?? "";
       const modKey = f.system?.modKey ?? "", stack = f.system?.stack ?? "";
       const meta = (i.system?.modKey ?? "") === modKey && (i.system?.stack ?? "") === stack;
       if (state !== "factory" && cur && cur !== rating) {
         ambiguous.push(name);
-        if (keepAmbiguous) { create.push(f); return; }   // it stays aftermarket
+        if (keepAmbiguous) { create.push(f); continue; }   // it stays aftermarket
       }
-      used.add(i._id);
-      if (state === "factory" && cur === rating && meta) return;
+      if (state === "factory" && cur === rating && meta) continue;
       mark.push({ _id: i._id, rating, name, modKey, stack });
-    });
+    }
   }
   return { create, mark, ambiguous };
 }
+
+/** What reconciliation reads from a vehicle's items, to detect equipment edited after the update window was built. */
+export const factorySignature = (items = [], factory = []) => {
+  const names = new Set(factory.map(f => f.name));
+  return JSON.stringify(items.filter(i => names.has(i.name)).map(i => [i._id, i.type, i.system?.rating ?? null,
+    i.system?.custom?.state ?? "", i.system?.custom?.receipt?.id ?? "", i.system?.modKey ?? "", i.system?.stack ?? ""]).sort());
+};
 
 /** The notes paragraph the list adds, once. */
 export function withListNote(notes = "", rowNotes = "") {

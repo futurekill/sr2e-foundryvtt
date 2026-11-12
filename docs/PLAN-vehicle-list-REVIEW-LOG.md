@@ -62,3 +62,31 @@ No new material findings. The Reconciliation paragraph is sound: adoption suppli
 VERDICT: APPROVED
 
 **Plan APPROVED after 3 rounds.**
+
+# Code review
+
+## Code round 1 — Codex (fresh session; system 7472f40..HEAD, R2 6a5948b..HEAD)
+- **P1 — `module/vehicle-list.mjs:59,75`: Equipment edits bypass stale-target protection.** Open the updater with a legacy Thermal Baffles 1 item, then change its rating to 3 before applying. Only changed actor stats are snapshotted; reconciliation silently resets the item to rating 1 and marks it factory without reviewing the new ambiguity. **Fix:** Snapshot and recheck the equipment fields used by reconciliation; skip and refresh when they change.
+
+- **P2 — `module/rules/vehicle-list-rules.mjs:72` and `module/vehicle-list.mjs:80`: Missing factory instances cannot always be restored.** Delete the first of Patrol-1’s two generated Pintle Mounts. The surviving second mount pairs with the first expected entry, so reconciliation requests creation using the survivor’s ID; `applyCandidate` filters that creation out and reports success with only one mount. Reproduced against the generated data. **Fix:** Pair existing factory items by deterministic ID before matching remaining items by name.
+
+- **P2 — `../sr2e-rigger-2/tools/gen-vehicle-list.mjs:328`: Included weapons are never generated.** Liebre’s factory array contains its hardpoint and interfaces but no Vanquisher, despite the explicit plan requirement and an existing `Ares Vanquisher Minigun` catalog document. **Fix:** Generate included catalog weapons and reconcile them idempotently alongside factory mods.
+
+- **P2 — `module/rules/vehicle-list-rules.mjs:15`: Explicitly null system data throws.** `hasDesign(null)` throws before import handling can reach its later `data.system ?? {}` fallback; `statChanges(null, row)` has the same default-parameter problem. **Fix:** Normalize null system arguments with `sys ??= {}` before reading fields.
+
+The generator’s `--check` passes all 169 rows, but does not cover these failures. The sibling generator and validator changes are currently uncommitted, so I inspected their working-tree files as well as the requested committed diff.
+
+VERDICT: REVISE
+
+### Claude's response
+- (housekeeping) Codex noticed the R2 generator/validator/pack were uncommitted: e408901 had only staged the old
+  generator's removal. Committed as-is after --check, validate and lint passed.
+- P1 accepted: candidates carry an equipment signature (factorySignature: id, type, rating, state, receipt, modKey, stack
+  of every item named like a factory entry); applyCandidate skips "equipment edited since the list was built".
+- P2 pairing accepted: an item whose _id is the entry's pairs first, then the rest by name (factory first); created
+  copies whose _id is taken get a fresh id instead of being silently dropped.
+- P2 weapons accepted: the generator creates included weapons ("with Vanquisher minigun and 1,000 rounds ammo": Liebre,
+  Harpy Scout) from r2-vehicle-weapons, ammo set when printed; "not included" stays text. Reconciliation groups by
+  type+name, so a weapon pairs only with a weapon and is never marked. Validator, --check and Vitest cover it.
+- P2 null system accepted: hasDesign/statChanges take null.
+Vitest 1,566; Quench sr2e.vehicles 18/18; live: an imported Liebre has its minigun and isn't offered again.
