@@ -145,3 +145,11 @@ finishInstallation) runs inside the queue before the roll; the op finishes the i
 skips it. 6: refused in `rollDrivingTest`, button hidden. 7: the card records `defaulted`; the threshold is the dice
 rolled. Quench: 4 new tests (overhaul floor, defaulting threshold, rigged drone, unverified install refused; double
 replacement). Also: vehicle-play after hook timeout 30 s (hidden-tab cleanup).
+
+## Part 2a code, round 2 — Codex (fix 3b0b697 only, fresh session): REVISE, 1 finding
+Engine completion validates the item captured before queuing: a factory replacement queued ahead deletes it, but the
+precheck reads the stale document and the secret check records permanent Stress for a removed customization.
+
+### Claude's response
+Taken: the precheck re-reads the item inside the queue and requires the same attempt id; both legacy paths check the
+item still exists too.

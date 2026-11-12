@@ -560,9 +560,12 @@ GM_OPS.engineInstall = async ({ vehicleUuid, itemId, legacy = false }, user) => 
   return recordEngineCheck(vehicle, a.id, { source: item.id, label: `${item.name} (installed by ${worker?.name ?? "?"}, ${skill} ${dice} vs TN ${tn})`, dice, tn,
     // Inside the queue: the finish checks against the live vehicle, then the item is finished with its record. A legacy
     // engine (installed before the checks) is only adjudicated.
-    precheck: legacy && user?.isGM ? null : async () => {
-      const p = await finishProblem(vehicle, item);
-      if (p?.reset) await item.update({ "system.custom.state": "parts", "system.custom.attempt": {} });
+    precheck: async () => {
+      const live = vehicle.items.get(itemId);   // re-read: a replacement queued ahead may have removed it
+      if (!live || live.system.custom?.attempt?.id !== a.id) return `${item.name} is no longer waiting on that installation.`;
+      if (legacy && user?.isGM) return null;
+      const p = await finishProblem(vehicle, live);
+      if (p?.reset) await live.update({ "system.custom.state": "parts", "system.custom.attempt": {} });
       return p?.msg ?? null;
     },
     finalize: legacy ? null : () => finishEngineItem(vehicle, item.id) });
@@ -933,7 +936,8 @@ export async function adjudicateLegacyEngines(vehicle) {
   for (const it of legacyEngines(vehicle, recs)) {
     const a = it.system.custom?.attempt;
     if (a?.ok && a.id) await GM_OPS.engineInstall({ vehicleUuid: vehicle.uuid, itemId: it.id, legacy: true }, game.user);
-    else await recordEngineCheck(vehicle, `legacy-${it.id}`, { source: it.id, label: `${it.name} (no installation record: 6 dice vs TN 6)`, dice: 6, tn: 6 });
+    else await recordEngineCheck(vehicle, `legacy-${it.id}`, { source: it.id, label: `${it.name} (no installation record: 6 dice vs TN 6)`, dice: 6, tn: 6,
+      precheck: () => vehicle.items.get(it.id) ? null : `${it.name} is gone.` });
   }
 }
 /** Engine customizations working without an engine record (installed before the checks existed). Factory engines are standard. */
