@@ -5169,7 +5169,7 @@ export function registerSR2EQuenchTests() {
       });
 
       describe("Flame Bomb (area)", () => {
-        it("gives everyone caught the same staged code; vehicles to the GM; hidden never", async function () {
+        it("gives everyone caught the same staged code, vehicles included (p.109); hidden never", async function () {
           if (!canvas?.ready) this.skip();
           await canvas.tokens.setTargets([]);
           const { msgs } = await withFaces([5, 5, 2, 1],
@@ -5177,11 +5177,10 @@ export function registerSR2EQuenchTests() {
           // Only this batch's tokens: the scene may hold real ones in range.
           const cards = msgs.filter(x => x.flags?.sr2e?.manipDamage).map(x => x.flags.sr2e.manipDamage)
             .filter(c => c.targetName.startsWith("Quench "));
-          assert.deepEqual(cards.map(c => c.targetName).sort(), ["Quench Manip Goon", "Quench Manip Goon2"],
-            "a card per goon (car → GM, hidden excluded, mage outside)");
+          assert.deepEqual(cards.map(c => c.targetName).sort(), ["Quench Manip Car", "Quench Manip Goon", "Quench Manip Goon2"],
+            "a card per goon and the car (hidden excluded, mage outside)");
           for (const c of cards) assert.include(c, { successes: 2, basePower: 4, area: true });
           const summary = msgs.find(x => x.whisper.length && /Caught in the blast/.test(x.content));
-          assert.include(summary.content, "vehicle: the GM resolves it");
           assert.notInclude(summary.content, "Quench Manip Hidden");
         });
       });
@@ -5287,7 +5286,7 @@ export function registerSR2EQuenchTests() {
           assert.lengthOf(newSince(n).filter(x => x.flags?.sr2e?.resolves === card.id && x.content !== "elsewhere"), 0);
         });
 
-        it("never redirects a card whose target is gone, and refuses a vehicle stand-in", async function () {
+        it("never redirects a card whose target is gone; a selected vehicle resists it without the vehicle reductions (p.109)", async function () {
           if (!canvas?.ready) this.skip();
           const card = await spark();
           const st = card.flags.sr2e.manipDamage;
@@ -5295,14 +5294,17 @@ export function registerSR2EQuenchTests() {
           const n = game.messages.size;
           await resist(game.messages.get(card.id));
           assert.lengthOf(newSince(n), 0, "deleted target: nothing rolled against whoever is selected");
-          // An untargeted card with a VEHICLE selected must not reach the vehicle rules.
+          // An untargeted card with a VEHICLE selected: damaging manipulations hit vehicles "as if they were regular
+          // weapons" with no vehicle reduction of Power or Damage Code (p.109; vehicles were refused before 0.146.0).
           await card.update({ "flags.sr2e.manipDamage": { ...st, targetUuid: "" } });
           const carTok = canvas.tokens.placeables.find(t => t.actor?.name === "Quench Manip Car");
           carTok.control({ releaseOthers: true });
           const m = game.messages.size;
+          nextDialog().then(confirm);
           await resist(game.messages.get(card.id));
           carTok.release();
-          assert.lengthOf(newSince(m), 0, "vehicle refused");
+          const rolled = newSince(m).map(x => x.flags?.sr2e?.test).filter(Boolean);
+          assert.isTrue(rolled.some(t => /Quench Manip Car/.test(t.label ?? "")), "the vehicle resisted it");
         });
       });
     }, { displayName: "SR2E: Damaging manipulation (p.158)" });
@@ -7355,7 +7357,9 @@ export function registerSR2EQuenchTests() {
       it("anti-vehicle rockets keep their Damage Level; armour still cuts Power", async () => {
         const tank = await Actor.create({ name: "Quench C9A5 Tank", type: "vehicle", system: { body: 4, armor: 6 } });
         await resist(tank, 16, "D", { antiVehicle: true, basePower: 16 });
-        const t = lastTest();
+        // The resistance test, not a crash it may cause (a destroyed vehicle crashes automatically, p.107).
+        const t = since().map(m => m.flags?.sr2e?.test).filter(x => /Resist 16D/.test(x?.label ?? "")).at(-1);
+        assert.ok(t, "the resistance test");
         assert.include(t.label, "Resist 16D");
         assert.equal(t.tn, 6, "16 − (4 + 6)");
       });
@@ -12661,6 +12665,217 @@ export function registerSR2EQuenchTests() {
     });
 
     // ── Vehicles (docs/PLAN-vehicle-builder.md) ──────────────────────────────────────────────────────────────────
+    // Vehicles in play, core rules (docs/PLAN-vehicles-phase2.md Part 1). Every die is rigged (randomUniform 0.2 → all 5s:
+    // TN ≤ 5 hits on every die, TN 6+ never), so each assertion is exact.
+    quench.registerBatch("sr2e.vehicle-play", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [], msgs = [];
+      let rand, combat = null;
+      const vp = () => import("../vehicle-play.mjs");
+      const since = (t0) => game.messages.filter(m => (m._stats?.createdTime ?? 0) >= t0);
+      const mk = async (d) => { const a = await Actor.create(d); made.push(a); return a; };
+      const track = (t0) => { for (const m of since(t0)) msgs.push(m); };
+      before(() => { rand = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => 0.2; });
+      after(async () => {
+        CONFIG.Dice.randomUniform = rand;
+        delete game.combats.viewed; delete game.combats.active;   // the instance overrides below
+        if (combat) { try { await combat.delete(); } catch (e) {} }
+        for (const m of msgs) { try { await m.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      // A combat of the test's own, made game.combat by shadowing the collection's getters on the instance: the
+      // world's own active combat is never touched (activating ours would deactivate it).
+      async function inCombat() {
+        if (!combat) {
+          combat = await Combat.create({ scene: null, active: false });
+          for (const k of ["viewed", "active"]) Object.defineProperty(game.combats, k, { configurable: true, get: () => combat });
+        }
+        await combat.update({ round: 1, turn: 0 });
+        assert.equal(game.combat?.id, combat.id);
+        return combat;
+      }
+      async function rigger(name, vcr = 1) {
+        return mk({ name, type: "character", system: { quickness: { base: 4 }, intelligence: { base: 4 }, vehicleControlRig: vcr } });
+      }
+
+      describe("control", () => {
+        it("one controller: a second claim takes it over; unlinking clears it", async () => {
+          const { setControl, controllerOf } = await vp();
+          const v = await mk({ name: "Quench VP Car", type: "vehicle", system: { body: 3, handling: 4, speed: 60 } });
+          const a = await rigger("Quench VP A"), b = await rigger("Quench VP B");
+          await a.update({ "system.linkedVehicles": [v.uuid] }); await b.update({ "system.linkedVehicles": [v.uuid] });
+          await setControl(a, v.uuid, true);
+          assert.equal(controllerOf(v)?.id, a.id);
+          await setControl(b, v.uuid, true);
+          assert.equal(controllerOf(v)?.id, b.id, "the second claim takes control");
+          assert.notInclude(a.system.controlledVehicles, v.uuid, "…and releases the first");
+          let refused = false;
+          try { await setControl(a, "Actor.notLinked", true); } catch (e) { refused = true; }
+          assert.isTrue(refused, "an unlinked vehicle can't be controlled");
+        });
+      });
+
+      describe("the one damage commit and its crash triggers (p.107)", () => {
+        it("a Serious wound in combat asks for ONE Crash Test per phase; crash damage never does", async () => {
+          const { commitVehicleDamage } = await vp();
+          await inCombat();
+          const v = await mk({ name: "Quench VP Serious", type: "vehicle", system: { body: 3, speed: 60 } });
+          const t0 = Date.now();
+          await commitVehicleDamage(v, 6, { source: "weapon" });
+          await commitVehicleDamage(v, 1, { source: "weapon", woundLevel: "S" });
+          await commitVehicleDamage(v, 2, { source: "crash", woundLevel: "S" });
+          track(t0);
+          const due = since(t0).filter(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid);
+          assert.equal(due.length, 1, "one Crash Test per vehicle per Combat Phase");
+          assert.equal(v.system.conditionMonitor.value, 9);
+        });
+        it("an event id never damages twice", async () => {
+          const { commitVehicleDamage } = await vp();
+          const v = await mk({ name: "Quench VP Replay", type: "vehicle", system: { body: 3 } });
+          await commitVehicleDamage(v, 3, { source: "weapon", eventId: "e1" });
+          const r = await commitVehicleDamage(v, 3, { source: "weapon", eventId: "e1" });
+          assert.isTrue(r.skipped);
+          assert.equal(v.system.conditionMonitor.value, 3);
+        });
+        it("destroyed by a weapon: automatic crash at the speed it had BEFORE the hit", async () => {
+          const { commitVehicleDamage } = await vp();
+          const v = await mk({ name: "Quench VP Wreck", type: "vehicle", system: { body: 3, speed: 80, conditionMonitor: { value: 0, max: 10 } } });
+          const t0 = Date.now();
+          const r = await commitVehicleDamage(v, 10, { source: "weapon" });
+          track(t0);
+          assert.equal(r.trigger, "autoCrash");
+          const card = since(t0).find(m => /automatic crash/i.test(m.content ?? ""));
+          assert.ok(card, "the crash resolved");
+          assert.match(card.content, /at 80 m\/CT|fully resisted/, "speed 80 (8S), not the destroyed vehicle's 0");
+        });
+      });
+
+      describe("Control Pool", () => {
+        it("Position Test dice stay out of the pool across refreshes this round, back next round (p.105)", async () => {
+          const { spendPosition } = await vp();
+          const c = await inCombat();
+          const r = await rigger("Quench VP Pool", 2);
+          await r.refreshDicePools();
+          const max = r.system.dicePools.control.max;
+          assert.isAbove(max, 3);
+          await spendPosition(r, 2); await spendPosition(r, 1);
+          assert.equal(r.system.dicePools.control.value, max - 3, "debited");
+          await r.refreshDicePools(); await r.refreshDicePools();
+          assert.equal(r.system.dicePools.control.value, max - 3, "two tests' dice (2 + 1) held through two refreshes");
+          await c.update({ round: 2 });
+          await r.refreshDicePools();
+          assert.equal(r.system.dicePools.control.value, max, "a new round frees them");
+        });
+      });
+
+      describe("tests", () => {
+        it("−2 × VCR only on the out-of-combat Handling Test, and only when rigged into the vehicle (p.183)", async () => {
+          const { setControl } = await vp();
+          const v = await mk({ name: "Quench VP VCR", type: "vehicle", system: { body: 3, handling: 5, speed: 60 } });
+          const r = await rigger("Quench VP Rig", 1);
+          await r.createEmbeddedDocuments("Item", [{ name: "Car", type: "skill", system: { rating: 4 } }]);
+          await r.update({ "system.linkedVehicles": [v.uuid], "system.rigging": true });
+          const t0 = Date.now();
+          const off = await r.rollVehicleTest(v, { testType: "handling" });
+          await setControl(r, v.uuid, true);
+          const on = await r.rollVehicleTest(v, { testType: "handling" });
+          const pos = await r.rollVehicleTest(v, { testType: "position", terrain: "open" });
+          track(t0);
+          assert.equal(off.targetNumber, 5, "not controlling it: no rigger modifier");
+          assert.equal(on.targetNumber, 3, "rigged in: 5 − 2");
+          assert.equal(pos.targetNumber, 5, "a Position Test never gets it");
+          assert.ok(since(t0).some(m => m.flags?.sr2e?.positionResult?.successes === pos.successes), "the outcome card");
+        });
+        it("ram: the loser makes a Crash Test (not an automatic crash); the other driver rolls on the card", async () => {
+          const { setControl, resistVehicleRam } = await vp();
+          const mine = await mk({ name: "Quench VP Rammer", type: "vehicle", system: { body: 4, armor: 0, handling: 3 } });
+          const theirs = await mk({ name: "Quench VP Rammed", type: "vehicle", system: { body: 2, armor: 0, handling: 6 } });
+          const a = await rigger("Quench VP RamA"), b = await rigger("Quench VP RamB");
+          for (const [d, v] of [[a, mine], [b, theirs]]) {
+            await d.createEmbeddedDocuments("Item", [{ name: "Car", type: "skill", system: { rating: 4 } }]);
+            await d.update({ "system.linkedVehicles": [v.uuid] });
+            await setControl(d, v.uuid, true);
+          }
+          const t0 = Date.now();
+          // Rammer: 4 + 4 − 3 = 5 dice vs TN 2 + 0 − (−2) = 4: 5 successes. Rammed: 4 + 2 − 6 = 0 → 1 die vs TN 4 + 2 = 6: 0.
+          await a.rollVehicleRam(mine, { actor: theirs, name: theirs.name, body: 2, armor: 0, handling: 6 }, "normal");
+          const card = since(t0).find(m => m.flags?.sr2e?.vehicleRam);
+          assert.ok(card);
+          const prompt = foundry.applications.api.DialogV2.prompt;
+          foundry.applications.api.DialogV2.prompt = async () => ({ skill: 0, pool: 0 });
+          try { await resistVehicleRam(card); } finally { foundry.applications.api.DialogV2.prompt = prompt; }
+          track(t0);
+          assert.equal(theirs.system.conditionMonitor.value, 0, "no automatic crash damage");
+          assert.ok(since(t0).some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === theirs.uuid), "the loser is asked for a Crash Test");
+          let again = 0; const w = ui.notifications.warn; ui.notifications.warn = () => again++;
+          try { await resistVehicleRam(game.messages.get(card.id)); } finally { ui.notifications.warn = w; }
+          assert.equal(again, 1, "resolved once");
+        });
+        it("occupants each resist a crash once, with no Combat Pool (p.107)", async () => {
+          const { occupantResist } = await vp();
+          const p1 = await rigger("Quench VP Pass1"), p2 = await rigger("Quench VP Pass2");
+          const btn = { dataset: { power: "6", level: "M", key: foundry.utils.randomID(8), mode: "impact", pool: "0" } };
+          // Drive the real dialog: note whether it offers Combat Pool, then click Roll.
+          let offered = null;
+          const clickRoll = () => new Promise(res => Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+            offered = !!app.element.querySelector('[name="pool_combat"]');
+            app.element.querySelector('button[data-action="roll"]').click(); res();
+          }, 50)));
+          const t0 = Date.now();
+          try {
+            clickRoll(); await occupantResist(btn, p1);
+            clickRoll(); await occupantResist(btn, p2);
+            const w = ui.notifications.warn; let again = 0; ui.notifications.warn = () => again++;
+            try { await occupantResist(btn, p1); } finally { ui.notifications.warn = w; }
+            assert.equal(again, 1, "the same occupant can't resist twice");
+          } finally { track(t0); }
+          assert.isFalse(offered, "no Combat Pool offered");
+          // Body 1 vs TN 6 (all 5s) → 0 successes: Moderate = 3 boxes each.
+          assert.deepEqual([p1.system.conditionMonitor.physical.value, p2.system.conditionMonitor.physical.value], [3, 3]);
+        });
+        it("hitting a barrier: it holds → occupants one level less; it breaks → a Crash Test (p.109)", async () => {
+          const { hitObjectFlow } = await vp();
+          const v = await mk({ name: "Quench VP Wall", type: "vehicle", system: { body: 2, armor: 0, speed: 70 } });
+          const prompt = foundry.applications.api.DialogV2.prompt;
+          const t0 = Date.now();
+          try {
+            // 70 m/CT → 7S. A rating-20 wall barely notices (7 < 10): it holds; occupants 7M.
+            foundry.applications.api.DialogV2.prompt = async () => ({ speed: 70, kind: "wall", rating: 20, exposed: false, aware: false });
+            await hitObjectFlow(null, v);
+            const held = since(t0).find(m => /barrier holds/.test(m.content ?? ""));
+            assert.ok(held); assert.match(held.content, /7M/);
+            // A rating-2 fence is reduced to 0: the driver's Crash Test.
+            foundry.applications.api.DialogV2.prompt = async () => ({ speed: 70, kind: "wall", rating: 2, exposed: false, aware: false });
+            await hitObjectFlow(null, v);
+          } finally { foundry.applications.api.DialogV2.prompt = prompt; track(t0); }
+          assert.ok(since(t0).some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid), "broke through: Crash Test due");
+          assert.isAbove(v.system.conditionMonitor.value, 0, "the vehicle took the impact (Body 2 vs TN 7)");
+        });
+        it("the GM makes an NPC-driven vehicle's Crash Test; a failure crashes it", async () => {
+          const { crashTestFromCard, postCrashTestDue } = await vp();
+          const v = await mk({ name: "Quench VP NPC", type: "vehicle", system: { body: 3, handling: 5, speed: 40 } });
+          const t0 = Date.now();
+          const due = await postCrashTestDue(v, "test");
+          const prompt = foundry.applications.api.DialogV2.prompt;
+          foundry.applications.api.DialogV2.prompt = async () => ({ skill: 2, terrain: "tight" });   // TN 5 + 2 = 7: no success
+          try { await crashTestFromCard(due); } finally { foundry.applications.api.DialogV2.prompt = prompt; track(t0); }
+          assert.ok(since(t0).some(m => /Crash: [LMSD] damage|fully resisted/.test(m.content ?? "")), "crashed");
+          assert.ok(game.messages.some(m => m.flags?.sr2e?.resolves === due.id), "a public receipt closes the card");
+        });
+        it("a damaging manipulation hits a vehicle without the vehicle reductions (p.109)", async () => {
+          const v = await mk({ name: "Quench VP Manip", type: "vehicle", system: { body: 2, armor: 2 } });
+          const wait = foundry.applications.api.DialogV2.wait;
+          foundry.applications.api.DialogV2.wait = async () => "roll";
+          const t0 = Date.now();
+          // Power 6 S: dice 2 + 1 = 3 vs TN 6 → 0 successes → S stays S (6 boxes); a weapon would be armour-cut and M.
+          try { await v.rollVehicleDamageResistance(6, "S", { manipulation: true, source: "spell" }); }
+          finally { foundry.applications.api.DialogV2.wait = wait; }
+          track(t0);
+          assert.equal(v.system.conditionMonitor.value, 6);
+        });
+      });
+    }, { displayName: "SR2E: Vehicles in play (core)" });
+
     quench.registerBatch("sr2e.vehicles", (context) => {
       const { it, assert, after } = context;
       const made = [];

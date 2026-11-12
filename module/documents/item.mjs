@@ -22,6 +22,7 @@ import { isCardResolved } from "../astral-combat.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL } from "../util/roll-label.mjs";
+import { controllerOf } from "../vehicle-play.mjs";
 import { validateSplit } from "../rules/spell-rules.mjs";
 import { renderSpellResistCard, combatSpellMode, combatSpellDamage, planCombatTargets, movementTN, postCombatSpellCards,
          resolveMisfire } from "../combat-spells.mjs";
@@ -826,6 +827,7 @@ export class SR2EItem extends Item {
     // applies them centrally (they used to be double-counted).
     const attackerMod  = options.attackerMod ?? 0;
     const targetMod    = options.targetMod   ?? 0;
+    const speedMod     = options.speedMod    ?? 0;   // Moving Target Table (p.108)
     const otherMod     = options.otherMod    ?? 0;
 
     const modParts = [];
@@ -1031,7 +1033,7 @@ export class SR2EItem extends Item {
       const effVis_ = Math.max(visMod, barrierBlind_);
 
       targetNumber = Math.max(2,
-        BASE_TN + rangeMod + coverMod + attackerMod + targetMod + meleeMod + otherMod
+        BASE_TN + rangeMod + coverMod + attackerMod + targetMod + speedMod + meleeMod + otherMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
                 + effVis_ + spreadMod + defaultingPenalty
                 + calledShotMod_ - aimCut_ + eng.tnMod
@@ -1048,6 +1050,7 @@ export class SR2EItem extends Item {
       if (visMod)      modParts.push(`visibility +${visMod}`);
       if (attackerMod) modParts.push(`moving +${attackerMod}`);
       if (targetMod)   modParts.push(`target ${targetMod > 0 ? "+" : ""}${targetMod}`);
+      if (speedMod)    modParts.push(`relative speed +${speedMod} (p.108)`);
       if (meleeMod)    modParts.push(`in melee +${meleeMod}`);
       if (laserMod)    modParts.push(`laser sight ${laserMod}`);
       if (acc.tnMod)   modParts.push(`accessories ${acc.tnMod > 0 ? "+" : ""}${acc.tnMod}`);
@@ -2235,18 +2238,16 @@ export class SR2EItem extends Item {
       // The total is read per card, then the batch is reconciled: Karma spent
       // on the casting test while these were being posted must reach them all.
       const posted = [];
-      for (const { actor: target, uuid, name, eligible } of area.caught) {
-        if (eligible === "gm") {
-          rows.push(`<li>${esc(name)} — vehicle: the GM resolves it (p.108)</li>`);
-          continue;
-        }
+      for (const { actor: target, uuid, name } of area.caught) {
+        // Vehicles get a card too: they resist without the vehicle reductions (p.109; vehicle-play).
         rows.push(`<li>${esc(name)}</li>`);
         const state = {
           testMessageId: spellResult?.testMessageId, casterName: actor.name, spellName: this.name,
           targetUuid: uuid, targetName: name, basePower: manipDmg.power, baseLevel: manipDmg.level,
           successes: this._liveSuccesses(spellResult), resolved: false, area: true, staging: "net"
         };
-        const owners = game.users.filter(u => target.testUserPermission(u, "OWNER")).map(u => u.id);
+        const driver = target.type === "vehicle" ? controllerOf(target) : null;   // its driver may resist for it
+        const owners = game.users.filter(u => target.testUserPermission(u, "OWNER") || (driver && driver.testUserPermission(u, "OWNER"))).map(u => u.id);
         posted.push(await ChatMessage.create({
           speaker, content: renderManipDamageCard(state), flags: { sr2e: { manipDamage: state } },
           whisper: [...new Set([...casterIds, ...owners])]

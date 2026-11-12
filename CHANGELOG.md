@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.146.0 — 2026-11-12
+
+### Added
+- **Vehicles in play, core rules audit** (vehicle work Phase 2, Part 1; docs/PLAN-vehicles-phase2.md): every core
+  vehicle rule (pp.84–85, 104–109, 183) checked against the book and the gaps filled.
+  - **Control** button per linked vehicle on the Vehicles tab: the character driving or rigging it now. One controller
+    per vehicle (the GM writes it). The controller makes its Crash Tests, lends its Control Pool to its damage
+    resistance and takes its damage into rigged initiative (only vehicles under control count, p.106).
+  - **Crash Tests are asked for** when the rules require them: a Serious wound during combat (once per phase), a lost
+    ram, a barrier broken through. A vehicle destroyed by weapons or spells crashes on its own, at the speed it had
+    before the hit (p.107). The GM rolls for an NPC driver.
+  - **Occupants resist a crash** from the crash card: Body against the crash's Power, Impact armour only, no Combat
+    Pool, once each (p.107).
+  - **Hit** a wall, barrier or mana barrier (p.109): the vehicle and the barrier both take the impact; a barrier that
+    holds hurts the occupants one level less, one that breaks means a Crash Test; an exposed rider hits a mana barrier.
+  - **Command** an autopilot (p.104–105): the vehicle rolls its Autopilot against the GM's TN.
+  - **Moving Target Table** (p.108) in the ranged attack dialog: the target's speed against yours (the vehicle you fire
+    from, else 5), overridable.
+  - The **Position Test** card lists the outcome of every intention (they're chosen in secret, p.106), and its Control
+    Pool dice stay out of the pool for the rest of the turn (p.105). The **Escape** dialog picks this round's Position
+    Test cards.
+  - Cruising speed shows km/h on the Vehicles tab (×1.2, p.104).
+  - **Damaging manipulations hit vehicles** (single target and area), without the vehicle reductions of Power and
+    Damage Code (p.109); the GM no longer resolves them by hand.
+
+### Changed
+- **Ramming** is an opposed card: the other driver (or the GM) clicks **Resist ram** with their own Control Pool, and
+  the loser makes a **Crash Test** instead of crashing outright (p.107). Both sides add their vehicle's damage modifier;
+  an untrained rammer defaults properly.
+- The **Handling Test** (out of combat) uses the Vehicle Operation Table (p.183) instead of terrain; the rigger's
+  −2 per rig level applies only there, and only when jacked into the vehicle they control. Position and Crash Tests no
+  longer get it ("these modifiers apply only to non-combat situations").
+- Every automated vehicle damage goes through one GM-side commit (no double damage, no lost hits between clients). A
+  vehicle's driver can resist for it even when the GM owns the vehicle.
+- A rigger's Control Pool is spent only on its player's client (the GM's when the player is away).
+
+### Fixed
+- Weapon and spell damage against a vehicle ignored its armour modifications (it read the base armour).
+- A called shot with a Light weapon couldn't hurt a vehicle (p.108 allows it).
+- Rigged initiative took damage from every linked vehicle, not only those under control.
+
 ## 0.145.1 — 2026-11-11
 
 ### Fixed

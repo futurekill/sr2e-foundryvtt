@@ -95,6 +95,31 @@
       }
     },
     {
+      "_id": "756053c0c0fab6dc",
+      "name": "Run a vehicle chase",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 400000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a Combat Turn of vehicle combat by the core rules (pp.105–109): who&#39;s where, who shoots, who crashes.</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-chase.png\" alt=\"The Vehicles tab: the vehicle under control, with Test, Ram, Escape, Hit and Command\"></p>\n<p><strong>Each driver, once</strong></p>\n<ol>\n<li><strong>Vehicles tab → Control</strong> on the vehicle you drive. Riggers also toggle <strong>Jacked In</strong>.</li>\n</ol>\n<p><strong>Every Combat Turn</strong></p>\n<ol>\n<li><strong>Position Test:</strong> Test → Position Test, pick the terrain, add Control Pool dice if you have them (they stay\nspent for the turn). Decide your intention in secret; the card lists what your successes buy for each.</li>\n<li><strong>Shoot:</strong> gunners fire as usual; the attack dialog adds the Moving Target modifier from the two speeds.</li>\n<li><strong>Crash Tests:</strong> when a card says <em>Crash Test required</em>, the driver clicks it (the GM, for an NPC driver).\nFailing crashes the vehicle; everyone aboard clicks <strong>Resist (occupant)</strong> on the crash card.</li>\n<li><strong>Escape:</strong> the pursuer clicks <strong>Escape</strong> and picks the two Position Test cards; no success = the quarry escapes.</li>\n</ol>\n<p><strong>Ramming</strong> (within a metre): <strong>Ram</strong>, then the other driver clicks <strong>Resist ram</strong>; the loser makes a Crash Test.\n<strong>Hitting something:</strong> <strong>Hit</strong>, with the speed and the barrier&#39;s rating.</p>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>Out of combat, the Handling Test uses the Vehicle Operation Table instead (p.183), including the rigger&#39;s −2 per\nrig level.</li>\n<li>A vehicle destroyed by gunfire or spells crashes by itself.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "2ee6f48dadf6f3ab",
       "name": "Set up a Matrix jackpoint",
       "type": "text",
@@ -109,7 +134,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
@@ -134,7 +159,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },

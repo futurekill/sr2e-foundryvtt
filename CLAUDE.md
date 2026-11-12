@@ -232,6 +232,13 @@ compendium source UUID → vehicleId). A `preCreateActor` hook gives an IMPORT (
 stamped `flags.sr2e.r2Stats`) the row's stats + factory items (`reconcileFactory`); the GM's "Rigger 2 stats" window
 does the same for world vehicles and unlinked tokens, re-checking each target before it writes. Never touch a vehicle
 with `hasDesign` (Workshop or legacy design).
+Vehicles in play (`module/vehicle-play.mjs`, rules `module/rules/vehicle-play-rules.mjs`, docs/PLAN-vehicles-phase2.md):
+`controllerOf(vehicle)` = the character whose `system.controlledVehicles` holds it (written only by the GM op
+`control`). EVERY automated vehicle damage goes through `commitVehicleDamage` (GM op `damage`: the active GM's
+per-vehicle queue, receipt at `flags.sr2e.vdmg.<eventId>` or the caller's path; it fires the p.107 crash triggers) —
+never `vehicle.update` the monitor directly. Players reach the GM through `gmCall` over the system socket. Control Pool
+is spent only on `isPoolClient(actor)` via `spendPool` / `spendPosition` (the actor's pool queue), passed to
+`rollSuccessTest` as `paidPoolDice`. Rigger 2's own in-play rules come later behind a `vehicleRuleset` setting.
 Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the

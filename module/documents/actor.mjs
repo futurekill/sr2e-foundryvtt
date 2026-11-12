@@ -52,6 +52,8 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
+import { controllerOf, riggedInto, commitVehicleDamage, resolveCrash, spendPool, spendPosition, positionReserved, renderVehicleRamCard, worstControlledInitMod, isPoolClient } from "../vehicle-play.mjs";
+import { vehicleOperationMod, vehicleSkillDice, positionOutcomes, manipulationVsVehicle } from "../rules/vehicle-play-rules.mjs";
 /** An attribute's display name ("Quickness"); Reaction isn't in the attribute list. */
 const attrName = (k) => (CONFIG.SR2E.attributes?.[k] ? game.i18n.localize(CONFIG.SR2E.attributes[k]) : "") || (k.charAt(0).toUpperCase() + k.slice(1));
 
@@ -496,6 +498,13 @@ export class SR2EActor extends Actor {
         poolDiceTotal += amount;
       }
     }
+    // Pool dice the caller already debited in the pool owner's queue (vehicle-play spendPool): rolled, not debited
+    // again — possibly another actor's pool (a rigger's Control Pool on the vehicle's own test).
+    const paidPools = [];
+    for (const [key, amount] of Object.entries(options.paidPoolDice ?? {})) {
+      const n = Math.max(0, Math.floor(Number(amount) || 0));
+      if (n) { paidPools.push({ key, label: poolLabels[key] || key, amount: n }); poolDiceTotal += n; }
+    }
 
     // --- Karma dice (Buy Additional Dice, SR2E p.190) ---
     // 1 Karma Pool point per extra die; capped at the base dice in use
@@ -547,7 +556,7 @@ export class SR2EActor extends Actor {
 
     let diceNote = `${dicePool}`;
     if (poolDiceTotal > 0 || karmaDice > 0 || miscDice !== 0) {
-      const parts = poolsUsed.map(p => `+${p.amount} ${p.label}`);
+      const parts = [...poolsUsed, ...paidPools].map(p => `+${p.amount} ${p.label}`);
       if (karmaDice > 0) parts.push(`+${karmaDice} ${i18n.localize("SR2E.Roll.Karma")}`);
       if (miscDice !== 0) {
         const sign = miscDice > 0 ? "+" : "−";
@@ -576,7 +585,7 @@ export class SR2EActor extends Actor {
         // RAW, not the pre-escaped `label` — renderDie/cap escape it themselves,
         // and escaping twice renders visible &amp; entities.
         baseDice: dicePool, baseLabel: options.sourceLabel || options.label || "",
-        poolsUsed, karmaDice, miscDice, miscLabel,
+        poolsUsed: [...poolsUsed, ...paidPools], karmaDice, miscDice, miscLabel,
         karmaLabel: game.i18n.localize("SR2E.Roll.Karma"),
         miscDefaultLabel: game.i18n.localize("SR2E.Roll.Misc")
       })),
@@ -656,6 +665,14 @@ export class SR2EActor extends Actor {
   /** @private */
   async _refreshDicePools() {
     const updates = dicePoolRefreshUpdates(this.system.dicePools);
+    // Position Test dice stay out of the Control Pool for the rest of the turn (SR2E p.105).
+    const held = positionReserved(this);
+    if (held > 0 && this.system.dicePools?.control) {
+      const ctl = this.system.dicePools.control;
+      updates["system.dicePools.control.value"] = Math.max(0, (ctl.max ?? 0) - held);
+      updates["system.dicePools.control.max"] = ctl.max;
+      if (ctl.value === updates["system.dicePools.control.value"]) { delete updates["system.dicePools.control.value"]; delete updates["system.dicePools.control.max"]; }
+    }
 
     // Karma Pool returns with the next encounter (SR2E p.191), so it refreshes
     // on the same gesture as the dice pools — one habit for the GM, not two.
@@ -1015,19 +1032,13 @@ export class SR2EActor extends Actor {
 
     // While rigging, the derived Reaction/initiative dice already reflect
     // VCR-only bonuses (CharacterData.prepareDerivedData); the roll adds the
-    // worst controlled vehicle's damage Initiative modifier (p.106).
+    // worst CONTROLLED vehicle's damage Initiative modifier (p.106: "the lowest
+    // Initiative result for all the vehicles under control"), not every linked one.
     const vcr = system.vehicleControlRig ?? 0;
     const rigged = !!(system.rigging && vcr > 0);
     const reaction = system.reaction?.value ?? 0;
 
-    let vehicleMod = 0;
-    if (rigged) {
-      for (const uuid of system.linkedVehicles ?? []) {
-        const v = globalThis.fromUuidSync?.(uuid);
-        const mod = v?.system?.damageInitMod ?? 0;
-        if (mod < vehicleMod) vehicleMod = mod;
-      }
-    }
+    const vehicleMod = rigged ? worstControlledInitMod(this) : 0;
 
     // A TLE-x episode (Cybertechnology p.55): Initiative −2 in the meat-body modes
     // (normal and rigging; the Matrix and astral branches returned above).
@@ -1959,245 +1970,147 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Roll a vehicle test for a vehicle this character is driving (SR2E p.105–107).
-   *
-   *   TN = vehicle Handling + terrain modifier (per test type) − 2 × VCR
-   *      + vehicle damage TN modifier + situational modifier
-   *   Dice = driver's driving skill (or Reaction at +4 TN when defaulting)
-   *
-   * On a FAILED Crash Test the vehicle crashes: Power = effective cruising
-   * speed ÷ 10 (round down), Damage Level from the Impact Table, resisted
-   * with Body + ½ armor vs Power − full armor, no Control Pool (p.107).
-   *
-   * @param {Actor}  vehicle - The vehicle actor being driven.
-   * @param {object} [options]
-   * @param {string} [options.testType="handling"] - "handling", "position", or "crash".
-   * @param {string} [options.terrain="normal"]    - open / normal / restricted / tight.
-   * @param {number} [options.otherMod=0]          - Situational TN modifier.
-   * @param {object} [options.poolDice]            - Control Pool allocation.
-   * @param {number} [options.karmaDice]           - Karma-bought dice.
+   * The dice this character drives a vehicle with (p.69 defaulting, p.85 Control Pool cap): trained rating, else the
+   * Skill Web default, else Reaction +4 TN. Reaction defaults take the controlled vehicle's damage Initiative
+   * modifier, which "reduces the effective Reaction of the character controlling the vehicle" (p.109).
+   */
+  _vehicleSkill(vehicle) {
+    const key = vehicle.system.drivingSkill;
+    const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    const rating = this.items.find(i => i.type === "skill" && normalize(i.name) === key)?.system?.rating ?? 0;
+    // The worst damage modifier among the vehicles under this character's control (as initiative uses, p.106);
+    // a vehicle driven without taking control counts its own.
+    const controls = (this.system.controlledVehicles ?? []).includes(vehicle.uuid);
+    const reaction = (this.system.reaction?.value ?? 1) + Math.min(worstControlledInitMod(this), controls ? 0 : (vehicle.system.damageInitMod ?? 0));
+    const r = vehicleSkillDice({ rating, web: rating > 0 ? null : this._webDefaultByKey(key), reaction,
+      defaultingPenalty: CONFIG.SR2E.defaultingPenalty });
+    const note = r.defaulted === "reaction" ? RL("DefaultingToTag", { attr: AL("reaction"), penalty: r.penalty })
+      : r.defaulted ? `, ${r.defaulted}` : "";
+    return { key, ...r, note };
+  }
+
+  /**
+   * Spend Control Pool dice (capped at the skill in use, p.85) in this character's pool queue, only on its pool client
+   * (one writer per pool); a Position Test's dice are recorded as held for the turn in the same update (p.105).
+   */
+  async _payControl(requested, cap, { position = false } = {}) {
+    const n = Math.max(0, Math.min(Math.floor(Number(requested) || 0), cap));
+    if (!n) return 0;
+    if (!isPoolClient(this)) { ui.notifications.warn(`${this.name}'s Control Pool is spent on their player's client.`); return 0; }
+    return position ? spendPosition(this, n) : spendPool(this, "control", n);
+  }
+
+  /**
+   * A vehicle test for a vehicle this character drives (SR2E p.105–107, p.183).
+   *   handling (out of combat): Handling + Vehicle Operation Table (incl. −2 × VCR only when rigged into it, p.183)
+   *   position: Handling + Position Test terrain (p.106)    crash: Handling + Crash Test Table (p.107)
+   *   all: + vehicle damage modifier (p.109) + other + defaulting.
+   * A failed Crash Test crashes the vehicle (p.107). A Position Test holds its Control Pool dice out of the pool for
+   * the rest of the turn (p.105) and lists the outcome of every intention (they're chosen in secret, p.106).
+   * @param {Actor} vehicle
+   * @param {object} [options] testType, terrain, operation ({complex, unfamiliar, size, conditions}), otherMod,
+   *                           poolDice ({control}), karmaDice, miscDice, miscLabel
    */
   async rollVehicleTest(vehicle, options = {}) {
     const testType = options.testType ?? "handling";
     const terrain  = options.terrain  ?? "normal";
-    const otherMod = options.otherMod ?? 0;
-
-    // Driver's driving skill — defaults to Reaction (+4 TN) when untrained
-    const skillKey  = vehicle.system.drivingSkill;
-    const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-    const skillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
-    const rating    = skillItem?.system?.rating ?? 0;
-
-    let dice = rating;
-    let defaultingPenalty = 0;
-    let defaultingNote = "";
-    if (rating <= 0) {
-      const web = this._webDefaultByKey(skillKey);
-      if (web) {
-        dice = web.dice;
-        defaultingPenalty = web.penalty;
-        defaultingNote = `, ${web.label}`;
-      } else {
-        dice = Math.max(1, this.system.reaction?.value ?? 1);
-        defaultingPenalty = CONFIG.SR2E.defaultingPenalty;
-        defaultingNote = RL("DefaultingToTag", { attr: AL("reaction"), penalty: defaultingPenalty });
-      }
-    }
-
-    const terrainMod = CONFIG.SR2E.vehicleTerrainMods[testType]?.[terrain] ?? 0;
-    const vcrMod     = -2 * (this.system.vehicleControlRig ?? 0);   // p.183 example: −2 per rig level
-    const damageMod  = vehicle.system.damageTnMod ?? 0;
-
-    const tn = Math.max(2,
-      vehicle.system.effectiveHandling + terrainMod + vcrMod + damageMod + otherMod + defaultingPenalty
-    );
+    const sk = this._vehicleSkill(vehicle);
+    const damageMod = vehicle.system.damageTnMod ?? 0;
+    const op = testType === "handling"
+      ? vehicleOperationMod({ ...(options.operation ?? {}), vcr: this.system.vehicleControlRig ?? 0, riggedIn: riggedInto(this, vehicle) })
+      : null;
+    const sitMod = op ? op.mod : (CONFIG.SR2E.vehicleTerrainMods[testType]?.[terrain] ?? 0);
+    const tn = Math.max(2, (vehicle.system.effectiveHandling ?? 0) + sitMod + damageMod + (options.otherMod ?? 0) + sk.penalty);
 
     const typeLabel = RL({ handling: "HandlingTest", position: "PositionTest", crash: "CrashTest" }[testType] ?? "VehicleTest");
-    const label = RL("VehicleTest2", { name: vehicle.name, test: typeLabel, terrain, notes: defaultingNote, tn });
+    const where = op ? (op.parts.map(([n, m]) => `${n} ${m > 0 ? "+" : ""}${m}`).join(", ") || "no modifiers") : terrain;
+    const label = RL("VehicleTest2", { name: vehicle.name, test: typeLabel, terrain: where, notes: sk.note, tn });
+    const paid = await this._payControl(options.poolDice?.control, sk.cap, { position: testType === "position" });
 
-    const result = await this.rollSuccessTest(dice, tn, {
-      label, tnContext: skillTnContext(skillKey),
-      poolDice: options.poolDice,
+    const result = await this.rollSuccessTest(sk.dice, tn, {
+      label, tnContext: skillTnContext(sk.key),
+      paidPoolDice: paid ? { control: paid } : undefined,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
+    const successes = result?.successes ?? 0;
 
-    // Failed Crash Test → the vehicle crashes (p.107)
-    if (testType === "crash" && (result?.successes ?? 0) === 0) {
-      await this._resolveVehicleCrash(vehicle);
+    if (testType === "position") {
+      const o = positionOutcomes(successes, vehicle.system.effectiveSpeed ?? 0);
+      const c = game.combat;
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>${foundry.utils.escapeHTML(vehicle.name)}: Position Test, ${successes} success${successes === 1 ? "" : "es"}</strong>
+          <br><em>Intentions are chosen in secret (SR2E p.106):</em>
+          <br>• Fleeing: travel ${o.flee.meters} m; each character in it may make ${o.flee.attacks} attack${o.flee.attacks === 1 ? "" : "s"} at a pursuer (never more than their actions).
+          <br>• Pursuing: close ${o.pursue.meters} m; ${o.pursue.attacks} attack${o.pursue.attacks === 1 ? "" : "s"} at the fleeing vehicle.
+          <br>• Fighting: ${o.fight.attacks} attack${o.fight.attacks === 1 ? "" : "s"} at the opponent; open or close ${o.fight.meters} m.
+          ${paid ? `<br><em>${paid} Control Pool dice stay out of the pool for the rest of this turn (p.105).</em>` : ""}</div>`,
+        flags: { sr2e: { positionResult: { vehicleUuid: vehicle.uuid, driverUuid: this.uuid, testMessageId: result?.testMessageId ?? "",
+          successes, combatId: c?.id ?? "", round: c?.round ?? 0 } } }
+      });
     }
+    if (testType === "crash" && successes === 0) await resolveCrash(vehicle);
     return result;
   }
 
-  /**
-   * Resolve a vehicle crash (SR2E p.107).
-   * Power = effective cruising speed ÷ 10 (round down); Damage Level from the
-   * Impact Table. The vehicle resists with Body + ½ armor (round down) dice
-   * against TN = Power − full armor. Control Pool dice may NOT assist.
-   * Passengers face the reduced Damage Code at the same Power, resisted as
-   * melee damage (Impact armor, no Combat Pool) — left to the GM/players.
-   * @param {Actor} vehicle
-   * @private
-   */
+  /** Resolve a vehicle crash (SR2E p.107); see vehicle-play.mjs resolveCrash. */
   async _resolveVehicleCrash(vehicle) {
-    const speed = vehicle.system.effectiveSpeed ?? vehicle.system.speed ?? 0;
-    const power = Math.max(1, Math.floor(speed / 10));
-    const level = CONFIG.SR2E.crashDamageLevel(speed);
-    const armor = vehicle.system.effectiveArmor ?? vehicle.system.armor ?? 0;
-    const body  = vehicle.system.body ?? 1;
-
-    const dice = body + Math.floor(armor / 2);
-    const tn   = Math.max(2, power - armor);
-
-    const resist = await vehicle.rollSuccessTest(dice, tn, {
-      label: RL("Crash", { name: vehicle.name, power, level }),
-      isResistance: true
-    });
-
-    const stages     = ["L", "M", "S", "D"];
-    const reductions = netToSteps(resist?.successes ?? 0);
-    const finalIdx   = stages.indexOf(level) - reductions;
-
-    if (finalIdx < 0) {
-      return ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor: vehicle }),
-        content: `<div class="sr2e-damage-result">
-          <strong>Crash damage fully resisted.</strong>
-          <em>The vehicle stops for the rest of the Combat Turn (SR2E p.107).</em>
-        </div>`
-      });
-    }
-
-    const finalLevel = stages[finalIdx];
-    const boxes      = [1, 3, 6, 10][finalIdx];
-    await vehicle.applyDamage("physical", boxes);
-
-    return ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: vehicle }),
-      content: `<div class="sr2e-damage-result">
-        <strong>Crash: ${finalLevel} damage (${boxes} box${boxes === 1 ? "" : "es"})</strong> —
-        now ${vehicle.system.damageLevel}.
-        <br><em>Passengers face a ${power}${finalLevel} attack, resisted as melee damage
-        (Impact armor only, no Combat Pool — SR2E p.107). The vehicle stops for the
-        rest of the Combat Turn.</em>
-      </div>`
-    });
+    return resolveCrash(vehicle);
   }
 
   /**
-   * Resolve a ram between this driver's vehicle and an opposing vehicle
-   * (SR2E p.107). When two vehicles are within one metre, a driver may spend
-   * a Complex Action to ram, forcing the loser to make a Crash Test.
-   *
-   * Each side rolls (Vehicle Skill + Body + ½ armor − Handling) dice against
-   * TN = (opposing Body + ½ opposing armor − ram terrain modifier). The
-   * vehicle generating the FEWER successes must make a Crash Test; a tie means
-   * no crash. Control Pool may assist (passed via options.poolDice).
-   *
-   * @param {Actor}  myVehicle  - The vehicle this character is driving.
-   * @param {object} opp        - Opposing vehicle stats and driver.
-   * @param {number} opp.body, opp.armor, opp.handling, opp.skill
-   * @param {string} [opp.name="the other vehicle"]
-   * @param {Actor}  [opp.actor]  - Opposing vehicle actor (for its crash).
+   * Ram (SR2E p.107): within one metre, a driver spends a Complex Action to force the other vehicle to make a Crash
+   * Test. Each side rolls Vehicle Skill + Body + ½ armour − Handling against the OTHER vehicle's Body + ½ armour −
+   * the Ramming terrain modifier (+ its own vehicle's damage modifier, p.109, and any defaulting); Control Pool
+   * applies. This rolls the rammer and posts an opposed card; the other driver (or the GM) rolls "Resist ram" on it.
+   * The fewer successes must make a Crash Test; a tie, no crash.
+   * @param {Actor}  myVehicle
+   * @param {object} opp  { actor?, name, body, armor, handling }
    * @param {string} [terrain="normal"]
-   * @param {object} [options]   - { poolDice, karmaDice }
+   * @param {object} [options] { poolDice: {control}, karmaDice, miscDice, miscLabel }
    */
   async rollVehicleRam(myVehicle, opp, terrain = "normal", options = {}) {
     const terrainMod = CONFIG.SR2E.vehicleTerrainMods.ram[terrain] ?? 0;
-    const myHalfArmor  = Math.floor((myVehicle.system.effectiveArmor ?? myVehicle.system.armor ?? 0) / 2);
-    const oppHalfArmor = Math.floor((opp.armor ?? 0) / 2);
-
-    // My driving skill (Reaction default when untrained)
-    const skillKey  = myVehicle.system.drivingSkill;
-    const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-    const mySkillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
-    const mySkill = mySkillItem?.system?.rating ?? Math.max(1, this.system.reaction?.value ?? 1);
-
-    const myDice = Math.max(1, mySkill + (myVehicle.system.body ?? 1) + myHalfArmor - (myVehicle.system.effectiveHandling ?? 0));
-    const myTN   = Math.max(2, (opp.body ?? 1) + oppHalfArmor - terrainMod);
-
-    const oppDice = Math.max(1, (opp.skill ?? 0) + (opp.body ?? 1) + oppHalfArmor - (opp.handling ?? 0));
-    const oppTN   = Math.max(2, (myVehicle.system.body ?? 1) + myHalfArmor - terrainMod);
-
+    const sk = this._vehicleSkill(myVehicle);
+    const myArmor = myVehicle.system.effectiveArmor ?? 0;
+    const dice = Math.max(1, sk.dice + (myVehicle.system.body ?? 1) + Math.floor(myArmor / 2) - (myVehicle.system.effectiveHandling ?? 0));
+    const tn = Math.max(2, (opp.body ?? 1) + Math.floor((opp.armor ?? 0) / 2) - terrainMod + (myVehicle.system.damageTnMod ?? 0) + sk.penalty);
     const oppName = opp.name || "the other vehicle";
-
-    // My ram test (Control Pool / karma may assist)
-    const myResult = await this.rollSuccessTest(myDice, myTN, {
-      tnContext: skillTnContext(skillKey),
-      label: RL("Ram", { name: myVehicle.name, opponent: oppName, tn: myTN }),
-      poolDice: options.poolDice, karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
+    const paid = await this._payControl(options.poolDice?.control, sk.cap);
+    const res = await this.rollSuccessTest(dice, tn, {
+      tnContext: skillTnContext(sk.key), label: RL("Ram", { name: myVehicle.name, opponent: oppName, tn }) + sk.note,
+      paidPoolDice: paid ? { control: paid } : undefined,
+      karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
-    // Opposing ram test (rolled by the system; no pool)
-    const oppResult = await SR2ESuccessRoll.successTest(oppDice, oppTN);
-
-    const mine = myResult?.successes ?? 0;
-    const theirs = oppResult?.successes ?? 0;
-
-    let verdict, crasher = null;
-    if (mine === theirs) {
-      verdict = "Tie — no crash (SR2E p.107).";
-    } else if (mine < theirs) {
-      verdict = `${myVehicle.name} loses and must make a Crash Test.`;
-      crasher = myVehicle;
-    } else {
-      verdict = `${foundry.utils.escapeHTML(oppName)} loses and must make a Crash Test.`;
-      crasher = opp.actor ?? null;
-    }
-
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: `<div class="sr2e-damage-result">
-        <strong>Ramming!</strong> ${myVehicle.name} (${mine} success${mine === 1 ? "" : "es"})
-        vs ${foundry.utils.escapeHTML(oppName)} (${theirs}).
-        <br><strong>${verdict}</strong>
-        ${(crasher === null && mine !== theirs) ? "<br><em>The losing vehicle is not linked — run its Crash Test manually.</em>" : ""}
-      </div>`
-    });
-
-    if (crasher) await this._resolveVehicleCrash(crasher);
-    return myResult;
+    const st = { rammerUuid: this.uuid, rammerVehicleUuid: myVehicle.uuid, rammerVehicleName: myVehicle.name,
+      rammerBody: myVehicle.system.body ?? 1, rammerArmor: myArmor,
+      oppVehicleUuid: opp.actor?.uuid ?? "", oppName, oppBody: opp.body ?? 1, oppArmor: opp.armor ?? 0, oppHandling: opp.handling ?? 0,
+      terrain, successes: res?.successes ?? 0, testMessageId: res?.testMessageId ?? "", resolved: false };
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this }), content: renderVehicleRamCard(st), flags: { sr2e: { vehicleRam: st } } });
+    return res;
   }
 
   /**
-   * Resolve an Escape Test (SR2E p.107). After the Position Test, a fleeing
-   * vehicle that generated MORE successes than the pursuer may try to escape.
-   *
-   * If the pursuer's Position successes ≥ the fleeing vehicle's, the escape
-   * fails automatically. Otherwise the pursuer rolls Intelligence dice (the
-   * highest among characters who could see the fleeing vehicle) against
-   * TN = (fleeing net successes + escape terrain modifier). No Control Pool.
-   * If the pursuer rolls NO successes, the fleeing vehicle escapes.
-   *
-   * Called on the pursuing character. The fleeing/pursuer Position successes
-   * are supplied from the Position Tests already made.
-   *
-   * @param {object} opts
-   * @param {number} opts.fleeingSuccesses  - Fleeing vehicle's Position successes.
-   * @param {number} opts.pursuerSuccesses  - This pursuer's Position successes.
-   * @param {number} [opts.intelligence]    - Spotter Intelligence (default this actor's).
-   * @param {string} [opts.terrain="normal"]
+   * Escape Test (SR2E p.107): after the Position Tests, a fleeing vehicle with MORE successes than the pursuer may get
+   * away. The pursuer rolls the highest Intelligence among those who could see it against the fleeing net successes +
+   * the Escape terrain modifier; no successes = escaped. No Control Pool.
+   * @param {object} opts { fleeingSuccesses, pursuerSuccesses, intelligence?, terrain? }
    */
   async rollEscapeTest(opts) {
     const fleeing = opts.fleeingSuccesses ?? 0;
     const pursuer = opts.pursuerSuccesses ?? 0;
-
     if (pursuer >= fleeing) {
       return ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>Escape fails automatically</strong>
-          <em>— the pursuer matched or beat the fleeing vehicle's Position successes
-          (${pursuer} ≥ ${fleeing}, SR2E p.107).</em></div>`
+          <em>— the pursuer matched or beat the fleeing vehicle's Position successes (${pursuer} ≥ ${fleeing}, SR2E p.107).</em></div>`
       });
     }
-
     const net = fleeing - pursuer;
     const terrainMod = CONFIG.SR2E.vehicleTerrainMods.escape[opts.terrain ?? "normal"] ?? 0;
     const tn = Math.max(2, net + terrainMod);
     const dice = Math.max(1, opts.intelligence ?? this.system.intelligence?.value ?? 1);
-
-    const result = await this.rollSuccessTest(dice, tn, {
-      label: RL("Escape", { dice, tn })
-    });
-
+    const result = await this.rollSuccessTest(dice, tn, { label: RL("Escape", { dice, tn }) });
     const escaped = (result?.successes ?? 0) === 0;
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -2208,6 +2121,25 @@ export class SR2EActor extends Actor {
       </div>`
     });
     return result;
+  }
+
+  /**
+   * Autopilot command (SR2E p.104–105): the GM rates the command's complexity (Skill Success Table p.68) as the TN;
+   * the vehicle rolls its Autopilot (effective Pilot for drones, Autonav otherwise). One success obeys; more give
+   * the drone more latitude.
+   */
+  async rollAutopilotCommand(tn, command = "") {
+    if (this.type !== "vehicle") return;
+    const isDrone = this.system.vehicleType === "drone";
+    const rating = (isDrone ? this.system.effective?.pilot : this.system.effective?.autonav) ?? (isDrone ? this.system.pilot : this.system.autonav) ?? 0;
+    if (!(rating > 0)) return ui.notifications.warn(`${this.name} has no autopilot.`);
+    const res = await this.rollSuccessTest(rating, Math.max(2, tn), {
+      label: `${this.name}: autopilot command (Autopilot ${rating}, TN ${tn})${command ? ` — “${foundry.utils.escapeHTML(command)}”` : ""}` });
+    const s = res?.successes ?? 0;
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<div class="sr2e-damage-result"><strong>${s ? "Command understood" : "Command not understood"}</strong>
+        <em>— ${s ? `${s} success${s === 1 ? "" : "es"}: the more successes, the more latitude in interpreting it` : "the drone doesn't act on it"} (SR2E p.104–105).</em></div>` });
+    return res;
   }
 
   /**
@@ -2232,7 +2164,7 @@ export class SR2EActor extends Actor {
   async rollVehicleDamageResistance(power, level, options = {}) {
     const system    = this.system;
     const body      = system.body ?? 1;
-    const armor     = system.armor ?? 0;
+    const armor     = system.effectiveArmor ?? 0;   // armour mods count (plan Part 1 #3)
     const basePower = options.basePower ?? power;
     // Every terminal outcome names the card it resolves (flag-backed ranged
     // damage), so any client can tell the card is done.
@@ -2240,12 +2172,12 @@ export class SR2EActor extends Actor {
 
     // p.108 (and APDS, Sourcebook Updates p.277) — see vehicleHit.
     const netStaging = Number.isFinite(options.stageVs);
-    const hit = vehicleHit({
+    const hit = options.manipulation ? { none: null, armorUsed: armor, ...manipulationVsVehicle({ body, armor, power, level }) } : vehicleHit({
       body, armor, power, basePower, level, damageType: options.damageType ?? "physical",
       // On a net-staging card `level` is pre-staging, and immunity is judged on
       // the printed rating (a Light burst is still Light-rated) unless called.
       lightRated: netStaging ? options.ratedLevel === "L" && !options.calledShot : level === "L",
-      apds: !!options.apds, antiVehicle: !!options.antiVehicle
+      apds: !!options.apds, antiVehicle: !!options.antiVehicle, calledShot: !!options.calledShot
     });
     const noEffect = {
       stun: "<strong>No effect:</strong> vehicles are unaffected by Stun damage.",
@@ -2265,19 +2197,17 @@ export class SR2EActor extends Actor {
     const startLevel = hit.level;
     const stages = ["L", "M", "S", "D"];
     const startIdx = stages.indexOf(startLevel);
-    const levelNote = options.antiVehicle
+    const levelNote = options.manipulation
+      ? "Damaging manipulation: no vehicle reduction of Power or Damage Level; Body + ½ armour against the full Power (SR2E p.109)."
+      : options.antiVehicle
       ? "Anti-vehicle warhead: Damage Level not reduced; armour still cuts Power (SR2E p.108)."
       : `Damage Level already reduced one step vs vehicles (SR2E p.108)${options.apds ? "; APDS: armour counts at half (Sourcebook Updates p.277)" : ""}.`;
 
-    // Controlling rigger may add Control Pool dice — drawn from the user's
-    // character when this vehicle is linked to them.
-    let rigger = null;
-    const candidate = game.user?.character;
-    if (candidate?.system?.linkedVehicles?.includes(this.uuid) &&
-        (candidate.system.dicePools?.control?.value ?? 0) > 0) {
-      rigger = candidate;
-    }
-    const controlAvail = rigger?.system.dicePools.control.value ?? 0;
+    // The controlling rigger may add Control Pool dice (p.107–108), only on their owner's client (it's their pool),
+    // up to the test's base dice (p.85).
+    const ctl = controllerOf(this);
+    const rigger = isPoolClient(ctl) && (ctl.system.dicePools?.control?.value ?? 0) > 0 ? ctl : null;
+    const controlAvail = Math.min(rigger?.system.dicePools.control.value ?? 0, dice);
 
     const poolHTML = controlAvail > 0 ? `
       <hr style="margin:8px 0 6px;">
@@ -2300,7 +2230,7 @@ export class SR2EActor extends Actor {
                 <td style="text-align:right;font-weight:bold;">${power}${startLevel}</td></tr>
             <tr><td style="color:#aaa1c0;">Body${armor > 0 ? " + ½ Armor" : ""} dice:</td>
                 <td style="text-align:right;">${dice}</td></tr>
-            <tr><td style="color:#aaa1c0;">Power − (Body${armor > 0 ? " + Armor" : ""}):</td>
+            <tr><td style="color:#aaa1c0;">${options.manipulation ? "Power" : `Power − (Body${armor > 0 ? " + Armor" : ""})`}:</td>
                 <td style="text-align:right;font-weight:bold;">TN ${tn}</td></tr>
           </table>
           <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
@@ -2324,14 +2254,11 @@ export class SR2EActor extends Actor {
     // the attack while the dialog was open).
     if (options.beforeRoll && !(await options.beforeRoll())) return null;
 
-    if (allocated > 0 && rigger) {
-      await rigger.update({
-        "system.dicePools.control.value": controlAvail - allocated
-      });
-    }
+    const paid = allocated > 0 && rigger ? await spendPool(rigger, "control", allocated) : 0;
 
-    const resist = await this.rollSuccessTest(dice + allocated, tn, {
-      label: RL("VehicleResist", { name: this.name, power, level: startLevel, pool: allocated ? RL("ControlPoolTag", { n: allocated }) : "" }),
+    const resist = await this.rollSuccessTest(dice, tn, {
+      paidPoolDice: paid ? { control: paid } : undefined,
+      label: RL("VehicleResist", { name: this.name, power, level: startLevel, pool: paid ? RL("ControlPoolTag", { n: paid }) : "" }),
       isResistance: true
     });
 
@@ -2349,7 +2276,11 @@ export class SR2EActor extends Actor {
     }
 
     const boxes = [1, 3, 6, 10][finalIdx];
-    await this.applyDamage("physical", boxes);
+    // One commit (the GM's per-vehicle queue); it fires the crash triggers (p.107). Its event id is the card row, so
+    // a replay never damages twice.
+    const eventId = options.resolvesRow ? `row-${options.resolvesRow.replace(/[^\w]/g, "_")}`
+      : options.resolvesMessageId ? `card-${options.resolvesMessageId}` : null;
+    await commitVehicleDamage(this, boxes, { source: options.source ?? "weapon", eventId, woundLevel: stages[finalIdx] });
     return ChatMessage.create({
       ...resolves,
       speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -2455,7 +2386,8 @@ export class SR2EActor extends Actor {
       </div>` : "";
 
     // ── Build dialog ──────────────────────────────────────────────────────────
-    const combatAvail = system.dicePools?.combat?.value ?? 0;
+    // Crash occupants never add Combat Pool (p.107); a mana-barrier rider only when aware (p.109).
+    const combatAvail = options.noCombatPool ? 0 : (system.dicePools?.combat?.value ?? 0);
     const poolHTML    = combatAvail > 0 ? `
       <hr style="margin:8px 0 6px;">
       <p style="margin:0 0 2px;font-size:11px;color:#b3a9cc;">Pool Dice (optional)</p>

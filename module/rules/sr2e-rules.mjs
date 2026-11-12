@@ -4323,13 +4323,16 @@ export function isAntiVehicleOrdnance(name) {
  * @returns {{ none: "stun"|"light"|"barrier"|null, level?, dice?, tn?, armorUsed? }}
  */
 export function vehicleHit({ body = 1, armor = 0, power, basePower = power, level, lightRated = false,
-                             damageType = "physical", apds = false, antiVehicle = false }) {
+                             damageType = "physical", apds = false, antiVehicle = false, calledShot = false }) {
   if (damageType === "stun") return { none: "stun" };
   const stages = ["L", "M", "S", "D"];
-  if (lightRated && !apds) return { none: "light" };
+  // Light weapons can't affect vehicles "unless using special ammunition or when attacking for something vital
+  // (see Called Shots)" (p.108): either floors the reduced level at Light.
+  const special = apds || calledShot;
+  if (lightRated && !special) return { none: "light" };
   let idx = Math.min(3, stages.indexOf(level)) - (antiVehicle ? 0 : 1);
   if (idx < 0) {
-    if (!apds) return { none: "light" };
+    if (!special) return { none: "light" };
     idx = 0;
   }
   const armorUsed = apds ? Math.floor(armor / 2) : armor;

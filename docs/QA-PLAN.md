@@ -493,11 +493,28 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
 - [ ] "Clear blast areas" and the "Clear Templates (this scene)" macro remove them; on v13 the same actions still clear Measured Templates.
 - [ ] A world with old templates opened on v14: smoke still raises the visibility TN; Ice Sheet still triggers its crossing card.
 
-## 11. Vehicles & rigging
-- [ ] Vehicle sheet: handling/speed/body/armor/condition.
-- [ ] **Handling / Crash / Position** tests with terrain modifiers and Control Pool.
-- [ ] **Ramming:** both vehicles roll; loser crashes; crash damage applies.
-- [ ] **Escape test:** pursuer vs fleeing vehicle resolves the chase.
+## 11. Vehicles & rigging (core rules: docs/PLAN-vehicles-phase2.md Part 1; Quench `sr2e.vehicle-play`)
+- [ ] Vehicle sheet: handling/speed/body/armor/condition; Vehicles tab shows cruising speed with km/h.
+- [ ] **Control:** a player presses Control on a linked vehicle → "Driving"; a second player's character takes it →
+      the first loses it. Remove (unlink) clears control.
+- [ ] **Handling Test** (out of combat): Vehicle Operation Table rows change the TN; a jacked-in rigger controlling the
+      vehicle gets −2/level, not otherwise. **Position / Crash** tests use terrain, never the rig bonus.
+- [ ] **Position Test** with 2 Control Pool dice in combat: the card lists flee/pursue/fight outcomes; refresh the
+      pools → still 2 short this round; next round → full.
+- [ ] **Escape:** the dialog lists this round's Position cards; pick fleeing and pursuing.
+- [ ] **Ramming:** player A rams player B's vehicle → B (on their own client) clicks Resist ram with Control Pool →
+      the loser gets "Crash Test required"; clicking Resist ram again is refused. Ram an NPC vehicle: the GM rolls.
+- [ ] **Crash Test due:** shoot a vehicle in combat for a Serious wound → one "Crash Test required" card (a second
+      Serious hit in the same phase adds none); the driver clicks it; failing crashes it; each passenger clicks
+      Resist (occupant): no Combat Pool offered, a second click refused.
+- [ ] Destroy a vehicle with gunfire → it crashes on its own at its speed before the hit.
+- [ ] **Hit:** a strong wall holds (occupants one level less), a weak one breaks (Crash Test due); a mana barrier with
+      "rider exposed" gives the rider a no-armour button.
+- [ ] **Moving Target:** target a vehicle token with a pistol on foot → Relative speed pre-picked from 5 vs its speed;
+      firing a mounted weapon uses its vehicle's speed.
+- [ ] **Damage vs vehicles:** armour mods count; a called Light shot hurts; a Flame Bomb catches a car → the car gets
+      its own card and resists with no Power cut; a non-owner player who controls a GM vehicle can resist for it.
+- [ ] **Command:** a drone with Pilot rolls its autopilot against the GM's TN.
 - [ ] **Gunnery:** fire a weapon mounted on a linked vehicle (Gunnery skill).
 - [ ] **Rigging (VCR):** jacked-in initiative uses VCR bonuses only; Control Pool = natural Reaction + 2/level; installed VCR cyberware is authoritative.
 

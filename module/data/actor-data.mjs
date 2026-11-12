@@ -339,6 +339,12 @@ export class CharacterData extends SR2EDataModel {
         new fields.StringField({ required: false, blank: true }),
         { initial: [] }
       ),
+      // The linked vehicles this character is driving or rigging right now (docs/PLAN-vehicles-phase2.md):
+      // written only by the active GM (vehicle-play.mjs setControl), never held by two characters.
+      controlledVehicles: new fields.ArrayField(
+        new fields.StringField({ required: false, blank: true }),
+        { initial: [] }
+      ),
 
       // --- BOUND/SUMMONED SPIRITS (UUIDs of Spirit actors) ---
       boundSpirits: new fields.ArrayField(

@@ -47,3 +47,30 @@ receipt → trigger in one queued step.
 
 ## Round 5 — Codex (draft 5, fresh session): APPROVED
 "No new material findings within the requested scope." **Part 1 plan APPROVED after 5 rounds.**
+
+## Code review round 1 — Codex (Part 1 implementation): REVISE, 10 findings
+1. Serious-wound dedupe keyed on combat.turn (phases share a turn). 2. No GM path for an uncontrolled vehicle's Crash
+Test. 3. Area damaging manipulations still skip vehicles. 4. Non-owner controllers blocked on blast/spread; combat-spell
+vehicle claims on the player's client. 5. GM and player can both spend a player's Control Pool. 6. Position debit and
+reservation not atomic. 7. Crash Test can resolve twice after a control change (claim on the driver, whispered receipt).
+8. Damage authorization and phase checked outside the queued step. 9. Reaction default ignores other controlled
+vehicles' damage. 10. Missing integration tests (passengers, barrier branches, crash after test).
+
+### Claude's response
+Fixed: 1 (the system's phaseSeq of the vehicle's/driver's combat); 2 (GM prompts the NPC driver's skill, vehicle rolls,
+failure crashes); 3 (area cards for vehicles, whispered to the driver's owners too); 4 blast/spread gate → mayResistFor;
+5 (`isPoolClient`: the active player owner, else the active GM; pools offered only there); 6 (`spendPosition`: debit +
+reservation in one queued update); 7 (claim on the vehicle through the GM, public receipt); 8 (validation and phase
+inside the queue); 9 (`worstControlledInitMod`, shared with initiative); 10 (Quench: occupants once each without
+Combat Pool, barrier holds/breaks, GM Crash Test → crash).
+Not taken: 4's combat-spell part — combat-spell resistance against a vehicle stays with its owner or the GM (its gate
+is `isOwner`, so a non-owner never reaches those claims). 5's refresh half — refresh vs spend across clients exists
+for every pool today; out of Part 1. 10's two-client coverage — Quench runs in one client; the cross-client paths are
+the GM op + per-actor queues, unit-shaped.
+
+## Code review round 2 — Codex (fixes only, fresh session): REVISE, 1 finding
+A Crash Test dialog left open across a change of control lets the former driver claim it.
+
+### Claude's response
+Fixed: `GM_OPS.claim` takes the expected driver and claims only while that driver (or none) still controls the
+vehicle and the user may act for them; otherwise the step is refused without a receipt and the user clicks again.

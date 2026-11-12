@@ -96,6 +96,7 @@ import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 import { programmingState, loadingState, pendingUpgrade, registerProgrammingHandlers, designOf } from "./programming.mjs";
 import { activeOptions } from "./rules/vr2-options.mjs";
+import { onVehicleSocket, bindVehicleCardButtons, mayResistFor } from "./vehicle-play.mjs";
 
 /**
  * Delete every world document a Quench run leaves behind. Quench doesn't clean
@@ -816,6 +817,10 @@ function _applyTeamKarmaDelta(delta, actorUuid = null, userId = game.user.id) {
  */
 function _onSocketMessage(data) {
   switch (data?.type) {
+    case "vehiclePlay":
+    case "vehiclePlayReply":
+      onVehicleSocket(data);
+      break;
     case "teamKarmaDelta":
       // Exactly one client (the designated active GM) performs the write.
       if (!Number.isFinite(data.delta)) return;
@@ -2240,16 +2245,21 @@ async function resistManipDamage(message) {
       actor = await resolveCardDefender("");
       if (!actor) return ui.notifications.warn("Select the defending token (or assign a character) first.");
     }
-    if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
-    if (!["character", "npc", "spirit"].includes(actor.type)) {
+    if (!mayResistFor(actor)) return ui.notifications.warn(`Only ${actor.name}'s owner, its driver or the GM can resist for it.`);
+    if (!["character", "npc", "spirit", "vehicle"].includes(actor.type)) {
       return ui.notifications.warn(`The GM resolves spell damage against a ${actor.type} (SR2E p.108).`);
     }
     // Net staging (p.91 via p.130) on cards that carry the base level; an
     // older card pre-staged the caster's successes and keeps doing so.
     const netStaging = snap.staging === "net";
     const level = netStaging ? snap.baseLevel : stageLevel(snap.baseLevel, netToSteps(snap.successes));
-    const result = await actor.rollDamageResistance(snap.basePower, level, "impact", "physical", {
-      armorCalc: "half_impact", basePower: snap.basePower, attackerSuccesses: snap.successes,
+    // A vehicle resists a damaging manipulation "as if [it] were regular weapons" but without the vehicle Power and
+    // Damage Code reductions (p.109).
+    const resist = actor.type === "vehicle"
+      ? (o) => actor.rollVehicleDamageResistance(snap.basePower, level, { ...o, manipulation: true, source: "spell" })
+      : (o) => actor.rollDamageResistance(snap.basePower, level, "impact", "physical", { armorCalc: "half_impact", basePower: snap.basePower, ...o });
+    const result = await resist({
+      attackerSuccesses: snap.successes,
       ...(netStaging ? { stageVs: snap.successes } : {}),
       resolvesMessageId: message.id,
       beforeRoll: async () => {
@@ -2366,7 +2376,7 @@ async function resistRangedDamage(message) {
     if (isCardResolved(message, "rangedDamage")) return ui.notifications.warn("That damage has already been resisted.");
     const actor = await resolveCardDefender(snap.targetUuid);
     if (!actor) return ui.notifications.warn("Select a token (or assign a character) to roll damage resistance.");
-    if (!actor.isOwner) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
+    if (!mayResistFor(actor)) return ui.notifications.warn(`Only ${actor.name}'s owner, its driver or the GM can resist for it.`);
     return await actor.rollDamageResistance(snap.power, snap.baseLevel, snap.armorType, snap.damageType, {
       armorCalc: snap.armorCalc, armorMod: snap.armorMod, ammoName: snap.ammoName, basePower: snap.basePower,
       antiVehicle: !!snap.antiVehicle, material: snap.material ?? "",
@@ -2829,9 +2839,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
           "Select a token (or assign a character) to roll damage resistance."
         );
       }
-      // Rolling for an actor you cannot update ends in a roll with no damage.
-      if (!actor.isOwner) {
-        return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can resist for them.`);
+      // Rolling for an actor you cannot update ends in a roll with no damage; a vehicle's driver commits through the GM.
+      if (!mayResistFor(actor)) {
+        return ui.notifications.warn(`Only ${actor.name}'s owner, its driver or the GM can resist for it.`);
       }
 
       const bonusDice  = parseInt(btn.dataset.bonusDice) || 0;
@@ -2972,6 +2982,9 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
       if (lightIds.length) await canvas.scene.deleteEmbeddedDocuments("AmbientLight", lightIds);
     });
   });
+
+  // Vehicles in play (docs/PLAN-vehicles-phase2.md): ram, Crash Test due, occupants.
+  bindVehicleCardButtons(message, html);
 
   // Opposed melee: Defend rolls the defender's Combat Skill test and
   // resolves the exchange; Undefended concedes (0 defense successes).

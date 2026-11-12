@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SR2E } from "../module/config.mjs";
+import { impactLevel } from "../module/rules/vehicle-play-rules.mjs";
 
 describe("Healing tables (SR2E p.112–115)", () => {
   it("Wound Table TN rises with wound level; Deadly has none (always medical attention, p.113)", () => {
@@ -47,21 +48,22 @@ describe("Ranged TN modifiers (SR2E p.91)", () => {
 });
 
 describe("Vehicle modifiers (SR2E p.106–109)", () => {
-  it("terrain handling penalty worsens with tighter terrain", () => {
-    const h = SR2E.vehicleTerrainMods.handling;
+  it("Position Test terrain penalty worsens with tighter terrain (p.106)", () => {
+    const h = SR2E.vehicleTerrainMods.position;
     expect(h.open).toBe(0);
     expect(h.tight).toBeGreaterThan(h.normal);
+    expect(SR2E.vehicleTerrainMods.handling).toBeUndefined();   // the non-combat test uses p.183's table, not terrain
   });
 
   it("crash damage level scales by speed bracket", () => {
-    expect(SR2E.crashDamageLevel(10)).toBe("L");
-    expect(SR2E.crashDamageLevel(30)).toBe("M");
-    expect(SR2E.crashDamageLevel(100)).toBe("S");
-    expect(SR2E.crashDamageLevel(250)).toBe("D");
+    expect(impactLevel(10)).toBe("L");
+    expect(impactLevel(30)).toBe("M");
+    expect(impactLevel(100)).toBe("S");
+    expect(impactLevel(250)).toBe("D");
     // bracket boundaries
-    expect(SR2E.crashDamageLevel(21)).toBe("M");
-    expect(SR2E.crashDamageLevel(61)).toBe("S");
-    expect(SR2E.crashDamageLevel(201)).toBe("D");
+    expect(impactLevel(21)).toBe("M");
+    expect(impactLevel(61)).toBe("S");
+    expect(impactLevel(201)).toBe("D");
   });
 
   it("vehicle damage worsens TN and cuts speed by level", () => {

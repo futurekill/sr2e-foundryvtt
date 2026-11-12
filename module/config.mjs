@@ -901,8 +901,8 @@ SR2E.vehicleTestTypes = {
 };
 
 SR2E.vehicleTerrainMods = {
-  // Position Test Modifiers (p.106) — also used for generic Handling Tests
-  handling: { open: 0,  normal: 1, restricted: 2, tight: 4 },
+  // Position Test Modifiers (p.106). The non-combat Handling Test has no terrain row: it takes the Vehicle
+  // Operation Table (p.183, rules/vehicle-play-rules.mjs).
   position: { open: 0,  normal: 1, restricted: 2, tight: 4 },
   // Crash Test Table (p.107)
   crash:    { open: -1, normal: 0, restricted: 4, tight: 2 },
@@ -921,12 +921,6 @@ SR2E.vehicleTerrains = {
 
 // Crash Impact Table (p.107): Power = cruising speed ÷ 10 (round down);
 // Damage Level by speed bracket.
-SR2E.crashDamageLevel = speed => {
-  if (speed >= 201) return "D";
-  if (speed >= 61)  return "S";
-  if (speed >= 21)  return "M";
-  return "L";
-};
 
 // Vehicle Damage Modifiers (p.109): per damage level, the TN penalty to the
 // driver's tests, the Initiative penalty, and the speed multiplier.

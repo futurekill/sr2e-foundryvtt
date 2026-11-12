@@ -54,6 +54,10 @@
             <span class="vehicle-type">{{vehicle.system.vehicleType}}</span>
           </div>
           <div class="vehicle-card-controls">
+            <a class="vehicle-ctrl-btn {{#if vehicle.controlled}}active{{/if}}" data-action="toggleVehicleControl"
+               title="{{#if vehicle.controlled}}You are driving / rigging this vehicle. Click to let go.{{else}}Take control: you drive or rig it now (its Crash Tests, Control Pool and rigged initiative come to you).{{/if}}">
+              <i class="fas fa-steering-wheel fa-gamepad"></i> {{#if vehicle.controlled}}Driving{{else}}Control{{/if}}
+            </a>
             <a class="vehicle-ctrl-btn" data-action="vehicleTest"
                title="Handling / Position / Crash Test (SR2E p.105–107)">
               <i class="fas fa-tachometer-alt"></i> Test
@@ -66,6 +70,16 @@
                title="Escape Test as pursuer (SR2E p.107)">
               <i class="fas fa-person-running"></i> Escape
             </a>
+            <a class="vehicle-ctrl-btn" data-action="vehicleHitObject"
+               title="Hit a wall or a barrier (SR2E p.109)">
+              <i class="fas fa-road-barrier"></i> Hit
+            </a>
+            {{#if vehicle.hasAutopilot}}
+            <a class="vehicle-ctrl-btn" data-action="autopilotCommand"
+               title="Give the autopilot a command; the GM sets the TN (SR2E p.104–105)">
+              <i class="fas fa-robot"></i> Command
+            </a>
+            {{/if}}
             <a class="vehicle-ctrl-btn" data-action="openVehicle" title="Open Sheet">
               <i class="fas fa-external-link-alt"></i> Sheet
             </a>
@@ -78,7 +92,7 @@
         {{!-- Vehicle Stats --}}
         <div class="vehicle-stats-row flexrow">
           <span class="vehicle-stat" title="Handling">Hand: {{vehicle.system.effectiveHandling}}</span>
-          <span class="vehicle-stat" title="Speed">Spd: {{vehicle.system.effective.speed}}</span>
+          <span class="vehicle-stat" title="Cruising speed in m/Combat Turn (after damage); ×1.2 = km/h (SR2E p.104)">Spd: {{vehicle.system.effectiveSpeed}} ({{vehicle.kph}} km/h)</span>
           <span class="vehicle-stat" title="Acceleration">Acc: {{vehicle.system.effectiveAcceleration}}</span>
           <span class="vehicle-stat" title="Body">Body: {{vehicle.system.body}}</span>
           <span class="vehicle-stat" title="Armor">Armor: {{vehicle.system.effectiveArmor}}</span>

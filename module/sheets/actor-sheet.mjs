@@ -1547,7 +1547,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
           name: vActor.name,
           img: vActor.img,
           system: vActor.system,
-          weapons: vActor.items.filter(i => i.type === "weapon")
+          weapons: vActor.items.filter(i => i.type === "weapon"),
+          controlled: (system.controlledVehicles ?? []).includes(uuid),
+          kph: Math.round((vActor.system.effectiveSpeed ?? 0) * 1.2),   // m/CT × 1.2 = km/h (p.104)
+          hasAutopilot: ((vActor.system.vehicleType === "drone" ? vActor.system.effective?.pilot : vActor.system.effective?.autonav) ?? 0) > 0
         });
       }
     }

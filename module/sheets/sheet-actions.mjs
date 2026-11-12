@@ -22,7 +22,7 @@ import { GM_ACTIONS as HEAL_CLOCK_ACTIONS } from "../healing-clock.mjs";
 import { rollPermanentDamage, voidPermanentDamage } from "../permanent-damage.mjs";
 import { healBioware, clearStuckBioHeal } from "../bioware-damage.mjs";
 import { combatSpellMode, combatTargetRows, snapshotTargets, casterSituationHTML, targetRowsHTML, wireTargetRows,
-         readTargetRows, promptAreaTargets } from "../combat-spells.mjs";
+         readTargetRows, promptAreaTargets, liveCastSuccesses } from "../combat-spells.mjs";
 import { visibilityAlong } from "../spell-effects.mjs";
 import { areaDocs } from "../areas.mjs";
 import { startRitual } from "../ritual.mjs";
@@ -33,6 +33,8 @@ import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuv
 import { reachable } from "../rules/vr2-grids.mjs";
 import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
+import { riggedInto, setControl, hitObjectFlow, isPoolClient } from "../vehicle-play.mjs";
+import { vehicleOperationMod, movingTargetMod } from "../rules/vehicle-play-rules.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
 // ===========================================================================
@@ -531,10 +533,13 @@ function detectEngagingFoes(attacker) {
 
 function detectAttackTarget(attacker, weapon) {
   const presets = {};
+  // A mounted weapon fires from its vehicle (Moving Target Table, p.108).
+  if (attacker?.type === "vehicle") presets.firingVehicleUuid = attacker.uuid;
   const targetToken = firstTarget();
   if (!targetToken) return presets;
 
   presets.targetName = targetToken.name;
+  if (targetToken.actor?.type === "vehicle") presets.targetSpeed = targetToken.actor.system.effectiveSpeed ?? 0;
 
   // With no map on this device (the mobile companion) the target is a stand-in
   // built from its token document: measure on that token's own scene instead.
@@ -611,6 +616,26 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   const BASE_TN    = 4;
   const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
   const isRanged   = !isMelee;
+  // Moving Target Table (p.108): the target's speed against the firer's — the vehicle a mounted weapon is on, else a
+  // vehicle the attacker rides in (picked), else 5 (stationary). Shown when a vehicle is involved; always overridable.
+  const rideOpts = [["", "On foot / stationary", 5]];
+  for (const u of new Set([presets.firingVehicleUuid, ...(actor.system.controlledVehicles ?? []), ...(actor.system.linkedVehicles ?? [])].filter(Boolean))) {
+    const v = fromUuidSync(u);
+    if (v?.type === "vehicle") rideOpts.push([u, v.name, v.system.effectiveSpeed ?? 0]);
+  }
+  const rideDefault = presets.firingVehicleUuid ?? (actor.system.controlledVehicles ?? [])[0] ?? "";
+  const speedOf = (u) => rideOpts.find(o => o[0] === u)?.[2] ?? 5;
+  const speedAuto = (u) => presets.targetSpeed != null ? movingTargetMod(presets.targetSpeed, speedOf(u)) : 0;
+  const speedRow = (presets.targetSpeed != null || rideOpts.length > 1) ? `
+      <div class="sr2e-attack__field">
+        <label title="Moving Target Table (SR2E p.108): the target's speed against yours; a stationary firer counts 5. In addition to the movement modifiers.">Firing from:</label>
+        <select id="sr2e-ride" name="ride">${rideOpts.map(([u, n, sp]) => `<option value="${u}" ${u === rideDefault ? "selected" : ""}>${foundry.utils.escapeHTML(n)} (${sp})</option>`).join("")}</select>
+      </div>
+      <div class="sr2e-attack__field">
+        <label title="Moving Target Table (SR2E p.108)${presets.targetSpeed != null ? `: target speed ${presets.targetSpeed}` : ""}">Relative speed:</label>
+        <select id="sr2e-relspeed" name="relSpeed">${[[0, "≤ yours (0)"], [2, "up to 2× (+2)"], [4, "2–3× (+4)"], [6, "> 3× (+6)"]].map(([v, l]) =>
+          `<option value="${v}" ${v === speedAuto(rideDefault) ? "selected" : ""}>${l}</option>`).join("")}</select>
+      </div>` : "";
   // A bear's or tiger's animal form adds Reach to its natural weapons (Companion p.36). Reach is the
   // player's Reach Mod here; the dialog states it.
   const formReach = weapon.system.form === "animal" ? characterForm(actor.system).reach : 0;
@@ -987,7 +1012,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         // transparent, the modifier does not apply"). Adding would let an
         // opaque barrier plus a Blind Fire visibility pick reach +16.
         const effVis = Math.max(vMod, barrierBlindFire());
-        finalTN = Math.max(2, BASE_TN + rMod + cMod + effVis + aMod + tMod + mMod + oMod
+        const sMod = parseInt(root.querySelector("#sr2e-relspeed")?.value) || 0;
+        finalTN = Math.max(2, BASE_TN + rMod + cMod + effVis + aMod + tMod + mMod + oMod + sMod
                                       + calledShotMod() - aimMod()
                                       + cyberwareMod + accessoryTnMod
                                       + woundPenalty + sustainPenalty + coordTN
@@ -1066,6 +1092,13 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     }
     modeSelect?.addEventListener("change", () => { syncCalledShot(); updateTN(); });
     root.querySelector("#sr2e-lead-with")?.addEventListener("change", updateTN);
+    // Moving Target Table (p.108): picking where you fire from re-picks the band; both re-total the TN.
+    root.querySelector("#sr2e-ride")?.addEventListener("change", (ev) => {
+      const rel = root.querySelector("#sr2e-relspeed");
+      if (rel) rel.value = String(speedAuto(ev.target.value));
+      updateTN();
+    });
+    root.querySelector("#sr2e-relspeed")?.addEventListener("change", updateTN);
     syncCalledShot(); syncAimPools();
 
     // Reset Recoil button — clears rounds already fired and persists to the actor
@@ -1275,6 +1308,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
           <option value="2">Running (+2)</option>
         </select>
       </div>
+      ${isRanged && speedRow ? speedRow : ""}
       <div class="sr2e-attack__field">
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
@@ -1501,6 +1535,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             visMod:          parseInt(f.visibility?.value)      || 0,
             attackerMod:     parseInt(f.attacker?.value)        || 0,
             targetMod:       parseInt(f.target?.value)          || 0,
+            speedMod:        parseInt(f.relSpeed?.value)        || 0,   // Moving Target Table (p.108)
             // Firing while engaged in melee: +2 per opponent (SR2E p.90)
             meleeMod:        ENGAGED_TN_PER_FOE * Math.max(0, parseInt(f.inMelee?.value) || 0),
             deployed:        !!f.deployed?.checked,
@@ -3147,17 +3182,6 @@ async function onAddItem(event, target) {
   return this.document.createEmbeddedDocuments("Item", [itemData]);
 }
 
-/**
- * Prompt for vehicle test options (SR2E p.105–107): test type, terrain,
- * situational modifier, Control Pool and karma dice, with a live TN breakdown.
- *
- *   TN = Handling + terrain (per test type) − 2 × VCR + vehicle damage + other
- *   Dice = driving skill (Reaction at +4 TN when defaulting)
- *
- * @param {Actor} actor   - The driving character.
- * @param {Actor} vehicle - The vehicle actor.
- * @returns {Promise<{testType, terrain, otherMod, poolDice, karmaDice}|null>}
- */
 /** Terrain <option> list for vehicle dialogs (default normal). */
 function terrainOptions(selected = "normal") {
   return Object.entries(CONFIG.SR2E.vehicleTerrains)
@@ -3179,7 +3203,8 @@ async function promptRamOptions(actor, myVehicle) {
   const oArmor = tv?.system?.effectiveArmor ?? 0;
   const oHand = tv?.system?.effectiveHandling ?? 3;
 
-  const controlAvail = actor.system.dicePools?.control?.value ?? 0;
+  // Control Pool capped at the skill in use (p.85).
+  const controlAvail = isPoolClient(actor) ? Math.min(actor.system.dicePools?.control?.value ?? 0, actor._vehicleSkill(myVehicle).cap) : 0;
 
   let result = null;
   const action = await foundry.applications.api.DialogV2.wait({
@@ -3196,9 +3221,6 @@ async function promptRamOptions(actor, myVehicle) {
           <input type="number" name="oArmor" value="${oArmor}" min="0" style="width:52px;text-align:center;"></div>
         <div class="form-group" style="margin:2px 0;"><label>Opp. Handling:</label>
           <input type="number" name="oHand" value="${oHand}" min="0" style="width:52px;text-align:center;"></div>
-        <div class="form-group" style="margin:2px 0;"><label>Opp. Driver Skill:</label>
-          <input type="number" name="oSkill" value="0" min="0" style="width:52px;text-align:center;"
-                 title="Opposing driver's Vehicle Skill rating (0 if unknown/uncrewed)"></div>
         <div class="form-group" style="margin:2px 0;"><label>Terrain:</label>
           <select name="terrain">${terrainOptions()}</select></div>
       </div>
@@ -3207,8 +3229,8 @@ async function promptRamOptions(actor, myVehicle) {
         <span style="color:#958ba8;font-size:10px;">(${controlAvail} left)</span></label>
         <input type="number" name="pool_control" value="0" min="0" max="${controlAvail}" style="width:52px;text-align:center;"></div>` : ""}
       <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
-        Both vehicles roll (Skill + Body + ½ Armor − Handling) vs (opp Body + ½ Armor − terrain).
-        Fewer successes crashes (SR2E p.107).</p>
+        Both vehicles roll (Skill + Body + ½ Armor − Handling) vs (the other's Body + ½ Armor − terrain); the other
+        driver (or the GM) rolls on the card. Fewer successes must make a Crash Test; a tie, no crash (SR2E p.107).</p>
     </div>`,
     buttons: [
       { action: "ram", label: "Ram", default: true, callback: (event, button) => {
@@ -3220,7 +3242,6 @@ async function promptRamOptions(actor, myVehicle) {
             body: parseInt(f.oBody?.value) || 1,
             armor: parseInt(f.oArmor?.value) || 0,
             handling: parseInt(f.oHand?.value) || 0,
-            skill: parseInt(f.oSkill?.value) || 0,
             actor: tv
           },
           terrain: f.terrain?.value ?? "normal",
@@ -3238,18 +3259,28 @@ async function promptRamOptions(actor, myVehicle) {
  * @returns {Promise<{fleeingSuccesses, pursuerSuccesses, intelligence, terrain}|null>}
  */
 async function promptEscapeOptions(actor) {
+  const esc = foundry.utils.escapeHTML;
+  // This round's Position Test results (p.107 compares them); their live successes count Karma rerolls.
+  const c = game.combat;
+  const cards = game.messages.filter(m => {
+    const r = m.flags?.sr2e?.positionResult;
+    return r && (c?.started ? r.combatId === c.id && r.round === c.round : true);
+  }).slice(-12).reverse();
+  const live = (m) => { const r = m.flags.sr2e.positionResult; return liveCastSuccesses(r.testMessageId, r.successes); };
+  const label = (m) => { const r = m.flags.sr2e.positionResult;
+    return `${esc(fromUuidSync(r.vehicleUuid)?.name ?? "vehicle")} (${esc(fromUuidSync(r.driverUuid)?.name ?? "?")}): ${live(m)}`; };
+  const pick = (name, title) => cards.length
+    ? `<select name="${name}" title="${title}">${cards.map(m => `<option value="${m.id}">${label(m)}</option>`).join("")}</select>`
+    : `<input type="number" name="${name}" value="0" min="0" style="width:52px;text-align:center;" title="${title}">`;
   let result = null;
   const action = await foundry.applications.api.DialogV2.wait({
     window: { title: "Escape Test (pursuer)" },
     rejectClose: false,
     content: `<div>
+      ${cards.length ? "" : `<p class="hint" style="margin:0 0 4px;">No Position Test cards this round: enter the successes.</p>`}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
-        <div class="form-group" style="margin:2px 0;"><label>Fleeing Position succ.:</label>
-          <input type="number" name="flee" value="0" min="0" style="width:52px;text-align:center;"
-                 title="Position Test successes the FLEEING vehicle generated"></div>
-        <div class="form-group" style="margin:2px 0;"><label>Pursuer Position succ.:</label>
-          <input type="number" name="pursue" value="0" min="0" style="width:52px;text-align:center;"
-                 title="Position Test successes the PURSUING vehicle (you) generated"></div>
+        <div class="form-group" style="margin:2px 0;"><label>Fleeing:</label>${pick("flee", "The FLEEING vehicle's Position Test")}</div>
+        <div class="form-group" style="margin:2px 0;"><label>Pursuing:</label>${pick("pursue", "The PURSUING vehicle's Position Test")}</div>
         <div class="form-group" style="margin:2px 0;"><label>Spotter Intelligence:</label>
           <input type="number" name="int" value="${actor.system.intelligence?.value ?? 1}" min="1" style="width:52px;text-align:center;"
                  title="Highest Intelligence among characters who could see the fleeing vehicle"></div>
@@ -3263,12 +3294,9 @@ async function promptEscapeOptions(actor) {
     buttons: [
       { action: "go", label: "Resolve", default: true, callback: (event, button) => {
         const f = button.form.elements;
-        result = {
-          fleeingSuccesses: parseInt(f.flee?.value) || 0,
-          pursuerSuccesses: parseInt(f.pursue?.value) || 0,
-          intelligence: parseInt(f.int?.value) || 1,
-          terrain: f.terrain?.value ?? "normal"
-        };
+        const val = (name) => cards.length ? live(game.messages.get(f[name].value)) : (parseInt(f[name]?.value) || 0);
+        result = { fleeingSuccesses: val("flee"), pursuerSuccesses: val("pursue"),
+          intelligence: parseInt(f.int?.value) || 1, terrain: f.terrain?.value ?? "normal" };
       }},
       { action: "cancel", label: "SR2E.Dialog.Cancel" }
     ]
@@ -3276,67 +3304,64 @@ async function promptEscapeOptions(actor) {
   return (action === "go" && result) ? result : null;
 }
 
-async function promptVehicleTestOptions(actor, vehicle) {
+/**
+ * Vehicle test options (SR2E p.105–107, p.183) with a live TN: Handling Tests (out of combat) take the Vehicle
+ * Operation Table, incl. −2 × VCR only while rigged into this vehicle; Position and Crash Tests take their terrain
+ * tables; all take the vehicle damage modifier and defaulting. Control Pool is capped at the skill in use (p.85).
+ * @param {Actor} actor   - The driving character.
+ * @param {Actor} vehicle - The vehicle actor.
+ * @param {object} [preset] - { testType } to open on a given test (the Crash Test button).
+ */
+export async function promptVehicleTestOptions(actor, vehicle, preset = {}) {
+  const esc = foundry.utils.escapeHTML;
   const handling  = vehicle.system.effectiveHandling ?? 3;
-  const vcr       = actor.system.vehicleControlRig ?? 0;
-  const vcrMod    = -2 * vcr;
   const damageMod = vehicle.system.damageTnMod ?? 0;
+  const sk = actor._vehicleSkill(vehicle);
+  const vcr = actor.system.vehicleControlRig ?? 0;
+  const riggedIn = riggedInto(actor, vehicle);
+  const skillLabel = sk.defaulted ? `${sk.dice}${sk.note}` : `${sk.dice}`;
+  // Spent only on the pool's own client (its player's, else the GM's): one writer per pool.
+  const controlAvail = isPoolClient(actor) ? (actor.system.dicePools?.control?.value ?? 0) : 0;
+  const controlCap   = Math.min(controlAvail, sk.cap);
+  const type0 = preset.testType ?? "handling";
 
-  // Driver's skill: rating, or Reaction at +4 when defaulting
-  const skillKey  = vehicle.system.drivingSkill;
-  const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-  const skillItem = actor.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);
-  const rating    = skillItem?.system?.rating ?? 0;
-  // Untrained: mirror rollVehicleTest — Skill Web default, else flat Reaction +4.
-  const web = rating > 0 ? null : actor._webDefaultByKey?.(skillKey);
-  const defaultingPenalty = rating > 0 ? 0 : (web?.penalty ?? CONFIG.SR2E.defaultingPenalty);
-  const baseDice  = rating > 0 ? rating : (web?.dice ?? Math.max(1, actor.system.reaction?.value ?? 1));
-  const skillLabel = rating > 0
-    ? `${skillItem.name} ${rating}`
-    : (web ? `${baseDice} — ${web.label}` : `Reaction ${baseDice} (defaulting +${defaultingPenalty})`);
+  const readOp = (root) => ({
+    complex: !!root.querySelector("[name=opComplex]")?.checked,
+    unfamiliar: root.querySelector("[name=opUnfamiliar]")?.value ?? "",
+    size: root.querySelector("[name=opSize]")?.value ?? "",
+    conditions: root.querySelector("[name=opConditions]")?.value ?? ""
+  });
+  const sitMod = (type, terrain, op) => type === "handling"
+    ? vehicleOperationMod({ ...op, vcr, riggedIn }).mod
+    : (CONFIG.SR2E.vehicleTerrainMods[type]?.[terrain] ?? 0);
 
-  // Control Pool — max dice = skill rating in use (SR2E p.84)
-  const controlAvail = actor.system.dicePools?.control?.value ?? 0;
-  const controlCap   = Math.min(controlAvail, rating > 0 ? rating : baseDice);
-
-  const initTN = Math.max(2,
-    handling + (CONFIG.SR2E.vehicleTerrainMods.handling.normal ?? 0)
-             + vcrMod + damageMod + defaultingPenalty);
-
-  // Live TN updates
   let hookId = Hooks.on("renderDialogV2", (app, html) => {
     const root = (html instanceof Element) ? html : document;
     const typeSel = root.querySelector("#sr2e-vt-type");
     if (!typeSel) return;
     Hooks.off("renderDialogV2", hookId);
-    const terrSel  = root.querySelector("#sr2e-vt-terrain");
-    const otherInp = root.querySelector("#sr2e-vt-other");
-    const tnSpan   = root.querySelector("#sr2e-vt-tn");
-    const terrSpan = root.querySelector("#sr2e-vt-terrain-mod");
     const update = () => {
-      const t   = typeSel.value;
-      const ter = terrSel?.value ?? "normal";
-      const tMod = CONFIG.SR2E.vehicleTerrainMods[t]?.[ter] ?? 0;
-      const oMod = parseInt(otherInp?.value) || 0;
-      if (terrSpan) terrSpan.textContent = tMod >= 0 ? `+${tMod}` : `${tMod}`;
-      if (tnSpan) tnSpan.textContent = Math.max(2,
-        handling + tMod + vcrMod + damageMod + oMod + defaultingPenalty);
+      const t = typeSel.value;
+      root.querySelector("#sr2e-vt-op").style.display = t === "handling" ? "" : "none";
+      root.querySelector("#sr2e-vt-terrain-row").style.display = t === "handling" ? "none" : "";
+      const m = sitMod(t, root.querySelector("#sr2e-vt-terrain")?.value ?? "normal", readOp(root));
+      root.querySelector("#sr2e-vt-sit").textContent = m >= 0 ? `+${m}` : `${m}`;
+      root.querySelector("#sr2e-vt-sit-label").textContent = t === "handling" ? "Vehicle Operation (p.183):" : "Terrain:";
+      const o = parseInt(root.querySelector("#sr2e-vt-other")?.value) || 0;
+      root.querySelector("#sr2e-vt-tn").textContent = Math.max(2, handling + m + damageMod + o + sk.penalty);
     };
-    for (const el of [typeSel, terrSel, otherInp].filter(Boolean)) {
-      el.addEventListener(el.tagName === "INPUT" ? "input" : "change", update);
-    }
+    root.querySelectorAll("select, input").forEach(el => el.addEventListener(el.tagName === "INPUT" ? "input" : "change", update));
     update();
     attachPoolValidation(root);
   });
 
+  const sel = (name, opts) => `<select name="${name}">${opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>`;
   const controlHTML = controlCap > 0 ? `
     <hr style="margin:8px 0 6px;">
     <div class="form-group" style="margin:3px 0;">
       <label style="font-size:12px;flex:1;">Control Pool
-        <span style="color:#aaa1c0;font-size:10px;">(${controlAvail} left, max ${controlCap})</span>
-      </label>
-      <input type="number" name="pool_control" value="0" min="0" max="${controlCap}"
-             data-pool-key="control" data-pool-cap="${controlCap}"
+        <span style="color:#aaa1c0;font-size:10px;">(${controlAvail} left, max ${controlCap})</span></label>
+      <input type="number" name="pool_control" value="0" min="0" max="${controlCap}" data-pool-key="control" data-pool-cap="${controlCap}"
              style="width:52px;text-align:center;">
     </div>` : "";
 
@@ -3346,77 +3371,59 @@ async function promptVehicleTestOptions(actor, vehicle) {
     rejectClose: false,
     content: `<div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
-        <div class="form-group" style="margin:2px 0;">
-          <label>Test:</label>
+        <div class="form-group" style="margin:2px 0;"><label>Test:</label>
           <select id="sr2e-vt-type" name="testType">
-            <option value="handling">Handling Test</option>
-            <option value="position">Position Test</option>
-            <option value="crash">Crash Test</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:2px 0;">
-          <label>Terrain:</label>
-          <select id="sr2e-vt-terrain" name="terrain">
-            <option value="open">Open</option>
-            <option value="normal" selected>Normal</option>
-            <option value="restricted">Restricted</option>
-            <option value="tight">Tight</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin:2px 0;">
-          <label>Other Mod:</label>
-          <input type="number" id="sr2e-vt-other" name="otherMod" value="0"
-                 style="width:52px;text-align:center;"
-                 title="Weather, unfamiliar vehicle, vehicle size, under fire, etc.">
-        </div>
+            <option value="handling" ${type0 === "handling" ? "selected" : ""} title="Out of combat (p.183)">Handling Test</option>
+            <option value="position" ${type0 === "position" ? "selected" : ""}>Position Test</option>
+            <option value="crash" ${type0 === "crash" ? "selected" : ""}>Crash Test</option>
+          </select></div>
+        <div class="form-group" id="sr2e-vt-terrain-row" style="margin:2px 0;"><label>Terrain:</label>
+          <select id="sr2e-vt-terrain" name="terrain">${terrainOptions()}</select></div>
+        <div class="form-group" style="margin:2px 0;"><label>Other Mod:</label>
+          <input type="number" id="sr2e-vt-other" name="otherMod" value="0" style="width:52px;text-align:center;"></div>
+      </div>
+      <div id="sr2e-vt-op" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-top:4px;">
+        <label style="font-size:12px;"><input type="checkbox" name="opComplex"> Complex controls (+1)</label>
+        <div class="form-group" style="margin:2px 0;"><label>Unfamiliar:</label>${sel("opUnfamiliar", [["", "No"], ["calm", "Non-stressful (+1)"], ["stress", "Stressful (+3)"]])}</div>
+        <div class="form-group" style="margin:2px 0;"><label>Size of type:</label>${sel("opSize", [["", "Normal"], ["large", "Large (+2)"], ["veryLarge", "Very large (+3)"]])}</div>
+        <div class="form-group" style="margin:2px 0;"><label>Conditions:</label>${sel("opConditions", [["", "Normal"], ["bad", "Bad (+2)"], ["terrible", "Terrible (+4)"]])}</div>
+        ${vcr ? `<p style="grid-column:1/-1;margin:0;font-size:10px;color:#aaa1c0;">Rigger in control −${2 * vcr}: ${riggedIn ? "applied (rigged into this vehicle)" : "only while jacked in and controlling this vehicle"}.</p>` : ""}
       </div>
       <div style="margin:6px 0 4px;background:rgba(0,0,0,0.15);border-radius:4px;padding:6px 8px;font-size:11px;">
         <table style="width:100%;border-collapse:collapse;">
-          <tr><td style="color:#aaa1c0;">Dice (${skillLabel}):</td>
-              <td style="text-align:right;">${baseDice}</td></tr>
-          <tr><td style="color:#aaa1c0;">Handling:</td>
-              <td style="text-align:right;">${handling}</td></tr>
-          <tr><td style="color:#aaa1c0;">Terrain:</td>
-              <td id="sr2e-vt-terrain-mod" style="text-align:right;">+1</td></tr>
-          ${vcrMod ? `<tr><td style="color:#6c9;">Vehicle Control Rig ${vcr}:</td>
-              <td style="text-align:right;">${vcrMod}</td></tr>` : ""}
-          ${damageMod ? `<tr><td style="color:#c84;">Vehicle damage (${vehicle.system.damageLevel}):</td>
-              <td style="text-align:right;">+${damageMod}</td></tr>` : ""}
-          ${defaultingPenalty ? `<tr><td style="color:#c84;">Defaulting (untrained):</td>
-              <td style="text-align:right;">+${defaultingPenalty}</td></tr>` : ""}
-          <tr style="border-top:1px solid rgba(255,255,255,0.15);">
-            <td style="font-weight:bold;padding-top:3px;">Final TN:</td>
-            <td id="sr2e-vt-tn" style="text-align:right;font-weight:bold;padding-top:3px;">${initTN}</td>
-          </tr>
+          <tr><td style="color:#aaa1c0;">Dice (${esc(skillLabel)}):</td><td style="text-align:right;">${sk.dice}</td></tr>
+          <tr><td style="color:#aaa1c0;">Handling:</td><td style="text-align:right;">${handling}</td></tr>
+          <tr><td id="sr2e-vt-sit-label" style="color:#aaa1c0;">Terrain:</td><td id="sr2e-vt-sit" style="text-align:right;">+0</td></tr>
+          ${damageMod ? `<tr><td style="color:#c84;">Vehicle damage (${vehicle.system.damageLevel}):</td><td style="text-align:right;">+${damageMod}</td></tr>` : ""}
+          ${sk.penalty ? `<tr><td style="color:#c84;">Defaulting:</td><td style="text-align:right;">+${sk.penalty}</td></tr>` : ""}
+          <tr style="border-top:1px solid rgba(255,255,255,0.15);"><td style="font-weight:bold;padding-top:3px;">Final TN:</td>
+            <td id="sr2e-vt-tn" style="text-align:right;font-weight:bold;padding-top:3px;"></td></tr>
         </table>
-        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
-          A failed Crash Test crashes the vehicle (SR2E p.107).</p>
+        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">A failed Crash Test crashes the vehicle (SR2E p.107).
+          Position Test pool dice stay out of the Control Pool for the rest of the turn (p.105).</p>
       </div>
       ${controlHTML}
-      ${karmaDiceSection(actor, baseDice)}
+      ${karmaDiceSection(actor, sk.dice)}
       ${miscDiceHTML()}
     </div>`,
     buttons: [
-      {
-        action: "roll", label: "SR2E.Dialog.Roll", default: true,
+      { action: "roll", label: "SR2E.Dialog.Roll", default: true,
         callback: (event, button) => {
           const f = button.form.elements;
-          const rawCtrl = parseInt(f.pool_control?.value) || 0;
-          const control = Math.max(0, Math.min(rawCtrl, controlCap));
+          const control = Math.max(0, Math.min(parseInt(f.pool_control?.value) || 0, controlCap));
           rollResult = {
-            testType:  f.testType?.value ?? "handling",
-            terrain:   f.terrain?.value  ?? "normal",
-            otherMod:  parseInt(f.otherMod?.value) || 0,
-            poolDice:  control > 0 ? { control } : {},
-            karmaDice: readKarmaDice(button.form, actor, baseDice),
+            testType: f.testType?.value ?? "handling",
+            terrain:  f.terrain?.value ?? "normal",
+            operation: readOp(button.form),
+            otherMod: parseInt(f.otherMod?.value) || 0,
+            poolDice: control > 0 ? { control } : {},
+            karmaDice: readKarmaDice(button.form, actor, sk.dice),
             ...readMiscDice(button.form)
           };
-        }
-      },
+        } },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }
     ]
   });
-
   if (hookId !== null) Hooks.off("renderDialogV2", hookId);
   return (action === "roll" && rollResult) ? rollResult : null;
 }
@@ -4226,7 +4233,41 @@ const SHARED_ACTIONS = {
     if (!uuid) return;
     const current = this.document.system.linkedVehicles ?? [];
     const updated = current.filter(v => v !== uuid);
-    return this.document.update({ "system.linkedVehicles": updated });
+    // Unlinking ends control of it too.
+    const controlled = this.document.system.controlledVehicles ?? [];
+    return this.document.update({ "system.linkedVehicles": updated,
+      ...(controlled.includes(uuid) ? { "system.controlledVehicles": controlled.filter(v => v !== uuid) } : {}) });
+  },
+
+  /** Take or give up control of a linked vehicle (the GM writes it; SR2E p.104 vehicle commands). */
+  toggleVehicleControl: async function(event, target) {
+    event.preventDefault();
+    const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;
+    if (!uuid) return;
+    const on = !(this.document.system.controlledVehicles ?? []).includes(uuid);
+    try { await setControl(this.document, uuid, on); }
+    catch (err) { ui.notifications.warn(`Couldn't change control: ${err.message}`); }
+  },
+
+  /** The vehicle hits a wall or barrier (SR2E p.109). */
+  vehicleHitObject: async function(event, target) {
+    event.preventDefault();
+    const vehicle = await fromUuid(target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid ?? "");
+    if (vehicle) return hitObjectFlow(this.document, vehicle);
+  },
+
+  /** An autopilot command (SR2E p.104–105): the GM rates its complexity as the TN. */
+  autopilotCommand: async function(event, target) {
+    event.preventDefault();
+    const vehicle = await fromUuid(target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid ?? "");
+    if (!vehicle) return;
+    const f = await foundry.applications.api.DialogV2.prompt({
+      window: { title: `Command ${vehicle.name}` }, rejectClose: false,
+      content: `<div><div class="form-group"><label>Command:</label><input type="text" name="cmd" placeholder="Circle this area"></div>
+        <div class="form-group"><label>TN (GM: complexity, p.68):</label><input type="number" name="tn" value="4" min="2" style="width:52px;"></div></div>`,
+      ok: { label: "Roll", callback: (ev, b) => ({ cmd: b.form.elements.cmd.value, tn: parseInt(b.form.elements.tn.value) || 4 }) }
+    });
+    if (f) return vehicle.rollAutopilotCommand(f.tn, f.cmd);
   },
 
   /**

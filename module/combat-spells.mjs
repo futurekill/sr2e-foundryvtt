@@ -10,7 +10,7 @@
  */
 import { once } from "./claims.mjs";
 import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
-import { enqueueAttack } from "./engagement.mjs";
+import { commitVehicleDamage } from "./vehicle-play.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { targetTokens } from "./targeting.mjs";
 import { normActorUuid, grantsFor, defenceBalance, defenceSplit, defenseQueue, attackResolved } from "./spell-defense.mjs";
@@ -77,12 +77,12 @@ export function combatTargetRows(spell, tokens) {
       // Ram damages inanimate targets (p.151); its TN is the Object Resistance Table (p.130).
       if (kind === "living") rows.push({ ...base, eligible: false, why: "Ram only damages inanimate targets (SR2E p.151)" });
       else rows.push({ ...base, eligible: true, why: "", tn: 8, resistAttr: null,
-        barrier: kind === "vehicle" ? (Number(actor.system.body) || 0) + (Number(actor.system.armor) || 0) : 0 });
+        barrier: kind === "vehicle" ? (Number(actor.system.body) || 0) + (Number(actor.system.effectiveArmor) || 0) : 0 });
       continue;
     }
     const t = combatSpellTarget({ spellType: spell.system.type, damageType: dmgType, target: {
       kind, willpower: actor.system?.willpower?.value, body: kind === "vehicle" ? actor.system?.body : actor.system?.body?.value,
-      armor: actor.system?.armor } });
+      armor: kind === "vehicle" ? actor.system?.effectiveArmor : actor.system?.armor } });
     if (t.eligible && kind === "object") {
       rows.push({ ...base, eligible: false, why: "an inanimate target: the GM uses the Object Resistance Table (SR2E p.130)" });
       continue;
@@ -334,19 +334,6 @@ async function reconcile(msgs, live) {
   return msgs;
 }
 
-// ── Damage on a vehicle ────────────────────────────────────────────────────
-
-/** A vehicle's flat condition monitor and the caller's receipt (`extra`) in ONE update. */
-export function commitVehicleDamage(vehicle, boxes, { extra = {}, skipIf = null } = {}) {
-  return enqueueAttack(`damage:${vehicle.uuid}`, async () => {
-    if (skipIf?.()) return { landedBoxes: 0, skipped: true };
-    const cm = vehicle.system.conditionMonitor;
-    const value = Math.min((cm.value ?? 0) + Math.max(0, boxes), cm.max);
-    await vehicle.update({ ...extra, "system.conditionMonitor.value": value });
-    return { landedBoxes: value - (cm.value ?? 0) };
-  });
-}
-
 // ── Resistance (P1.5) ──────────────────────────────────────────────────────
 
 const recordOf = (actor, rid) => actor.getFlag("sr2e", `spellRes.${rid}`) ?? null;
@@ -445,7 +432,7 @@ export async function resistCombatSpell(actor, message) {
       ...(mp > 0 ? { "system.dicePools.magic.value": p.magic.value - mp } : {}),
       [`flags.sr2e.spellRes.${rid}`]: { key, castSuccesses, own, mp, grantIds: grants.map(g => g.id), at: game.time.serverTime }
     });
-    const base = vehicle ? (Number(actor.system.body) || 0) + Math.floor((Number(actor.system.armor) || 0) / 2) : (actor.system[attr]?.value ?? 1);
+    const base = vehicle ? (Number(actor.system.body) || 0) + Math.floor((Number(actor.system.effectiveArmor) || 0) / 2) : (actor.system[attr]?.value ?? 1);
     let dice = base + own + mp + granted;
     let notes = (own ? RL("SpellDefenseTag", { n: own }) : "") + (mp ? RL("MagicPoolTag", { n: mp }) : "")
       + grants.map(g => RL("SpellDefenseFromTag", { n: g.n, name: g.magicianName })).join("");
@@ -474,7 +461,9 @@ export async function resistCombatSpell(actor, message) {
     const skipIf = () => recordOf(actor, rid)?.damaged != null;
     let landed = null;
     if (!out.affected) await actor.update(receipt);
-    else if (vehicle) landed = (await commitVehicleDamage(actor, out.boxes, { extra: receipt, skipIf })).landedBoxes;
+    // A vehicle's damage goes through the one vehicle commit (the GM's queue; its receipt is the same path).
+    else if (vehicle) landed = (await commitVehicleDamage(actor, out.boxes, { source: "spell",
+      receipt: { path: `flags.sr2e.spellRes.${rid}.damaged`, value: out.boxes } })).landedBoxes;
     else await commitDamage(actor, state.dmgType === "stun" ? "stun" : "physical", out.boxes, { extra: receipt, skipIf });
 
     // 6. The pending message becomes the outcome.
@@ -587,8 +576,8 @@ export async function applyRam(message) {
   const successes = liveCastSuccesses(st.testMessageId, st.successes);
   const fx = ramEffect({ force: st.force, successes, barrierRating: st.barrierRating });
   const rid = claimId(key);
-  const r = fx?.lightBoxes ? await commitVehicleDamage(vehicle, fx.lightBoxes, {
-    extra: { [`flags.sr2e.ramApplied.${rid}`]: fx.lightBoxes }, skipIf: () => vehicle.getFlag("sr2e", `ramApplied.${rid}`) != null }) : { landedBoxes: 0 };
+  const r = fx?.lightBoxes ? await commitVehicleDamage(vehicle, fx.lightBoxes, { source: "spell",
+    receipt: { path: `flags.sr2e.ramApplied.${rid}`, value: fx.lightBoxes } }) : { landedBoxes: 0 };
   const text = `<strong>${esc(vehicle.name)} takes ${r.landedBoxes} Light damage</strong> from ${esc(st.spellName)} (${successes} success${successes === 1 ? "" : "es"}, SR2E p.151).`;
   await pending.update({ content: `<div class="sr2e-damage-result">${text}</div>` });
   if (message.isAuthor || game.user.isGM) {
