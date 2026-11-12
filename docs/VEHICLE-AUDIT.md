@@ -167,7 +167,7 @@ unchanged, and a script checked that only stat fields, notes and the corrected n
 
 **Kept / noted:**
 - Americar (security variant) keeps the catalogue 20,000¥ and stats, not QE's 80,000¥ / 45/135 / Body 3 / Armor 1 (ruling 2026-08-03).
-- PRC-42D Wasp: its notes had the D's Speed 65/100 and the 42B's 'Core book: Speed 65/130' line; the core line is replaced by the D's own (code review round 1).
+- PRC-42D Wasp: its notes had the D's Speed 65/100 and the 42B's 'Core book: Speed 65/130' line; the core line is dropped, leaving the printed QE line (code review rounds 1-2).
 - Regenerating QE also changed six NPCs' item weights (system weapon catalogue drift); not part of the audit, so those files were left as committed.
 
 ## Existing world vehicles

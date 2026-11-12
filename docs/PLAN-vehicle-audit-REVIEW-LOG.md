@@ -84,3 +84,14 @@ VERDICT: APPROVED
    sensor 7, Bergen Cargo fuel 1,000 L, Swordsman fuel 50 L, drones' fuel/economy added. The other books were checked the
    same way: clean. Access is recorded as not carried.
 4. **Taken.** Core inventory now says cruising speed; RBB says autonav (crewed) / pilot (drones).
+
+## Code review round 2 — Codex (fresh session, the fix only)
+
+> - **[P3] Wasp still has two speed statements.** The [actor’s notes](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-queen-euphoria/packs-src/qe-actors/Northrup_PRC_42D_Wasp_f0da659aff0323a4.json:45) contain `Speed 65/100` in both “QE p.16 prints” and the replacement speed paragraph. The Adventure repeats both. The conflicting value is fixed, but the requested exactly-one-speed-line check fails. Remove one statement in the generator data and regenerate both copies.
+> 
+> All changed RBB values match the supplied images. All 69 filenames and IDs are preserved; only `system.cargo`, `system.sensor`, and `system.notes` changed. The Adventure Wasp matches the actor apart from its packaging `_key`.
+> 
+> VERDICT: REVISE
+### Claude's response
+Taken: the Wasp kept Speed 65/100 twice (the "QE p.16 prints" line and the replacement). The generator now drops the
+core speed line (`dropCoreSpeed`) instead of replacing it; regenerated, grafted, embedded copies equal the actors.
