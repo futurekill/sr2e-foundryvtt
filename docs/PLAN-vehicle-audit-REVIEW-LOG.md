@@ -51,3 +51,36 @@ stats checked R2 off/on (#9, step 8); world copies: manual list, no migration (#
 VERDICT: APPROVED
 
 **Plan APPROVED after 2 rounds.**
+
+## Code review round 1 — Codex (2026-11-12, after the quota reset)
+
+> 1. **[P2] QE Wasp retains conflicting maximum speeds.** [Northrup_PRC_42D_Wasp_f0da659aff0323a4.json:45](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-queen-euphoria/packs-src/qe-actors/Northrup_PRC_42D_Wasp_f0da659aff0323a4.json:45) gives the D variant’s **65/100**, then appends the core 42B’s **65/130**. Both appear when importing the actor or Adventure, leaving the GM two maximum speeds despite the report’s settled convention.  
+>    **Fix:** Replace the inherited 42B speed note with the D’s 65/100 in the generator and both shipped copies.
+> 
+> 2. **[P2] Printed factory equipment remains unimplemented.** [Devil_Rat_APC_afadd5ddfac2a910.json:30](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-fields-of-fire/packs-src/ff-vehicles/Devil_Rat_APC_afadd5ddfac2a910.json:30) has `items: []`, although its notes explicitly include a small remote turret and EnviroSeal. Corresponding catalog modifications exist. With R2 disabled, importing this audited vehicle supplies none of that equipment, contrary to plan step 8.  
+>    **Fix:** Embed the printed catalog equipment as factory items and verify effective stats remain unchanged with R2 off and on.
+> 
+> 3. **[P2] Required field coverage was not completed.** [VEHICLE-AUDIT.md:74](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/VEHICLE-AUDIT.md:74) explicitly says seating, access, economy, and fuel were only spot-checked. Plan steps 2–5 require every inventoried field to be transcribed and compared; seating is even structured data. Thus the report cannot substantiate complete verification of the 69 RBB vehicles.  
+>    **Fix:** Complete and record the omitted comparisons before claiming the audit is complete.
+> 
+> 4. **[P3] The report specifies mappings that contradict the committed data.** [VEHICLE-AUDIT.md:24](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/VEHICLE-AUDIT.md:24) specifies core `speed (=max)`, and line 43 specifies RBB `pilot+autonav`. Following these mappings would restore maximum speeds and duplicate APilot into both fields—the opposite of the stated conventions and actual packs.  
+>    **Fix:** Change the inventories to cruising speed and the explicit crewed-autonav/drone-pilot split.
+> 
+> Checks: RBB regeneration, with writes intercepted, matched all 69 committed documents exactly, including IDs, filenames, art, and tokens. QE embedded vehicle systems match their standalone actors. All seven content-module validators and all eight linters passed. Vitest was blocked by required temporary writes under the read-only sandbox; Quench was inspected but not executed.
+> 
+> VERDICT: REVISE
+### Claude's response
+1. **Taken.** The QE generator takes a `speedNote` (qe-actors.json) that replaces the chassis's "Core book: Speed" line;
+   only the Wasp file regenerated (the six NPC weight-drift files reverted again), grafted into the Adventure; the three
+   embedded vehicles equal the actors.
+2. **Rejected, with the plan's own bound made explicit.** Step 8 embeds printed equipment "only as factory" from a
+   catalogue; the only catalogue holding remote turrets and EnviroSeal is Rigger 2's, and Fields of Fire (like RBB) does
+   not depend on Rigger 2. Embedding copies would ship R2 content and R2 design effects in a module that doesn't run R2's
+   rules. With R2 on, the Vehicle List update supplies the list's factory equipment (the Devil Rat is in the identity
+   map). The CSH TR-55 mods are optional purchases, not standard equipment. Recorded as a settled convention in the report.
+3. **Taken.** Seating, economy, fuel/power, both cargo lines and sensor diffed for all 69 RBB vehicles; this also caught
+   two misses of my own (the first diff read only "Storage", and sensor wasn't compared). Fixed from the renders: Red
+   Ranger cargo 10 + economy 0.5, Seacop cargo 10 (+ "enclosed cabin", not EnviroSeal), Appaloosa sensor 6, Aguilar-EX
+   sensor 7, Bergen Cargo fuel 1,000 L, Swordsman fuel 50 L, drones' fuel/economy added. The other books were checked the
+   same way: clean. Access is recorded as not carried.
+4. **Taken.** Core inventory now says cruising speed; RBB says autonav (crewed) / pilot (drones).

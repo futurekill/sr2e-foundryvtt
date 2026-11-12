@@ -15,13 +15,18 @@ unchanged, and a script checked that only stat fields, notes and the corrected n
 - A drone's **Store** is the cargo space needed to carry it aboard another vehicle, not its cargo; cargo is the
   printed Cargo/Storage (0 if none).
 - Off-road Handling fills `handlingOffRoad` on ground vehicles; a second Handling value on anything else stays in the notes.
+- **Printed equipment** (plan step 8): a vehicle's standard equipment is embedded only when a catalogue it can reach
+  without another module holds it. None does: the turrets, EnviroSeal and the like are Rigger 2 catalogue items, and
+  Rigger Black Book, Fields of Fire etc. don't depend on Rigger 2 (the CSH TR-55 mods are purchasable options, not
+  standard equipment). The equipment stays in the notes; with Rigger 2 on, the Vehicle List update adds the list's
+  factory equipment to the vehicles it covers (e.g. the Devil Rat).
 - SR1 books (Rigger Black Book, Queen Euphoria): armor ×3 (core p.283). NAGRL prints the ×3 value in parentheses.
 
 ## By book
 
 ### Core (SR2 corrected 11th printing) — 32 vehicles, p.264-265 (table), p.251-253 (descriptions)
 
-**Fields:** Handling, Speed cruise/max, Body, Armor, Signature, Pilot, Cost (table); price + equipment prose (descriptions). Targets: handling, speed (=max; cruise/max pair in notes), body, armor, signature, autonav (crewed) / pilot (drones) from Pilot, cost (Restricted -> cost 0 + availability 'Restricted'). Not printed: acceleration, sensor, cargo, load, seating and the R2-only fields -> defaults. Availability/Street Index: a general rule on p.264 (Cost/10,000), not filled per vehicle.
+**Fields:** Handling, Speed cruise/max, Body, Armor, Signature, Pilot, Cost (table); price + equipment prose (descriptions). Targets: handling, speed (cruising; cruise/max pair in notes), body, armor, signature, autonav (crewed) / pilot (drones) from Pilot, cost (Restricted -> cost 0 + availability 'Restricted'). Not printed: acceleration, sensor, cargo, load, seating and the R2-only fields -> defaults. Availability/Street Index: a general rule on p.264 (Cost/10,000), not filled per vehicle.
 
 **Passes:** Claude and Codex (blind) agree on all 33 rows.
 
@@ -40,7 +45,7 @@ unchanged, and a script checked that only stat fields, notes and the corrected n
 
 ### Rigger Black Book (SR1) — 69 vehicles, p.8-94 (PDF = book + 1)
 
-**Fields:** Handling (on/off), Speed (cruise/max), B/A, Sig, APilot, Cost, Seating, Access, Economy, Fuel/Power, Storage/Cargo, drones' Store, Operational Duration, Set-up time, Sensor Package, Landing/Takeoff, Options/variants. Targets: handling, handlingOffRoad (ground vehicles; now filled), speed (cruise; max in notes), body, armor (SR1 x3, p.283), signature, pilot+autonav (APilot), cost, cargo (storage; trucks: standard load), seating; the rest in notes.
+**Fields:** Handling (on/off), Speed (cruise/max), B/A, Sig, APilot, Cost, Seating, Access, Economy, Fuel/Power, Storage/Cargo, drones' Store, Operational Duration, Set-up time, Sensor Package, Landing/Takeoff, Options/variants. Targets: handling, handlingOffRoad (ground vehicles; now filled), speed (cruise; max in notes), body, armor (SR1 x3, p.283), signature, autonav (crewed) / pilot (drones) from APilot, sensor (the Sensor Package's rating), cost, cargo (Storage + Cargo; trucks: standard load), seating; economy and fuel/power in the notes; the rest in notes. Access (doors and hatches) is not carried: no rule reads it.
 
 **Passes:** Codex blind pass, 105 rows over 56 pages; every difference read from the render.
 
@@ -71,7 +76,17 @@ unchanged, and a script checked that only stat fields, notes and the corrected n
 - Leyland-Rover Transport (Electric / Internal Combustion) p.29: priced and sized with the Enclosed-Box cab (chassis 25,000/30,000¥ + 15,000¥ cab, 90 CF), as the identity map pairs them; the chassis-only price is in the notes.
 - Trucks (Ares Roadmaster, GMC 4201, Conestoga Trailblazer, GMC-Nissan Hovertruck): cargo is the printed Standard Load / rear flat container, not the cab storage.
 - OPEN: Bergen (Cargo Module) p.36 prints no APilot (the cost sits under that heading); the module ships APilot 2. Kept; needs a ruling or a photo.
-- Seating, access, economy and fuel text were not diffed field by field (notes text); spot-checked on the adjudicated pages.
+- Seating, economy, fuel/power, cargo (both the Storage and the Cargo line) and sensor were diffed for all 69 after code review round 1 (the first diff had read only Storage and skipped sensor); the differences are fixed below under 'Code review round 1'. The 3220 ZX Turbo's economy (45 km/L) was a Codex row mix-up. The Dolphin II and Classique print no Seating line; their seating comes from the prose (deck seating for five; twelve passengers).
+- Doberman p.85: Sensor Package 'Advanced' with no rating; 3, as the Wandjina's printed Advanced (3).
+
+**Fixed in code review round 1:**
+- Sikorsky-Bell Red Ranger p.75: cargo 10 CF (was 30); economy 0.5 km/L (notes said 5); wheels-engaged economy 2 km/L added.
+- Surfstar Marine Seacop p.67: cargo 10 CF (was 12); the description's 'EnviroSeal cabin' is the book's 'completely enclosed cabin'.
+- Ferrari Appaloosa p.90: sensor 6, Military I (6) (was 4); ECM/ECCM Military I (4)/Military I (4).
+- Aztechnology Aguilar-EX p.94: sensor 7, Military II (7) (was 4); economy 1 km/L (2 PF/km under the electric drive).
+- Nordkapp-Conestoga Bergen (Cargo Module) p.36: fuel 1,000 L (notes said 2,000, the Command Module's); economy 4 km/L.
+- Zemlya-Poltava Swordsman p.42: fuel IC/50 L (notes said 75).
+- Dalmatian (50 L, 15 km/L), Dalmatian (Armed) (12 km/L), Wandjina (MultiF/350 L, 3 km/L; 30 L/km in stealth mode), Doberman (25 L, 20 km/L): fuel and economy added to the notes.
 
 ### Fields of Fire — 8 vehicles, p.62-69 (PDF = book)
 
@@ -152,6 +167,7 @@ unchanged, and a script checked that only stat fields, notes and the corrected n
 
 **Kept / noted:**
 - Americar (security variant) keeps the catalogue 20,000¥ and stats, not QE's 80,000¥ / 45/135 / Body 3 / Armor 1 (ruling 2026-08-03).
+- PRC-42D Wasp: its notes had the D's Speed 65/100 and the 42B's 'Core book: Speed 65/130' line; the core line is replaced by the D's own (code review round 1).
 - Regenerating QE also changed six NPCs' item weights (system weapon catalogue drift); not part of the audit, so those files were left as committed.
 
 ## Existing world vehicles
@@ -162,7 +178,7 @@ delete it and drag it in again from the compendium, or edit the fields above by 
 Vehicles with a changed stat: all 32 core vehicles (they had the Rigger 2 numbers); the Queen Euphoria three; RBB:
 Tsarina (Multifuel), 3220 ZX Turbo, Papoose, Offroader, Pinto, Landrover 2046 (LWB), Bulldog (Bonded-Courier), Bergen
 (both modules), Ivan, Vacationer, Classique, Mistral (Float), LZ-2049, COP, Raven, Avenger, Microskimmer, Snooper,
-Wandjina, Doberman, Dalmatian (both); every RBB vehicle's autonav/pilot split; FoF: all 8; CSH: the TR-55s and Guardian;
+Wandjina, Doberman, Dalmatian (both), Red Ranger, Seacop, Appaloosa, Aguilar-EX; every RBB vehicle's autonav/pilot split; FoF: all 8; CSH: the TR-55s and Guardian;
 NAGRL: all 3; SSC: both.
 
 ## Open
