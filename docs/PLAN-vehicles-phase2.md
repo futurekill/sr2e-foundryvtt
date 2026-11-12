@@ -251,7 +251,7 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b — the rigger (R2 p.12–19), draft 2 (2026-11-12, after Codex 2b round 1)
+### 2b — the rigger (R2 p.12–19), draft 3 (2026-11-12, after Codex 2b rounds 1–2)
 _2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
 coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
 overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
@@ -291,9 +291,9 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
   THE RIG (the test's actual control mode: `rigged`, never manual/datajack — B1 #6), defaulting from Reaction or a
   Vehicle Skill/Concentration to a Vehicle Skill/Concentration takes +1 per web dot instead of +2 (Car → Motorboat, 4
   dots: +4 not +8); Reaction (attribute) default at half the attribute penalty (+2 for the core +4). Not to/from
-  non-vehicle skills (incl. Vehicle B/R). The web search must keep each candidate's SOURCE kind/key
-  (`_webDefaultForNode` returns it) and pick the best LEGAL path with the per-dot cost that applies to that path (a
-  path through a non-vehicle node costs +2 for every dot). `_vehicleSkill(vehicle, { mode })` takes the mode; callers
+  non-vehicle skills (incl. Vehicle B/R). p.12 restricts the SOURCE and the DESTINATION, not the nodes in between
+  (B2 #1): the web search keeps each candidate's source kind/key (`_webDefaultForNode` returns it); a vehicle-skill or
+  Reaction source to a vehicle-skill destination costs +1 per dot along its whole path; every other source +2. `_vehicleSkill(vehicle, { mode })` takes the mode; callers
   without a mode (core Position/Crash) pass `riggedInto` as rigged. Existing return fields kept; pure helper + Vitest.
 - **Rigging versus decking** (p.16): a character with a working VCR who decks takes +1 to every TN while in the
   Matrix and their Hacking Pool is reduced by the VCR level (both Matrix rulesets; Otto: VR2 pool 4 → 2). Exempt when
@@ -315,7 +315,9 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
   the vehicle itself (datajack, or rigged into a non-drone vehicle). Rigging a drone (remote) never counts. The Driving
   Test dialog shows "in physical contact" defaulted from the mode, the GM may untick it; core vehicle tests use manual
   /rigged-non-drone.
-- `simsense-vertigo`: +1 to all TNs and −1 Initiative while operating a simsense device (rigging, decking).
+- `simsense-vertigo` (B2 #2): +1 to all TNs and −1 Initiative while operating a simsense device: automatically while
+  rigging (jacked in) or decking (`matrixMode`), and +1 on an attack that uses a smartlink; for anything else (display
+  links, simrigs, a smartlinked weapon held ready) a character toggle "Using simsense" applies both.
 - `sensitive-neural-structure` / `spike-resistance`: effective Willpower −1/−2 (value 2/4, never below 1) / +1 per 2
   points when resisting neural damage: black IC, dump shock (core + VR2), BTLs; rigger dump shock in Part 5. One helper
   `neuralWillpower(actor)` used by every such resistance roll (enumerated in the build).
@@ -348,30 +350,37 @@ clients install the same item).
 **2b.5 Maintenance overhead (p.18–19; release 2b-2).** Redesigned after B1 #1–#4.
 - **Months are GM-advanced**, world-wide: a hidden system setting `vehicleOverheadMonth` (integer, config: false), raised
   only by the GM's **Month ends** (Settings-free button in the GM's vehicle tools); month m's id is the integer.
-- **Stress this month** (B1 #4): a per-vehicle counter `flags.sr2e.overhead.stress` that the GM Stress op and
-  `recordEngineCheck` increase BY the positive delta in the SAME update as the Stress itself (never derived from
-  receipts or timestamps). Starts at 0 for every vehicle (legacy baseline = 0, stated).
+- **Stress this month** (B1 #4, B2 #3): a per-vehicle counter `flags.sr2e.overhead.stress` that EVERY Stress writer
+  increases by its positive delta in the SAME update as the Stress itself: the GM Stress op, `drivingResolve`'s Rule of
+  One, `recordEngineCheck`; decreases (overhaul, replacement) don't touch it. One helper builds the update, and a test
+  greps that no other code writes `system.stress`. Starts at 0 (legacy baseline = 0, stated).
 - **Cost value** (B1 #1): "the vehicle's base nuyen value plus the value of all its accessories and modifications" at
   their LISTED prices, not what was paid (Street Index, Availability): new `overheadValue(vehicle)` = the vehicle's
   listed cost (design and factory equipment included) + each installed aftermarket customization's list price
   (re-quoted without Street Index; never the receipt). `vehicleValue` (2a repairs, "total cost") is unchanged.
 - **Month ends** (GM, one vehicle-queue step per vehicle, idempotent by month id): writes
-  `flags.sr2e.overhead.months.<m> = {amount: ⌈value ÷ 100⌉ + 10 × stress, state: "due"}` and resets the counter; any
-  OLDER month still "due" becomes "missed" and adds 1 Stress (Stress op, eventId `overhead-missed-<m>`, counted in the
-  new month), once each.
+  `flags.sr2e.overhead.months.<m> = {amount: ⌈value ÷ 100⌉ + 10 × stress, paid: false, missed: false, tx: null}` and
+  resets the counter; any OLDER month not paid — reserved or not (B2 #6: reservation is separate from delinquency) —
+  gets `missed: true` and adds 1 Stress (eventId `overhead-missed-<m>`, counted in the new month), once each.
 - **Paying** (character sheet, Rigger 2; owner of a character the vehicle is linked to — B1 #2): the dialog lists due
   and missed months of the character's linked vehicles; Lifestyle discount (Middle 200, High 1,500, Luxury 3,000 per
   month, distributable — B1 #3: the character's use per month is `flags.sr2e.overheadDiscount.<m>`, capped at the
   lifestyle's allowance across split payments); Good Karma at 500¥ a point (`karma.current`, permanent spend).
-  Transaction `tx`: (1) GM op **reserve**: in each vehicle's queue, marks each chosen month `{state: "reserved", tx,
-  by}` if it is due/missed (else refuses that month); (2) the payer's `moneyQueue` writes ONE character update: nuyen
-  −X, `karma.current` −K, discount usage, and the receipt `flags.sr2e.overheadReceipts.<tx> = {months, amount, karma}`;
-  (3) GM op **settle**: months reserved by `tx` with a receipt → "paid". Recovery: the GM's pass on ready settles
-  reserved months whose receipt exists; the payer (or GM) may **release** a reservation without a receipt. A second
-  payer's reserve of the same month is refused (no double charge).
-- **Catch-up** (p.19): paying a MISSED month also requires paying the current due month in the same transaction, 1
-  Good Karma (in the receipt update), and a Vehicle B/R (4) Test by the payer's character: success → −1 Stress (Stress
-  op, eventId `overhead-catchup-<m>`), recorded on the month (`restored: true`), once.
+  Transaction `tx`: (1) GM op **reserve**, ALL OR NOTHING (B2 #5): each chosen month, vehicle by vehicle in its queue,
+  gets `tx` if unpaid and unreserved; if any is refused, the months already reserved by `tx` are freed (nothing was
+  charged) and the payment aborts; (2) inside the payer's `moneyQueue`, the receipt slot
+  `flags.sr2e.overheadReceipts.<tx>` is checked (a `released` marker → abort), then ONE character update: nuyen −X,
+  `karma.current` −K, discount usage, receipt `{months, amount, karma}`; (3) GM op **settle**: months reserved by `tx`
+  with a receipt → `paid`. Recovery: the GM's pass on ready settles reserved months whose receipt exists. **Release**
+  (B2 #4, the customization `cancelRequested` pattern): the GM or payer requests it; the PAYER'S money writer
+  acknowledges inside the same `moneyQueue`: no receipt → it writes `{released: true}` in the slot (so a charge that
+  hasn't run yet aborts), then the GM frees the months; a receipt → settle instead. A second payer's reserve of a
+  reserved month is refused (no double charge).
+- **Catch-up** (p.19; B2 #7, #8): a missed month is paid like any other, but the current month must be paid too —
+  already (its record `paid`) or in the same transaction. A PAID MISSED month then offers **Restore** until it
+  succeeds: each attempt spends 1 Good Karma (its own receipt in the payer's `moneyQueue`, ruling: Karma per attempt)
+  and makes a Vehicle B/R (4) Test; success → −1 Stress (Stress op, eventId `overhead-restore-<m>`) and the month's
+  `restored: true` in the same GM step. The overhead is never charged twice.
 - Josie's examples are three separate checks (B1 #11): 6,413 total; Middle → 6,213; 4 Karma (no lifestyle) → 4,413;
   Luxury → 3,413.
 - **Mechanic labour** (p.19): the repair job (2a.4) and the customization installation get an optional mechanic:

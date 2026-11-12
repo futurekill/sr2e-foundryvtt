@@ -171,3 +171,16 @@ records, a per-month Stress counter written with the Stress, reserve → charge 
 settle, recovery and release. 5: physical contact only (no remote drone). 6: `_vehicleSkill(vehicle, {mode})`, web paths
 keep their source. 7: existing MBW identity. 8: a new `electronic` context. 9: retry penalty on the worker per task and
 skill; partial results via a GM op. 10: per-tier text, pack corrected. 11: three separate checks.
+
+## Part 2b plan, round 2 — Codex (draft 2, fresh session): REVISE, 8 findings
+1. Invented rule: p.12 restricts source/destination, not intermediate web nodes. 2. Simsense Vertigo also covers
+smartlinks, display links. 3. `drivingResolve` writes Rule-of-One Stress outside the counter's paths. 4. Release can race
+an in-flight charge. 5. Partial reservation then a full charge. 6. Reserved months escape neglect. 7. Catch-up blocked
+when the current month is already paid. 8. A failed catch-up test leaves no way to retry.
+
+### Claude's response (draft 3)
+All taken: source/destination only (1); vertigo automatic while rigging/decking and on smartlink attacks, a toggle for the
+rest (2); one Stress-update helper for every writer, with a grep test (3); release acknowledged by the payer's money
+writer, which marks the slot `released` (the customization cancel pattern) (4); all-or-nothing reserve (5); missed is
+independent of reservation (6); the current month may already be paid (7); a paid missed month keeps a Restore action,
+1 Good Karma per attempt (ruling) (8).
