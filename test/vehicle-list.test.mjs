@@ -55,6 +55,8 @@ describe("reconcileFactory", () => {
     const a = [{ _id: "x", name: "Thermal Baffles", system: { rating: 1, custom: {} } }];
     expect(factorySignature(a, want)).not.toBe(factorySignature([{ ...a[0], system: { rating: 3, custom: {} } }], want));
     expect(factorySignature([...a, { _id: "y", name: "Other", system: {} }], want)).toBe(factorySignature(a, want));
+    const two = [fac("Thermal Baffles", 1), fac("Electronics Port", 1)];
+    expect(factorySignature([{ ...a[0], name: "Electronics Port" }], two)).not.toBe(factorySignature(a, two));   // a rename
   });
   it("an adopted legacy item takes the family metadata so Customize can group it", () => {
     const legacy = { _id: "x", name: "Turbocharging", type: "vehicle_mod", system: { rating: 2, modKey: "", stack: "", custom: {} } };
@@ -68,6 +70,13 @@ describe("reconcileFactory", () => {
     expect(r.mark).toEqual([]);
     expect(r.create.map(i => i._id)).toEqual(["tb"]);
     expect(reconcileFactory([legacy, ...r.create], want, { keepAmbiguous: true })).toEqual({ create: [], mark: [], ambiguous: [] });
+  });
+  it("a kept legacy item holding the entry's _id doesn't take precedence over the factory copy made beside it", () => {
+    const want = [fac("Thermal Baffles", 1, "tb")];
+    const legacy = { _id: "tb", name: "Thermal Baffles", type: "vehicle_mod", system: { rating: 3, custom: {} } };
+    const copy = { ...fac("Thermal Baffles", 1, "fresh") };
+    for (const keepAmbiguous of [true, false])
+      expect(reconcileFactory([legacy, copy], want, { keepAmbiguous })).toEqual({ create: [], mark: [], ambiguous: [] });
   });
 });
 

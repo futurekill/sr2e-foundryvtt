@@ -67,12 +67,15 @@ export function reconcileFactory(items = [], factory = [], { keepAmbiguous = fal
   for (const wanted of byKey.values()) {
     const name = wanted[0].name;
     const type = wanted[0].type ?? "vehicle_mod";
-    const free = items.filter(i => (i.type ?? "vehicle_mod") === type && i.name === name && !i.system?.custom?.receipt?.id)
-      .sort((a, b) => (b.system?.custom?.state === "factory") - (a.system?.custom?.state === "factory"));   // factory first: idempotent
-    // An item that is this entry (same _id) pairs with it first, so deleting one of two copies restores THAT copy.
-    const pair = new Map();
-    for (const f of wanted) { const j = free.findIndex(i => i._id === f._id); if (j >= 0) pair.set(f, free.splice(j, 1)[0]); }
-    for (const f of wanted) if (!pair.has(f) && free.length) pair.set(f, free.shift());
+    const free = items.filter(i => (i.type ?? "vehicle_mod") === type && i.name === name && !i.system?.custom?.receipt?.id);
+    // Factory items pair first (idempotent, even after "keep as aftermarket"); within each tier the entry's own _id first,
+    // so deleting one of two copies restores THAT copy.
+    const pair = new Map(), isFactory = (i) => i.system?.custom?.state === "factory";
+    const take = (ok) => { for (const f of wanted) if (!pair.has(f)) { const j = free.findIndex(i => ok(i, f)); if (j >= 0) pair.set(f, free.splice(j, 1)[0]); } };
+    take((i, f) => isFactory(i) && i._id === f._id);
+    take(isFactory);
+    take((i, f) => i._id === f._id);
+    take(() => true);
     for (const f of wanted) {
       const i = pair.get(f);
       if (!i) { create.push(f); continue; }
@@ -94,7 +97,7 @@ export function reconcileFactory(items = [], factory = [], { keepAmbiguous = fal
 /** What reconciliation reads from a vehicle's items, to detect equipment edited after the update window was built. */
 export const factorySignature = (items = [], factory = []) => {
   const names = new Set(factory.map(f => f.name));
-  return JSON.stringify(items.filter(i => names.has(i.name)).map(i => [i._id, i.type, i.system?.rating ?? null,
+  return JSON.stringify(items.filter(i => names.has(i.name)).map(i => [i._id, i.name, i.type, i.system?.rating ?? null,
     i.system?.custom?.state ?? "", i.system?.custom?.receipt?.id ?? "", i.system?.modKey ?? "", i.system?.stack ?? ""]).sort());
 };
 

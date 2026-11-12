@@ -90,3 +90,20 @@ VERDICT: REVISE
   type+name, so a weapon pairs only with a weapon and is never marked. Validator, --check and Vitest cover it.
 - P2 null system accepted: hasDesign/statChanges take null.
 Vitest 1,566; Quench sr2e.vehicles 18/18; live: an imported Liebre has its minigun and isn't offered again.
+
+## Code round 2 — Codex (fresh session; the R1 fix only: 919b2d1, R2 32263dd)
+Two findings remain:
+
+- **P2 — `module/rules/vehicle-list-rules.mjs:74`: ID-first pairing breaks “keep as aftermarket” idempotency.** On Patrol-1, retain a non-factory Thermal Baffles item at another rating with the expected factory ID. “Keep” creates a factory copy with a fresh ID, but subsequent reconciliation prioritizes the retained original again. Every “keep” adds another copy; “adopt” instead overwrites the retained rating despite the factory copy already existing. **Fix:** Pair factory-state items first, using deterministic IDs within that priority, before considering aftermarket items.
+
+- **P2 — `module/rules/vehicle-list-rules.mjs:97`: Equipment signatures omit names used for pairing.** Open a Patrol-1 update candidate, then rename Thermal Baffles to Electronics Port. Both names belong to its factory list, so the signature remains identical. Applying proceeds and creates replacement Thermal Baffles without reviewing the changed equipment. Reproduced against the shipped row. **Fix:** Include `i.name` in each signature entry.
+
+The null handling, missing-mount restoration, and included-weapon changes close their specific cases. Generator checks pass for 169 rows; pack validation passes. No files modified.
+
+VERDICT: REVISE
+
+### Claude's response
+- Both accepted. Pairing is now tiered: factory items by the entry's _id, then factory items in order, then others by
+  _id, then the rest; a kept legacy item holding the entry's _id no longer outranks the factory copy (Vitest, both choices).
+- factorySignature includes the item name (a rename between two factory names is caught; Vitest).
+Vitest 1,567; Quench sr2e.vehicles 18/18.
