@@ -1106,4 +1106,8 @@ If those five all work, the core loop is healthy.
 - [ ] Actors sidebar → **Rigger 2 stats** (GM): lists old world vehicles and unlinked tokens with their changes;
       untick one, apply: only the ticked change. Edit a listed vehicle while the window is open, then apply: it's
       skipped with "edited since the list was built". A Workshop design never appears.
+- [ ] A vehicle with an older Thermal Baffles 3 item: the window leaves it unticked with adopt/keep; "keep" leaves the
+      item and adds factory Thermal Baffles 1; reopening the window doesn't offer the vehicle again. A bought
+      customization is never changed.
+- [ ] Import the Liebre RPV: it has the Vanquisher minigun with 1,000 rounds; the Halcón has no weapons.
 - [ ] Rigger 2 off: no button, imports keep their compendium stats.
