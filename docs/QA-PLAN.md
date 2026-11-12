@@ -38,7 +38,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Condition monitors show **10 boxes** each (Physical & Stun); wound thresholds at 1/3/6/10.
 - [ ] Set a metatype (e.g. Troll) — racial modifiers and maximums apply.
 - [ ] Add skills from the **Skills** compendium; ratings editable, save on blur.
-- [ ] Dice pools (Combat / Magic / Hacking / Control / Karma) display and compute.
+- [ ] Dice pools (Combat / Magic / Hacking / Control / Karma) display and compute. Hacking under VR2.0 = ⌊(Int + MPCP) ÷ 3⌋ (Int 4, MPCP 8 → 4); no deck → 0.
 - [ ] Edit name/bio/notes — prose-mirror notes save on blur, no data loss on re-open.
 
 ## 1a. Character creation — priority table

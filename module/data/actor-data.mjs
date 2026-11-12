@@ -20,7 +20,7 @@ import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass, secondhandDead } from "../rules/sr2e-rules.mjs";
+import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass, secondhandDead } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -67,6 +67,18 @@ export function deckModeFields() {
 function withdrawalStun(system) {
   const stun = system.conditionMonitor.stun.value;
   return substancesOf(system.parent).penalty === "withdrawal" ? Math.max(stun, 3) : stun;
+}
+
+/**
+ * Set a dice pool's maximum, keeping the dice already spent (a first max of 0 = nothing spent yet).
+ * pool.bonus = Active Effect contributions (e.g. Combat Sense).
+ */
+function applyPoolMax(pool, newMax) {
+  if (!pool) return;
+  const total = Math.max(0, newMax + (pool.bonus ?? 0));
+  const spent = pool.max > 0 ? Math.max(0, pool.max - pool.value) : 0;
+  pool.max = total;
+  pool.value = Math.max(0, total - spent);
 }
 
 export class CharacterData extends SR2EDataModel {
@@ -553,6 +565,7 @@ export class CharacterData extends SR2EDataModel {
     // Inject skills from slotted skillsofts (must run after skill items are
     // prepared, so an override reads the real native rating first).
     this._applySkillsofts();
+    this._calculateHackingPool();
 
     // Physical-adept Improved Ability: add each power's levels to its named skill
     // as a derived bonus (rolled, not paid with skill points).
@@ -1478,15 +1491,7 @@ export class CharacterData extends SR2EDataModel {
     // When a pool is first initialised its saved max is 0; treat that as
     // "full" (no dice spent yet).  Once we have persisted a non-zero max we
     // can derive spent = savedMax - savedValue and carry it forward.
-    const applyPool = (pool, newMax) => {
-      // pool.bonus = Active Effect contributions (e.g. Combat Sense spell)
-      const total = Math.max(0, newMax + (pool.bonus ?? 0));
-      const savedMax   = pool.max;
-      const savedValue = pool.value;
-      const spent = savedMax > 0 ? Math.max(0, savedMax - savedValue) : 0;
-      pool.max   = total;
-      pool.value = Math.max(0, total - spent);
-    };
+    const applyPool = applyPoolMax;
 
     // Combat Pool = floor((Quickness + Intelligence + Willpower) / 2), less
     // 1 die per point of heavy-armor Ballistic over Quickness (SR2E p.84).
@@ -1535,20 +1540,20 @@ export class CharacterData extends SR2EDataModel {
       applyPool(this.dicePools.control, naturalReaction + 2 * this.vehicleControlRig);
     }
 
-    // Hacking Pool = Computer Skill + Reaction (SR2E p.84: "equal to his or her
-    // Computer Skill … plus the character's Reaction")
-    if (this.cyberdeck.mpcp > 0) {
-      let computerSkill = 0;
-      if (this.parent?.items) {
-        for (const item of this.parent.items) {
-          if (item.type === "skill" && item.name.toLowerCase() === "computer") {
-            computerSkill = item.system.rating;
-            break;
-          }
-        }
-      }
-      applyPool(this.dicePools.hacking, computerSkill + this.reaction.value);
-    }
+  }
+
+  /**
+   * Hacking Pool, after the active deck is snapshotted (its MPCP) and skillsofts are applied. Core (SR2E p.84):
+   * Computer Skill + Reaction. VR2.0 (p.18): ⌊(Intelligence + MPCP) ÷ 3⌋, Intelligence with its cyberware and magic
+   * increases (the optional Multiple Improvements rule isn't modelled). No deck → 0 (assigned both ways).
+   * @private
+   */
+  _calculateHackingPool() {
+    const mpcp = this.cyberdeck?.mpcp ?? 0;
+    if (!(mpcp > 0)) return applyPoolMax(this.dicePools.hacking, 0);
+    if (isVR2()) return applyPoolMax(this.dicePools.hacking, vr2HackingPool(this.intelligence.value, mpcp));
+    const computerSkill = this.parent?.items?.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system.rating ?? 0;
+    applyPoolMax(this.dicePools.hacking, computerSkill + this.reaction.value);
   }
 
   /**

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.147.1 — 2026-11-12
+
+### Fixed
+- **VR2.0 Hacking Pool** is (Intelligence + MPCP) ÷ 3, rounded down (VR2.0 p.18). Under the VR2.0 Matrix ruleset it
+  was still the core Computer + Reaction. The pool is also now worked out after the active deck's MPCP is read, and
+  drops to 0 when the character has no deck.
+
 ## 0.147.0 — 2026-11-12
 
 ### Added

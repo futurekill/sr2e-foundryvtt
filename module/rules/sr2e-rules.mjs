@@ -4456,3 +4456,8 @@ export function drugTnFor(specs, ctx = {}) {
 
 /** A stimulant's second dose runs at half effect: bonuses halved (round down), penalties kept (p.85). */
 export const halveBonus = (v) => v > 0 ? Math.floor(v / 2) : v;
+
+/** VR2.0 Hacking Pool (VR2.0 p.18): ⌊(Intelligence + MPCP) ÷ 3⌋. */
+export function vr2HackingPool(intelligence, mpcp) {
+  return Math.max(0, Math.floor(((Number(intelligence) || 0) + (Number(mpcp) || 0)) / 3));
+}

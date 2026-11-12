@@ -11453,6 +11453,15 @@ export function registerSR2EQuenchTests() {
       });
 
       describe("derived data", () => {
+        it("the Hacking Pool is ⌊(Intelligence + MPCP) ÷ 3⌋ (VR2.0 p.18), not Computer + Reaction", async function () {
+          const a = await decker("Quench VR2 Hacking Pool", { mpcp: 8 });
+          await a.update({ "system.intelligence.base": 4 });
+          assert.equal(a.system.intelligence.value, 4);
+          assert.equal(a.system.dicePools.hacking.max, 4, "Otto, Rigger 2 p.17: (4 + 8) ÷ 3");
+          await a.update({ "system.cyberdeck.mpcp": 0 });
+          assert.equal(a.system.dicePools.hacking.max, 0, "no deck: no pool (cleared)");
+        });
+
         it("an unloaded persona program gives the authored value back (second preparation)", async function () {
           const a = await decker("Quench VR2 Persona");
           const [m] = await a.createEmbeddedDocuments("Item", [{ name: "Masking", type: "program", system: { rating: 5, loaded: true, category: "persona" } }]);
