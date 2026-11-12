@@ -217,3 +217,11 @@ advance another month.
 ### Claude's response (draft 7)
 Both taken: every accessory at its listed cost except design/factory items (1); Month ends carries the expected month,
 advanced by one GM queue only if it still matches (2).
+
+## Part 2b plan, round 7 — Codex (draft 7, fresh session): REVISE, 2 findings
+1. An encephalon-only chip would apply to manual/datajack Driving Tests (skillsofts apply globally). 2. Two characters'
+concurrent Restore attempts can both spend Karma.
+
+### Claude's response (draft 8)
+Both taken: the chip keeps `viaEncephalon` provenance and counts only in rigged mode (1); Restore attempts are reserved
+in the vehicle queue before the Karma is spent, freed on failure, recovered by receipt (2).

@@ -251,7 +251,7 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b — the rigger (R2 p.12–19), draft 7 (2026-11-12, after Codex 2b rounds 1–6)
+### 2b — the rigger (R2 p.12–19), draft 8 (2026-11-12, after Codex 2b rounds 1–7)
 _2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
 coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
 overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
@@ -313,7 +313,9 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
 - **Encephalon and skillsofts** (p.17): a rigger with an encephalon may run Driving (vehicle) activesofts without
   skillwires, only while rigging. `skillsoft` capacity code gets that exception for vehicle-skill activesofts, AND
   `_vehicleSkill` resolves the skill the way skill tests do — a chipped (synthetic) vehicle skill counts — so the chip is
-  actually rolled (B4 #1; this also covers skillwire users today). Test: an encephalon rigger with no native skill and
+  actually rolled (B4 #1; this also covers skillwire users today). A chip running ONLY by the encephalon exception
+  keeps that provenance (`viaEncephalon`) and is never applied globally: `_vehicleSkill(vehicle, { mode })` uses it
+  only when the test's mode is `rigged` (B7 #1); manual/datajack tests see the native skill (or default). Test: an encephalon rigger with no native skill and
   no skillwires rolls the chip's rating while rigging and defaults otherwise.
 - **Reflex recorder** (p.17): no effect on a Driving skill while controlling by VCR. The system doesn't automate
   reflex recorders today — verify; if it does, suppress while `riggedInto`.
@@ -400,8 +402,11 @@ clients install the same item).
   reserved month is refused (no double charge).
 - **Catch-up** (p.19; B2 #7, #8): a missed month is paid like any other, but the current month must be paid too —
   already (its record `paid`) or in the same transaction. A PAID MISSED month then offers **Restore** until it
-  succeeds: each attempt spends 1 Good Karma (its own receipt in the payer's `moneyQueue`, ruling: Karma per attempt)
-  and makes a Vehicle B/R (4) Test; success → −1 Stress (Stress op, eventId `overhead-restore-<m>`) and the month's
+  succeeds: each attempt is RESERVED first on the month in the vehicle's GM queue (`restoreTx`, refused while another
+  attempt holds it — B7 #2), then spends 1 Good Karma (its own receipt in the payer's `moneyQueue`, ruling: Karma per
+  attempt; an existing receipt = already spent) and makes a Vehicle B/R (4) Test; failure frees the reservation for the
+  next attempt; a reservation with a receipt but no result is recovered by the GM pass (the test is re-asked, the Karma
+  not re-spent); success → −1 Stress (Stress op, eventId `overhead-restore-<m>`) and the month's
   `restored: true` in the same GM step. The overhead is never charged twice.
 - Josie's examples are three separate checks (B1 #11): 6,413 total; Middle → 6,213; 4 Karma (no lifestyle) → 4,413;
   Luxury → 3,413.
