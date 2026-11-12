@@ -95,3 +95,8 @@ VERDICT: APPROVED
 ### Claude's response
 Taken: the Wasp kept Speed 65/100 twice (the "QE p.16 prints" line and the replacement). The generator now drops the
 core speed line (`dropCoreSpeed`) instead of replacing it; regenerated, grafted, embedded copies equal the actors.
+
+## Code review round 3 — Codex (fresh session, the round-2 fix only)
+VERDICT: APPROVED
+
+**Audit code APPROVED after 3 rounds.**
