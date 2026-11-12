@@ -153,3 +153,6 @@ precheck reads the stale document and the secret check records permanent Stress 
 ### Claude's response
 Taken: the precheck re-reads the item inside the queue and requires the same attempt id; both legacy paths check the
 item still exists too.
+
+## Part 2a code, round 3 — Codex (fix 17aa974 only, fresh session): APPROVED
+"No material defects found in the scoped commit." Part 2a code converged after 3 rounds.

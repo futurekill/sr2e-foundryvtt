@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.147.0 — 2026-11-12
 
 ### Added
 - **Vehicle ruleset setting** (world, reloads every client; docs/PLAN-vehicles-phase2.md Part 2): *Core Rulebook*
@@ -11,7 +11,8 @@
   - **Drive** (Vehicles tab) is the **Driving Test** (p.20–21): manual, datajack (−1) or rigged (−2 per rig level,
     Control Pool) control; the Driving Test Modifiers Table; the vehicle's Autonav adds dice; push the vehicle for
     extra dice at 2 Stress each (at most its Body). A drone with nobody controlling it drives itself on its Pilot
-    (vehicle sheet). After any Karma, **Resolve** applies Stress: a failed test gets the GM's Stress Test, the Rule
+    (vehicle sheet); one a rigger controls is driven by the rigger. Anyone the vehicle is linked to can drive it and
+    pay its Stress. After any Karma, **Resolve** applies Stress (the GM settles it against the live Stress): a failed test gets the GM's Stress Test, the Rule
     of One adds 1D6 Stress, and a system failure asks for a Crash Test (p.26).
   - **Stress** on the vehicle sheet and Vehicles tab, with **Exceed speed** (+1), the GM's **Stress Test**, and a
     **maintenance overhaul** in a Vehicle Facility (p.26).

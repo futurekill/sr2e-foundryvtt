@@ -120,6 +120,31 @@
       }
     },
     {
+      "_id": "a3bb81ee4ccf9902",
+      "name": "Drive by the Rigger 2 rules",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> Driving Tests, Stress and repairs by <em>Rigger 2</em> (pp.20–26) instead of the core vehicle chapter.</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-r2-drive.png\" alt=\"The vehicle sheet's Rigger 2 panel, and a resolved Driving Test that hit the Stress Rule of One\"></p>\n<p><strong>The GM, once</strong></p>\n<ol>\n<li><strong>Game Settings → Configure Settings → Shadowrun 2E → Vehicle ruleset: Rigger 2.</strong> Every client reloads.\nVehicle combat (Position, Crash, Ram) stays the core rules for now, labelled &quot;core&quot;.</li>\n</ol>\n<p><strong>Driving</strong></p>\n<ol>\n<li><strong>Vehicles tab → Drive</strong> on the vehicle. Pick the control mode (manual, datajack −1, rigged −2 per rig level) and\ntick the Driving Test Modifiers that apply. The vehicle&#39;s Autonav adds dice; riggers can add Control Pool.</li>\n<li><strong>Push it</strong> for extra dice if you must: 2 Stress per die, at most the vehicle&#39;s Body in Stress.</li>\n<li>Spend any Karma on the roll, then click <strong>Resolve</strong> on the card. A failed test gets the GM&#39;s Stress Test; as many\n1s as your skill adds 1D6 Stress; a system failure asks for a Crash Test.</li>\n<li>A drone nobody is rigging drives itself: <strong>Drive (Pilot)</strong> on the drone&#39;s sheet.</li>\n</ol>\n<p><strong>Wear and repair</strong> (vehicle sheet, Rigger 2 panel)</p>\n<ul>\n<li><strong>Exceed speed:</strong> +1 Stress for going past the Speed Rating (at most ×1.5).</li>\n<li><strong>Stress Test</strong> (GM): 2D6 against Stress whenever the vehicle runs.</li>\n<li><strong>Overhaul:</strong> in a Vehicle Facility, Build/Repair against Stress + 4; every 2 successes remove 1 Stress (never below 1).</li>\n<li><strong>Repair:</strong> click it once per step: quote (TN boxes + 2, parts 5% of the vehicle&#39;s cost a box), parts arrive, the\nBuild/Repair Test sets the hours, then <strong>Finish</strong> (or take it back mid-repair and resume later).</li>\n</ul>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>Engine customizations can fail (p.120, both rulesets): the GM gets a secret check when one is finished or added in\nthe Workshop, and a failure adds permanent Stress. Only <strong>Factory engine</strong> (GM) removes it. Engines customized\nbefore 0.147.0: the GM clicks <strong>Check engine</strong> once.</li>\n<li>The Whiz Kid example on p.21 prints TN 8, but its rows add up to 7; the system uses the table.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "2ee6f48dadf6f3ab",
       "name": "Set up a Matrix jackpoint",
       "type": "text",
@@ -134,7 +159,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },

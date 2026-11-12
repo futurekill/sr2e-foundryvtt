@@ -238,7 +238,13 @@ Vehicles in play (`module/vehicle-play.mjs`, rules `module/rules/vehicle-play-ru
 per-vehicle queue, receipt at `flags.sr2e.vdmg.<eventId>` or the caller's path; it fires the p.107 crash triggers) —
 never `vehicle.update` the monitor directly. Players reach the GM through `gmCall` over the system socket. Control Pool
 is spent only on `isPoolClient(actor)` via `spendPool` / `spendPosition` (the actor's pool queue), passed to
-`rollSuccessTest` as `paidPoolDice`. Rigger 2's own in-play rules come later behind a `vehicleRuleset` setting.
+`rollSuccessTest` as `paidPoolDice`.
+Rigger 2 operations (0.147.0, Part 2a; `isRigger2()` from `module/vehicle-mode.mjs`, rules `module/rules/vehicle-r2-rules.mjs`):
+EVERY Stress change goes through the GM op `stress` (receipt `flags.sr2e.vstress.<eventId>`, floor = permanent Stress;
+overhauls pass `overhaulSuccesses` so removal is computed on the live value). A Driving Test is resolved ONLY by the GM
+op `drivingResolve` (claim + roll + Stress in the vehicle queue). Permanent Stress = the sum of `flags.sr2e.engineStress`
+records; only `replaceEngine` (GM op) removes them. Workshop saves that add engine levels write
+`flags.sr2e.pendingEngineChecks.<id>` in the same update; `gmEnginePass` resolves them. Speed is never rewritten.
 Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the
