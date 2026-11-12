@@ -75,7 +75,7 @@ unchanged, and a script checked that only stat fields, notes and the corrected n
 **Kept / noted:**
 - Leyland-Rover Transport (Electric / Internal Combustion) p.29: priced and sized with the Enclosed-Box cab (chassis 25,000/30,000¥ + 15,000¥ cab, 90 CF), as the identity map pairs them; the chassis-only price is in the notes.
 - Trucks (Ares Roadmaster, GMC 4201, Conestoga Trailblazer, GMC-Nissan Hovertruck): cargo is the printed Standard Load / rear flat container, not the cab storage.
-- OPEN: Bergen (Cargo Module) p.36 prints no APilot (the cost sits under that heading); the module ships APilot 2. Kept; needs a ruling or a photo.
+- Bergen (Cargo Module) p.36: a photo of the book (2026-11-12) confirms no APilot is printed (the cost sits under that heading): autonav 0 (was 2); cargo 1,005 = 5 CF storage + 1,000 CF cargo (was 1,000); notes add the 5/10 local-control speed. RBB 0.6.3.
 - Seating, economy, fuel/power, cargo (both the Storage and the Cargo line) and sensor were diffed for all 69 after code review round 1 (the first diff had read only Storage and skipped sensor); the differences are fixed below under 'Code review round 1'. The 3220 ZX Turbo's economy (45 km/L) was a Codex row mix-up. The Dolphin II and Classique print no Seating line; their seating comes from the prose (deck seating for five; twelve passengers).
 - Doberman p.85: Sensor Package 'Advanced' with no rating; 3, as the Wandjina's printed Advanced (3).
 
@@ -182,8 +182,6 @@ Wandjina, Doberman, Dalmatian (both), Red Ranger, Seacop, Appaloosa, Aguilar-EX;
 NAGRL: all 3; SSC: both.
 
 ## Open
-- **Bergen (Cargo Module)** (RBB p.36) prints no APilot (its cost sits under that heading); it keeps APilot 2. A ruling
-  or a photo of the book settles it.
 - **Phase 2:** the Rigger 2 list's single Speed is that book's figure (Patrol-1: 180, the core book's maximum), while
   core-format packs hold the cruising speed (60); the crash rules read `speed` as cruising speed. Rigger 2's own
   cruising-speed rule decides how an R2-stat vehicle's crash Power is worked out.
