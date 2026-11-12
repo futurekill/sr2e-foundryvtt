@@ -195,3 +195,11 @@ mid-way.
 All taken. 1: natural Quickness under rigger2. 2: confirmed at 300 dpi; an existing VR2.0 bug, fixed in its own patch
 release before 2b. 3: the rule is derived (`qualityRule`, explicit field then pack UUIDs) plus a selector. 4: an existing
 receipt skips to settle. 5: per-vehicle `assessedThrough`; advance only when all are current; ready pass resumes.
+
+## Part 2b plan, round 4 — Codex (draft 4, fresh session): REVISE, 2 findings
+1. An encephalon's chipped Driving skill never reaches `_vehicleSkill` (embedded skills only). 2. The B/R retry counter
+and the partial result are separate commits (lost or unmatched penalties).
+
+### Claude's response (draft 5)
+Both taken: `_vehicleSkill` resolves chipped skills as skill tests do (1); the penalty is derived from failure records
+written with the partial result in one GM-queue update, keyed by test (2).

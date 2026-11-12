@@ -251,7 +251,7 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b — the rigger (R2 p.12–19), draft 4 (2026-11-12, after Codex 2b rounds 1–3)
+### 2b — the rigger (R2 p.12–19), draft 5 (2026-11-12, after Codex 2b rounds 1–4)
 _2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
 coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
 overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
@@ -311,7 +311,10 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
   existing VR2.0 bug, fixed in its own patch release BEFORE 2b (Intelligence with ware/magic increases; the optional
   Multiple Improvements rule and Task Pool dice are noted, not built). Otto's 4 → 2 is an actor-level test.
 - **Encephalon and skillsofts** (p.17): a rigger with an encephalon may run Driving (vehicle) activesofts without
-  skillwires, only while rigging. `skillsoft` capacity code gets that exception for vehicle-skill activesofts.
+  skillwires, only while rigging. `skillsoft` capacity code gets that exception for vehicle-skill activesofts, AND
+  `_vehicleSkill` resolves the skill the way skill tests do — a chipped (synthetic) vehicle skill counts — so the chip is
+  actually rolled (B4 #1; this also covers skillwire users today). Test: an encephalon rigger with no native skill and
+  no skillwires rolls the chip's rating while rigging and defaults otherwise.
 - **Reflex recorder** (p.17): no effect on a Driving skill while controlling by VCR. The system doesn't automate
   reflex recorders today — verify; if it does, suppress while `riggedInto`.
 - **Improved datajacks** (Perception dice) → Part 4. **Cybermancy rigger-zombies** (p.18: lost in details on
@@ -347,9 +350,11 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
 
 **2b.4 Multi-skill Build/Repair tests (p.14).** When a task needs several B/R tests (customization installation):
 all must succeed; a passed test is KEPT and only the failed skill is rolled again, its TN +1 for each repeat. The
-penalty belongs to the WORKER, per task and skill (B1 #9): `flags.sr2e.brRetry.<itemId>.<skill> = {n, rating}` on the
-character (their owner's client writes it, in the same update as nothing else — it only ever grows), and it is ignored
-once that skill's rating exceeds the stored `rating` (the PC increased the skill); it outlives the item's attempts.
+penalty is DERIVED from durable failure records (B1 #9, B4 #2): every failed required test is recorded on the item as
+`custom.brFails.<testMessageId> = {worker, skill, rating}` in the SAME GM-queue update as the partial result (keyed by
+the test, so a replay adds nothing); the penalty for (worker, skill) = the number of its records whose `rating` ≥ the
+worker's current rating in that skill (a raised skill clears it). Records outlive attempts (only the partial results
+reset) and go with the item.
 Time reduction combines the successes of all required tests (as today). Any required test of all 1s = **disastrous
 failure**: the attempt ends, the card says so, the GM rules (parts stay unless the GM removes them). Partial results
 are committed through a GM op in the vehicle queue that checks the live item and attempt id (no lost update when two
