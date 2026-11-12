@@ -28,6 +28,7 @@ export function importChanges(data) {
     const i = items.find(x => x._id === m._id);
     foundry.utils.setProperty(i, "system.rating", m.rating);
     foundry.utils.setProperty(i, "system.custom.state", "factory");
+    foundry.utils.mergeObject(i, { system: { modKey: m.modKey, stack: m.stack } });
   }
   return { vehicleId: id.vehicleId, patch, items: [...items, ...foundry.utils.deepClone(create)], notes: withListNote(data.system?.notes ?? "", row.notes),
     stamp: { source: st.compendiumSource, page: row.page } };
@@ -61,7 +62,7 @@ export function updateCandidates() {
 }
 
 /** Apply one target, re-reading it first; returns "applied", or why it was skipped (R1 #9). */
-export async function applyCandidate(c) {
+export async function applyCandidate(c, { keepAmbiguous = false } = {}) {
   const actor = await fromUuid(c.uuid);
   if (!actor) return "gone";
   const src = actor.toObject();
@@ -71,10 +72,11 @@ export async function applyCandidate(c) {
     if (JSON.stringify(cur) !== JSON.stringify(v ?? null)) return "edited since the list was built";
   }
   const row = list().rows[c.vehicleId];
-  const fac = reconcileFactory(src.items, row.factory);
+  const fac = reconcileFactory(src.items, row.factory, { keepAmbiguous });
   await actor.update({ ...c.patch, "system.notes": withListNote(src.system.notes ?? "", row.notes),
     "flags.sr2e.vehicleId": c.vehicleId, "flags.sr2e.r2Stats": { source: src._stats?.compendiumSource ?? "", page: row.page, by: c.byName ? "name" : "identity" } });
-  if (fac.mark.length) await actor.updateEmbeddedDocuments("Item", fac.mark.map(m => ({ _id: m._id, "system.rating": m.rating, "system.custom.state": "factory" })));
+  if (fac.mark.length) await actor.updateEmbeddedDocuments("Item", fac.mark.map(m => ({ _id: m._id, "system.rating": m.rating, "system.custom.state": "factory",
+    "system.modKey": m.modKey, "system.stack": m.stack })));
   const missing = fac.create.filter(i => !actor.items.get(i._id));
   if (missing.length) await actor.createEmbeddedDocuments("Item", foundry.utils.deepClone(missing), { keepId: true });
   return "applied";
@@ -93,7 +95,9 @@ export async function openVehicleListUpdate() {
     const items = [...c.fac.create.map(i => `+ ${esc(i.name)}${i.system?.rating > 1 ? ` ${i.system.rating}` : ""}`),
       ...c.fac.mark.map(m => `${esc(m.name)} → factory${m.rating > 1 ? ` ${m.rating}` : ""}`)].join("; ");
     const flag = c.byName ? `<br><em>Matched by name only (${esc(c.rowName)}): check it's the same vehicle.</em>` : "";
-    const amb = c.fac.ambiguous.length ? `<br><em>Has ${esc([...new Set(c.fac.ambiguous)].join(", "))} at another rating: check before applying.</em>` : "";
+    const amb = c.fac.ambiguous.length ? `<br><em>Has ${esc([...new Set(c.fac.ambiguous)].join(", "))} at another rating:</em>
+      <select name="k${n}"><option value="adopt">adopt it as the factory equipment</option>
+      <option value="keep">keep it as aftermarket and add the factory equipment</option></select>` : "";
     return `<tr><td><input type="checkbox" name="c${n}" ${c.tick ? "checked" : ""}></td><td><strong>${esc(c.label)}</strong>${flag}${amb}</td>
       <td>${stats || "—"}</td><td>${items || "—"}</td></tr>`;
   }).join("");
@@ -101,10 +105,11 @@ export async function openVehicleListUpdate() {
     designed vehicles are never listed.</p><div style="max-height:60vh;overflow:auto"><table class="sr2e-vlist">
     <thead><tr><th></th><th>Vehicle</th><th>Stats</th><th>Factory equipment</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const picked = await foundry.applications.api.DialogV2.prompt({ window: { title: "Update vehicles to Rigger 2 stats" }, position: { width: 900 }, content,
-    ok: { label: "Update the ticked vehicles", callback: (ev, button) => cands.filter((c, n) => button.form.elements[`c${n}`]?.checked) } });
+    ok: { label: "Update the ticked vehicles", callback: (ev, button) => cands.flatMap((c, n) => button.form.elements[`c${n}`]?.checked
+      ? [{ c, keepAmbiguous: button.form.elements[`k${n}`]?.value === "keep" }] : []) } });
   if (!picked?.length) return;
   const results = [];
-  for (const c of picked) results.push([c.label, await applyCandidate(c).catch(err => (console.error(err), "failed"))]);
+  for (const { c, keepAmbiguous } of picked) results.push([c.label, await applyCandidate(c, { keepAmbiguous }).catch(err => (console.error(err), "failed"))]);
   const skipped = results.filter(([, r]) => r !== "applied");
   ui.notifications.info(`${results.length - skipped.length} vehicle(s) updated to Rigger 2 stats.`);
   if (skipped.length) ui.notifications.warn(`Skipped: ${skipped.map(([l, r]) => `${l} (${r})`).join("; ")}. Open the window again to review.`);

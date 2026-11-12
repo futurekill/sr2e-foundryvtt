@@ -36,3 +36,22 @@ VERDICT: REVISE
 ### Claude's response (draft 2)
 
 All 10 taken: factory reconciliation on import + update window (#1); canonical engine ids (#2); per-template Workshop chassis key → category/traits/transport/vehicleType/skill, validated against config (#3, #4); synthetic token actors per token (#5); shared hasDesign incl. legacy designs (#6); instance equipment as separate items (#7); id manifest keeps the 21 drones' _ids, generator removes stale files (#8); re-read and recheck before each write (#9); compendium import only (no duplicateSource, not stamped) (#10).
+
+## Round 2 — Codex (2026-11-11 20:33)
+1. **R1 #1 remains incomplete: resolved legacy items still lack usable family metadata.** [Reconciliation](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-vehicle-list.md:85) changes only state and rating. A legacy Turbocharging item resolved by name/source can retain an empty `modKey` and `stack`; `customizeContext` then blocks purchases as unresolved, and `applyModEffects` cannot group it with subsequent turbocharging levels.
+   **Fix:** When adopting an existing factory item, also normalize its canonical `modKey` and `stack`.
+
+2. **R1 #1’s ambiguity handling cannot preserve a purchased upgrade while updating the vehicle.** For a Patrol-1 with a purchased Turbocharging level, reconciliation offers to convert that purchase into factory Turbocharging 2. Accepting loses the aftermarket level (or prematurely installs purchased parts); declining leaves no specified way to add the separate factory baseline while retaining the purchase. Imports bypass even this review.
+   **Fix:** Preserve customization purchases by default and create separate factory entries; give ambiguous legacy matches an explicit “adopt as factory” versus “retain as aftermarket” choice.
+
+The other nine round-one responses close their stated findings at the plan level.
+
+VERDICT: REVISE
+
+### Claude's response
+- #1 accepted: a marked item now takes the catalog entry's `modKey`/`stack` (reconcileFactory returns them; import and
+  update window write them). Vitest: an adopted legacy Turbocharging gets `turbocharging`/`levels`.
+- #2 accepted in part: purchases already never pair (receipt from `parts` on) — the plan text was stale and now says so,
+  with the Patrol-1 example. Ambiguous legacy items get a per-vehicle adopt/keep select in the update window
+  (`keepAmbiguous`); imports adopt (compendium data, never purchases). Pairing now puts factory items first so "keep"
+  stays idempotent (Vitest).

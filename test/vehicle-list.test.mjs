@@ -6,7 +6,7 @@ import { hasDesign, listIdentity, statChanges, reconcileFactory, withListNote } 
 
 const LIST_FILE = "../sr2e-rigger-2/data/vehicle-list.json";
 const LIST = existsSync(LIST_FILE) ? JSON.parse(readFileSync(LIST_FILE, "utf8")) : null;
-const fac = (name, rating = 1, _id = name) => ({ _id, name, type: "vehicle_mod", system: { rating, custom: { state: "factory" } } });
+const fac = (name, rating = 1, _id = name, modKey = "", stack = "") => ({ _id, name, type: "vehicle_mod", system: { rating, modKey, stack, custom: { state: "factory" } } });
 
 describe("hasDesign", () => {
   it("a production vehicle has none; Workshop and legacy designs do", () => {
@@ -25,16 +25,29 @@ describe("reconcileFactory", () => {
       { _id: "b", name: "Turbocharging / Superconductive Drive", type: "vehicle_mod", system: { rating: 1, custom: { state: "done", receipt: { id: "b" } } } },
     ];
     const r = reconcileFactory(items, factory);
-    expect(r.mark).toEqual([{ _id: "a", rating: 1, name: "Pintle Mount" }]);
+    expect(r.mark).toEqual([{ _id: "a", rating: 1, name: "Pintle Mount", modKey: "", stack: "" }]);
     expect(r.create.map(i => i._id)).toEqual(["p2", "t"]);   // the bought turbo is never paired
     expect(r.ambiguous).toEqual([]);
-    const after = [{ ...items[0], system: { rating: 1, custom: { state: "factory" } } }, items[1], ...r.create];
+    const after = [{ ...items[0], system: { rating: 1, modKey: "", stack: "", custom: { state: "factory" } } }, items[1], ...r.create];
     expect(reconcileFactory(after, factory)).toEqual({ create: [], mark: [], ambiguous: [] });
   });
   it("an existing item at another rating is ambiguous (the GM decides)", () => {
     const r = reconcileFactory([{ _id: "x", name: "Thermal Baffles", type: "vehicle_mod", system: { rating: 3, custom: {} } }], [fac("Thermal Baffles", 1)]);
     expect(r.ambiguous).toEqual(["Thermal Baffles"]);
-    expect(r.mark).toEqual([{ _id: "x", rating: 1, name: "Thermal Baffles" }]);
+    expect(r.mark).toEqual([{ _id: "x", rating: 1, name: "Thermal Baffles", modKey: "", stack: "" }]);
+  });
+  it("an adopted legacy item takes the family metadata so Customize can group it", () => {
+    const legacy = { _id: "x", name: "Turbocharging", type: "vehicle_mod", system: { rating: 2, modKey: "", stack: "", custom: {} } };
+    const r = reconcileFactory([legacy], [fac("Turbocharging", 2, "t", "turbocharging", "levels")]);
+    expect(r.mark).toEqual([{ _id: "x", rating: 2, name: "Turbocharging", modKey: "turbocharging", stack: "levels" }]);
+  });
+  it("keepAmbiguous leaves the legacy item as aftermarket, adds the factory copy, and stays idempotent", () => {
+    const legacy = { _id: "x", name: "Thermal Baffles", type: "vehicle_mod", system: { rating: 3, custom: {} } };
+    const want = [fac("Thermal Baffles", 1, "tb")];
+    const r = reconcileFactory([legacy], want, { keepAmbiguous: true });
+    expect(r.mark).toEqual([]);
+    expect(r.create.map(i => i._id)).toEqual(["tb"]);
+    expect(reconcileFactory([legacy, ...r.create], want, { keepAmbiguous: true })).toEqual({ create: [], mark: [], ambiguous: [] });
   });
 });
 

@@ -54,25 +54,33 @@ export function statChanges(sys = {}, row) {
  * the row lists (n copies, each with a rating), the vehicle's existing items of that name are paired in order: a pair
  * becomes factory at the row's rating; missing copies are created; extra existing items stay (aftermarket). A bought
  * customization (it carries a receipt) is never paired. A pair whose rating differs and that isn't factory yet is
- * AMBIGUOUS (the update window asks). Idempotent: a reconciled vehicle gives nothing to do.
+ * AMBIGUOUS: by default it's adopted as factory; with `keepAmbiguous` it stays aftermarket and the factory copy is created
+ * beside it (the update window's per-vehicle choice). A marked item takes the row's family metadata (modKey, stack) too,
+ * so Customize can group it. Idempotent: a reconciled vehicle gives nothing to do.
  * items: [{ _id, name, system: { rating, custom: { state, receipt } } }]; factory: the row's factory item data.
- * Returns { create: [itemData], mark: [{ _id, rating, name }], ambiguous: [name] }.
+ * Returns { create: [itemData], mark: [{ _id, rating, name, modKey, stack }], ambiguous: [name] }.
  */
-export function reconcileFactory(items = [], factory = []) {
+export function reconcileFactory(items = [], factory = [], { keepAmbiguous = false } = {}) {
   const create = [], mark = [], ambiguous = [];
   const byName = new Map();
   for (const f of factory) { if (!byName.has(f.name)) byName.set(f.name, []); byName.get(f.name).push(f); }
   const used = new Set();
   for (const [name, wanted] of byName) {
-    const have = items.filter(i => i.type !== "weapon" && i.name === name && !i.system?.custom?.receipt?.id && !used.has(i._id));
+    const have = items.filter(i => i.type !== "weapon" && i.name === name && !i.system?.custom?.receipt?.id && !used.has(i._id))
+      .sort((a, b) => (b.system?.custom?.state === "factory") - (a.system?.custom?.state === "factory"));   // factory first: idempotent
     wanted.forEach((f, k) => {
       const i = have[k];
       if (!i) { create.push(f); return; }
-      used.add(i._id);
       const rating = Number(f.system?.rating ?? 1), cur = Number(i.system?.rating ?? 0), state = i.system?.custom?.state ?? "";
-      if (state === "factory" && cur === rating) return;
-      if (state !== "factory" && cur && cur !== rating) ambiguous.push(name);
-      mark.push({ _id: i._id, rating, name });
+      const modKey = f.system?.modKey ?? "", stack = f.system?.stack ?? "";
+      const meta = (i.system?.modKey ?? "") === modKey && (i.system?.stack ?? "") === stack;
+      if (state !== "factory" && cur && cur !== rating) {
+        ambiguous.push(name);
+        if (keepAmbiguous) { create.push(f); return; }   // it stays aftermarket
+      }
+      used.add(i._id);
+      if (state === "factory" && cur === rating && meta) return;
+      mark.push({ _id: i._id, rating, name, modKey, stack });
     });
   }
   return { create, mark, ambiguous };

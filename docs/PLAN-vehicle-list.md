@@ -83,10 +83,15 @@ already net); `vehicleCapacity` already skips factory/removed items.
 mounts", "2 mechanical arms") is N separate items, so mount points add up; only level families (turbocharging, thermal
 baffles, RAM, amphibious operation) and rated items (ECM/ECCM n) are one item with a rating.
 **Reconciliation (R1 #1):** the same reconciliation runs on import and in the update window: for each expected factory
-entry, an existing embedded item of the same family (resolveFamily) is marked `factory` instead of adding a duplicate
-(its rating set to the row's); extra existing items stay as they are (aftermarket); in the update window anything
-ambiguous (an existing item of the family with a different rating, or a customization purchase) is shown and needs the
-GM's tick. Idempotent: a second run changes nothing.
+entry, an existing embedded item of the same name is marked `factory` instead of adding a duplicate: its rating set to
+the row's AND its family metadata (`modKey`, `stack`) copied from the catalog entry, so Customize resolves and groups it
+(R2 #1). Extra existing items stay as they are (aftermarket). **A customization purchase (any item with a receipt, from
+`parts` on) is never paired**: the factory entry is created beside it, so a Patrol-1 with a bought Turbocharging level
+keeps it and gains the factory Turbocharging 2 (R2 #2). An **ambiguous** legacy item (same name, no receipt, another
+rating) is flagged in the update window, unticked, with a per-vehicle choice: *adopt it as the factory equipment*
+(default) or *keep it as aftermarket and add the factory equipment*. Imports adopt: an import's items are the
+compendium's own authored data (never purchases, which carry receipts and are excluded anyway). Idempotent: already-
+factory items pair first, so a second run (either choice) changes nothing.
 Weapons "not included" are not created; included weapons (Liebre's Vanquisher minigun) are created from the R2/system
 weapon catalogs when one matches.
 
