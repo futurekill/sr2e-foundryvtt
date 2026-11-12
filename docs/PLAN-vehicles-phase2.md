@@ -148,6 +148,127 @@ clears next round; destruction crash uses the pre-hit speed; one Serious prompt 
 spell damage keeps its receipt; two passengers each resist once; barrier 0 vs not-0 branches; ram resolved by a
 second user (GM) once. Lint; CHANGELOG, QA-PLAN, wiki + How-To, `npm run gen-guides`.
 
+## Part 2 — the switch and Rigger 2's standard vehicle operations (R2 p.12–26, p.120)
+_Draft 5 (2026-11-12), after Codex rounds 1–4 (log). Pages read from 100-dpi renders (PDF = book + 1 for
+p.12–90); numbers re-checked at 300 dpi before coding. Two releases: **2a** (switch, Driving Test, Stress, repairs)
+and **2b** (rigger-side rules, overhead)._
+
+### 2a.0 Foundations
+- **One vehicle writer** (R1 #19, #20): every new vehicle mutation (Stress, repair state, engine adjudication) is a GM
+  op running in Part 1's per-vehicle queue (`vdmg:<uuid>`, the same one damage uses), validating permission and state
+  INSIDE the queued step, and recording a receipt keyed by its event/job id so a retry or a GM reconnect never applies
+  twice. Sheet edits of Stress go through the same op. Authorization per op: Stress Test → GM; Driving-Test
+  consequences → the driver's owner (or GM); overhaul/repair rolls → a character the user owns, on a vehicle they own,
+  control or are linked to (or GM); repair state changes → the vehicle's owner, its controller's owner, the repairer's
+  owner or the GM; engine adjudication and engine replacement → GM.
+- **Effective ratings and equipment** (R1 #4): Handling, Autonav, Pilot and Speed are the EFFECTIVE ones
+  (`VehicleData.effective…`). "Has X" (Rigger Adaptation, Off-Road Suspension, Datajack Port, Engine Customization)
+  = an item with that `modKey` that is working: factory, a Workshop design mod, or a customization in state `done`
+  (not parts/tested/removed).
+- **Effective R2 Speed Rating** (R1 #6): `r2Speed` = `effectiveSpeed` (mods and the p.50 damage reduction), halved
+  (round down) off-road without off-road suspension; overspeed threshold = r2Speed, maximum = ⌊r2Speed × 1.5⌋.
+
+### 2a.1 The switch
+- World setting `vehicleRuleset`: `core` (default) | `rigger2`, `requiresReload`, read only via `isRigger2()`
+  (module/vehicle-mode.mjs, try/catch like `isVR2()`). Offered with or without the Rigger 2 module; without it the GM
+  gets a notice that vehicles keep their compendium stats.
+- **Speed** (R1 #7): the stored `speed` is never rewritten. Under `rigger2` it is READ as the R2 Speed Rating (p.22:
+  "the maximum safe Speed … for a sustained distance", the role core's cruising speed plays); labels/tooltips say
+  "Speed Rating (Rigger 2)" vs "Cruising speed (core)". Vehicles taken from the R2 list carry its numbers; others keep
+  theirs. User notes untouched.
+- **The hybrid until Part 3** (R1 #8): under `rigger2` the core vehicle-combat actions — Position, Ram, Escape, the
+  core Crash Test and the core crash/impact resolution (armour, no Control Pool, Power rounded down) — stay, each card
+  and dialog labelled "core rules (Rigger 2 vehicle combat comes in Part 3)". They never incur Stress. Crash Tests that
+  2a triggers (system failure) use that same core Crash Test. Part 3 replaces all of it.
+
+### 2a.2 The Driving Test (R2 p.20–21, p.23) — `rigger2` only, a Complex Action
+- **Who drives** (R1 #1, #3): a character (from the Vehicles tab) or, for a drone no rigger controls, the drone itself
+  (vehicle sheet; Pilot replaces the skill, p.23: "the drone's Pilot Rating is substituted for the rigger's relevant
+  skill"; no Control Pool, no Stress dice — no one to push it; Rule of One against Pilot).
+- **Control mode** (R1 #1): manual / datajack / rigged, picked in the dialog; default rigged when `riggedInto` and the
+  vehicle is adapted (drone or Rigger Adaptation), datajack when the character has a datajack and the vehicle a
+  Datajack Port or Rigger Adaptation, else manual. A VCR user on an unadapted vehicle can only pick manual/datajack.
+- **Dice:** vehicle skill (Part 1 defaulting; R2 half-modifier defaulting is 2b) + effective **Autonav** (a Driving
+  Test is a non-combat maneuver, also under fire — p.23 excludes only vehicle-combat actions, Part 3) + **Control Pool**
+  in rigged mode only, ≤ skill rating, spent on the pool client; dice put in may not resist damage (p.21, stated) +
+  **Stress dice**: 1 per 2 Stress, at most Body Stress per action (Body 1 may take 2 for 1 die; Body 0 none).
+- **TN:** effective Handling — off-road Handling for a ground vehicle off-road (R1 #5: when `handlingOffRoad` is null
+  the dialog asks for it, never 0) — + unfamiliar +1; non-stressful −1; stressful +3; large +2 / very large +3;
+  weather bad +2 / terrible +4; terrain open −1 / normal 0 / restricted +1 / tight +3; **action performed during combat
+  +2** (R1 #2: a standard maneuver under fire); datajack mode −1; rigged mode −2 × VCR; vehicle damage modifier; other.
+- **Resolution, exactly once** (R1 #9, #10): the purchased Stress is committed when rolling (Stress dice taken). The
+  card has **Resolve** for the driver's owner (or GM), after any Karma: it reads the test's live dice and successes,
+  closes the test to Karma and, in this order: (1) if it failed, the GM's Stress Test (2D6) against the Stress Rating
+  as it stands after the purchased Stress — result < Stress → system failure; (2) Rule of One: 1s ≥ the skill (or
+  Pilot) → +1D6 Stress, then if Stress ≥ 2 × Body → automatic system failure (p.26 Westwind: tested at 2, then 2→6
+  fails). A system failure posts "major system fails (GM picks)" and Part 1's Crash Test due card. A cancelled roll
+  does nothing. Resolve is claimed once per test through a Driving-Test claim op on the vehicle that admits the
+  driver's owner, the controller's owner, or — for a drone driving itself — the drone's owner, or the GM (R2 #2; the
+  Crash Test claim keeps its controller check).
+
+### 2a.3 Stress (R2 p.25–26, p.120)
+- Fields (R1 #15): `VehicleData.stress` and `stressPermanent`, integers, default 0 (legacy vehicles read 0; no
+  migration, no roll on load); prepare clamps `stressPermanent ≤ stress`. Shown on the vehicle sheet and Vehicles tab
+  under `rigger2`; the sheet's +/− call the GM op.
+- **Incurred:** Driving Test (2a.2); **Exceed Speed** (+1 each time past the Speed Rating, up to ×1.5; tracking speed
+  is Part 3); the GM's **Stress Test** button (2D6 vs Stress, "any time the vehicle is running").
+- **Engine customization** (p.120, ruling 9; R1 #13, #14; R2 #3): completion of an engine customization becomes a GM
+  op keyed by the installation attempt id. In the vehicle queue it (1) re-runs the existing finish checks, (2) makes the
+  secret B/R Test (the installer's vehicle B/R skill vs 2 × the Installation TN, GM-whispered) and writes, in ONE actor
+  update, the record `flags.sr2e.engineStress.<attemptId> = {source: <item id>, roll, points}` together with the Stress
+  it adds, then (3) finalizes the item idempotently. The actor record is the proof: a GM pass on ready/vehicle update
+  finalizes any "tested" engine item whose record exists (reconnect recovery), and a record is never rolled twice. Workshop: on
+  create AND on a save that adds engine-customization levels to an existing design, the GM rolls 6 dice vs TN 6 for
+  the added levels, recorded as `flags.sr2e.engineStress.<designCheckId> = {source: "design", levels, roll, points}`,
+  never rerolled by later saves. Atomic (R3 #2): the Workshop's save sends the new design (levels, baked ratings) AND
+  a pending check `flags.sr2e.pendingEngineChecks.<id> = {addedLevels}` in one update — a MAP, one key per save, so a
+  second level-adding save adds its own key and never overwrites the first (R4 #1); the added levels are this save's
+  diff against the design it loaded. The GM queue resolves each key separately and, in one update, writes its record +
+  Stress and removes only that key (`-=<id>`). Keys left by an interruption are resolved by the GM pass on ready;
+  factory replacement first resolves every pending key. On create, the pending key is part of the actor's data. `stressPermanent` = the sum of ALL records; a
+  record leaves only through factory replacement (R3 #1: p.120 allows no other reduction — removing a customization
+  item or design level keeps its permanent Stress). Legacy customized
+  engines (installed before 0.147.0): a GM "Adjudicate engine" button on the vehicle sheet, once. Both rulesets.
+- **Factory engine replacement** (R1 #12, R2 #1): GM "Replace with a factory engine": removes the aftermarket engine
+  customization items AND sets the design's `choices.engineCustom` levels to 0 through the Workshop's own recompute (so
+  the baked Speed/Acceleration/Load fall back), then deletes the engine records: their permanent Stress (and that much
+  Stress) goes with them. This is the only way a record leaves.
+- **Maintenance overhaul** (p.26, R1 #11): requires ticking "in a Vehicle Facility (SRII p.244, p.259)"; the vehicle's
+  B/R skill (car B/R etc., by vehicle type) against Stress + 4; every 2 successes −1, never below 1 once the vehicle
+  had Stress, never into the permanent part; parts 50¥ per point (shown; charged when a payer is picked).
+
+### 2a.4 Repairing vehicles (R2 p.26; R1 #16–#18) — `rigger2`
+A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
+1. **Quote:** boxes to repair; TN = boxes + 2; parts = boxes × 5% of the vehicle's total cost — `vehicleValue()` =
+   its `cost` (which includes design and factory equipment) + the receipt amount of each delivered, installed
+   aftermarket customization, each once — with the vehicle's Availability and Street Index; acquisition uses vehicle
+   B/R (stated). Snapshotted in the job.
+2. **Parts:** "Parts arrived" (owner/GM) after the Availability time; repair can't start before.
+3. **Repair Test:** vehicle B/R vs the TN; time = 16 h × boxes ÷ successes; no success = try again. While the job is in
+   progress the vehicle is marked unavailable on the sheet.
+4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
+5. **Finish:** removes the boxes (GM op, receipt = job id).
+
+### 2b (next release; scope only)
+- R2 dice pools (p.16; R1 #21 to settle in 2b's plan): Control Pool from Reaction with the VCR's enhancement counted
+  once and cerebral booster / encephalon Intelligence; Combat Pool on Gunnery capped at Gunnery. Task Pool (Shadowtech)
+  doesn't exist in the system: out of scope, noted.
+- VCR and cyberware (p.12, p.16–18): half-modifier defaulting jacked in; move-by-wire lowers the effective VCR and the
+  Control Pool; reflex recorders don't help a VCR driver; improved datajacks' Perception dice (Part 4); riggers decking.
+- Edges/flaws touching vehicles (p.14–16); maintenance overhead (p.18–19).
+
+### Checks (R1 #22)
+Vitest: Driving Test dice/TN (Whiz Kid p.21: TN 8, 8 dice; with Autonav 2 and Rotor 6 → 6 + 2), datajack/rigged
+modes, Stress dice caps (Body 3 → max 3 Stress → 1 die; Body 1 → 2 → 1 die; Body 0 → none), the Westwind ordering,
+r2Speed (damage, off-road, suspension), overhaul floors, vehicleValue, repair time/parts, engine failure stress.
+Quench: legacy vehicle reads Stress 0 and a null off-road rating prompts; a drone drives itself on Pilot; Resolve once
+(second click refused; Karma reroll before Resolve counts); a non-owner controller's driver resolves through the GM;
+damage and repair Finish on the same vehicle serialize; engine completion twice → one roll; Workshop redesign adding
+a level → one roll, a later save none; switching ruleset with a pending repair job keeps it. Docs as Part 1.
+
+### Out of scope (Part 2)
+Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
+
 ## Key decisions & tradeoffs
 - Ruleset switch = a world setting with reload (VR2.0 pattern), added in Part 2 when the first R2 rule exists, so
   Part 1 never ships a setting that does nothing.

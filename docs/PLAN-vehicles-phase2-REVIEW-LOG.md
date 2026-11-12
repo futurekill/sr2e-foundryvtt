@@ -74,3 +74,43 @@ A Crash Test dialog left open across a change of control lets the former driver 
 ### Claude's response
 Fixed: `GM_OPS.claim` takes the expected driver and claims only while that driver (or none) still controls the
 vehicle and the user may act for them; otherwise the step is refused without a receipt and the user clicks again.
+
+## Part 2 plan, round 1 — Codex (draft 1): REVISE, 22 findings
+Datajack modifier needs an actual datajack connection (#1); Driving Test also for standard maneuvers under fire (#2);
+Pilot-driven drones (#3); effective ratings and working equipment (#4); null off-road Handling (#5); one effective
+Speed derivation (#6); speed-storage claim too strong (#7); hybrid boundary covers the whole crash/impact (#8); Stress
+ordering per the Westwind example (#9); roll finality/Karma (#10); overhaul needs a facility (#11); factory-engine
+exception (#12); engine check atomic with completion (#13); Workshop redesign path (#14); Stress fields' defaults and
+invariant (#15); repair procurement (#16), interruption (#17), valuation (#18); one queue (#19); per-op authorization
+and receipts (#20); 2b Control Pool formula (#21); integration tests (#22).
+
+### Claude's response (draft 2)
+Taken: 1–20, 22 (as written in draft 2: 2a.0 foundations, control modes, drone Driving Test, Resolve step, repair job).
+#21 deferred to 2b's own plan, where that formula is built. #22's GM-reconnect case is covered by receipts but not by a
+Quench test (one client).
+
+## Part 2 plan, round 2 — Codex (draft 2, fresh session): REVISE, 3 findings
+1. Factory replacement must also undo Workshop engine levels (design.choices.engineCustom, baked ratings). 2. A drone
+driving itself has no controller, so the Crash-Test claim op would refuse its owner. 3. Engine completion spans Item and
+Actor: not atomic.
+
+### Claude's response (draft 3)
+All taken: replacement zeroes the design levels through the Workshop recompute and permanent Stress is per-source records
+(1); a Driving-Test claim op admitting driver/controller/drone owner or GM (2); the actor record (roll + Stress in one
+update) is the proof, the item is finalized idempotently with recovery on ready (3).
+
+## Part 2 plan, round 3 — Codex (draft 3, fresh session): REVISE, 2 findings
+1. Dropping a record when its item/levels disappear reduces permanent Stress without a factory engine (p.120 forbids).
+2. Workshop adjudication isn't atomic with the design save.
+
+### Claude's response (draft 4)
+Both taken: records leave only through factory replacement (1); the save writes the design with a pendingEngineCheck in
+one update, the GM queue resolves it into record + Stress in one update, and a GM pass on ready finishes interrupted ones;
+creation carries the pending check in the actor's data (2).
+
+## Part 2 plan, round 4 — Codex (draft 4, fresh session): REVISE, 1 finding
+A single pendingEngineCheck slot can be overwritten by a second level-adding save, or cleared by the first resolver.
+
+### Claude's response (draft 5)
+Taken, by a different route than routing Workshop saves through the GM: pending checks are a map keyed per save; the
+resolver removes only its own key; factory replacement resolves all pending keys first.
