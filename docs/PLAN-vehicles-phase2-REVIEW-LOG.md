@@ -209,3 +209,11 @@ Gremlins tier 1: a bang makes the equipment work normally only DURING the next C
 
 ### Claude's response (draft 6)
 Taken: card text and test say "during the character's next Combat Phase only".
+
+## Part 2b plan, round 6 — Codex (draft 6, fresh session): REVISE, 2 findings
+1. Overhead value omits installed weapons/accessories that aren't customizations. 2. A repeated Month ends request can
+advance another month.
+
+### Claude's response (draft 7)
+Both taken: every accessory at its listed cost except design/factory items (1); Month ends carries the expected month,
+advanced by one GM queue only if it still matches (2).

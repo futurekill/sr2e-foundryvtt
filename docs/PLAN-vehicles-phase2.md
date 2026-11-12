@@ -251,7 +251,7 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b — the rigger (R2 p.12–19), draft 6 (2026-11-12, after Codex 2b rounds 1–5)
+### 2b — the rigger (R2 p.12–19), draft 7 (2026-11-12, after Codex 2b rounds 1–6)
 _2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
 coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
 overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
@@ -370,10 +370,15 @@ clients install the same item).
 - **Cost value** (B1 #1): "the vehicle's base nuyen value plus the value of all its accessories and modifications" at
   their LISTED prices, not what was paid (Street Index, Availability): new `overheadValue(vehicle)` = the vehicle's
   listed cost (design and factory equipment included) + each installed aftermarket customization's list price
-  (re-quoted without Street Index; never the receipt). `vehicleValue` (2a repairs, "total cost") is unchanged.
-- **Month ends** is convergent (B3 #5): each vehicle carries `flags.sr2e.overhead.assessedThrough`; the GM raises the
-  setting to m+1 only when every vehicle has `assessedThrough` = m (else it first resumes them), then assesses each
-  vehicle behind, and the GM's ready pass resumes any vehicle still behind. Each per-vehicle step (in its queue,
+  (re-quoted without Street Index; never the receipt) + every other accessory on the vehicle at its listed cost —
+  mounted weapons (and their ammunition/mount items), sensors, gear items (B6 #1) — except items flagged as part of the
+  design or factory equipment (already in the vehicle's cost). `vehicleValue` (2a repairs, "total cost") is unchanged.
+- **Month ends** is convergent (B3 #5) and one GM writer's request (B6 #2): the button sends `{requestId,
+  expectedMonth: m}`; the active GM, in one world-level queue, advances ONLY if the setting still equals m (a replay or a
+  second click with the same expected month gets the earlier result back, never a second advance). Each vehicle carries
+  `flags.sr2e.overhead.assessedThrough`; the GM raises the setting to m+1 only when every vehicle has
+  `assessedThrough` = m (else it first resumes them), then assesses each vehicle behind, and the GM's ready pass resumes
+  any vehicle still behind. Each per-vehicle step (in its queue,
   idempotent by month id) writes
   `flags.sr2e.overhead.months.<m> = {amount: ⌈value ÷ 100⌉ + 10 × stress, paid: false, missed: false, tx: null}` and
   resets the counter; any OLDER month not paid — reserved or not (B2 #6: reservation is separate from delinquency) —
