@@ -1,5 +1,5 @@
 # Plan: vehicle rules in play (vehicle work, Phase 2)
-_Draft 5 (2026-11-12): Part 1 Codex-APPROVED (round 5) (docs/PLAN-vehicles-phase2-REVIEW-LOG.md)._
+_Draft 7 (2026-11-12): Part 1 APPROVED (R5, built 0.146.0); Part 2a APPROVED (R6, built 0.147.0); Part 2b draft 1._
 
 ## Goal
 Every vehicle rule a table uses in play works as written, in two rulesets chosen by a world setting, like the Matrix
@@ -251,13 +251,102 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b (next release; scope only)
-- R2 dice pools (p.16; R1 #21 to settle in 2b's plan): Control Pool from Reaction with the VCR's enhancement counted
-  once and cerebral booster / encephalon Intelligence; Combat Pool on Gunnery capped at Gunnery. Task Pool (Shadowtech)
-  doesn't exist in the system: out of scope, noted.
-- VCR and cyberware (p.12, p.16–18): half-modifier defaulting jacked in; move-by-wire lowers the effective VCR and the
-  Control Pool; reflex recorders don't help a VCR driver; improved datajacks' Perception dice (Part 4); riggers decking.
-- Edges/flaws touching vehicles (p.14–16); maintenance overhead (p.18–19).
+### 2b — the rigger (R2 p.12–19), draft 1 (2026-11-12)
+_2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
+coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
+overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
+quality item on the sheet is itself the GM's opt-in, and they touch the Matrix too — and (b) the multi-skill B/R rule,
+because vehicle customization already uses Rigger 2 rules under both rulesets._
+
+**2b.0 Identity, never names.** A quality's rule comes from a new `QualityData.rule` StringField (`blank: true`, choices
+incl. "" — the StringField blank trap; reload + check `invalidDocumentIds` after the schema add), set in the R2
+module's r2-qualities JSON: `vehicle-empathy`, `simsense-vertigo`, `sensitive-neural-structure`, `spike-resistance`,
+`computer-illiterate`, `gremlins`, plus core/Companion qualities R2 touches if present (`adrenaline-surge`,
+`bio-rejection`). Tiered values come from `pointValue` (|value|). Ware: add `encephalon`, `cerebral-booster`, `vcr` and
+`move-by-wire` keys to `WARE_SOURCES`/`wareRule` where the system's VCR detection is name-based today
+(`mods.vcrLevel`), keeping the old detection as the fallback. **Content gap:** Vehicle Empathy (Edge, 2, p.16) is
+missing from the R2 module's r2-qualities pack: add it (R2 module release alongside).
+
+**2b.1 Dice pools (p.16; replaces core p.84–85 under rigger2).**
+- **Control Pool** = Reaction + the VCR's enhancement; "indirect modifiers from cerebral boosters and encephalons
+  apply" = Reaction computed with the Intelligence they raise (today's `naturalReaction` uses Intelligence `.value`,
+  which already includes ware Intelligence; verify a cerebral booster's bonus lands there, else route it). Nothing else
+  adds (wired reflexes etc. never). Core keeps today's formula. Settles R1 #21.
+- **Move-by-wire with a VCR** (p.17–18, Monkeywrench example): effective VCR for Reaction/Initiative = max(0, VCR −
+  MBW level) (−2 Reaction and −1D6 per level); Control Pool = Reaction + 2 × VCR − MBW level (VCR 3, MBW 1: +4/+2D6,
+  pool 9 of 10; MBW 3: no bonus, pool 7; MBW 4: pool 6). The MBW level is the Phase 4 `wareLevel`; a disabled MBW
+  (`mbwDisabled`) doesn't count ("assuming the move-by-wire system has not negated it" — read as: the rig still gives
+  its pool). Derived in `_calculateDicePools` and the rigging Reaction branch, both directions (derived-state rule).
+- **Combat Pool on Gunnery** via a rig: capped at the Gunnery rating (or the concentration/specialization level in
+  use) — `_gunneryAttackDice().skillCap` already caps; verify every vehicle-weapon path passes it, defaulting included
+  (R2 says "cannot exceed the character's Gunnery Rating": a defaulting gunner with no Gunnery gets none).
+- **Control Pool use**: Maneuver Tests and resisting damage aimed at the character's vehicle; never firing vehicle
+  weapons or sensors. Today's pool-spend sites are checked against this list; the damage-resistance use arrives with
+  R2 vehicle combat (Part 3) and is noted, not built.
+- Task Pool (Shadowtech) and IVIS Pool (Part 5) don't exist in the system: out of scope, stated in the docs.
+
+**2b.2 The VCR and other cyberware (p.12, p.16–18).**
+- **Half-modifier defaulting** (p.12): a character with a VCR, jacked in (`rigging`) and in control of the vehicle
+  (`riggedInto`), defaulting from Reaction or a Vehicle Skill/Concentration to a Vehicle Skill/Concentration takes +1
+  per web dot instead of +2 (Car → Motorboat, 4 dots: +4 not +8); Reaction (attribute) default at half the attribute
+  penalty (+2 for the core +4). Not through a datajack, not to/from non-vehicle skills (incl. Vehicle B/R). Lives in
+  `vehicleSkillDice`/`_vehicleSkill` (Driving Test, Position, Crash), with a pure helper + Vitest.
+- **Rigging versus decking** (p.16): a character with a working VCR who decks takes +1 to every TN while in the
+  Matrix and their Hacking Pool is reduced by the VCR level (both Matrix rulesets; Otto: VR2 pool 4 → 2). Exempt when
+  the character has a second, decker datajack (new character boolean `deckerJack`, shown with the VCR) or has switched
+  a reflex-triggered VCR off (new VCR item boolean `reflexTrigger` (+13,000¥, +0.2 Essence, factory only — never
+  retrofitted) and character boolean `vcrOff`, a Simple Action toggle; off = no VCR at all: no rigging, pool, Reaction).
+  The +1 sits in `testTnModifiers` next to the existing `computing` test, on Matrix tests (`tnContext.kind ===
+  "matrix"` or the actor in `matrixMode`).
+- **Encephalon and skillsofts** (p.17): a rigger with an encephalon may run Driving (vehicle) activesofts without
+  skillwires, only while rigging. `skillsoft` capacity code gets that exception for vehicle-skill activesofts.
+- **Reflex recorder** (p.17): no effect on a Driving skill while controlling by VCR. The system doesn't automate
+  reflex recorders today — verify; if it does, suppress while `riggedInto`.
+- **Improved datajacks** (Perception dice) → Part 4. **Cybermancy rigger-zombies** (p.18: lost in details on
+  Perception TN 4+, IMS after 2 failed Willpower tests): if Phase 6 automates "lost in the details", apply the rigger
+  thresholds while rigging; else a docs note.
+
+**2b.3 Qualities (p.14–16), effects by `rule`.**
+- `vehicle-empathy`: −1 Handling (TN) for a character in physical contact (manual, datajack or rigged — all count) on
+  the Driving Test and the core vehicle tests.
+- `simsense-vertigo`: +1 to all TNs and −1 Initiative while operating a simsense device (rigging, decking).
+- `sensitive-neural-structure` / `spike-resistance`: effective Willpower −1/−2 (value 2/4, never below 1) / +1 per 2
+  points when resisting neural damage: black IC, dump shock (core + VR2), BTLs; rigger dump shock in Part 5. One helper
+  `neuralWillpower(actor)` used by every such resistance roll (enumerated in the build).
+- `computer-illiterate`: +1 TN on the existing `computing` tests (Computer, Electronics, their B/R, Matrix);
+  everything else stays GM's (card note).
+- `gremlins` (value 1/2/3/4): a GM "Gremlins check" on the quality: 2D6, on a 2 the card states the failure for the
+  value (±1 modifier until a Simple Action bang; off until the next Combat Turn; +2/−2 until repaired at 0.2 × cost +
+  labour; broken until overhauled at 0.5 × cost; a driven vehicle: GM picks the subsystem). Never auto-rolled.
+- `adrenaline-surge`: no effect while rigging or decking or driving by datajack (only if the system automates it).
+- `bio-rejection`: a character may not have both it and a VCR — a warning (sheet + chargen), never a block.
+- Blind/Deaf/Night Vision/Night Blindness: values and notes only (rigging sight is Part 4).
+
+**2b.4 Multi-skill Build/Repair tests (p.14).** When a task needs several B/R tests (customization installation):
+all must succeed; a passed test is KEPT and only the failed skill is rolled again, its TN +1 for each repeat, until
+that worker's rating in that skill rises (the penalty is stored per item attempt with the rating it was earned at).
+Time reduction combines the successes of all required tests (as today). Any required test of all 1s = **disastrous
+failure**: the attempt ends, the card says so, the GM rules (parts stay unless the GM removes them). State lives in the
+item's `custom.attempt` (partial results) — written only by the installing client as today.
+
+**2b.5 Maintenance overhead (p.18–19; release 2b-2).**
+- Monthly overhead per vehicle = ⌈cost value ÷ 100⌉ + 10 × Stress accumulated over the past month (Josie: 500,000 →
+  5,000; Crawler 1,250 → 13). Cost value = `vehicleValue` (2a: base + installed purchases).
+- **Stress accumulated** = sum of positive Stress deltas since the vehicle's last overhead period closed: the 2a
+  `vstress` receipts become `{d, t}` (delta + world time; old numeric receipts read as t = 0) and engine-record Stress
+  counts at its record time. Every Stress writer already goes through the GM op, so nothing else changes.
+- **Paying** (character sheet, Rigger 2): "Vehicle overhead" lists the character's linked vehicles with their overhead;
+  the Lifestyle discount (Middle 200, High 1,500, Luxury 3,000 per month in total, distributable) and Good Karma
+  (500¥ a point, permanent) reduce it; the charge goes through `moneyQueue` with a receipt; Karma through the existing
+  Good Karma writer; each vehicle's period closes (`flags.sr2e.overhead.lastPaid = worldTime`) in the GM vehicle queue.
+- **Neglect**: the GM's "Month passes" on a vehicle (or all) adds 1 Stress per unpaid month (Stress op, reason
+  overhead) and counts `unpaidMonths`. **Catch-up**: pay the missed month + the current one, 1 Good Karma and a Vehicle
+  B/R (4) Test: success removes 1 Stress (only while `unpaidMonths` > 0; decremented with it). Months are the GM's
+  call (no automatic calendar); with Calendaria a reminder is out of scope.
+- **Mechanic labour** (p.19): the repair job (2a.4) and the customization installation get an optional mechanic:
+  Level 1 100¥/h (overtime beyond 8 h/day, 5 days/week at ×1.5), Level 2 50¥/h no overtime, Level 3 25¥/h (or free,
+  GM's grant); the labour cost is QUOTED on the card with the hours (parts are quoted, not charged, as in 2a). Contact
+  fee and campaigns outside Seattle: GM, noted.
 
 ### Checks (R1 #22)
 Vitest: Driving Test dice/TN (Whiz Kid p.21: TN 8, 8 dice; with Autonav 2 and Rotor 6 → 6 + 2), datajack/rigged
@@ -267,6 +356,15 @@ Quench: legacy vehicle reads Stress 0 and a null off-road rating prompts; a dron
 (second click refused; Karma reroll before Resolve counts); a non-owner controller's driver resolves through the GM;
 damage and repair Finish on the same vehicle serialize; engine completion twice → one roll; Workshop redesign adding
 a level → one roll, a later save none; switching ruleset with a pending repair job keeps it. Docs as Part 1.
+
+2b Vitest: Control Pool with/without MBW (Monkeywrench p.18: 10 / 9 / 7 / 6), half-modifier defaulting (Deacon
+p.14: +8 → +4; Reaction default +2; not via datajack; not B/R), rigger decking (Otto p.17: VR2 Hacking Pool 4 → 2, +1
+TN; exempt with a decker datajack or VCR off), quality effects (Empathy −1, Vertigo +1/−1, SNS/Spike Willpower, Illiterate
++1), Gremlins outcome by value, multi-B/R repeats (+1 per repeat, reset on a rating rise, all 1s disastrous), overhead
+(Josie p.18–19: 6,413 → 6,213 Middle → 4,413 with 4 Karma; Crawler 13), neglect/catch-up. Quench: a quality's `rule`
+survives the schema add (no invalid documents); VCR off removes rig and decking penalty; overhead pay charges once
+(double click), closes periods, Stress since last payment counted; Month passes twice → 2 Stress; mechanic quote on a
+repair card.
 
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
