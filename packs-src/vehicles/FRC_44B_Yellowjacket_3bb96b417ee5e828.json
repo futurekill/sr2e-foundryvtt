@@ -1,30 +1,30 @@
 {
   "_id": "3bb96b417ee5e828",
-  "name": "FRC-44B Yellowjacket",
+  "name": "Northrup PRC-44B Yellowjacket",
   "type": "vehicle",
   "img": "systems/sr2e/assets/vehicle_portraits/frc-44b-yellowjacket.webp",
   "system": {
     "vehicleType": "rotor",
     "skill": "",
     "handling": 4,
-    "speed": 130,
-    "acceleration": 15,
+    "speed": 65,
+    "acceleration": 0,
     "body": 2,
     "armor": 0,
     "signature": 3,
     "pilot": 0,
-    "sensor": 2,
-    "cargo": 1,
-    "load": 53,
+    "sensor": 0,
+    "cargo": 0,
+    "load": 0,
     "seating": "",
-    "cost": 147000,
+    "cost": 280000,
     "availability": "",
     "conditionMonitor": {
       "value": 0,
       "max": 10
     },
     "autonav": 0,
-    "notes": "<p>An armed version of the Wasp light rotorcraft.</p><p><em>Cruising speed 65 m/CT (used for vehicle tests). Max speed 130 m/CT. Stats: SR2E p.264-265.</em></p><p><em>Stats verified against the Rigger 2 Vehicle List (SR2, book p.148+). = Northrup Yellowjacket (PRC-44B variant); 'FRC' was a typo for 'PRC'.</em></p>"
+    "notes": "<p>An armed version of the Wasp light rotorcraft.</p><p><em>Core book p.264: Speed 65/130 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>"
   },
   "items": [],
   "effects": [],
@@ -43,7 +43,7 @@
     "exportSource": null
   },
   "prototypeToken": {
-    "name": "FRC-44B Yellowjacket",
+    "name": "Northrup PRC-44B Yellowjacket",
     "displayName": 0,
     "actorLink": false,
     "width": 9,

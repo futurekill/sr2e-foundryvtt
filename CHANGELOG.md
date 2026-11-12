@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.145.1 — 2026-11-11
+
+### Fixed
+- **The core vehicles are the core book's again** (vehicle stats audit, docs/VEHICLE-AUDIT.md): all 32 had been given
+  the Rigger 2 Vehicle List's numbers in July; the compendium now holds the p.264–265 stat lines (Handling, cruising
+  Speed, Body, Armor, Signature, Autopilot, Cost) as ruled on 2026-11-07. With the Rigger 2 module active, an import
+  still takes the Rigger 2 stats. Restricted vehicles (Banshee, Eagle) show availability "Restricted".
+- "FRC-44B Yellowjacket" is the **Northrup PRC-44B Yellowjacket** (p.264).
+- Crewed vehicles keep their autopilot in **Autonav** and drones in **Pilot**, as everywhere else.
+- Vehicles already in a world are not changed: drag them in again from the compendium to pick up the fixes.
+
 ## 0.145.0 — 2026-11-11
 
 ### Added

@@ -23,8 +23,8 @@
       "value": 0,
       "max": 10
     },
-    "autonav": 2,
-    "notes": "<p>A small armored patrol/security drone.</p><p><em>Cruising speed 35 m/CT (used for vehicle tests). Max speed 70 m/CT. Stats: SR2E p.264-265.</em></p>"
+    "autonav": 0,
+    "notes": "<p>A small armored patrol/security drone.</p><p><em>Core book p.265: Speed 35/70 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>"
   },
   "items": [],
   "effects": [],
