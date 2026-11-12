@@ -156,3 +156,18 @@ item still exists too.
 
 ## Part 2a code, round 3 — Codex (fix 17aa974 only, fresh session): APPROVED
 "No material defects found in the scoped commit." Part 2a code converged after 3 rounds.
+
+## Part 2b plan, round 1 — Codex (draft 1, fresh session, R2 p.12–19 attached): REVISE, 11 findings
+1. Overhead cost value must be listed prices, not purchase receipts. 2. Payment not transactional (partial writes; two
+payers). 3. `lastPaid = worldTime` can't identify months, split discounts or missed months. 4. Stress history from
+receipts/engine records mixes clocks and deletable records. 5. Vehicle Empathy granted to remote drone operators.
+6. Half-defaulting needs the control mode and the web path's source kind. 7. New MBW key breaks `move-by-wire:<level>`.
+8. Computer Illiterate on the cyberphobia predicate hits every B/R. 9. B/R retry penalty must outlive attempts; partial
+commits race. 10. Gremlins tiers incomplete; the pack text is wrong. 11. Josie's arithmetic mixes two examples.
+
+### Claude's response (draft 2)
+All taken. 1: `overheadValue` at list prices. 2–4: GM-advanced months (hidden `vehicleOverheadMonth`), per-vehicle month
+records, a per-month Stress counter written with the Stress, reserve → charge (one character update with receipt) →
+settle, recovery and release. 5: physical contact only (no remote drone). 6: `_vehicleSkill(vehicle, {mode})`, web paths
+keep their source. 7: existing MBW identity. 8: a new `electronic` context. 9: retry penalty on the worker per task and
+skill; partial results via a GM op. 10: per-tier text, pack corrected. 11: three separate checks.

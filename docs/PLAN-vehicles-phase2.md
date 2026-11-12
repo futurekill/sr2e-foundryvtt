@@ -251,7 +251,7 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b — the rigger (R2 p.12–19), draft 1 (2026-11-12)
+### 2b — the rigger (R2 p.12–19), draft 2 (2026-11-12, after Codex 2b round 1)
 _2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
 coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
 overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
@@ -262,9 +262,10 @@ because vehicle customization already uses Rigger 2 rules under both rulesets._
 incl. "" — the StringField blank trap; reload + check `invalidDocumentIds` after the schema add), set in the R2
 module's r2-qualities JSON: `vehicle-empathy`, `simsense-vertigo`, `sensitive-neural-structure`, `spike-resistance`,
 `computer-illiterate`, `gremlins`, plus core/Companion qualities R2 touches if present (`adrenaline-surge`,
-`bio-rejection`). Tiered values come from `pointValue` (|value|). Ware: add `encephalon`, `cerebral-booster`, `vcr` and
-`move-by-wire` keys to `WARE_SOURCES`/`wareRule` where the system's VCR detection is name-based today
-(`mods.vcrLevel`), keeping the old detection as the fallback. **Content gap:** Vehicle Empathy (Edge, 2, p.16) is
+`bio-rejection`). Tiered values come from `pointValue` (|value|). Ware: add `encephalon`, `cerebral-booster` and `vcr`
+keys to `WARE_SOURCES`/`wareRule` where detection is name-based today (`mods.vcrLevel`), keeping the old detection as
+the fallback. Move-by-wire keeps its existing identity (`move-by-wire:<level>`, Phase 4's `wareLevel`/working checks —
+B1 #7): no new key. **Content gap:** Vehicle Empathy (Edge, 2, p.16) is
 missing from the R2 module's r2-qualities pack: add it (R2 module release alongside).
 
 **2b.1 Dice pools (p.16; replaces core p.84–85 under rigger2).**
@@ -286,11 +287,14 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
 - Task Pool (Shadowtech) and IVIS Pool (Part 5) don't exist in the system: out of scope, stated in the docs.
 
 **2b.2 The VCR and other cyberware (p.12, p.16–18).**
-- **Half-modifier defaulting** (p.12): a character with a VCR, jacked in (`rigging`) and in control of the vehicle
-  (`riggedInto`), defaulting from Reaction or a Vehicle Skill/Concentration to a Vehicle Skill/Concentration takes +1
-  per web dot instead of +2 (Car → Motorboat, 4 dots: +4 not +8); Reaction (attribute) default at half the attribute
-  penalty (+2 for the core +4). Not through a datajack, not to/from non-vehicle skills (incl. Vehicle B/R). Lives in
-  `vehicleSkillDice`/`_vehicleSkill` (Driving Test, Position, Crash), with a pure helper + Vitest.
+- **Half-modifier defaulting** (p.12): a character with a VCR, jacked in (`rigging`) and controlling the vehicle BY
+  THE RIG (the test's actual control mode: `rigged`, never manual/datajack — B1 #6), defaulting from Reaction or a
+  Vehicle Skill/Concentration to a Vehicle Skill/Concentration takes +1 per web dot instead of +2 (Car → Motorboat, 4
+  dots: +4 not +8); Reaction (attribute) default at half the attribute penalty (+2 for the core +4). Not to/from
+  non-vehicle skills (incl. Vehicle B/R). The web search must keep each candidate's SOURCE kind/key
+  (`_webDefaultForNode` returns it) and pick the best LEGAL path with the per-dot cost that applies to that path (a
+  path through a non-vehicle node costs +2 for every dot). `_vehicleSkill(vehicle, { mode })` takes the mode; callers
+  without a mode (core Position/Crash) pass `riggedInto` as rigged. Existing return fields kept; pure helper + Vitest.
 - **Rigging versus decking** (p.16): a character with a working VCR who decks takes +1 to every TN while in the
   Matrix and their Hacking Pool is reduced by the VCR level (both Matrix rulesets; Otto: VR2 pool 4 → 2). Exempt when
   the character has a second, decker datajack (new character boolean `deckerJack`, shown with the VCR) or has switched
@@ -307,42 +311,69 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
   thresholds while rigging; else a docs note.
 
 **2b.3 Qualities (p.14–16), effects by `rule`.**
-- `vehicle-empathy`: −1 Handling (TN) for a character in physical contact (manual, datajack or rigged — all count) on
-  the Driving Test and the core vehicle tests.
+- `vehicle-empathy`: −1 Handling (TN) for a character in PHYSICAL contact (B1 #5): manual controls, or jacked into
+  the vehicle itself (datajack, or rigged into a non-drone vehicle). Rigging a drone (remote) never counts. The Driving
+  Test dialog shows "in physical contact" defaulted from the mode, the GM may untick it; core vehicle tests use manual
+  /rigged-non-drone.
 - `simsense-vertigo`: +1 to all TNs and −1 Initiative while operating a simsense device (rigging, decking).
 - `sensitive-neural-structure` / `spike-resistance`: effective Willpower −1/−2 (value 2/4, never below 1) / +1 per 2
   points when resisting neural damage: black IC, dump shock (core + VR2), BTLs; rigger dump shock in Part 5. One helper
   `neuralWillpower(actor)` used by every such resistance roll (enumerated in the build).
-- `computer-illiterate`: +1 TN on the existing `computing` tests (Computer, Electronics, their B/R, Matrix);
-  everything else stays GM's (card note).
-- `gremlins` (value 1/2/3/4): a GM "Gremlins check" on the quality: 2D6, on a 2 the card states the failure for the
-  value (±1 modifier until a Simple Action bang; off until the next Combat Turn; +2/−2 until repaired at 0.2 × cost +
-  labour; broken until overhauled at 0.5 × cost; a driven vehicle: GM picks the subsystem). Never auto-rolled.
+- `computer-illiterate`: +1 TN on tests that involve an electronic device (B1 #8): a NEW `electronic` context, not
+  the cyberphobia `computing` predicate (which matches every B/R): Computer, Electronics, Computer B/R, Electronics B/R,
+  Matrix tests, and Driving Tests in datajack or rigged mode (a simsense interface). Everything else stays the GM's
+  (card note); "the GM may require Success Tests (TN 2 or 3)" is a note.
+- `gremlins` (value −1/−2/−3/−4): a GM "Gremlins check" on the quality: 2D6, on a 2 the card states, per tier (B1
+  #10): 1 pt — a +1/−1 modifier against the character on Success Tests and effect values (Power, Flux, MPCP…); a Simple
+  Action banging it on a hard surface and it works normally from the character's next Combat Phase. 2 pt — it doesn't
+  work; a Simple Action jolt brings it back in the character's next Combat Turn. 3 pt — major malfunction, ±2 against
+  the character until repaired (cost × 0.2 + labour, see the mechanic). 4 pt — breaks down; only a major overhaul
+  (cost × 0.5 + labour). A driven vehicle: one major subsystem or modification fails (GM rolls or picks). No effect on
+  cyberware, bioware or magical equipment; hermetic libraries on electronic media can be hit. Never auto-rolled. The
+  R2 pack's Gremlins notes (which mention an impossible 2D6 result of 1) are corrected.
 - `adrenaline-surge`: no effect while rigging or decking or driving by datajack (only if the system automates it).
 - `bio-rejection`: a character may not have both it and a VCR — a warning (sheet + chargen), never a block.
 - Blind/Deaf/Night Vision/Night Blindness: values and notes only (rigging sight is Part 4).
 
 **2b.4 Multi-skill Build/Repair tests (p.14).** When a task needs several B/R tests (customization installation):
-all must succeed; a passed test is KEPT and only the failed skill is rolled again, its TN +1 for each repeat, until
-that worker's rating in that skill rises (the penalty is stored per item attempt with the rating it was earned at).
+all must succeed; a passed test is KEPT and only the failed skill is rolled again, its TN +1 for each repeat. The
+penalty belongs to the WORKER, per task and skill (B1 #9): `flags.sr2e.brRetry.<itemId>.<skill> = {n, rating}` on the
+character (their owner's client writes it, in the same update as nothing else — it only ever grows), and it is ignored
+once that skill's rating exceeds the stored `rating` (the PC increased the skill); it outlives the item's attempts.
 Time reduction combines the successes of all required tests (as today). Any required test of all 1s = **disastrous
-failure**: the attempt ends, the card says so, the GM rules (parts stay unless the GM removes them). State lives in the
-item's `custom.attempt` (partial results) — written only by the installing client as today.
+failure**: the attempt ends, the card says so, the GM rules (parts stay unless the GM removes them). Partial results
+are committed through a GM op in the vehicle queue that checks the live item and attempt id (no lost update when two
+clients install the same item).
 
-**2b.5 Maintenance overhead (p.18–19; release 2b-2).**
-- Monthly overhead per vehicle = ⌈cost value ÷ 100⌉ + 10 × Stress accumulated over the past month (Josie: 500,000 →
-  5,000; Crawler 1,250 → 13). Cost value = `vehicleValue` (2a: base + installed purchases).
-- **Stress accumulated** = sum of positive Stress deltas since the vehicle's last overhead period closed: the 2a
-  `vstress` receipts become `{d, t}` (delta + world time; old numeric receipts read as t = 0) and engine-record Stress
-  counts at its record time. Every Stress writer already goes through the GM op, so nothing else changes.
-- **Paying** (character sheet, Rigger 2): "Vehicle overhead" lists the character's linked vehicles with their overhead;
-  the Lifestyle discount (Middle 200, High 1,500, Luxury 3,000 per month in total, distributable) and Good Karma
-  (500¥ a point, permanent) reduce it; the charge goes through `moneyQueue` with a receipt; Karma through the existing
-  Good Karma writer; each vehicle's period closes (`flags.sr2e.overhead.lastPaid = worldTime`) in the GM vehicle queue.
-- **Neglect**: the GM's "Month passes" on a vehicle (or all) adds 1 Stress per unpaid month (Stress op, reason
-  overhead) and counts `unpaidMonths`. **Catch-up**: pay the missed month + the current one, 1 Good Karma and a Vehicle
-  B/R (4) Test: success removes 1 Stress (only while `unpaidMonths` > 0; decremented with it). Months are the GM's
-  call (no automatic calendar); with Calendaria a reminder is out of scope.
+**2b.5 Maintenance overhead (p.18–19; release 2b-2).** Redesigned after B1 #1–#4.
+- **Months are GM-advanced**, world-wide: a hidden system setting `vehicleOverheadMonth` (integer, config: false), raised
+  only by the GM's **Month ends** (Settings-free button in the GM's vehicle tools); month m's id is the integer.
+- **Stress this month** (B1 #4): a per-vehicle counter `flags.sr2e.overhead.stress` that the GM Stress op and
+  `recordEngineCheck` increase BY the positive delta in the SAME update as the Stress itself (never derived from
+  receipts or timestamps). Starts at 0 for every vehicle (legacy baseline = 0, stated).
+- **Cost value** (B1 #1): "the vehicle's base nuyen value plus the value of all its accessories and modifications" at
+  their LISTED prices, not what was paid (Street Index, Availability): new `overheadValue(vehicle)` = the vehicle's
+  listed cost (design and factory equipment included) + each installed aftermarket customization's list price
+  (re-quoted without Street Index; never the receipt). `vehicleValue` (2a repairs, "total cost") is unchanged.
+- **Month ends** (GM, one vehicle-queue step per vehicle, idempotent by month id): writes
+  `flags.sr2e.overhead.months.<m> = {amount: ⌈value ÷ 100⌉ + 10 × stress, state: "due"}` and resets the counter; any
+  OLDER month still "due" becomes "missed" and adds 1 Stress (Stress op, eventId `overhead-missed-<m>`, counted in the
+  new month), once each.
+- **Paying** (character sheet, Rigger 2; owner of a character the vehicle is linked to — B1 #2): the dialog lists due
+  and missed months of the character's linked vehicles; Lifestyle discount (Middle 200, High 1,500, Luxury 3,000 per
+  month, distributable — B1 #3: the character's use per month is `flags.sr2e.overheadDiscount.<m>`, capped at the
+  lifestyle's allowance across split payments); Good Karma at 500¥ a point (`karma.current`, permanent spend).
+  Transaction `tx`: (1) GM op **reserve**: in each vehicle's queue, marks each chosen month `{state: "reserved", tx,
+  by}` if it is due/missed (else refuses that month); (2) the payer's `moneyQueue` writes ONE character update: nuyen
+  −X, `karma.current` −K, discount usage, and the receipt `flags.sr2e.overheadReceipts.<tx> = {months, amount, karma}`;
+  (3) GM op **settle**: months reserved by `tx` with a receipt → "paid". Recovery: the GM's pass on ready settles
+  reserved months whose receipt exists; the payer (or GM) may **release** a reservation without a receipt. A second
+  payer's reserve of the same month is refused (no double charge).
+- **Catch-up** (p.19): paying a MISSED month also requires paying the current due month in the same transaction, 1
+  Good Karma (in the receipt update), and a Vehicle B/R (4) Test by the payer's character: success → −1 Stress (Stress
+  op, eventId `overhead-catchup-<m>`), recorded on the month (`restored: true`), once.
+- Josie's examples are three separate checks (B1 #11): 6,413 total; Middle → 6,213; 4 Karma (no lifestyle) → 4,413;
+  Luxury → 3,413.
 - **Mechanic labour** (p.19): the repair job (2a.4) and the customization installation get an optional mechanic:
   Level 1 100¥/h (overtime beyond 8 h/day, 5 days/week at ×1.5), Level 2 50¥/h no overtime, Level 3 25¥/h (or free,
   GM's grant); the labour cost is QUOTED on the card with the hours (parts are quoted, not charged, as in 2a). Contact
@@ -361,10 +392,13 @@ a level → one roll, a later save none; switching ruleset with a pending repair
 p.14: +8 → +4; Reaction default +2; not via datajack; not B/R), rigger decking (Otto p.17: VR2 Hacking Pool 4 → 2, +1
 TN; exempt with a decker datajack or VCR off), quality effects (Empathy −1, Vertigo +1/−1, SNS/Spike Willpower, Illiterate
 +1), Gremlins outcome by value, multi-B/R repeats (+1 per repeat, reset on a rating rise, all 1s disastrous), overhead
-(Josie p.18–19: 6,413 → 6,213 Middle → 4,413 with 4 Karma; Crawler 13), neglect/catch-up. Quench: a quality's `rule`
-survives the schema add (no invalid documents); VCR off removes rig and decking penalty; overhead pay charges once
-(double click), closes periods, Stress since last payment counted; Month passes twice → 2 Stress; mechanic quote on a
-repair card.
+(Josie p.18–19 as three scenarios: 6,413; Middle 6,213; 4 Karma 4,413; Luxury 3,413; Crawler 13), neglect/catch-up,
+mode-sensitive defaulting (manual and datajack never halved), Empathy refused for a remote drone. Quench: a quality's `rule`
+survives the schema add (no invalid documents); VCR off removes rig and decking penalty; overhead: two payers reserve
+the same month → one charge; an interrupted pay (receipt, no settle) is settled by the GM pass; a reservation without a
+receipt is released; Month ends twice for the same id → one assessment; an unpaid month → 1 Stress once; the Stress
+counter counts only this month's positive deltas; B/R retry penalty survives a new attempt and resets on a rating rise;
+mechanic quote on a repair card.
 
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
