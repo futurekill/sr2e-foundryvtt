@@ -476,38 +476,63 @@ export function r2SpeedOf(vehicle, offRoad = false) {
 const ENGINE_KEYS = ["engine-custom-speed", "engine-custom-acceleration", "engine-custom-load"];
 export const isEngineCustomization = (item) => item?.type === "vehicle_mod" && ENGINE_KEYS.includes(item.system.modKey);
 
-/** Change a vehicle's Stress by `delta` (never below its permanent part), once per event id. */
-export function adjustStress(vehicle, delta, { eventId = foundry.utils.randomID(16), reason = "" } = {}) {
-  return gmCall("stress", { vehicleUuid: vehicle.uuid, delta: Math.trunc(Number(delta) || 0), eventId, reason });
+/** A driver may act on a vehicle: the vehicle's or its controller's owner, the GM, or the owner of a character it's linked to. */
+function mayDrive(user, vehicle, driverUuid) {
+  if (mayCommit(user, vehicle)) return true;
+  const d = driverUuid ? fromUuidSync(driverUuid) : null;
+  return !!(d?.testUserPermission(user, "OWNER") && [...(d.system.linkedVehicles ?? []), ...(d.system.controlledVehicles ?? [])].includes(vehicle.uuid));
 }
-GM_OPS.stress = async ({ vehicleUuid, delta, eventId }, user) => {
+
+/**
+ * Change a vehicle's Stress by `delta` (never below its permanent part), once per event id. `overhaul: successes`
+ * instead removes what an overhaul with that many successes removes from the LIVE Stress (R2 p.26).
+ */
+export function adjustStress(vehicle, delta, { eventId = foundry.utils.randomID(16), reason = "", driverUuid = "", overhaulSuccesses = null } = {}) {
+  return gmCall("stress", { vehicleUuid: vehicle.uuid, delta: Math.trunc(Number(delta) || 0), eventId, reason, driverUuid, overhaulSuccesses });
+}
+GM_OPS.stress = async ({ vehicleUuid, delta, eventId, driverUuid, overhaulSuccesses }, user) => {
   const vehicle = fromUuidSync(vehicleUuid);
   if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
   return enqueueAttack(`vdmg:${vehicleUuid}`, async () => {
-    if (!mayCommit(user, vehicle)) throw new Error(`${user?.name} may not change ${vehicle.name}'s Stress`);
+    if (!mayDrive(user, vehicle, driverUuid)) throw new Error(`${user?.name} may not change ${vehicle.name}'s Stress`);
     const path = `flags.sr2e.vstress.${eventId}`;
     if (foundry.utils.getProperty(vehicle, path) != null) return { skipped: true, stress: vehicle.system.stressRating };
-    const before = vehicle.system.stressRating ?? 0;
-    const after = Math.max(vehicle.system.stressPermanent ?? 0, before + delta, 0);
+    const before = vehicle.system.stressRating ?? 0, permanent = vehicle.system.stressPermanent ?? 0;
+    const after = overhaulSuccesses != null ? overhaul({ stress: before, permanent, successes: overhaulSuccesses }).stress
+      : Math.max(permanent, before + delta, 0);
     await vehicle.update({ [path]: after - before, "system.stress": after });
-    return { before, stress: after };
+    return { before, stress: after, removed: before - after };
   });
 };
 
 /**
- * A Driving Test resolved exactly once: the driver's owner, the controller's owner, a self-driving drone's owner, or the
- * GM may claim it (plan R2 #2).
+ * A Driving Test resolved exactly once, by the GM in the vehicle queue against the LIVE Stress (R2 p.26): the driver's
+ * owner, the vehicle's or controller's owner, or the GM may ask (plan R2 #2). Returns null if it was already resolved.
  */
-export function claimDriving(vehicle, key, driverUuid = "") {
-  return gmCall("drivingClaim", { vehicleUuid: vehicle.uuid, key, driverUuid });
-}
-GM_OPS.drivingClaim = async ({ vehicleUuid, key, driverUuid }, user) => {
-  const vehicle = fromUuidSync(vehicleUuid);
-  if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
-  const driver = driverUuid ? fromUuidSync(driverUuid) : null;
-  const ok = user?.isGM || driver?.testUserPermission(user, "OWNER") || controllerOf(vehicle)?.testUserPermission(user, "OWNER")
-    || (!driverUuid && vehicle.testUserPermission(user, "OWNER"));
-  return ok ? once(vehicle, key) : false;
+GM_OPS.drivingResolve = async ({ messageId }, user) => {
+  const message = game.messages.get(messageId), st = message?.flags?.sr2e?.drivingTest;
+  const vehicle = st && fromUuidSync(st.vehicleUuid);
+  if (vehicle?.type !== "vehicle") throw new Error("not a Driving Test");
+  if (!mayDrive(user, vehicle, st.driverUuid)) throw new Error(`${user?.name} may not resolve ${vehicle.name}'s Driving Test`);
+  return enqueueAttack(`vdmg:${vehicle.uuid}`, async () => {
+    if (!await once(vehicle, `drive:${messageId}`)) return null;
+    const test = game.messages.get(st.testMessageId)?.flags?.sr2e?.test;
+    const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
+    const successes = test ? testTotalSuccesses(test) : 0;
+    const ones = (test?.dice ?? []).filter(d => d.total === 1).length;
+    // Rule of One: the 1s against the skill (Pilot); a defaulting driver against the dice rolled (ruling).
+    const threshold = st.defaulted ? (test?.dice?.length ?? 0) : st.skill;
+    const failed = successes === 0;
+    const stress = vehicle.system.stressRating ?? 0;
+    const stressRoll = failed ? (await new Roll("2d6").evaluate()).total : null;
+    const ruleRoll = ruleOfOne(ones, threshold) ? (await new Roll("1d6").evaluate()).total : null;
+    const out = drivingStressOutcome({ failed, stress, body: st.body, ones, skill: threshold, stressRoll, ruleRoll });
+    if (out.addStress) {
+      const after = stress + out.addStress;   // adding never meets the permanent floor
+      await vehicle.update({ [`flags.sr2e.vstress.rule1-${messageId}`]: out.addStress, "system.stress": after });
+    }
+    return { successes, ones, threshold, failed, stress, stressRoll, ruleRoll, out };
+  });
 };
 
 /* Engine customization (R2 p.120): the secret test, recorded with its Stress in ONE actor update. */
@@ -519,7 +544,7 @@ GM_OPS.drivingClaim = async ({ vehicleUuid, key, driverUuid }, user) => {
 export function engineCheckForInstall(vehicle, item) {
   return gmCall("engineInstall", { vehicleUuid: vehicle.uuid, itemId: item.id });
 }
-GM_OPS.engineInstall = async ({ vehicleUuid, itemId }, user) => {
+GM_OPS.engineInstall = async ({ vehicleUuid, itemId, legacy = false }, user) => {
   const vehicle = fromUuidSync(vehicleUuid), item = vehicle?.items.get(itemId);
   if (!isEngineCustomization(item)) throw new Error("not an engine customization");
   if (!mayCommit(user, vehicle)) throw new Error(`${user?.name} may not finish work on ${vehicle.name}`);
@@ -531,8 +556,24 @@ GM_OPS.engineInstall = async ({ vehicleUuid, itemId }, user) => {
   const web = trained ? null : worker?._webDefault?.({ name: skill, id: null, system: { rating: 0 } });
   const dice = trained ? trained.system.rating : (web?.dice ?? 1);
   const tn = 2 * (Number(a.spec?.tn) || 0) + (trained ? 0 : (web?.penalty ?? CONFIG.SR2E.defaultingPenalty));
-  return recordEngineCheck(vehicle, a.id, { source: item.id, label: `${item.name} (installed by ${worker?.name ?? "?"}, ${skill} ${dice} vs TN ${tn})`, dice, tn });
+  const { finishProblem } = await import("./vehicle-customize.mjs");
+  return recordEngineCheck(vehicle, a.id, { source: item.id, label: `${item.name} (installed by ${worker?.name ?? "?"}, ${skill} ${dice} vs TN ${tn})`, dice, tn,
+    // Inside the queue: the finish checks against the live vehicle, then the item is finished with its record. A legacy
+    // engine (installed before the checks) is only adjudicated.
+    precheck: legacy && user?.isGM ? null : async () => {
+      const p = await finishProblem(vehicle, item);
+      if (p?.reset) await item.update({ "system.custom.state": "parts", "system.custom.attempt": {} });
+      return p?.msg ?? null;
+    },
+    finalize: legacy ? null : () => finishEngineItem(vehicle, item.id) });
 };
+
+async function finishEngineItem(vehicle, itemId) {
+  const it = vehicle.items.get(itemId);
+  if (it?.system.custom?.state !== "tested") return;
+  try { await it.update({ "system.custom.state": "done" }); }
+  catch (err) { if (vehicle.items.get(itemId)) throw err; }   // removed meanwhile (a factory engine): nothing to finish
+}
 
 /** Resolve a pending Workshop engine check (6 dice vs TN 6, design). */
 async function resolveDesignCheck(vehicle, id, pending) {
@@ -540,12 +581,15 @@ async function resolveDesignCheck(vehicle, id, pending) {
     extra: { [`flags.sr2e.pendingEngineChecks.-=${id}`]: null } });
 }
 
-function recordEngineCheck(vehicle, id, { source, levels = null, label, dice, tn, extra = {} }) {
+function recordEngineCheck(vehicle, id, { source, levels = null, label, dice, tn, extra = {}, precheck = null, finalize = null }) {
   return enqueueAttack(`vdmg:${vehicle.uuid}`, async () => {
     if (vehicle.getFlag("sr2e", "engineStress")?.[id]) {
       if (Object.keys(extra).length) await vehicle.update(extra);
+      await finalize?.();
       return { skipped: true };
     }
+    const problem = await precheck?.();
+    if (problem) throw new Error(problem);
     const roll = await SR2ESuccessRoll.successTest(Math.max(1, dice), Math.max(2, tn));
     const ok = (roll?.successes ?? 0) > 0;
     const d6 = ok ? 0 : (await new Roll("1d6").evaluate()).total;   // hidden: the result goes to the GM's whisper only
@@ -555,6 +599,7 @@ function recordEngineCheck(vehicle, id, { source, levels = null, label, dice, tn
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), speaker: ChatMessage.getSpeaker({ actor: vehicle }),
       content: `<div class="sr2e-damage-result"><strong>Secret engine check: ${esc(vehicle.name)}</strong> — ${esc(label)}:
         ${roll?.successes ?? 0} success${roll?.successes === 1 ? "" : "es"}. ${ok ? "The engine holds." : `It will fail: +${points} permanent Stress (1D6 = ${d6}, ÷ 2 rounded up; R2 p.120).`}</div>` });
+    await finalize?.();
     return { points };
   });
 }
@@ -564,37 +609,43 @@ export async function gmEnginePass(vehicle) {
   if (!isActiveGM() || vehicle?.type !== "vehicle") return;
   for (const [id, p] of Object.entries(vehicle.getFlag("sr2e", "pendingEngineChecks") ?? {})) await resolveDesignCheck(vehicle, id, p);
   const recs = vehicle.getFlag("sr2e", "engineStress") ?? {};
-  for (const it of vehicle.items.filter(i => isEngineCustomization(i) && i.system.custom?.state === "tested" && recs[i.system.custom?.attempt?.id])) {
-    try { await it.update({ "system.custom.state": "done" }); }
-    catch (err) { if (vehicle.items.get(it.id)) throw err; }   // removed meanwhile (a factory engine): nothing to finish
-  }
+  for (const it of vehicle.items.filter(i => isEngineCustomization(i) && i.system.custom?.state === "tested" && recs[i.system.custom?.attempt?.id])) await finishEngineItem(vehicle, it.id);
 }
 
 /** GM: fit a factory-standard engine (R2 p.120): every engine customization goes, and with it the permanent Stress. */
 export async function replaceEngine(vehicle) {
   if (!game.user.isGM) return ui.notifications.warn("The GM replaces an engine.");
-  await gmEnginePass(vehicle);   // no pending check may be skipped
-  const items = vehicle.items.filter(isEngineCustomization).map(i => i.id);
-  const recs = vehicle.getFlag("sr2e", "engineStress") ?? {};
-  const points = permanentStress(recs);
-  // Workshop engine levels go through the Workshop's own design maths, so the baked Speed/Acceleration/Load fall back.
-  let designUpdate = {};
-  const levels = Object.values(vehicle.system.design?.choices?.engineCustom ?? {}).reduce((t, l) => t + (Number(l) || 0), 0);
-  if (levels) {
-    const { VehicleWorkshop, workshopUpdate } = await import("./apps/vehicle-workshop.mjs");
-    const ws = new VehicleWorkshop({ actor: vehicle });
-    ws.design.engineCustom = { speed: 0, acceleration: 0, load: 0 };
-    const r = ws.result(), ch = ws.tables.chassis[ws.design.chassisKey], pp = ws.tables.powerPlants[ws.design.powerPlantKey];
-    if (!ch || !pp || !r.valid) return ui.notifications.warn(`${vehicle.name}'s design can't be recomputed without its engine customization: open it in the Workshop.`);
-    designUpdate = workshopUpdate(ws.design, r, ch, pp, vehicle.name);
-  }
-  await enqueueAttack(`vdmg:${vehicle.uuid}`, async () => {
-    if (items.length) await vehicle.deleteEmbeddedDocuments("Item", items.filter(id => vehicle.items.get(id)));
-    await vehicle.update({ ...designUpdate, "flags.sr2e.-=engineStress": null, "system.stress": Math.max(0, (vehicle.system.stress ?? 0) - points) });
-  });
+  const r = await gmCall("replaceEngine", { vehicleUuid: vehicle.uuid });
+  if (r?.error) return ui.notifications.warn(r.error);
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }),
-    content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)} gets a factory-standard engine.</strong> Its engine customizations are gone, and with them ${points} permanent Stress (R2 p.120).</div>` });
+    content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)} gets a factory-standard engine.</strong> Its engine customizations are gone, and with them ${r.points} permanent Stress (R2 p.120).</div>` });
 }
+GM_OPS.replaceEngine = async ({ vehicleUuid }, user) => {
+  if (!user?.isGM) throw new Error("only a GM replaces an engine");
+  const vehicle = fromUuidSync(vehicleUuid);
+  if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
+  await gmEnginePass(vehicle);   // no pending check may be skipped
+  return enqueueAttack(`vdmg:${vehicle.uuid}`, async () => {
+    // Everything read live, here: a second replacement finds nothing left to take off.
+    if (Object.keys(vehicle.getFlag("sr2e", "pendingEngineChecks") ?? {}).length) return { error: `${vehicle.name} has an engine check pending; try again.` };
+    const items = vehicle.items.filter(isEngineCustomization).map(i => i.id);
+    const points = permanentStress(vehicle.getFlag("sr2e", "engineStress") ?? {});
+    // Workshop engine levels go through the Workshop's own design maths, so the baked Speed/Acceleration/Load fall back.
+    let designUpdate = {};
+    const levels = Object.values(vehicle.system.design?.choices?.engineCustom ?? {}).reduce((t, l) => t + (Number(l) || 0), 0);
+    if (levels) {
+      const { VehicleWorkshop, workshopUpdate } = await import("./apps/vehicle-workshop.mjs");
+      const ws = new VehicleWorkshop({ actor: vehicle });
+      ws.design.engineCustom = { speed: 0, acceleration: 0, load: 0 };
+      const r = ws.result(), ch = ws.tables.chassis[ws.design.chassisKey], pp = ws.tables.powerPlants[ws.design.powerPlantKey];
+      if (!ch || !pp || !r.valid) return { error: `${vehicle.name}'s design can't be recomputed without its engine customization: open it in the Workshop.` };
+      designUpdate = workshopUpdate(ws.design, r, ch, pp, vehicle.name);
+    }
+    if (items.length) await vehicle.deleteEmbeddedDocuments("Item", items);
+    await vehicle.update({ ...designUpdate, "flags.sr2e.-=engineStress": null, "system.stress": Math.max(0, (vehicle.system.stress ?? 0) - points) });
+    return { points };
+  });
+};
 
 /* Repairs (R2 p.26): a job on the vehicle, every step through the GM queue. */
 
@@ -727,6 +778,7 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const drone = !driver;
   const sk = drone ? { key: null, dice: sys.effective?.pilot ?? sys.pilot ?? 0, penalty: 0, cap: 0, note: " (Pilot)" } : driver._vehicleSkill(vehicle);
   if (drone && !(sk.dice > 0)) return ui.notifications.warn(`${vehicle.name} has no Pilot rating to drive itself.`);
+  if (drone && controllerOf(vehicle)) return ui.notifications.warn(`${vehicle.name} is under ${controllerOf(vehicle).name}'s control: the rigger drives it.`);
   const handling = o.offRoad ? (sys.effectiveHandlingOffRoad ?? o.offRoadHandling) : sys.effectiveHandling;
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);
   const { tn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
@@ -735,14 +787,14 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const autonav = Math.max(0, sys.effective?.autonav ?? sys.autonav ?? 0);
   const paid = o.mode === "rigged" && driver ? await driver._payControl(o.control, sk.cap) : 0;
   const push = drone ? { dice: 0, stress: 0 } : stressDice(o.stressDice, sys.body);
-  if (push.stress) await adjustStress(vehicle, push.stress, { reason: "extra Driving Test dice" });
+  if (push.stress) await adjustStress(vehicle, push.stress, { reason: "extra Driving Test dice", driverUuid: driver?.uuid ?? "" });
   const roller = driver ?? vehicle;
   const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;
   const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice, tn, { label, paidPoolDice: paid ? { control: paid } : undefined,
   });
   if (!res) return null;
-  const st = { vehicleUuid: vehicle.uuid, driverUuid: driver?.uuid ?? "", testMessageId: res.testMessageId ?? "", skill: sk.dice, body: sys.body ?? 0, resolved: false };
+  const st = { vehicleUuid: vehicle.uuid, driverUuid: driver?.uuid ?? "", testMessageId: res.testMessageId ?? "", skill: sk.dice, defaulted: !drone && !!sk.defaulted, body: sys.body ?? 0, resolved: false };
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: roller }), flags: { sr2e: { drivingTest: st } },
     content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}: Driving Test</strong> — spend Karma first if you will, then Resolve.
       <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-driving-resolve-btn">✔ Resolve (Stress, R2 p.26)</button></div></div>` });
@@ -754,20 +806,14 @@ export async function resolveDrivingTest(message) {
   const st = message.getFlag("sr2e", "drivingTest");
   const vehicle = st && fromUuidSync(st.vehicleUuid);
   if (!vehicle || game.messages.some(m => m.flags?.sr2e?.resolves === message.id)) return ui.notifications.warn("That Driving Test is resolved.");
-  if (!await claimDriving(vehicle, `drive:${message.id}`, st.driverUuid)) return ui.notifications.warn("That Driving Test is already resolved (or isn't yours).");
-  const test = game.messages.get(st.testMessageId)?.flags?.sr2e?.test;
-  const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
-  const successes = test ? testTotalSuccesses(test) : 0;
-  const ones = (test?.dice ?? []).filter(d => d.total === 1).length;
-  const failed = successes === 0;
-  const stress = vehicle.system.stressRating ?? 0;
-  const stressRoll = failed ? (await new Roll("2d6").evaluate()).total : null;
-  const ruleRoll = ruleOfOne(ones, st.skill) ? (await new Roll("1d6").evaluate()).total : null;
-  const out = drivingStressOutcome({ failed, stress, body: st.body, ones, skill: st.skill, stressRoll, ruleRoll });
-  if (out.addStress) await adjustStress(vehicle, out.addStress, { eventId: `rule1-${message.id}`, reason: "Stress Rule of One" });
+  let r;
+  try { r = await gmCall("drivingResolve", { messageId: message.id }); }
+  catch (err) { return ui.notifications.warn(`That Driving Test can't be resolved: ${err.message}`); }
+  if (!r) return ui.notifications.warn("That Driving Test is already resolved.");
+  const { successes, ones, threshold, failed, stress, stressRoll, ruleRoll, out } = r;
   const lines = [`${successes} success${successes === 1 ? "" : "es"}, ${ones} one${ones === 1 ? "" : "s"}.`];
   if (failed) lines.push(`Failed: the GM's Stress Test rolls ${stressRoll} against Stress ${stress}${out.failure === "stressTest" ? " — <strong>a system fails</strong>" : ": no effect"}.`);
-  if (ruleRoll != null) lines.push(`Stress Rule of One (${ones} ones ≥ ${st.skill}): +${ruleRoll} Stress, now ${stress + ruleRoll}${out.failure === "ruleOfOne" ? ` ≥ 2 × Body ${st.body}: <strong>a system fails</strong>` : ""}.`);
+  if (ruleRoll != null) lines.push(`Stress Rule of One (${ones} ones ≥ ${threshold}${st.defaulted ? ", the dice rolled" : ""}): +${ruleRoll} Stress, now ${stress + ruleRoll}${out.failure === "ruleOfOne" ? ` ≥ 2 × Body ${st.body}: <strong>a system fails</strong>` : ""}.`);
   if (out.failure) lines.push("The GM picks the major system (brakes, steering, transmission…).");
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}: Driving Test resolved</strong><br>${lines.join("<br>")}</div>`,
     flags: { sr2e: { resolves: message.id, closesTests: [st.testMessageId].filter(Boolean) } } });
@@ -823,10 +869,10 @@ export async function overhaulFlow(vehicle) {
   if (!f.elements.facility.checked) return ui.notifications.warn("A maintenance overhaul needs a Vehicle Facility (R2 p.26).");
   const res = await f.worker.rollNamedSkill(skill, stress + 4, { label: `${skill}: overhauling ${vehicle.name}` });
   if (!res) return;
-  const o = overhaul({ stress, permanent, successes: res.successes ?? 0 });
-  if (o.removed) await adjustStress(vehicle, -o.removed, { eventId: `overhaul-${res.testMessageId ?? foundry.utils.randomID(8)}`, reason: "overhaul" });
+  const o = await adjustStress(vehicle, 0, { eventId: `overhaul-${res.testMessageId ?? foundry.utils.randomID(8)}`, reason: "overhaul", overhaulSuccesses: res.successes ?? 0 });
+  const removed = o?.removed ?? 0;
   return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: f.worker }), content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)} overhauled</strong>:
-    ${o.removed ? `−${o.removed} Stress (now ${stress - o.removed}); parts ${o.parts.toLocaleString()}¥` : "no Stress removed"} (R2 p.26).</div>` });
+    ${removed ? `−${removed} Stress (now ${o.stress}); parts ${(removed * 50).toLocaleString()}¥` : "no Stress removed"} (R2 p.26).</div>` });
 }
 
 /** Repairs (R2 p.26), one step per click by the job's state. */
@@ -886,7 +932,7 @@ export async function adjudicateLegacyEngines(vehicle) {
   const recs = vehicle.getFlag("sr2e", "engineStress") ?? {};
   for (const it of legacyEngines(vehicle, recs)) {
     const a = it.system.custom?.attempt;
-    if (a?.ok && a.id) await GM_OPS.engineInstall({ vehicleUuid: vehicle.uuid, itemId: it.id }, game.user);
+    if (a?.ok && a.id) await GM_OPS.engineInstall({ vehicleUuid: vehicle.uuid, itemId: it.id, legacy: true }, game.user);
     else await recordEngineCheck(vehicle, `legacy-${it.id}`, { source: it.id, label: `${it.name} (no installation record: 6 dice vs TN 6)`, dice: 6, tn: 6 });
   }
 }
@@ -902,7 +948,7 @@ export function r2Context(vehicle) {
   const job = vehicle.getFlag("sr2e", "repairJob");
   const sp = r2SpeedOf(vehicle);
   return { stress: vehicle.system.stressRating ?? 0, permanent: vehicle.system.stressPermanent ?? 0, speed: sp.rating, maxSpeed: sp.max, kph: Math.round(sp.rating * 1.2),
-    drone: vehicle.system.vehicleType === "drone", isGM: game.user.isGM,
+    drone: vehicle.system.vehicleType === "drone" && !controllerOf(vehicle), isGM: game.user.isGM,
     repair: job && job.state !== "done" ? { parts: "waiting for parts", test: "parts in: roll the repair", working: `in the shop (${job.hoursLeft} h)`, paused: `taken back (${job.hoursLeft} h left)` }[job.state] : null,
     legacyEngine: game.user.isGM && legacyEngines(vehicle).length > 0,
     engine: game.user.isGM && (vehicle.items.some(isEngineCustomization) || (vehicle.system.stressPermanent ?? 0) > 0) };

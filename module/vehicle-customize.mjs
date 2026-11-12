@@ -373,27 +373,39 @@ export async function installationTest(vehicle, item, worker) {
     : `<p><strong>${item.name}</strong>: the Installation Test failed (${line}; every test needs a success, TN ${q.tn}). The parts stay; try again.</p>` });
 }
 
-/** Finish the installation: the passed test must still cover the work; prerequisites, room and maxima re-checked. */
-export async function finishInstallation(vehicle, item) {
+/**
+ * Why an installation can't be finished now (null = it can): the passed test must still cover the work; prerequisites,
+ * room and maxima re-checked. `reset` = the test no longer covers it. The GM's engine op re-runs this in the vehicle queue.
+ */
+export async function finishProblem(vehicle, item) {
   const c = item.system.custom ?? {};
-  if (c.state !== "tested" || !c.attempt?.ok) return ui.notifications.warn(`${item.name} needs a passed Installation Test first.`);
-  if (!verifiedPurchase(vehicle, item)) return ui.notifications.warn(`${item.name} isn't a purchase delivered to ${vehicle.name} through Customize.`);
+  if (c.state !== "tested" || !c.attempt?.ok) return { msg: `${item.name} needs a passed Installation Test first.` };
+  if (!verifiedPurchase(vehicle, item)) return { msg: `${item.name} isn't a purchase delivered to ${vehicle.name} through Customize.` };
   const { q, spec } = await liveSpec(vehicle, item, { installedOnly: true });
   const a = c.attempt.spec ?? {};
   const same = a.levels === spec.levels && JSON.stringify(a.choice ?? {}) === JSON.stringify(spec.choice ?? {}) && a.tn === spec.tn && a.baseTime === spec.baseTime && a.R0 === spec.R0;
-  if (!same) {
-    await item.update({ "system.custom.state": "parts", "system.custom.attempt": {} });
-    return ui.notifications.warn(`${item.name}: the vehicle or the work changed since the test (levels, existing levels or the test itself); roll the Installation Test again.`);
-  }
+  if (!same) return { reset: true, msg: `${item.name}: the vehicle or the work changed since the test (levels, existing levels or the test itself); roll the Installation Test again.` };
   // The item already takes its room (checked on the vehicle's totals below); the GM already admitted the market.
   const blocking = q.problems.filter(p => !/needs .* CF|kg of Load free|no customization price|military only/.test(p));
-  if (blocking.length) return ui.notifications.warn(`${item.name} can't be finished: ${blocking.join("; ")}.`);
-  if (num(vehicle.system.cargoFree) < -1e-9 || num(vehicle.system.loadFree) < -1e-9) return ui.notifications.warn(`${vehicle.name} is over its Cargo or Load; make room first.`);
-  // An engine customization: the GM's secret failure check and its Stress land on the vehicle FIRST (R2 p.120); a GM
-  // pass finishes the item if this client stops before the next line.
+  if (blocking.length) return { msg: `${item.name} can't be finished: ${blocking.join("; ")}.` };
+  if (num(vehicle.system.cargoFree) < -1e-9 || num(vehicle.system.loadFree) < -1e-9) return { msg: `${vehicle.name} is over its Cargo or Load; make room first.` };
+  return null;
+}
+
+/** Finish the installation. */
+export async function finishInstallation(vehicle, item) {
+  // An engine customization: the GM re-checks, makes the secret failure check (R2 p.120) and finishes the item, all in
+  // the vehicle queue (a GM pass finishes the item if it stops after the record).
   if (isEngineCustomization(item)) {
     try { await engineCheckForInstall(vehicle, item); }
     catch (err) { return ui.notifications.warn(`${item.name} can't be finished now: ${err.message}`); }
+    if (vehicle.items.get(item.id)?.system.custom?.state === "done") ui.notifications.info(`${item.name} is installed on ${vehicle.name}.`);
+    return;
+  }
+  const p = await finishProblem(vehicle, item);
+  if (p) {
+    if (p.reset) await item.update({ "system.custom.state": "parts", "system.custom.attempt": {} });
+    return ui.notifications.warn(p.msg);
   }
   await item.update({ "system.custom.state": "done" });
   ui.notifications.info(`${item.name} is installed on ${vehicle.name}.`);

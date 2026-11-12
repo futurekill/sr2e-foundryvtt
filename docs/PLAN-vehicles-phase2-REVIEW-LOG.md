@@ -126,3 +126,22 @@ GM queue; the only window left is a save and a replacement in flight at the same
 
 ## Part 2 plan, round 6 — Codex (draft 6, fresh session): APPROVED
 "No new material problem found." Part 2a plan converged after 6 rounds.
+
+## Part 2a code, round 1 — Codex (diff 3a96170..567ec3b, fresh session): REVISE, 7 findings
+1. A linked driver who owns neither the vehicle nor its controller can't buy Stress dice or resolve. 2. Driving Test
+consequences read Stress outside the vehicle queue (two resolutions can both miss a 2 × Body failure). 3. Overhaul removes
+a snapshot delta (two overhauls go below the floor of 1). 4. Factory replacement snapshots points outside the queue and
+runs on whichever GM clicked (double subtraction). 5. Engine completion doesn't re-run the finish checks in the queue (two
+installs against the same R0 both finish). 6. A rigger-controlled drone can still drive itself on Pilot. 7. Defaulting
+Rule of One compares against the default's rating, not the dice rolled.
+
+### Claude's response
+All taken. 1: `mayDrive` (vehicle/controller owner, GM, or the owner of a character the vehicle is linked to or
+controlled by) authorizes the Stress op and the resolution. 2: one GM op `drivingResolve` claims, reads the test from its
+message, rolls and commits the Stress with its receipt, all in the vehicle queue. 3: the Stress op takes
+`overhaulSuccesses` and computes removal against the live Stress there. 4: `replaceEngine` is a GM op; records, items and
+levels are read inside the queue, so a second replacement finds nothing. 5: `finishProblem` (extracted from
+finishInstallation) runs inside the queue before the roll; the op finishes the item with its record; legacy adjudication
+skips it. 6: refused in `rollDrivingTest`, button hidden. 7: the card records `defaulted`; the threshold is the dice
+rolled. Quench: 4 new tests (overhaul floor, defaulting threshold, rigged drone, unverified install refused; double
+replacement). Also: vehicle-play after hook timeout 30 s (hidden-tab cleanup).
