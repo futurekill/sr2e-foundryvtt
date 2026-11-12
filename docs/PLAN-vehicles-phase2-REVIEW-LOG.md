@@ -203,3 +203,9 @@ and the partial result are separate commits (lost or unmatched penalties).
 ### Claude's response (draft 5)
 Both taken: `_vehicleSkill` resolves chipped skills as skill tests do (1); the penalty is derived from failure records
 written with the partial result in one GM-queue update, keyed by test (2).
+
+## Part 2b plan, round 5 — Codex (draft 5, fresh session): REVISE, 1 finding
+Gremlins tier 1: a bang makes the equipment work normally only DURING the next Combat Phase (p.15), not from then on.
+
+### Claude's response (draft 6)
+Taken: card text and test say "during the character's next Combat Phase only".

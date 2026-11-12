@@ -251,7 +251,7 @@ A repair **job** on the vehicle (`flags.sr2e.repairJob`, written by the GM op):
 4. **Interrupt / resume:** "Take it back" (+1 hour to make it run, not counted) saves the remaining hours; "Resume".
 5. **Finish:** removes the boxes (GM op, receipt = job id).
 
-### 2b — the rigger (R2 p.12–19), draft 5 (2026-11-12, after Codex 2b rounds 1–4)
+### 2b — the rigger (R2 p.12–19), draft 6 (2026-11-12, after Codex 2b rounds 1–5)
 _2a is built (0.147.0). Pages read from 100-dpi renders (PDF = book + 1); every number re-checked at 300 dpi before
 coding. Two releases: **2b-1** (pools, VCR and cyberware, qualities, Build/Repair tests) and **2b-2** (maintenance
 overhead, mechanic labour). Gate: every rule below applies only under `isRigger2()`, EXCEPT (a) quality effects — the
@@ -338,7 +338,7 @@ missing from the R2 module's r2-qualities pack: add it (R2 module release alongs
   (card note); "the GM may require Success Tests (TN 2 or 3)" is a note.
 - `gremlins` (value −1/−2/−3/−4): a GM "Gremlins check" on the quality: 2D6, on a 2 the card states, per tier (B1
   #10): 1 pt — a +1/−1 modifier against the character on Success Tests and effect values (Power, Flux, MPCP…); a Simple
-  Action banging it on a hard surface and it works normally from the character's next Combat Phase. 2 pt — it doesn't
+  Action banging it on a hard surface and it works normally DURING the character's next Combat Phase only (B5 #1). 2 pt — it doesn't
   work; a Simple Action jolt brings it back in the character's next Combat Turn. 3 pt — major malfunction, ±2 against
   the character until repaired (cost × 0.2 + labour, see the mechanic). 4 pt — breaks down; only a major overhaul
   (cost × 0.5 + labour). A driven vehicle: one major subsystem or modification fails (GM rolls or picks). No effect on
