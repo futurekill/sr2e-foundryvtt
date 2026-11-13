@@ -352,3 +352,18 @@ force-cancel writes a tombstone and late cards for tombstones are refused and ma
 vehicle records a pending `overCheck` with the speed at that moment, applied in the chase queue with the same speeding
 receipt; replayed on ready and before closing. (6) The modifier applies only to targets outside the vehicle; same
 vehicle → none; unknown → the dialog asks.
+
+## Part 3 plan, round 5 — Codex (draft 5, fresh session): REVISE, 4 findings
+1. The new "publishing" state wasn't accepted by `chaseResolve` or counted by the overlap/closing guards. 2. A DP
+cancel could become terminal before a delayed debit on the pool writer's client, which then spent the next turn's
+refreshed dice. 3. Round-refresh recovery wasn't exactly-once (pools on the Actor, the marker on the Combat; focus items
+written separately). 4. The deferred overspeed check compared the stored speed with the LIVE rating.
+
+### Claude's response (draft 6)
+All taken. (1) Resolution only from "publishing"; rolling/publishing/resolving all block overlap and closing. (2) A
+cancel is terminal only after the pool writer acks inside its spend queue, writing `byTest[slotId] = "void"` that a
+late `spendPosition` refuses; closing waits for the ack; the GM acks when the driver's client is gone. (3) Transition
+refreshes run through each actor's pool writer with a receipt (`flags.sr2e.poolRefresh`) written in the same update as
+the pools, and on each focus item with its reset; documents with the receipt are skipped; spends for participants are
+refused mid-transition. (4) `overCheck` stores speed, post-damage Speed Rating and the computed `over`; replay uses
+the stored result.
