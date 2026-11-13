@@ -1115,9 +1115,9 @@ and the security rigger). 5a needs Part 4a (transmitters, Flux, ECM/ECCM toggles
   Editing the list (deck panel, out of combat or as the GM) is not an action (the book gives none).
 - **Affiliate / disaffiliate** = one Simple Action each; "substitute" = disaffiliate + affiliate as 2 Simple Actions
   or 1 Complex (one card, one op, the action cost stated). A drone affiliated this Combat Turn can't act this Turn
-  (`since` = the current combat round; the drone's actions check it). **Ruling R5-1 (pending, default = the rule):**
-  the p.64 example has Josie's GPV act in her next Combat Phase of the SAME Turn, contradicting the rule; Part 4's
-  precedent (R4-1) follows the rule.
+  (`since` = the current combat round; the drone's actions check it). **User ruling R5-1 (2026-11-13): the rule** —
+  the drone sits out the rest of the Turn; the p.64 example (Josie's GPV acting in her next Phase of the same Turn)
+  is not followed.
 - A non-affiliated subscriber is independent: the rigger can't see through or command it; it can't talk to the rest
   of the network.
 - Range: affiliation, commands and observation need the drone inside the deck's transmitter range (Part 4a.3, the deck
@@ -1218,9 +1218,9 @@ intruder's device rating (+ Task Pool: not in the system, noted) vs TN = target 
 intercepted (the intruder picks; if they don't, the GM). Record: `flags.sr2e.ewIntercepts.<netKey>` on the
 INTRUDER's deck item `{ channels: [...], alertMod, rev }`, where `netKey = followId(targetDeck.uuid)`.
 - **Encryption** (p.69): a deck with an encryption module (R2 `Remote Control Encryption Module`) first needs an
-  Electronic Warfare Concentration Test (decryption module rating added as dice) vs encryption rating + 4. **Ruling
-  R5-2 (pending, default = the rule):** the rule needs successes GREATER than ⌈deck rating ÷ 2⌉ (Rating 6 → 4); the
-  p.69 example accepts "at least 3" for Rating 6. Failure:
+  Electronic Warfare Concentration Test (decryption module rating added as dice) vs encryption rating + 4. **User
+  ruling R5-2 (2026-11-13): the rule** — successes GREATER than ⌈deck rating ÷ 2⌉ (Rating 6 → 4); the p.69 example's
+  "at least 3" is not followed. Failure:
   the target network is on alert and every later interception/MIJI against it +2, cumulative per failure.
 - **Reading a channel** (p.69): a Complex Action each time; every such action the GM rolls a detection Success Test
   for the network: deck rating dice vs the intruder's Electronic Warfare Concentration (rating used as TN); success =
