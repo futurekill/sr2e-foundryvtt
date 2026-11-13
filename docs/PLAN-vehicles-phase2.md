@@ -893,7 +893,7 @@ pending survives a reload → crash → occupants (one receipt each, vehicle sta
 feedback per event (two Serious hits → two); weapons; spells; an old core card resolves by core after the switch; core
 path unchanged with the ruleset off.
 
-## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 2 (2026-11-13, after Codex Part 4 round 1)
+## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 3 (2026-11-13, after Codex Part 4 rounds 1–2)
 _Read from 110-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. Everything below applies
 only under `isRigger2()`; the core attack flow (incl. the p.108 Moving Target Table) is untouched under core. Two
 releases: **4a** (sensors, Flux and range, ECM/ECCM/ED/ECD, locks), **4b** (gunnery modes, missiles, indirect fire,
@@ -909,8 +909,13 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
   **reserved event ids, immutable roll inputs, a revision per record, terminal receipts**. A roll is a rolled step
   (Part 3.0): reserve → spend → arm → card → record; a card for a superseded or cancelled reservation is "not counted".
 - Identities are key-safe and token-aware: `followId(actor.uuid)` (unlinked token actors stay distinct).
-- Validity (R4-2) is CHECKED on read (range, hidden contact, equipment working, GM clear marker); a stale record is
-  ignored, never mutated in place by a reader.
+- Validity (R4-2) is CHECKED on read against **generations** (round 2 #4): each vehicle keeps
+  `flags.sr2e.ewGen = { contact: { <observerKey>: n }, device: { <deviceId>: n } }`, bumped by the GM op in the
+  vehicle queue whenever contact is lost (the target hides from that observer, Part 3a; it leaves the transmitter's
+  range, checked at each round change and on every EW/lock action) or a device switches off, stops working or is
+  removed. A lock or EW record stores the generations it was made under and is valid only while they still match, so
+  regaining range or switching a device back on never revives an old record. Readers never mutate a record; a GM clear
+  bumps the generation.
 - **Baseline Signature** = `VehicleData.effective.signature` (installed modifications included); contextual EW is a
   separate per-observer term and never changes the actor's derived data (4a.5).
 
@@ -918,8 +923,10 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
 - Sensor Rating = `system.effective.sensor`. Components by rating (p.27): 0 rangefinders, ultrasound, laser proximity;
   1 + proximity detectors, video (not trideo) cameras, basic radar, signature-recognition, low-light and telescopic;
   2–4 + thermographic; 5+ + flare compensation; magnification 50 × rating. A pure `sensorComponents(rating, upgrades)`.
-- **Component upgrades** (p.27): stored on the R2 Sensors item as `system.components = { magnification: levels,
-  flareCompensation: bool, … }` (rigger-2 module schema add, blank allowed); parts cost = original sensor cost × 0.10
+- **Component upgrades** (p.27): `system.components = { magnification: levels, flareCompensation: bool }` declared in
+  the SYSTEM's `VehicleModData` (round 2 #6; blank/0 default, reload + `invalidDocumentIds` check) and persisted
+  through the customization request flow; for the built-in sensor (4a.3) the same object lives at
+  `flags.sr2e.sensorComponents` on the vehicle, written only by the customization delivery; parts cost = original sensor cost × 0.10
   × levels; installed through the existing customization request flow (installation rules unchanged). The base
   rating is untouched; components add only their own capability (Skyrie: 15,000 × 0.10 × 2 = 3,000¥).
 - **Footage** (p.28): rating 1+ systems transmit/record 2D audio/video only if the vehicle has storage (onboard memory
@@ -940,7 +947,9 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
 
 ### 4a.3 Flux and range (p.30–31)
 - **Transmitters** are the vehicle's working devices with their own identity (item id): sensors, ECM, ECCM, ED, ECD,
-  radios, remote-control decks. Flux Rating Table: RC deck 2; sensors/ECM-family rating × 1.5 rounded up; other
+  radios, remote-control decks. A vehicle whose `effective.sensor` > 0 with no Sensors item (stock sensors, e.g. the
+  R2 Westwind, Sensor 1) has a **built-in sensor** with the fixed identity `builtin-sensor` (round 2 #5): boosts,
+  components and generations address it by that id. Flux Rating Table: RC deck 2; sensors/ECM-family rating × 1.5 rounded up; other
   transmitters the device rating; cyberware 0. Any device may run lower (to 0).
 - **Boosts** (p.30): `flags.sr2e.fluxBoosts = { [itemId]: { engine, amplifiers: { [ampItemId]: n } } }`, written only by
   the GM op `fluxBoost`, which validates the WHOLE allocation in one vehicle-queue step against the live vehicle:
@@ -1002,8 +1011,9 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
 ### 4b.2 Manual gunnery (p.56–58)
 Manual Gunnery Modifiers Table (p.57; 300-dpi re-check before coding): blind fire +8; partial cover +4; smartlink I
 −2, II per Fields of Fire pp.84–85 (both gunner and weapon smartlinked); aimed shot −1 per Simple Action; image
-magnification (core p.240); visibility (core p.89 table); multiple targets +2 per extra target that phase; attacking a
-walking drone +1 (difficult ground +2), running +4 (+6); target running +2; target stationary −1; recoil (SA +1 2nd
+magnification (core p.240); visibility (core p.89 table); multiple targets +2 per extra target that phase; the
+ATTACKING drone walking +1 (difficult ground +2), running +4 (+6) — only when the attacker propels itself on
+mechanical legs (table key; round 2 #1); target running +2; target stationary −1; recoil (SA +1 2nd
 shot, burst +3 each, FA +1 per round, heavy 2× uncompensated); recoil compensation — pintle −2, ring −6, fixed/turret
 halve recoil before accessories (cancels the heavy doubling, R2 p.131); firing an unmounted weapon from a vehicle +2;
 relative motion toward −1 / away +1 (not on one axis at matched speeds; applies at right angles); Maneuver Score
@@ -1027,19 +1037,30 @@ nothing is invented.
   weapon's loaded-ammo snapshot exactly as the existing reload copies damage/armour properties; the launch snapshots
   it. Rockets have no Intelligence: they fire through `manual`/`sensor` (p.59).
 - **Launch** (round 1 #13): firing a missile is a durable **launch record** on the shooter's vehicle (or the shooter
-  if none), `flags.sr2e.launches.<id> = { shooter, target, mode: continuous|fireAndForget|indirect, lock, ammo
-  snapshot, ruleset, combatId, round, state }`: reserve → spend the missile once (the weapon's ammo with the launch id
-  as receipt) → `launched`. Nothing is rolled at launch.
+  if none), `flags.sr2e.launches.<id> = { shooter, gunnerUuid, sourceVehicleUuid, target, mode:
+  continuous|fireAndForget|indirect, lock (with its generations), payload, ruleset, combatId, round, state }`. The
+  **payload** snapshots everything the deferred attack needs (round 2 #8): weapon name and item uuid (for display
+  only), damage code/Power/level and every damage property the existing `_rollWeaponAttack` reads, the loaded ammo's
+  type, Intelligence, Sensor and properties, the gunner's skill choice; Phase 0 resolves from the payload and never
+  rereads the launcher or spends ammunition. reserve → spend the missile once → `launched`. Nothing is rolled at
+  launch.
+- **One ammunition writer per weapon** (round 2 #7): EVERY ammunition change — ordinary attacks, missile spends,
+  reloads — runs on the weapon's ammo writer (its owner's active client, else the active GM) inside the queue
+  `ammo:<weaponUuid>`, with a receipt `flags.sr2e.ammoReceipts.<eventId>` in the same update. A launch spends there
+  first (receipt = the launch id), then the GM op records the launch citing the receipt. A reload that buys ammunition
+  charges in the payer's `moneyQueue` and then writes in `ammo:` (lock order money → ammo, never the reverse).
 - **Phase 0** (p.59): every launch strikes at the end of its Combat Turn. The staged round change (Part 3a 3.0) gets a
   **closing stage for every combat** (not only chases) that is blocked while any launch of that round is not
   terminal: each launch's Missile Attack Test (Gunnery + Intelligence, + ⌊Sensor ÷ 2⌋ in continuous lock; Combat Pool
-  allowed except indirect/area; TN 4b.3; ECM if the missile crossed a field) is a rolled step by the shooter's
+  allowed except on targeted indirect missile attacks — the area-effect scatter test of 4b.6 DOES allow it, round 2
+  #3; TN 4b.3; ECM if the missile crossed a field) is a rolled step by the shooter's
   client (the GM rolls for NPCs or absent players; the panel lists what it waits on, with the GM's cancel). Damage and
   follow-ups (Part 3b records) run OUTSIDE the chase lock and their receipts are reconciled before `closed.<r>` and
   before distances change. Living targets take standard damage; vehicles p.53.
 - **Continuous lock** (round 1 #15): the launch holds a guidance commitment until Phase 0: the shared attack path
-  refuses the gunner's attacks at other targets (GM override), every chase action and Driving Test of that vehicle
-  gets +2, and contact is re-checked at Phase 0 (R4-2 validity). Lost contact: the missile doesn't strike the target
+  refuses the gunner's attacks at other targets (GM override), every Driving Test of that vehicle gets +2 — applied
+  in the ONE Driving Test path (`rollDrivingTest` / Part 3a chase actions that are Driving Tests), not to other chase
+  actions (round 2 #2), and contact is re-checked at Phase 0 (R4-2 validity). Lost contact: the missile doesn't strike the target
   (p.59: "will not strike it"); the GM may resolve it as an area-effect attack (4b.6).
 - Fire-and-forget: a lock at launch only; no Sensor dice; no commitment.
 

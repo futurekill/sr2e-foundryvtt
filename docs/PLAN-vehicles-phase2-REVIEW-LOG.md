@@ -586,3 +586,21 @@ launch; durable launch records resolved in a closing stage for every combat, eff
 spotter commitments enforced in shared paths; FDDM/designator endpoints; the area-effect contract (radar reading of
 the cut word noted); component upgrade state and footage prerequisites. User rulings R4-1 (rating × 1.5) and R4-2 (until
 contact is lost) recorded.
+
+## Part 4 plan, round 2 — Codex (draft 2, fresh session): REVISE, 8 findings
+1. The walking/running drone modifier belongs to the ATTACKING drone on mechanical legs (p.57 key), not the target.
+2. The continuous-lock +2 applies to Driving Tests only, not every chase action.
+3. Combat Pool: 4b.4 excluded it for "indirect/area" while p.61 allows it on the area-effect scatter test.
+4. Read-time validity could resurrect a lock/EW result after range or a device returned.
+5. Item-only transmitter identity leaves stock sensors (no Sensors item, e.g. the Westwind) unaddressable.
+6. Sensor components must be declared in the system's `VehicleModData`, not the content module.
+7. Ammunition had three writers (gunner, vehicle queue, money queue): lost updates.
+8. The launch didn't snapshot the full weapon payload for the deferred attack.
+
+### Claude's response (draft 3)
+All taken (p.57 re-read: "Attacking Drone Walking/Running … only if the drone is propelling itself with mechanical
+legs"). 4.0 adds contact/device generations bumped by the GM on every loss, stored on each record; 4a.1 components in
+`VehicleModData` (built-in sensor components on a vehicle flag); 4a.3 a `builtin-sensor` identity; 4b.2 the attacker's
+locomotion; 4b.4 a full launch payload + gunner/source identities, ONE ammunition writer per weapon (`ammo:<uuid>`,
+receipts, money → ammo lock order), Combat Pool excluded only on targeted indirect missile attacks, the +2 only in the
+Driving Test path.
