@@ -225,3 +225,26 @@ concurrent Restore attempts can both spend Karma.
 ### Claude's response (draft 8)
 Both taken: the chip keeps `viaEncephalon` provenance and counts only in rigged mode (1); Restore attempts are reserved
 in the vehicle queue before the Karma is spent, freed on failure, recovered by receipt (2).
+
+## Part 2b plan, round 8 — Codex (draft 8, fresh session): REVISE, 1 finding
+1. A Restore reservation whose payer disconnects (or whose Karma debit fails) before the receipt blocks Restore
+forever; recovery covers only reservations with receipts.
+
+### Claude's response (draft 9)
+Taken: Restore reservations without a receipt use the payment Release protocol (payer's money writer marks the slot
+`released` so a late debit aborts, then the GM clears `restoreTx`); Quench test for the interruption added.
+
+## Part 2b plan, round 9 — Codex (draft 9, fresh session): REVISE, 1 finding
+1. p.14's accumulating +1 applies only when one required B/R test succeeds and another fails; draft 9 recorded every
+failure, including attempts where none succeeds.
+
+### Claude's response (draft 10)
+Taken (confirmed on the page): failures are recorded only once another required test of the attempt has passed
+(retroactively for earlier failures, in the same GM-queue update); an all-fail attempt adds no penalty; Checks case added.
+
+## Part 2b plan, round 10 — Codex (fresh session): REVISE, void
+My draft-10 edit script failed before writing, so Codex reviewed draft 9 again and flagged only the unapplied round-9
+resolution. Edit applied; round rerun.
+
+## Part 2b plan, round 11 — Codex (draft 10, fresh session): APPROVED
+No new material findings against the pages, the code, or settled rounds 1–9. Part 2b plan approved at draft 10.
