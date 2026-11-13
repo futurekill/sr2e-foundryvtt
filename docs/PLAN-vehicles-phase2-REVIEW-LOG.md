@@ -622,3 +622,18 @@ by any p.27 component. 4a.3: explicit `sensorInstalled` for Rating-0 systems. 4b
 owner's money queue then the ammo queue; one atomic validate+debit+snapshot; an admission fence under `round:<combatId>`
 drained by the closing stage. 4b.5: non-missile indirect fire (p.60 re-read): same spotting/equipment, missile-only
 terms 0, the Gunnery Test resolved when fired — a stated reading; weapon-specific artillery rules come from their items.
+
+## Part 4 plan, round 4 — Codex (draft 4, fresh session): REVISE, 6 findings
+1. Direct LOS −3 limited to air/ground lines; p.58's list is examples (air-to-air qualifies), only ground-to-ground needs
+   clear open terrain.
+2. A queued sweep reading live state can miss a move out and back.
+3. Records ignore the receiving device and the ECCM/ECD supplying cancellation.
+4. Releasing an admitted launch could race a pending spend on another client.
+5. Missile ECM exposure "during any part of flight" needs a history.
+6. The boost validator required items, contradicting the built-in sensor.
+
+### Claude's response (draft 5)
+All taken: LOS per p.58 with ground-to-ground restricted; ordered transition snapshots (before/after) drained before any
+dependent action; receiving-device and separate cancellation-layer generations; release only on the ammo writer's
+durable cancel receipt (later spends refused); per-launch exposure history used at Phase 0 with GM add/strike; one
+`transmitterOf` resolver. Also removed a sentence draft 4 left duplicated in 4.0.
