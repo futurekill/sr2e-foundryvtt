@@ -315,3 +315,16 @@ one speeding receipt and an `over` marker; one `driverOf` resolver threaded thro
 acting character; entitlement = the driver's next combat turn; follow-ups reconcile by message flag; explicit ruleset
 passed down card chains (`vehicleDamageMods(level, ruleset)`); no called-shot bypass; Destroyed split by source; slits
 untargetable; barrier spells as walls with BR = Force through the R2 procedure.
+
+## Part 3 plan, round 3 — Codex (draft 3, fresh session): REVISE, 8 findings
+1. Braking can earn the ram (Rigger X, p.47–48). 2. Clamping manufactured braking. 3. Relocation lacked the vehicle damage
+modifier. 4. Stale checks missed driver changes and vehicle damage/ratings. 5. A resolving action didn't block others.
+6. The round transition itself wasn't recoverable/idempotent. 7. DP slots lacked recovery and cancel coordination.
+8. Components: blanket own ratings and monitor immunity unsupported.
+
+### Claude's response (draft 4)
+All taken: entitlement on either speed change ≥ 2 × distance; cap only stops further acceleration; relocation damage
+modifier; vehicle stamps (driver, damage level, ratings) checked live at resolve; begin refused while rolling OR
+resolving; `chaseAdvance` with durable stages (closing → advanced → refreshing → opening) resumed by the ready pass;
+DP slot states with card reconcile and pool-writer-acknowledged cancel; components as ordinary vehicle damage unless the
+GM enters separate ratings, monitor effect then the GM's call (offered on the card).
