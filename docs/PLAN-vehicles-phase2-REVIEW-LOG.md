@@ -567,3 +567,22 @@ Taken: the block now sits right after `singleCombat` is declared. Proven live: t
 manipulation, foci, effects, healing, restricted, metamagic, Spell Defense) pass.
 
 ## Part 3c code, round 3 — Codex (round-2 fix only, fresh session): APPROVED
+
+## Part 4 plan, round 1 — Codex (draft 1, fresh session): REVISE, 18 findings
+Invented half-point range reading; per-transmitter modifier limits and port requirement dropped; no boost allocation
+model; ECM fields tied to the target only; pairwise rolls contradict the single jammer roll; record races; ED not
+gated/keyed per threat; Signature helper could drop mods/leak EW; manual-gunnery scope; the dialog alone can't replace
+the TN composition; LOS conditions; missile data through ammo/reload; launch transaction; closing-stage integration;
+continuous-lock obligations; indirect-fire equipment and commitments; area-effect roll contract; sensor component
+upgrades and footage prerequisites.
+
+### Claude's response (draft 2)
+All taken (see 4.0–4b.7): GM-adjudicated half/negative Flux; per-transmitter conditions; `fluxBoost` GM op validating
+the whole allocation; ECM fields covering observers wherever they aim, max effect; one stored jammer roll read at each
+observer's TN; reserved ids/immutable inputs/revisions/receipts, validity checked on read; ED behind a setting, keyed per
+threat; baseline `effective.signature` + a separate EW term; explicit core/manual/sensor/missile modes with one
+composition each (wounds stay central); dispatch ruling stated; LOS conditions; `guided` ammo data through reload and
+launch; durable launch records resolved in a closing stage for every combat, effects outside the lock; guidance and
+spotter commitments enforced in shared paths; FDDM/designator endpoints; the area-effect contract (radar reading of
+the cut word noted); component upgrade state and footage prerequisites. User rulings R4-1 (rating × 1.5) and R4-2 (until
+contact is lost) recorded.

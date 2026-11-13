@@ -893,6 +893,197 @@ pending survives a reload → crash → occupants (one receipt each, vehicle sta
 feedback per event (two Serious hits → two); weapons; spells; an old core card resolves by core after the switch; core
 path unchanged with the ruleset off.
 
+## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 2 (2026-11-13, after Codex Part 4 round 1)
+_Read from 110-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. Everything below applies
+only under `isRigger2()`; the core attack flow (incl. the p.108 Moving Target Table) is untouched under core. Two
+releases: **4a** (sensors, Flux and range, ECM/ECCM/ED/ECD, locks), **4b** (gunnery modes, missiles, indirect fire,
+signatures). Builds on Part 3's chase and staged round change and on Part 3b's damage records._
+
+**User rulings (2026-11-13):** R4-1 the ECM Test uses the ECM suite's Flux per the p.30 table (rating × 1.5, round up:
+ECM 3 → 5 dice); the p.32 example's "Flux 10" is a misprint. R4-2 a sensor lock and an ECM/ED result hold **until
+contact is lost**: the target hides from that observer (Part 3a), leaves the transmitter's range, the observer's or
+the emitter's equipment is switched off or stops working, or the GM clears it — not merely at the end of a Turn.
+
+### 4.0 Records and transactions
+- Everything here is written by the active GM through GM ops in the vehicle queue (`vdmg:<uuid>`), like Part 3b:
+  **reserved event ids, immutable roll inputs, a revision per record, terminal receipts**. A roll is a rolled step
+  (Part 3.0): reserve → spend → arm → card → record; a card for a superseded or cancelled reservation is "not counted".
+- Identities are key-safe and token-aware: `followId(actor.uuid)` (unlinked token actors stay distinct).
+- Validity (R4-2) is CHECKED on read (range, hidden contact, equipment working, GM clear marker); a stale record is
+  ignored, never mutated in place by a reader.
+- **Baseline Signature** = `VehicleData.effective.signature` (installed modifications included); contextual EW is a
+  separate per-observer term and never changes the actor's derived data (4a.5).
+
+### 4a.1 Sensor ratings, components and footage (p.27–28)
+- Sensor Rating = `system.effective.sensor`. Components by rating (p.27): 0 rangefinders, ultrasound, laser proximity;
+  1 + proximity detectors, video (not trideo) cameras, basic radar, signature-recognition, low-light and telescopic;
+  2–4 + thermographic; 5+ + flare compensation; magnification 50 × rating. A pure `sensorComponents(rating, upgrades)`.
+- **Component upgrades** (p.27): stored on the R2 Sensors item as `system.components = { magnification: levels,
+  flareCompensation: bool, … }` (rigger-2 module schema add, blank allowed); parts cost = original sensor cost × 0.10
+  × levels; installed through the existing customization request flow (installation rules unchanged). The base
+  rating is untouched; components add only their own capability (Skyrie: 15,000 × 0.10 × 2 = 3,000¥).
+- **Footage** (p.28): rating 1+ systems transmit/record 2D audio/video only if the vehicle has storage (onboard memory
+  or a computer), a video recorder for chips, or a remote-control link for transmission; onboard recorders/computers
+  must be connected through an Electronics Port (R2 p.139 item). 2 Mp/min (1 for audio- or video-only); enlargement
+  up to Sensor × 20; footage used in a Perception Test +1 TN. Shown as guidance on the panel with which of those the
+  vehicle has; the +1 is an option on Perception Tests.
+
+### 4a.2 The Sensor Test and locks (p.28, p.30, p.58)
+- Dice = Sensor Rating; TN = baseline Signature (vehicle) / 6 (a character) / the Critter Signature Ratings Table or
+  size rule (p.61) / a GM value, + the observer-specific EW term (4a.4–4a.5) + the Sensor Test Modifiers Table: direct
+  LOS −2, urban (sensor or target in a built-up area) +1, fog/smog/precipitation +1, restricted terrain +1, concealed
+  by a spirit + its Force, tight terrain +2, sensing vehicle damaged + its damage modifier. Min 2. A Complex Action
+  (p.58). Results Table (0–4+) printed on the card.
+- A target beyond the sensors' effective range (4a.3) can't be tested (GM override with a stated distance).
+- **Lock**: a Sensor Test with ≥1 success creates a lock record on the sensing vehicle,
+  `flags.sr2e.locks.<targetKey> = { id, successes, messageId, inputs, rev }`, valid per R4-2.
+
+### 4a.3 Flux and range (p.30–31)
+- **Transmitters** are the vehicle's working devices with their own identity (item id): sensors, ECM, ECCM, ED, ECD,
+  radios, remote-control decks. Flux Rating Table: RC deck 2; sensors/ECM-family rating × 1.5 rounded up; other
+  transmitters the device rating; cyberware 0. Any device may run lower (to 0).
+- **Boosts** (p.30): `flags.sr2e.fluxBoosts = { [itemId]: { engine, amplifiers: { [ampItemId]: n } } }`, written only by
+  the GM op `fluxBoost`, which validates the WHOLE allocation in one vehicle-queue step against the live vehicle:
+  engine boost only for a device connected through an Electronics Port; per device ≤ ⌊Body ÷ 2⌋; total engine ≤ Body;
+  each amplifier's total ≤ its rating (R2 `power-amplifier`); every referenced item installed and working. Readers
+  re-check the same rules and ignore (and flag on the panel) an allocation the vehicle no longer supports.
+- **Range** (Flux Rating and Range Table p.31: 0 250 m … 9 25 km; 10+ (2 × Flux) + 10 km). Situational modifiers apply
+  to the transmitter's Flux first, **per transmitter**: high elevation +4; ECCM in use −ECCM ÷ 2 (the vehicle's ECCM
+  draws power from that transmitter); electrical storm −2; encryption −0.5 (radios and RC decks only); humid air
+  −0.5 (never together with electrical storm); urban −1 (built-up area or within 1 km of a high-voltage line). The
+  modified Flux rounds DOWN to the nearest half. **Interpretation left to the GM** (round 1 #1): the table has no
+  half-point rows and no negative rows; a x.5 Flux shows both bracketing ranges and the GM's choice is stored on the
+  transmitter's condition set; a Flux below 0 shows "no usable range" and the GM may set one. Josie: 6 + 4 − 0.5 −
+  1.5 = 8 → 20 km. ECD subtracts its rating from the vehicle's Flux (p.32).
+
+### 4a.4 ECM and ECCM (p.31–32, p.58–59)
+- ECM / ECCM on-off: Simple Actions; per-vehicle toggles (GM op, the action cost on the card).
+- **ECM field**: a jammer's field covers every point within its ECM's Flux range (4a.3). An ECM effect applies to an
+  observer (a sensing vehicle, an attacking vehicle, a missile in flight) **inside any field other than its own**
+  (p.58), whatever it is targeting; ECM is not cumulative (p.32): of several applicable fields the largest effect
+  applies.
+- **One jammer roll** (p.32, round 1 #5): when an observer first needs it (a Sensor Test, a sensor-enhanced attack, a
+  missile crossing the field) and the jammer has no valid jam event, the jammer makes ONE ECM Test: Flux of its ECM
+  (R4-1) dice, the dice stored as an immutable `jamEvent { id, dice[], ecm, flux }` on the jammer; its successes
+  against an observer are counted at THAT observer's Sensor Rating (the TN), re-read from the stored dice. Each
+  observer makes its own opposed roll (its sensors' Flux vs the jammer's ECM rating), stored per (jammer, observer).
+  Jammer more successes → its effect on that observer = the jammer's successes; otherwise 0 (M.C. Jammer: 4 vs 2 →
+  Signature 4 → 8 against that copter only).
+- **ECCM** (p.32): the counterjammer's ECCM rating vs TN = the jammer's ECM; the jammer's ECM rating vs TN = the
+  counterjammer's ECCM; net counterjammer successes cancel jammer successes one for one, once, from the ORIGINAL
+  stored successes (floor 0) (Aguilar: 3 vs 2 → 4 − 1 = 3: Signature 7).
+- Records: `jamEvent` on the jammer; `jamVs.<observerKey> = { eventId, observerRoll, eccm, rev }`; validity per R4-2.
+
+### 4a.5 ED and ECD (p.32) — optional rule
+- Behind a world setting `r2ElectronicDeception` (default off), as the book calls ED optional.
+- ED: the deceiver rolls its ED rating vs TN = the opposing Sensor Rating — or, against a missile, that missile's
+  Intelligence — keyed per THREAT (`edVs.<observerKey | launchId>`); each success +1 to its Signature against that
+  threat; area effect within its Flux range. ECD: the threatened side rolls its ECD rating vs TN = the deceiver's ED
+  rating; each success cancels one ED success (floor 0); ECD doesn't counter ECM. Toggles: Simple Actions. A rigger
+  who suspects ED may make a Perception Test vs ED rating + 4 (a button on the ED card, GM's call to offer).
+- **EW term** for an observer O targeting T: `maxJam(O) + ed(T vs O)`, computed by one pure function from the valid
+  records; Signature-based TNs add it to the baseline (never stored on the actor).
+
+### 4b.1 Gunnery modes and one TN composition
+- One explicit **mode** per ranged attack, chosen in the attack dialog and passed to the roller (the dialog and
+  `_rollWeaponAttack` share ONE composition per mode, each modifier applied at exactly one point; wounds stay central
+  in `rollSuccessTest`, never added again; vehicle damage modifiers once, in the mode composition):
+  - `core` — today's composition (base 4 + range + p.89 modifiers + p.108 speed). Every existing caller's default.
+  - `manual` (R2) — standard ranged combat (pp.87–92: base TN by range) with the **Manual Gunnery Modifiers Table**
+    (p.57) replacing the p.89 situational modifiers and p.108 (4b.2).
+  - `sensor` (R2) — 4b.3. `missile` (R2) — 4b.4/4b.5.
+- **Dispatch (ruling, round 1 #9):** Rigger 2's gunnery chapter covers "fire from all vehicle-mounted weapons" and
+  characters firing "personal or vehicle weapons" in vehicle combat (the firing-unmounted-weapons row: a passenger
+  leaning out of a window). Under Rigger 2 the dialog proposes `manual` when the attacker fires a vehicle-mounted
+  weapon or is aboard a vehicle (chase or dialog tick), `sensor`/`missile` when chosen with a valid lock, and `core`
+  otherwise (a pedestrian shooting at a car uses standard ranged combat; its damage is Part 3b's). The book's own
+  exception: both attacker and target under 5 m/turn → standard ranged combat (p.58).
+
+### 4b.2 Manual gunnery (p.56–58)
+Manual Gunnery Modifiers Table (p.57; 300-dpi re-check before coding): blind fire +8; partial cover +4; smartlink I
+−2, II per Fields of Fire pp.84–85 (both gunner and weapon smartlinked); aimed shot −1 per Simple Action; image
+magnification (core p.240); visibility (core p.89 table); multiple targets +2 per extra target that phase; attacking a
+walking drone +1 (difficult ground +2), running +4 (+6); target running +2; target stationary −1; recoil (SA +1 2nd
+shot, burst +3 each, FA +1 per round, heavy 2× uncompensated); recoil compensation — pintle −2, ring −6, fixed/turret
+halve recoil before accessories (cancels the heavy doubling, R2 p.131); firing an unmounted weapon from a vehicle +2;
+relative motion toward −1 / away +1 (not on one axis at matched speeds; applies at right angles); Maneuver Score
+difference — attacker exceeds target by more than 10 −1, target exceeds attacker by more than 10 +1 (Part 3a);
+attacking vehicle damaged + its level's modifier (cumulative with the attacker's wounds); relative speeds equal 0,
+≤2× +2, ≤3× +4, >3× +6 (a speed under 5 counts as 5); size/type of target (human 0 … freighter −8, the full list).
+Speeds, Maneuver Scores and terrain come from the chase when both are tracked, else the dialog.
+
+### 4b.3 Sensor-enhanced gunnery (p.58–59)
+Requires a valid lock (4a.2). Dice = Gunnery + ⌊Sensor ÷ 2⌋ (+ Combat Pool); a drone without a rigger uses Pilot
+(Part 5). TN = baseline Signature + EW term + the Sensor-Enhanced Targeting Modifiers Table: urban +2; **direct LOS −3**
+only for an air-to-ground / ground-to-air line, or ground-to-ground when the target sits in clear, open terrain;
+**interrupted LOS 0** for other ground-to-ground attacks (the dialog asks which, with the book's conditions); recoil
+and recoil compensation as 4b.2; attacking vehicle damaged + modifier. Min 2 (Steeler: 3 − 3 → 2; 4 + 1 = 5 dice).
+A Complex Action. Sensor aiming raises the firing vehicle's Signature (p.56) — no amount is printed: the card says so,
+nothing is invented.
+
+### 4b.4 Missiles: data, launch and Phase 0 (p.59–60)
+- **Data** (round 1 #12): ammo gains `guided: { kind: "missile"|"rocket"|"", intelligence, sensor }` (the FoF
+  Ballista, Great Dragon etc. backfilled from their notes in the FoF module, page-checked); reload copies it into the
+  weapon's loaded-ammo snapshot exactly as the existing reload copies damage/armour properties; the launch snapshots
+  it. Rockets have no Intelligence: they fire through `manual`/`sensor` (p.59).
+- **Launch** (round 1 #13): firing a missile is a durable **launch record** on the shooter's vehicle (or the shooter
+  if none), `flags.sr2e.launches.<id> = { shooter, target, mode: continuous|fireAndForget|indirect, lock, ammo
+  snapshot, ruleset, combatId, round, state }`: reserve → spend the missile once (the weapon's ammo with the launch id
+  as receipt) → `launched`. Nothing is rolled at launch.
+- **Phase 0** (p.59): every launch strikes at the end of its Combat Turn. The staged round change (Part 3a 3.0) gets a
+  **closing stage for every combat** (not only chases) that is blocked while any launch of that round is not
+  terminal: each launch's Missile Attack Test (Gunnery + Intelligence, + ⌊Sensor ÷ 2⌋ in continuous lock; Combat Pool
+  allowed except indirect/area; TN 4b.3; ECM if the missile crossed a field) is a rolled step by the shooter's
+  client (the GM rolls for NPCs or absent players; the panel lists what it waits on, with the GM's cancel). Damage and
+  follow-ups (Part 3b records) run OUTSIDE the chase lock and their receipts are reconciled before `closed.<r>` and
+  before distances change. Living targets take standard damage; vehicles p.53.
+- **Continuous lock** (round 1 #15): the launch holds a guidance commitment until Phase 0: the shared attack path
+  refuses the gunner's attacks at other targets (GM override), every chase action and Driving Test of that vehicle
+  gets +2, and contact is re-checked at Phase 0 (R4-2 validity). Lost contact: the missile doesn't strike the target
+  (p.59: "will not strike it"); the GM may resolve it as an area-effect attack (4b.6).
+- Fire-and-forget: a lock at launch only; no Sensor dice; no commitment.
+
+### 4b.5 Indirect fire (p.60)
+- **Equipment** (round 1 #16): either the FDDM route — the spotter, the weapon and the rigger's remote-control deck each
+  carry a BattleTac FDDM (the R2 receiver module on vehicles/drones; the deck and the spotter's FDDM items as gear),
+  each checked on its document — or a target designator (laser, microwave, radar; FoF p.60 items). The dialog lists
+  which endpoints are satisfied and refuses otherwise (GM override, stated).
+- **Indirect Fire Test** (the spotter): Indirect Fire Concentration of Gunnery, else Gunnery at +2 TN, + ⌊missile
+  Sensor ÷ 2⌋ + missile Intelligence; TN = target Signature (+ the Visibility Table, GM); no Combat Pool; a Complex
+  Action. Success: the spotter's **commitment** until Phase 0: +2 to the spotter's other Success Tests; a designator
+  user attacking with another weapon also takes the Second Firearm modifier (core p.90).
+- **Missile Attack Test** (the firer, at Phase 0): Gunnery + Intelligence + the spotter's successes; no Combat Pool; TN
+  4b.3 (Moly: 5 + 1 = 6 dice vs 3; Tubbs: 6 + 4 + 3 = 13 vs 6).
+
+### 4b.6 Area-effect attacks (p.60–61)
+- When: the Indirect Fire Test fails; the lock isn't kept to Phase 0; targets spread over an area; no Signature; no
+  designator.
+- **Roll contract** (round 1 #17): a Gunnery Test with Combat Pool allowed, NO Sensor or missile-Intelligence dice;
+  TN from the Area-Effect Target Numbers Table by device and range band (laser 50–300/301–1,500/1,501–3,000/
+  3,001–5,000; microwave 50–500/501–2,500/2,501–5,000/5,001–8,000; radar 50–500/501–3,000/3,001–6,000/6,001–10,000;
+  vehicle sensor only 100–Flux×200/…×500/…×2,000/…×4,000 m; TN short 4, medium 5, long 6, extreme 9); no designator →
+  the vehicle-sensor-only row. A lock lost AFTER a successful Indirect Fire Test: the TN as if the spotter had used a
+  radar designator (the page gutter cuts the word after "ra"; Radar is the only table row starting so — noted) and
+  the spotting successes are NOT used.
+- Always scatters (Remote Gunnery Scatter Table: short 2D6 × 2, medium 2D6 × 5, long 3D6 × 15, extreme 3D6 × 40 m);
+  each Gunnery success −4 m (short/medium) or −15 m (long/extreme); ≤ 0 → on target; direction by the core scatter
+  diagram (p.97). Example: 16 − 3 × 4 = 4 m.
+
+### 4b.7 Signatures (p.61)
+Vehicles: the baseline Signature; biological forms: humans/metahumans 6, critters by the Critter Signature Ratings
+Table (by name) or size (3× larger 5, 6× larger 4, 3× smaller 7, 6× smaller 8); else a GM value.
+
+### Also in Part 4 (deferred from 2b)
+Improved datajacks' Perception dice and rigging sight: a jacked-in rigger perceives through the vehicle's sensors
+(Perception options read `sensorComponents`).
+
+### Checks
+Pure tables in `module/rules/vehicle-sensor-rules.mjs`, unit-tested with the book's examples (Josie's Flux 8 → 20 km;
+M.C. Jammer/Aguilar; Monkeywrench ED; Steeler; Moly/Tubbs; the scatter example). Quench: a lock that dies when the
+target hides; one jammer roll read at two observers' TNs; a boost allocation refused over Body; a manual R2 attack
+with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
+non-chase combat; a stale card "not counted".
+
 ## Key decisions & tradeoffs
 - Ruleset switch = a world setting with reload (VR2.0 pattern), added in Part 2 when the first R2 rule exists, so
   Part 1 never ships a setting that does nothing.
