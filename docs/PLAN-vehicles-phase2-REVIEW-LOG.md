@@ -367,3 +367,16 @@ refreshes run through each actor's pool writer with a receipt (`flags.sr2e.poolR
 the pools, and on each focus item with its reset; documents with the receipt are skipped; spends for participants are
 refused mid-transition. (4) `overCheck` stores speed, post-damage Speed Rating and the computed `over`; replay uses
 the stored result.
+
+## Part 3 plan, round 6 — Codex (draft 6, fresh session): REVISE, 4 findings
+1. Damage (in `vdmg:<uuid>`) could land between `chaseResolve`'s stamp check and its Combat update; overCheck could
+capture an obsolete speed. 2. Ordinary action cancels lacked the pool-writer void ack that DP slots got. 3. Nothing
+stopped one vehicle appearing in two entries or two chases. 4. The staged `startCombat` would refresh only the opening
+combatant in "action" mode; today it refreshes everyone (p.84).
+
+### Claude's response (draft 7)
+All taken. (1) Lock order chase → vdmg; damage to a vehicle in an active chase commits inside the chase queue;
+`chaseResolve` holds the queue from validation through its write; no queue is held while waiting on another client.
+(2) Action spends carry `byTest[aid]` receipts and use the same acked void protocol. (3) One entry per uuid across all
+active chases, one vehicle per aboard character, `chaseTransfer` for moves. (4) `startCombat` refreshes every combatant
+(unless "off") plus the chase union; the mode subset is for later rounds only.
