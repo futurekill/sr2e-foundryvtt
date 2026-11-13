@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 8 (2026-11-13, after Codex Part 3 rounds 1–7)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 9 (2026-11-13, after Codex Part 3 rounds 1–8)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -466,8 +466,8 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   through GM ops, in ONE queue per combat (`chase:<combatId>`). **Lock order** (B6 #1): `chase:<combatId>` →
   `vdmg:<vehicleUuid>`, never the reverse. Every write that affects a chase vehicle's speed, ratings or damage —
   chase resolutions, the turn close, AND `commitVehicleDamage` for a vehicle that is an entry in an active chase —
-  runs inside the chase queue (damage then takes `vdmg:<uuid>` inside it); damage to a vehicle in no chase keeps
-  today's `vdmg` path alone. `chaseResolve` holds the chase queue from stamp validation through its awaited
+  runs inside the chase queue (damage then takes `vdmg:<uuid>` inside it); damage to a vehicle in no chase takes
+  only `vdmg` once routed (routing itself is under `chase-membership`, below). `chaseResolve` holds the chase queue from stamp validation through its awaited
   Combat update, so no damage can land between the check and the write, and an `overCheck` is computed inside the
   same queue against the speed the chase record holds at that moment. No step ever waits on another client while
   holding a queue: a stage that needs a player's ack (cancels, refreshes) returns and resumes later. Players' clients read it and ask. **Keys are opaque
@@ -480,9 +480,17 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
     world-wide queue, `chase-membership` (B7 #1; every chase GM op runs on the active GM, so one queue there orders
     them all): `chaseAddEntry`, aboard changes, entry removal and `chaseTransfer` all run inside it, check every
     active combat's chase (including pending transfers) and refuse a uuid already present. `chaseTransfer` is
-    recoverable: it first writes `pendingIn.<vehicleUuid> = {from, eid}` on the TARGET chase (which counts as
-    membership), then removes the entry from the source (refused while it has a non-terminal action or DP slot),
-    then adds it to the target and clears `pendingIn`; the GM's ready pass finishes any transfer it finds part-way.
+    recoverable (B8 #1–#2): it first writes, on the TARGET chase, `transfers.<tid>` (tid = randomID; the uuid is a
+    value, never a key) = `{ vehicleUuid, from: combatId, fromEid, toEid, entry: <a full copy of the source entry —
+    uuid, driver, speed, terrain, autonav, group, aboard>, stage: "recorded" }`, which counts as membership; then
+    removes the source entry (refused while it has a non-terminal action or DP slot) → `stage: "removed"`; then adds
+    `entries.<toEid>` from the stored copy → clears the record. Each stage is idempotent (remove: no-op if
+    `fromEid` is gone; add: no-op if `toEid` exists), so the GM's ready pass — which finishes every pending transfer
+    BEFORE anything else in the membership queue runs — can resume from any point.
+    **Damage routing** (B8 #3): `commitVehicleDamage` for ANY vehicle runs inside `chase-membership`: it looks up
+    the vehicle's chase there (refusing to proceed while a transfer record for it exists — the ready pass finishes it
+    first), then takes that chase's queue (if any) and `vdmg:<uuid>`, so membership can't change between lookup and
+    commit. (Damage commits are short GM-side writes; one world-wide order for them is fine at table scale.)
     Lock order: `chase-membership` → `chase:<combatId>` → `vdmg:<vehicleUuid>`. So `driverOf`, the damage-speed lookup and every receipt keyed by entry are unambiguous.
   - `pairs.<pid>` = `{ pursuer: eid, quarry: eid, distance, contact: true | { hiddenBy, successes, round, npcTurns } }`.
   - `turns.<round>.<eid>` = `{ vp, tp, sp, dp: null | { value, messageId }, dpSlot, positionBonus, escapeBonus, ms,

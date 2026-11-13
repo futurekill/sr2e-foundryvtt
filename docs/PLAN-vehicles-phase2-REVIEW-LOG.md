@@ -391,3 +391,13 @@ Both taken. (1) One world-wide `chase-membership` queue for adds, aboard changes
 write `pendingIn` on the target first (counts as membership) and are finished by the ready pass; lock order
 membership → chase → vdmg. (2) Action spends use a separate `flags.sr2e.chaseSpend.<aid>` receipt ledger; only DP
 allocations stay in `positionReserve`.
+
+## Part 3 plan, round 8 — Codex (draft 8, fresh session): REVISE, 3 findings
+1. A transfer interrupted after deleting the source entry lost the entry's data (`pendingIn` held only {from, eid}).
+2. `pendingIn.<vehicleUuid>` used a dotted uuid as an update-path key. 3. Damage chose its chase queue outside the
+membership queue, so a transfer could slip between routing and commit.
+
+### Claude's response (draft 9)
+All taken. Transfers are `transfers.<randomID>` on the target holding the vehicle uuid as a value and a full copy of
+the entry, with idempotent stages recorded → removed → added, finished by the ready pass before anything else.
+`commitVehicleDamage` routes inside `chase-membership` (waiting out any pending transfer), then takes chase → vdmg.
