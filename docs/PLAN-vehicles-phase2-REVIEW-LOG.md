@@ -328,3 +328,7 @@ modifier; vehicle stamps (driver, damage level, ratings) checked live at resolve
 resolving; `chaseAdvance` with durable stages (closing → advanced → refreshing → opening) resumed by the ready pass;
 DP slot states with card reconcile and pool-writer-acknowledged cancel; components as ordinary vehicle damage unless the
 GM enters separate ratings, monitor effect then the GM's call (offered on the card).
+
+## Part 3 plan, round 4 — not run (2026-11-13 01:29)
+Codex refused at start: weekly usage limit, "try again at Nov 18th, 2026 10:29 AM". Draft 4 unchanged; round 4
+reruns with the same prompt once the limit resets.
