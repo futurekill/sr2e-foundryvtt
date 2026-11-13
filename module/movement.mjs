@@ -72,7 +72,7 @@ function isCapped(tokenDoc) {
   // scene sharing the active combatant's id must not be treated as active.
   if (!active) return false;
   // A projecting mage's astral form moves on its BODY's turn (the combatant
-  // stays bound to the body token; docs/PLAN-astral-barriers.md item 15).
+  // stays bound to the body token; docs/archive/plans/PLAN-astral-barriers.md item 15).
   const astralFormOf = tokenDoc.flags?.sr2e?.astralForm;
   if (active.uuid !== tokenDoc.uuid && astralFormOf !== active.uuid) return false;
   if (isOnAstralPlane(tokenDoc.flags?.sr2e)) return astralCapsOf(tokenDoc) !== null;

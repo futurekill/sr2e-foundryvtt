@@ -48,7 +48,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    * @override
    * Refundable stock (ammo, tracked drugs) on a character: the quantity is never resent
    * by an unrelated field's submit, and a real edit goes through the owner's money queue
-   * against the value this form showed (docs/PLAN-money-queue-and-eye-accessories.md, A2).
+   * against the value this form showed (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, A2).
    */
   async _processSubmitData(event, form, submitData, options) {
     const item = this.document;

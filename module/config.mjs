@@ -553,7 +553,7 @@ SR2E.spiritDomainProfile = {
   lake: "water", river: "water", sea: "water", swamp: "water"
 };
 
-// Spirit GROUPS for totem conjuring bonuses (docs/PLAN-ancestor-spirit.md): a totem may give dice
+// Spirit GROUPS for totem conjuring bonuses (docs/archive/plans/PLAN-ancestor-spirit.md): a totem may give dice
 // for a whole group — Rat: "+2 dice for conjuring all Spirits of Man" (core p.121), stored as
 // `spirits_of_man`. A domain in `spiritDomainInherits` (a module's ancestor spirit) takes the best
 // bonus among its group's member domains. See totemConjuringBonus in rules/sr2e-rules.mjs.
@@ -713,7 +713,7 @@ SR2E.biowareGrades = Object.fromEntries(
   Object.entries(BIOWARE_GRADES).map(([k, v]) => [k, { ...v, label: bioLabels[k] }])
 );
 
-// Cyberlimb identity choices (docs/PLAN-cybertechnology-phase2.md); the schema's own.
+// Cyberlimb identity choices (docs/archive/plans/PLAN-cybertechnology-phase2.md); the schema's own.
 SR2E.limbTypes = { "": "SR2E.Limb.Type.Unset", arm: "SR2E.Limb.Type.Arm", leg: "SR2E.Limb.Type.Leg", hand: "SR2E.Limb.Type.Hand",
   foot: "SR2E.Limb.Type.Foot", forearm: "SR2E.Limb.Type.Forearm", lowerLeg: "SR2E.Limb.Type.LowerLeg",
   torso: "SR2E.Limb.Type.Torso", skull: "SR2E.Limb.Type.Skull" };
@@ -800,7 +800,7 @@ SR2E.systemOperations = {
 // VR2.0 IC programs (p.41) and their labels; class follows the program (icClass).
 SR2E.icPrograms = { killer: "Killer", "crippler-acid": "Acid", "crippler-binder": "Binder",
   "crippler-jammer": "Jammer", "crippler-marker": "Marker",
-  // Part 3 (docs/PLAN-vr2-part3.md; p.41–50).
+  // Part 3 (docs/archive/plans/PLAN-vr2-part3.md; p.41–50).
   "tar-baby": "Tar Baby", trace: "Trace", "data-bomb": "Data Bomb", scramble: "Scramble", worm: "Worm",
   blaster: "Blaster", sparky: "Sparky", "ripper-acid": "Acid-rip", "ripper-bind": "Bind-rip",
   "ripper-jam": "Jam-rip", "ripper-mark": "Mark-rip", "tar-pit": "Tar Pit",
@@ -841,7 +841,7 @@ SR2E.vr2SystemOperations = {
   makeComcall:        { label: "Make Comcall",        subsystem: "files",   utility: "Commlink" },
   editSlave:          { label: "Edit Slave",          subsystem: "slave",   utility: "Spoof" },
   monitorSlave:       { label: "Monitor Slave",       subsystem: "slave",   utility: "Spoof" },
-  // Part 3 (docs/PLAN-vr2-part3.md; VR2.0 p.111–117). "targeted": the subsystem is picked at the test.
+  // Part 3 (docs/archive/plans/PLAN-vr2-part3.md; VR2.0 p.111–117). "targeted": the subsystem is picked at the test.
   analyzeIC:          { label: "Analyze IC",          subsystem: "control", utility: "Analyze" },
   analyzeIcon:        { label: "Analyze Icon",        subsystem: "control", utility: "Analyze" },
   analyzeSubsystem:   { label: "Analyze Subsystem",   subsystem: "targeted", utility: "Analyze" },
@@ -851,7 +851,7 @@ SR2E.vr2SystemOperations = {
   disinfect:          { label: "Disinfect",           subsystem: "targeted", utility: "Disinfect" },
   redirectDatatrail:  { label: "Redirect Datatrail",  subsystem: "control", utility: "Camo" },
   defuse:             { label: "Defuse Data Bomb",    subsystem: "targeted", utility: "Defuse" },
-  // Part 6a-0 (docs/PLAN-vr2-part6-frames.md; p.112, p.117).
+  // Part 6a-0 (docs/archive/plans/PLAN-vr2-part6-frames.md; p.112, p.117).
   decoy:              { label: "Decoy",               subsystem: "control", utility: "Mirrors" },
   nullOp:             { label: "Null Operation",      subsystem: "control", utility: "Deception" },
   // Part 6c (p.104): a command set's tests; the GM names the subsystem (Control when in doubt).
@@ -1009,7 +1009,7 @@ SR2E.metamagic = {
 };
 
 // ---------------------------------------------------------------------------
-// VEHICLE DESIGN (Rigger 2 "design from scratch", book p.108–146; docs/PLAN-vehicle-builder.md)
+// VEHICLE DESIGN (Rigger 2 "design from scratch", book p.108–146; docs/archive/plans/PLAN-vehicle-builder.md)
 // The system ships the rules (module/rules/vehicle-design.mjs) and the Workshop (module/apps/vehicle-workshop.mjs);
 // the Rigger 2 module registers the book's tables below.
 // ---------------------------------------------------------------------------
@@ -1017,7 +1017,7 @@ SR2E.metamagic = {
 // 0.6.0 still calls it before registering the new tables; drop it once that module no longer does.
 SR2E.registerVehicleDesignData = function registerVehicleDesignData() { return null; };
 
-// The Rigger 2 design tables for the design engine (module/rules/vehicle-design.mjs; docs/PLAN-vehicle-builder.md),
+// The Rigger 2 design tables for the design engine (module/rules/vehicle-design.mjs; docs/archive/plans/PLAN-vehicle-builder.md),
 // keyed by each row's `key`: chassis (p.170–171), power plants (p.167–169, every column, each listing the chassis it
 // fits), the Fuel Tank Capacity Table (p.116) and the Mark-Up Factors Table (p.114). Registered by the content module.
 SR2E.vehicleDesignTables = { chassis: {}, powerPlants: {}, fuel: {}, markUp: {} };
@@ -1026,7 +1026,7 @@ SR2E.vehicleDesignTables = { chassis: {}, powerPlants: {}, fuel: {}, markUp: {} 
  * Register the design tables (arrays of rows, or keyed objects). Later wins per key.
  * @param {{chassis?:object[]|object, powerPlants?:object[]|object, fuel?:object, markUp?:object}} data
  */
-/** The Rigger 2 Vehicle List (docs/PLAN-vehicle-list.md): registered by the Rigger 2 module. */
+/** The Rigger 2 Vehicle List (docs/archive/plans/PLAN-vehicle-list.md): registered by the Rigger 2 module. */
 SR2E.vehicleList = { rows: {}, identity: {} };
 SR2E.registerVehicleList = function registerVehicleList({ rows = {}, identity = {} } = {}) {
   Object.assign(SR2E.vehicleList.rows, rows);

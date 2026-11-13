@@ -1,5 +1,5 @@
 /**
- * Optional Calendaria integration (docs/PLAN-addiction.md, "Optional Calendaria
+ * Optional Calendaria integration (docs/archive/plans/PLAN-addiction.md, "Optional Calendaria
  * integration"). A soft dependency: nothing here runs, and nothing imports
  * Calendaria, unless the module is active. Probed against Calendaria 1.0.17:
  * `CALENDARIA.api` — createNote / updateNote / deleteNote / getNote,

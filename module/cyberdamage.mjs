@@ -1,5 +1,5 @@
 /**
- * Cyberware damage, repair and scarring (optional; docs/PLAN-cybertechnology-phase5.md;
+ * Cyberware damage, repair and scarring (optional; docs/archive/plans/PLAN-cybertechnology-phase5.md;
  * Cybertechnology pp.44–49, 56). GM-EDITABLE state: each cyberware item's `conditions`,
  * `skinMissed`, `skinLoss`, and the character's `flags.sr2e.scars`. A Serious/Deadly
  * physical wound posts ONE GM card whose snapshot is persisted at creation; each action

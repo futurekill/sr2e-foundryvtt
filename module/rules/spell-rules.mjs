@@ -1,5 +1,5 @@
 /**
- * Combat spells by the book (docs/PLAN-combat-spells.md). Pure: no Foundry.
+ * Combat spells by the book (docs/archive/plans/PLAN-combat-spells.md). Pure: no Foundry.
  *
  * Core SR2E: casting p.129–132, combat spells p.127 and p.151, vehicles p.109, barriers p.98,
  * the Visibility Table p.89, movement p.83.

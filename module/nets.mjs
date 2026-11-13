@@ -1,5 +1,5 @@
 /**
- * Netguns (SSC p.72; astral FAB-NG, CSH p.103). docs/PLAN-netguns.md.
+ * Netguns (SSC p.72; astral FAB-NG, CSH p.103). docs/archive/plans/PLAN-netguns.md.
  *
  * A net hit posts a flag-backed card (`flags.sr2e.netHit`) instead of damage. Its
  * target resists once; a net that holds lives on the TOKEN (`flags.sr2e.net`), so an

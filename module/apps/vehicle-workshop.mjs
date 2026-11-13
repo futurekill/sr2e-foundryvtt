@@ -1,5 +1,5 @@
 /**
- * The Vehicle Workshop (docs/PLAN-vehicle-builder.md §1c): design a vehicle from scratch with Rigger 2's rules
+ * The Vehicle Workshop (docs/archive/plans/PLAN-vehicle-builder.md §1c): design a vehicle from scratch with Rigger 2's rules
  * (book p.108–146), step by step, with a live summary. Every number comes from module/rules/vehicle-design.mjs
  * (`designVehicle`); this file only holds the working design and writes the vehicle on Create / Update.
  *

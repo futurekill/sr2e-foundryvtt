@@ -1,6 +1,6 @@
 /**
  * Netguns (Street Samurai Catalog p.72; Corporate Security Handbook p.103 for the
- * astral FAB-NG). See docs/PLAN-netguns.md. Pure, so Vitest pins the book's numbers.
+ * astral FAB-NG). See docs/archive/plans/PLAN-netguns.md. Pure, so Vitest pins the book's numbers.
  *
  * The victim resists with Strength (Astral Reaction for an astral net) against TN 5
  * (normal net) or 8 (large net), or 3 when a normal net hits a large target, and must

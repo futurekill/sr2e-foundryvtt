@@ -1,5 +1,5 @@
 // VR2.0 optional rule "Utility Options" (pp.102–104) and programming (pp.100–102): pure math, no Foundry.
-// docs/PLAN-vr2-part5b.md. Book examples are pinned in test/vr2-options.test.mjs.
+// docs/archive/plans/PLAN-vr2-part5b.md. Book examples are pinned in test/vr2-options.test.mjs.
 import { matrixProgramMultiplierVR2, attackMultiplier } from "./sr2e-rules.mjs";
 
 /**

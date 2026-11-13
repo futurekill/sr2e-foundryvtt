@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 7a: grid topology, the pure decisions (docs/PLAN-vr2-part7-grids.md, "7a in detail").
+ * VR2.0 part 7a: grid topology, the pure decisions (docs/archive/plans/PLAN-vr2-part7-grids.md, "7a in detail").
  * No Foundry here. Places are Host actors with a `kind`; the caller hands a plain snapshot of them.
  */
 
@@ -232,7 +232,7 @@ export function seedTally({ scope, outgoing = null, ledger = {}, conn, jackpoint
 /** The PLTG carry (p.29): what a successful logon adds so the PLTG's tally is at least the public one. */
 export const carryAmount = (carried, seeded) => Math.max(0, (carried ?? 0) - (seeded ?? 0));
 
-// ── Part 7b: trace on a grid, host networks, redirects (docs/PLAN-vr2-part7-grids.md, "7b in detail") ──
+// ── Part 7b: trace on a grid, host networks, redirects (docs/archive/plans/PLAN-vr2-part7-grids.md, "7b in detail") ──
 
 const HUB_SUBSYSTEM_LABEL = { access: "Access", control: "Control", index: "Index", files: "Files", slave: "Slave" };
 
@@ -280,7 +280,7 @@ export function governsJackpoint(trace, jack, topo) {
 /** Redirect Datatrail's opposing Security Test (p.117): the TN reduced by the jackpoint's trace modifier (user ruling: literal). */
 export const redirectTN = (df, jackKind) => Math.max(2, (Number(df) || 0) - jackpointKind(jackKind).trace);
 
-// ── Part 7c: satellite links (docs/PLAN-vr2-part7-grids.md, "7c in detail") ──────────────────
+// ── Part 7c: satellite links (docs/archive/plans/PLAN-vr2-part7-grids.md, "7c in detail") ──────────────────
 
 /** The Satlink Target Numbers Table (p.30). */
 export const SATLINK_CONDITIONS = {

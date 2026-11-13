@@ -1,5 +1,5 @@
 /**
- * The cyberlimb RULES (docs/PLAN-cybertechnology-phase3.md; Cybertechnology pp.30–31,
+ * The cyberlimb RULES (docs/archive/plans/PLAN-cybertechnology-phase3.md; Cybertechnology pp.30–31,
  * 49–52). Pure: no Foundry. Everything reads the Phase 2 model (`limbModel`) and its
  * eligibility predicates, never item names.
  */

@@ -1,5 +1,5 @@
 /**
- * Move-by-wire complications (docs/PLAN-cybertechnology-phase4.md §8; Cybertechnology
+ * Move-by-wire complications (docs/archive/plans/PLAN-cybertechnology-phase4.md §8; Cybertechnology
  * pp.54–55). Every fact is an immutable event record (`recordEvent`, a deterministic-id
  * durable marker the server creates exactly once), folded by `foldMbw`. GM actions record
  * ONE event each, after checking admission against the current state; cards are only

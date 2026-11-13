@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Combat sound effects (docs/PLAN-combat-sounds.md): tools/data/sfx.json →
+ * Combat sound effects (docs/archive/plans/PLAN-combat-sounds.md): tools/data/sfx.json →
  * assets/sfx/<key>.mp3 through the ElevenLabs sound-generation API
  * (ELEVENLABS_API_KEY), each loudness-normalised and encoded mono 96 kbps with
  * ffmpeg so the set is even and small. Existing files are kept: delete one to

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { claimId, doseKey, doseHoldState, STUCK_MS } from "../module/rules/claim-rules.mjs";
 
-describe("claimId (docs/PLAN-same-user-writers.md)", () => {
+describe("claimId (docs/archive/plans/PLAN-same-user-writers.md)", () => {
   it("is a deterministic 16-char Foundry id", () => {
     expect(claimId("dose.abc.g0")).toBe(claimId("dose.abc.g0"));
     expect(claimId("dose.abc.g0")).toMatch(/^[A-Za-z0-9]{16}$/);

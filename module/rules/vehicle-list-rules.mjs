@@ -1,5 +1,5 @@
 /**
- * The Rigger 2 Vehicle List (book p.148–166; docs/PLAN-vehicle-list.md): with the Rigger 2 module active, a vehicle the
+ * The Rigger 2 Vehicle List (book p.148–166; docs/archive/plans/PLAN-vehicle-list.md): with the Rigger 2 module active, a vehicle the
  * list covers uses the list's stats (ruling 2). Pure rules: which list row a vehicle is, what changes, and how its
  * factory equipment reconciles. No Foundry dependencies; module/vehicle-list.mjs applies them.
  */

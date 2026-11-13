@@ -1,5 +1,5 @@
 /**
- * Shapeshifters (docs/PLAN-shapeshifters.md; Shadowrun Companion pp.36–38, core pp.227–229).
+ * Shapeshifters (docs/archive/plans/PLAN-shapeshifters.md; Shadowrun Companion pp.36–38, core pp.227–229).
  *
  * State: `flags.sr2e.shift.<shiftKey(uuid)>` = {b, carry, high, death, survived} — keyed by the OWNING actor,
  * so an unlinked token never reads its base actor's state. ONE preUpdateActor hook keeps the damage buckets

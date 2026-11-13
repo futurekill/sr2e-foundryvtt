@@ -1,6 +1,6 @@
 /**
  * VR2.0 part 6a-0 — Decoy (p.112), Null Operation and Scan Icon (p.117): the pure decisions
- * (docs/PLAN-vr2-part6-frames.md, "6a-0 in detail"). No Foundry here.
+ * (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-0 in detail"). No Foundry here.
  */
 import { matrixCombatOutcome, MATRIX_MONITOR_MAX } from "./sr2e-rules.mjs";
 

@@ -1023,7 +1023,7 @@ export function spiritAttributes(profile, force) {
 }
 
 /**
- * A totem's conjuring dice for a spirit domain (docs/PLAN-ancestor-spirit.md):
+ * A totem's conjuring dice for a spirit domain (docs/archive/plans/PLAN-ancestor-spirit.md):
  *  1. its entry for the domain (explicit always wins);
  *  2. else its entry for the domain's GROUP — Rat's "+2 for all Spirits of Man" (core p.121);
  *  3. else, for a domain that inherits (the ancestor spirit, Cyberpirates p.152: "all totem bonuses
@@ -1357,7 +1357,7 @@ export function skillSubRatings(general) {
  * against is that p.70 says specializing REDUCES the general by 2, and under a
  * single-+2 reading the family lands at rating−2 (matching p.70) rather than at
  * the rating itself. The GM weighed that and chose the two-bonus reading; the
- * reasoning for both sides is in docs/PLAN-language-skills.md.
+ * reasoning for both sides is in docs/archive/plans/PLAN-language-skills.md.
  *
  * @param {number} rating - The rating as bought/entered.
  * @param {boolean} [chargen] - Taken at character generation (the extra +2).
@@ -1963,7 +1963,7 @@ export function personaBudgetOver(bems, mpcp) {
   return Math.max(0, (Number(bems) || 0) - 3 * (Number(mpcp) || 0));
 }
 
-// ── VR2.0 part 2 (docs/PLAN-vr2-part2.md) ──────────────────────────────────────
+// ── VR2.0 part 2 (docs/archive/plans/PLAN-vr2-part2.md) ──────────────────────────────────────
 
 /** An IC program's class (VR2.0 p.40–43): killer and cripplers are white; otherwise the authored type. */
 export function icClass(program, icType = "white") {
@@ -2920,7 +2920,7 @@ export function randomSpiritName(domain, rng = Math.random) {
 
 /* ── Called shots, aiming, and barriers ─────────────────────────────────────
  * All three were added after a live session; the plan and the five-round Codex
- * review that hardened it are in PLAN.md / PLAN-REVIEW-LOG.md.
+ * review that hardened it are in docs/archive/plans/PLAN.md / docs/archive/plans/PLAN-REVIEW-LOG.md.
  */
 
 /** Target-number penalty for calling a shot (SR2E p.92). */

@@ -1,5 +1,5 @@
 /**
- * Customization plan C1.6 (docs/PLAN-vehicle-customization.md): convert vehicles designed in the 0.143.0 Workshop,
+ * Customization plan C1.6 (docs/archive/plans/PLAN-vehicle-customization.md): convert vehicles designed in the 0.143.0 Workshop,
  * whose stored Handling / Speed / Acceleration / Load / Cargo / Economy have the design mods' effects BAKED in, to the
  * new representation (stored = base, every mod's effects derived on top; `design.baseVersion: 2`).
  *

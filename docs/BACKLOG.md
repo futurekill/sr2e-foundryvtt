@@ -33,7 +33,7 @@ Last reviewed 2026-07-26 (system 0.64.0).
   `sheet._onDropItem` with error capture and reports what the prompt returned.
 
 - ~~Skillsofts ship as blank chips~~ — **done 2026-09-25**
-  (PLAN-skillsoft-purchase.md): the Buy dialog asks for the skill, sets its
+  (docs/archive/plans/PLAN-skillsoft-purchase.md): the Buy dialog asks for the skill, sets its
   attribute, and slots it. The two error-swallowing spots below are fixed too
   (unreadable drops warn, and dialog failures are errors, not Cancel). Still
   open: the item sheet's skill picker lists Build/Repair skills for an
@@ -99,7 +99,7 @@ recipe and the `codex exec -i` stdin gotcha.
 - ~~Bioware overstress penalty and magical-healing interference~~ — **automated**
   (`_bodyTestOpts`, `biowareHealingTnMod`); entry was stale (checked 2026-09-24).
 - ~~Drug / gene-tech active effects~~: **done 2026-09-25 (lean core,
-  PLAN-drugs.md)**: Use a dose, attribute effects, toxin damage, and the
+  docs/archive/plans/PLAN-drugs.md)**: Use a dose, attribute effects, toxin damage, and the
   addiction tests. Gene-tech has no stat effects in the book. Still manual (card
   notes): Kamikaze absorption and wasting, Hyper overload and TNs, Atropine
   skill TNs, overuse, and the adrenal pump.
@@ -109,7 +109,7 @@ recipe and the `codex exec -i` stdin gotcha.
   already applied at purchase and on a grade change (verified live). The real
   bug was neural bioware (always cultured, p.7) getting ×4 and ×0.75 again;
   that is fixed.
-- ~~Summon services tracking~~ — **done 2026-09-25** (PLAN-spirit-services.md):
+- ~~Summon services tracking~~ — **done 2026-09-25** (docs/archive/plans/PLAN-spirit-services.md):
   services were already spent per power and elemental service; added Fight for
   me (one service per fight), the running-out note and status, and the elemental
   Call / Send away / 24-hour rule. Nature spirits depart at sunrise/sunset

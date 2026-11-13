@@ -1,4 +1,4 @@
-// Matrix jackpoints — the pure decisions (docs/PLAN-matrix-jackpoints.md).
+// Matrix jackpoints — the pure decisions (docs/archive/plans/PLAN-matrix-jackpoints.md).
 import { describe, it, expect } from "vitest";
 import { winner, gmCleanup, tabDecision, bodyMarked, personaLit, desiredPersonas, rectInRegion, placePersona } from "../module/rules/jackpoint-rules.mjs";
 
@@ -71,7 +71,7 @@ describe("markers", () => {
   });
 });
 
-// ── Persona tokens (docs/PLAN-matrix-persona-tokens.md) ──
+// ── Persona tokens (docs/archive/plans/PLAN-matrix-persona-tokens.md) ──
 describe("which personas a Matrix scene should have", () => {
   const T = (id, actorId, extra = {}) => ({ id, actorId, actorLink: true, managed: true, usable: true, ...extra });
   const live = (...ids) => new Set(ids);

@@ -1,5 +1,5 @@
 /**
- * Persona tokens appear when a decker jacks in (docs/PLAN-matrix-persona-tokens.md).
+ * Persona tokens appear when a decker jacks in (docs/archive/plans/PLAN-matrix-persona-tokens.md).
  *
  * While a character has a live jackpoint session, its persona — a linked token flagged
  * `persona` + `personaManaged` — stands in the session's entry Region on the Matrix scene;

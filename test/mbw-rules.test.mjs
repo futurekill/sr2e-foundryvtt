@@ -1,4 +1,4 @@
-// Move-by-wire complications (docs/PLAN-cybertechnology-phase4.md; Cybertechnology pp.54–55).
+// Move-by-wire complications (docs/archive/plans/PLAN-cybertechnology-phase4.md; Cybertechnology pp.54–55).
 import { describe, it, expect } from "vitest";
 import { wareLevel, complicationDice, proposal, ccssRow, CCSS_ROWS, ccssRehab, seizureBoxes, tleTreatTN,
          periodSeconds, foldMbw, MONTH_S } from "../module/rules/mbw-rules.mjs";

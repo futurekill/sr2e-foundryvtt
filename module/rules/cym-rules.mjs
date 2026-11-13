@@ -1,5 +1,5 @@
 /**
- * Cybermancy (optional; docs/PLAN-cybertechnology-phase6.md; Cybertechnology pp.78–84). Pure:
+ * Cybermancy (optional; docs/archive/plans/PLAN-cybertechnology-phase6.md; Cybertechnology pp.78–84). Pure:
  * no Foundry. Everything that matters is an append-only log of durable records, folded here.
  * `neg` is always max(0, −signed Essence): at or above 0 every consequence is 0.
  */

@@ -1,5 +1,5 @@
 /**
- * Mobile companion mode — the pure decisions (docs/PLAN-companion.md). No Foundry
+ * Mobile companion mode — the pure decisions (docs/archive/plans/PLAN-companion.md). No Foundry
  * and no DOM here: module/companion/boot.mjs feeds these the device's facts.
  */
 
@@ -83,13 +83,13 @@ export function targetChoices(rows = [], { astralActive = false } = {}) {
       || String(a.name).localeCompare(String(b.name)));
 }
 
-/* ── Joining from a phone while the computer is logged in (docs/PLAN-companion-join.md) ── */
+/* ── Joining from a phone while the computer is logged in (docs/archive/plans/PLAN-companion-join.md) ── */
 
 /** The join page's path inside the system; the desktop's link and the page agree on it. */
 export const JOIN_PAGE = "systems/sr2e/companion-join.html";
 
 /**
- * How "Open on phone" signs the phone in (docs/PLAN-v14-phone-join.md).
+ * How "Open on phone" signs the phone in (docs/archive/plans/PLAN-v14-phone-join.md).
  * - v13: the system's own join page ("page").
  * - v14+ serves every .html in the data folder as text/plain, so a player's phone uses
  *   Foundry's own join page as the SAME user, while the computer goes offline for a

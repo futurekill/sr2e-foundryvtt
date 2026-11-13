@@ -1,5 +1,5 @@
 # VR2.0 RTG System Ratings (Virtual Realities 2.0 p.26 North American, p.27 Overseas), transcribed from 300-dpi
-# renders 2026-11-04 for docs/PLAN-vr2-part7-grids.md. kind: rtg (a regional grid) or ltg (a local grid under the
+# renders 2026-11-04 for docs/archive/plans/PLAN-vr2-part7-grids.md. kind: rtg (a regional grid) or ltg (a local grid under the
 # preceding rtg of its group). pltgEntry: the book's asterisk ("an entry point to a PLTG"). Not yet used by code.
 group	name	kind	parent	code	level	access	control	index	files	slave	pltgEntry
 North America	Aztlan	rtg		orange	3	8	8	6	7	7	

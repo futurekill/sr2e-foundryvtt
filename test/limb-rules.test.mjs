@@ -1,4 +1,4 @@
-// The cyberlimb model (docs/PLAN-cybertechnology-phase2.md).
+// The cyberlimb model (docs/archive/plans/PLAN-cybertechnology-phase2.md).
 import { describe, it, expect } from "vitest";
 import { resolveLimbType, resolveOptionKind, limbRole, limbIdentity, limbModel, forSideRules, forLimbRules, SOURCE_LIMB, SOURCE_OPTION } from "../module/rules/limb-rules.mjs";
 

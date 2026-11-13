@@ -1,5 +1,5 @@
 /**
- * Bioware damage and repair (Shadowtech p.6; docs/PLAN-bioware-damage.md). Pure: no Foundry.
+ * Bioware damage and repair (Shadowtech p.6; docs/archive/plans/PLAN-bioware-damage.md). Pure: no Foundry.
  * User ruling: only Serious or worse switches the bioware off.
  */
 import { naturalHealingHours } from "./sr2e-rules.mjs";

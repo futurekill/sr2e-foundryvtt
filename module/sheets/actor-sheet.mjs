@@ -79,7 +79,7 @@ function readDrop(event) {
  * A dropped cyberlimb option always arrives unattached: its link points into the actor
  * it came from, and a clone with the same limb id must not silently adopt it. Whole-
  * actor copies, imports and tokens don't drop, so they keep their links
- * (docs/PLAN-cybertechnology-phase2.md).
+ * (docs/archive/plans/PLAN-cybertechnology-phase2.md).
  */
 function unattachDroppedOption(itemData) {
   // Its recorded placement facts belong to the old placement too (Phase 3 §4).
@@ -91,7 +91,7 @@ function unattachDroppedOption(itemData) {
 /**
  * The cyberlimb section shared by the character and NPC sheets: rows for EVERY limb and
  * option item (installed or not), the model's reasons, and attach choices limited to
- * installed limbs (docs/PLAN-cybertechnology-phase2.md §4).
+ * installed limbs (docs/archive/plans/PLAN-cybertechnology-phase2.md §4).
  */
 export function cyberlimbContext(actor) {
   const plain = actor.items.filter(i => i.type === "cyberware").map(i => ({
@@ -127,7 +127,7 @@ export function cyberlimbContext(actor) {
     }
   }
   // The rule numbers (characters only: an NPC's authored stats already include its
-  // limbs, so nothing is computed for it; docs/PLAN-cybertechnology-phase3.md §2).
+  // limbs, so nothing is computed for it; docs/archive/plans/PLAN-cybertechnology-phase3.md §2).
   const L = actor.type === "character" ? actor.system.limbs : null;
   const stats = L && (L.anyCyber || L.pairBody || L.handPower || L.laceReplacements || L.coordinationTN) ? {
     positions: L.anyCyber ? L.positions.map(p => ({ label: `${p.side} ${p.family}`, cyber: p.cyber, strength: p.strength, quickness: p.quickness })) : [],
@@ -140,7 +140,7 @@ export function cyberlimbContext(actor) {
 }
 
 /**
- * The cyberware condition block (optional; docs/PLAN-cybertechnology-phase5.md): damaged
+ * The cyberware condition block (optional; docs/archive/plans/PLAN-cybertechnology-phase5.md): damaged
  * items, plating/sheathing losses, scars. Shown with the setting on or any state set.
  */
 function cyberConditionContext(actor) {
@@ -161,7 +161,7 @@ function cyberConditionContext(actor) {
 }
 
 /**
- * The move-by-wire & reflexes panel (docs/PLAN-cybertechnology-phase4.md): the derived
+ * The move-by-wire & reflexes panel (docs/archive/plans/PLAN-cybertechnology-phase4.md): the derived
  * numbers, everything pending, and (GM) the records that can be voided.
  */
 function mbwContext(actor) {
@@ -181,7 +181,7 @@ function mbwContext(actor) {
 }
 
 /**
- * The cybermancy panel (docs/PLAN-cybertechnology-phase6.md): the consequences, everything
+ * The cybermancy panel (docs/archive/plans/PLAN-cybertechnology-phase6.md): the consequences, everything
  * pending (the durable fallback for every notice), and (GM) the records that can be voided.
  */
 function cymContext(actor) {
@@ -426,7 +426,7 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       if (input.closest("[data-item-id]")) continue;
       if (input.name !== "name" && !input.name.startsWith("system.") && !input.name.startsWith("flags.sr2e.")) continue;
       // NPC Essence: a blank or non-numeric entry saves nothing (the generic path would write 0, which
-      // the substance rules read as death), and a refused update re-renders (docs/PLAN-npc-essence.md).
+      // the substance rules read as death), and a refused update re-renders (docs/archive/plans/PLAN-npc-essence.md).
       if (input.name === "system.essence.value") {
         input.addEventListener("change", (event) => {
           event.stopPropagation();
@@ -569,7 +569,7 @@ export function chargenBudgetOf(actor) {
     ...(i.type === "cyberware" || i.type === "bioware" ? wareCtx(actor.items, i) : {}),
     force: i.system.force ?? 0,
     bondingCost: i.system.bondingCost ?? 0,
-    // Accessories bought into an eye (docs/PLAN-money-queue-and-eye-accessories.md, B5).
+    // Accessories bought into an eye (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, B5).
     moduleListValue: rowsListValue(i.system.modules ?? [])
   }));
   return chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
@@ -738,7 +738,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     if (!this.document.isOwner) return false;
     let itemData;
     // An eye accessory dropped on a cybereye's row is fitted into that eye
-    // (docs/PLAN-money-queue-and-eye-accessories.md, B) — including one already owned.
+    // (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, B) — including one already owned.
     const eyeHost = eyeHostAt(this.document, event);
     if (data.uuid) {
       const item = await fromUuid(data.uuid);
@@ -978,7 +978,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
   }
 
   /**
-   * @private Buy and install cyberware with its surgery (docs/PLAN-cybersurgery-grades.md):
+   * @private Buy and install cyberware with its surgery (docs/archive/plans/PLAN-cybersurgery-grades.md):
    * in a per-actor queue, re-check Essence and nuyen, debit item + fee in ONE update,
    * create the item carrying its `paid` flag (refund if that fails), then the wound
    * and the card.
@@ -1903,7 +1903,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
       editItem: onEditItem,
       deleteItem: onDeleteItem,
       addItem: onAddItem,
-      // Forms and shapeshifting (core p.227–229; docs/PLAN-shapeshifters.md)
+      // Forms and shapeshifting (core p.227–229; docs/archive/plans/PLAN-shapeshifters.md)
       shiftForm: SHARED_ACTIONS.shiftForm,
       regenerate: SHARED_ACTIONS.regenerate,
       deathCheck: SHARED_ACTIONS.deathCheck,
@@ -2156,7 +2156,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
   }
 
   /**
-   * The Design tab: a summary of the Workshop design (docs/PLAN-vehicle-builder.md §1c), with a live re-check against
+   * The Design tab: a summary of the Workshop design (docs/archive/plans/PLAN-vehicle-builder.md §1c), with a live re-check against
    * the vehicle's current modifications, and the button that opens the Workshop.
    * @private
    */
@@ -2422,7 +2422,7 @@ async function onGridEdit(event, target) {
 }
 
 /**
- * VR2.0 part 6a-2a: a running frame (docs/PLAN-vr2-part6-frames.md, "6a-2a in detail"). Read-only: everything on it
+ * VR2.0 part 6a-2a: a running frame (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-2a in detail"). Read-only: everything on it
  * was written once from the upload; its monitor and whether it has ended are derived (module/frames.mjs).
  */
 export class SR2EFrameSheet extends SR2EBaseActorSheet {

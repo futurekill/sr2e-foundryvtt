@@ -1,5 +1,5 @@
 /**
- * The Rigger 2 Vehicle List in play (docs/PLAN-vehicle-list.md; rules in module/rules/vehicle-list-rules.mjs).
+ * The Rigger 2 Vehicle List in play (docs/archive/plans/PLAN-vehicle-list.md; rules in module/rules/vehicle-list-rules.mjs).
  * The Rigger 2 module registers the list (CONFIG.SR2E.registerVehicleList); with it registered:
  *  - a vehicle IMPORTED from a compendium the list covers takes the list's stats and factory equipment (ruling 2);
  *  - the GM's "Update vehicles to Rigger 2 stats" window brings vehicles already in the world up to date, one ticked

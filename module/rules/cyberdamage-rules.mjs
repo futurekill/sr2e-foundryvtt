@@ -1,5 +1,5 @@
 /**
- * Cyberware damage, repair and scarring (docs/PLAN-cybertechnology-phase5.md; Cybertechnology
+ * Cyberware damage, repair and scarring (docs/archive/plans/PLAN-cybertechnology-phase5.md; Cybertechnology
  * pp.44–49, 56). Pure: no Foundry.
  */
 import { CYBERWARE_GRADES } from "./sr2e-rules.mjs";

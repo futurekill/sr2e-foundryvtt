@@ -1,4 +1,4 @@
-// v16 prep (docs/PLAN-v16-prep.md): the map-area adapter and the Active Effect compat
+// v16 prep (docs/archive/plans/PLAN-v16-prep.md): the map-area adapter and the Active Effect compat
 // helpers. Fixtures: Foundry v14.369's own BaseRegion._migrateMeasuredTemplateData,
 // captured with tools run against the app bundle (1 m/100 px and 5 ft/70 px grids).
 import { describe, it, expect, beforeEach } from "vitest";

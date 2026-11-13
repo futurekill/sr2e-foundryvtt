@@ -1899,7 +1899,7 @@ async function promptSpellOptions(actor, spell) {
   const isAreaCombat = isArea && isCombat;
   const casterToken  = actor.getActiveTokens?.()?.[0] ?? null;
 
-  // ── Combat spells: per-target TN and situation (docs/PLAN-combat-spells.md P1.3) ──
+  // ── Combat spells: per-target TN and situation (docs/archive/plans/PLAN-combat-spells.md P1.3) ──
   // A snapshot of the targets NOW; the cast re-reads these documents, never the live set.
   const combatMode = isCombat ? combatSpellMode(spell) : null;
   const combatRows = (isCombat && !isArea) ? combatTargetRows(spell, snapshotTargets()) : [];
@@ -2651,7 +2651,7 @@ async function onMatrixPerception(event, target) {
 async function onToggleMatrixMode(event, target) {
   event.preventDefault();
   // Through the actor's Matrix queue, so it can't interleave with a jackpoint
-  // jack-in on this client (docs/PLAN-matrix-jackpoints.md R3 #1).
+  // jack-in on this client (docs/archive/plans/PLAN-matrix-jackpoints.md R3 #1).
   const actor = this.document;
   if (isVR2()) return actor.system.matrixMode ? vr2LeaveMatrix(actor) : vr2EnterMatrix(actor);
   return matrixQueue(actor, () => actor.update({ "system.matrixMode": !actor.system.matrixMode }));
@@ -2666,7 +2666,7 @@ async function onRecoverDumpShock(event, target) {
   return this.document.recoverDumpShock();
 }
 
-// ── VR2.0 part 2 actions (docs/PLAN-vr2-part2.md) ───────────────────────────
+// ── VR2.0 part 2 actions (docs/archive/plans/PLAN-vr2-part2.md) ───────────────────────────
 /** @this {ApplicationV2} */
 async function onVR2Maneuver(event) { event.preventDefault(); return vr2Maneuver(this.document); }
 /** @this {ApplicationV2} */
@@ -2745,7 +2745,7 @@ async function onResetHostTally(event, target) {
 async function promptSystemOperationOptions(actor) {
   // Candidate hosts: a targeted host token first, then all host actors.
   const targeted = targetTokens().map(t => t.actor).filter(a => a?.type === "host");
-  // The host a jackpoint session points at comes first (docs/PLAN-matrix-jackpoints.md).
+  // The host a jackpoint session points at comes first (docs/archive/plans/PLAN-matrix-jackpoints.md).
   const viaJackpoint = sessionHost(actor);
   // VR2.0: the host of the live session (its tally) comes first of all.
   let viaSession = null;
@@ -3802,7 +3802,7 @@ async function onCheckContactCyber(event, target) {
       + (r.tnPlus ? ` <em>+${r.tnPlus} to ${esc(actor.name)}'s Charisma and social-skill TNs with this contact.</em>` : "") + `</div>` });
 }
 
-/** A GM healing-clock control (docs/PLAN-healing-clock.md §7): data-op, data-kind. */
+/** A GM healing-clock control (docs/archive/plans/PLAN-healing-clock.md §7): data-op, data-kind. */
 async function onHealClock(event, target) {
   event.preventDefault();
   if (!game.user.isGM) return;
@@ -3811,7 +3811,7 @@ async function onHealClock(event, target) {
   this.render();
 }
 
-/** Permanent damage panel (docs/PLAN-deadly-permanent-damage.md §5): data-op roll | void | careEnds. */
+/** Permanent damage panel (docs/archive/plans/PLAN-deadly-permanent-damage.md §5): data-op roll | void | careEnds. */
 async function onPermDamage(event, target) {
   event.preventDefault();
   const actor = this.document, op = target.dataset.op;
@@ -3883,7 +3883,7 @@ const SHARED_ACTIONS = {
         <br>${tier ? `<strong>It breaks down.</strong> ${game.i18n.localize(`SR2E.Gremlins.${tier}`)}<br><em>${game.i18n.localize("SR2E.Gremlins.Vehicle")}</em>` : "The equipment works."}
         <br><em>${game.i18n.localize("SR2E.Gremlins.Immune")}</em></div>` });
   },
-  // Shapeshifters (Companion pp.36–38; docs/PLAN-shapeshifters.md)
+  // Shapeshifters (Companion pp.36–38; docs/archive/plans/PLAN-shapeshifters.md)
   shiftForm: async function(event, target) {
     event.preventDefault();
     return shiftForm(this.document, target.dataset.form ?? "");
@@ -3948,7 +3948,7 @@ const SHARED_ACTIONS = {
   // Instead: toggle active classes directly in the DOM. this.tabGroups is still
   // updated so the correct tab is highlighted on the next legitimate re-render.
   checkContactCyber: onCheckContactCyber,
-  // Move-by-wire & reflexes (docs/PLAN-cybertechnology-phase4.md)
+  // Move-by-wire & reflexes (docs/archive/plans/PLAN-cybertechnology-phase4.md)
   cymOp: async function(event, target) { event.preventDefault(); return cymOp(this.document.uuid, target.dataset.op, target.dataset.arg ?? ""); },
   cymManual: async function(event, target) {
     event.preventDefault();
@@ -3965,7 +3965,7 @@ const SHARED_ACTIONS = {
       ok: { callback: (ev, button) => Number(button.form.elements.tn.value) || 4 } });
     if (base) return reflexCheck(this.document, base);
   },
-  // Cyberware condition (optional; docs/PLAN-cybertechnology-phase5.md), GM only
+  // Cyberware condition (optional; docs/archive/plans/PLAN-cybertechnology-phase5.md), GM only
   cdRepair: async function(event, target) {
     event.preventDefault();
     if (!game.user.isGM) return;
@@ -4072,7 +4072,7 @@ const SHARED_ACTIONS = {
     const id = target.closest("[data-effect-id]")?.dataset.effectId;
     if (id) return repostCard(this.document, id);
   },
-  // Substances (Shadowtech p.87–88): docs/PLAN-addiction.md.
+  // Substances (Shadowtech p.87–88): docs/archive/plans/PLAN-addiction.md.
   extendDose: function(event, target) {
     event.preventDefault();
     const drug = target.closest("[data-drug]")?.dataset.drug;
@@ -4477,7 +4477,7 @@ const SHARED_ACTIONS = {
 
     // Priced from the EFFECTIVE natural rating — after the racial clamp, CCSS and permanent
     // damage losses (core p.113) — against the same lowered ceiling; a raise that would not change
-    // the effective rating is refused (docs/PLAN-deadly-permanent-damage.md §4).
+    // the effective rating is refused (docs/archive/plans/PLAN-deadly-permanent-damage.md §4).
     const attrCost = key => {
       const info = system.naturalInfo?.[key];
       if (!info) {

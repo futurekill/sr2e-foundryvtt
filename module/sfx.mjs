@@ -1,5 +1,5 @@
 /**
- * Combat sounds (docs/PLAN-combat-sounds.md). An action's sound rides on the ONE chat
+ * Combat sounds (docs/archive/plans/PLAN-combat-sounds.md). An action's sound rides on the ONE chat
  * message it creates (`flags.sr2e.sfx = {key, legacy}`), and every client plays it
  * once, locally, when that message is created. One message, one sound per client:
  * a Karma reroll updates the card instead of creating one, re-renders never fire the

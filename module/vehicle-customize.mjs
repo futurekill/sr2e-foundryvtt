@@ -1,5 +1,5 @@
 /**
- * Vehicle customization (Rigger 2 p.118–146; docs/PLAN-vehicle-customization.md C3): buying a modification for an
+ * Vehicle customization (Rigger 2 p.118–146; docs/archive/plans/PLAN-vehicle-customization.md C3): buying a modification for an
  * EXISTING vehicle, its Installation Test, and finishing it. The pure rules are module/rules/vehicle-custom.mjs.
  *
  * A purchase is a REQUEST record on the vehicle (`flags.sr2e.custRequests.<id>`), which any owner may write:

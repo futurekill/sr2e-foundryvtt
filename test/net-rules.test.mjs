@@ -1,4 +1,4 @@
-// Netguns: SSC p.72, CSH p.103 (docs/PLAN-netguns.md).
+// Netguns: SSC p.72, CSH p.103 (docs/archive/plans/PLAN-netguns.md).
 import { describe, it, expect } from "vitest";
 import { netTN, escapeTN, netHolds, escapeImpossible, netKind, advanceTurns } from "../module/rules/net-rules.mjs";
 

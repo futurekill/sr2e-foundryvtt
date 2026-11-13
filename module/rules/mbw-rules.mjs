@@ -1,5 +1,5 @@
 /**
- * Move-by-wire complications (docs/PLAN-cybertechnology-phase4.md §8; Cybertechnology
+ * Move-by-wire complications (docs/archive/plans/PLAN-cybertechnology-phase4.md §8; Cybertechnology
  * pp.54–55). Pure: no Foundry. The state is an append-only log of immutable event
  * records, folded here; nothing derived is ever stored.
  */

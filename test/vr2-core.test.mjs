@@ -1,4 +1,4 @@
-// The VR2.0 core at roll time (docs/PLAN-vr2-core.md); book pages are VR2.0's.
+// The VR2.0 core at roll time (docs/archive/plans/PLAN-vr2-core.md); book pages are VR2.0's.
 import { describe, it, expect } from "vitest";
 import "./foundry-shim.mjs";
 import { queueDice } from "./foundry-shim.mjs";

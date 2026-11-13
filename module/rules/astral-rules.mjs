@@ -1,5 +1,5 @@
 /**
- * Astral movement — the pure decisions (docs/PLAN-astral-barriers.md). No Foundry
+ * Astral movement — the pure decisions (docs/archive/plans/PLAN-astral-barriers.md). No Foundry
  * here: module/astral-walls.mjs feeds these token and wall flags.
  *
  * SR2 p.145: an astral form "can freely pass through" inanimate objects but cannot

@@ -1,6 +1,6 @@
 /**
  * "Who is this user targeting?" — one answer for every attack, spell and card
- * (docs/PLAN-companion.md, Stage 3).
+ * (docs/archive/plans/PLAN-companion.md, Stage 3).
  *
  * Foundry keeps targets as Token PLACEABLES in `game.user.targets`, which only exist
  * on a client that draws the map. A companion device (no canvas) has none, and
@@ -55,7 +55,7 @@ export { handleFor };
 /** The shared targets as token documents (what the companion's list shows as picked). */
 export function targetDocs() { return sharedTargetDocs(); }
 
-/** Target writes still in flight, and whether sharing is suspended (docs/PLAN-v14-phone-join.md). */
+/** Target writes still in flight, and whether sharing is suspended (docs/archive/plans/PLAN-v14-phone-join.md). */
 const inflight = new Set();
 let suspended = false, pendingWrite = null;
 

@@ -1,5 +1,5 @@
 /**
- * Shapeshifters — pure rules (docs/PLAN-shapeshifters.md). Shadowrun Companion pp.36–38 for player
+ * Shapeshifters — pure rules (docs/archive/plans/PLAN-shapeshifters.md). Shadowrun Companion pp.36–38 for player
  * characters; core pp.227–229 (Regeneration, Allergy, Vulnerability) for gamemaster characters.
  * Every number here was read from a page render.
  */

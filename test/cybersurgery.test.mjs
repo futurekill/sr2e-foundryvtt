@@ -1,5 +1,5 @@
 // Delta grade and cybersurgery (Cybertechnology p.44, p.53); elective surgery (core p.114);
-// secondhand bioware (Shadowtech p.12). docs/PLAN-cybersurgery-grades.md
+// secondhand bioware (Shadowtech p.12). docs/archive/plans/PLAN-cybersurgery-grades.md
 import { describe, it, expect } from "vitest";
 import { gradeEssenceCost, gradeCostMultiplier, itemBaseCost, effectiveBodyCost, surgeryEssencePct, surgeonTN,
          surgicalEssence, surgeryCategory, secondhandPriceMultiplier } from "../module/rules/sr2e-rules.mjs";

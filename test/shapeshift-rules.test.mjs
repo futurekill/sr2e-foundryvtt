@@ -1,4 +1,4 @@
-// Shapeshifters — Companion pp.36–38, core pp.72, 227–229. docs/PLAN-shapeshifters.md.
+// Shapeshifters — Companion pp.36–38, core pp.72, 227–229. docs/archive/plans/PLAN-shapeshifters.md.
 import { describe, it, expect } from "vitest";
 import { SHAPESHIFTER_SPECIES, SHAPESHIFTER_PRIORITIES, formModifiers, isSocialSkill, dermalDice, reconcileBuckets,
   applyDelta, regenStep, deathCheckFor, mergeDeath, killedOutright, deathRollKills, baneHit, emptyBuckets,

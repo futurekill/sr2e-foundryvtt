@@ -1,5 +1,5 @@
 /**
- * Active Effect schema across v13 and v14+ (docs/PLAN-v16-prep.md §3). v14 moves
+ * Active Effect schema across v13 and v14+ (docs/archive/plans/PLAN-v16-prep.md §3). v14 moves
  * `changes` to `system.changes`, the numeric change `mode` to a string `type`, and
  * `duration.seconds/startTime/rounds/…` to `duration.value/units` + `start.*`; v16 drops
  * the shims that keep the old properties readable. Reads detect the schema from the

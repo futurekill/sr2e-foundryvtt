@@ -498,7 +498,7 @@ export class CyberwareData extends SR2EDataModel {
       // each is a catalogue entry with its own price, Street Index and icon.
       limbOption: new fields.BooleanField({ initial: false }),
       linkedLimbId: new fields.StringField({ initial: "" }),
-      // Cyberlimb identity (docs/PLAN-cybertechnology-phase2.md). Read it only through
+      // Cyberlimb identity (docs/archive/plans/PLAN-cybertechnology-phase2.md). Read it only through
       // limb-rules.mjs (resolveLimbType / limbModel): "" falls back to the item's rule
       // flag and known compendium source. blank:true or every existing item goes invalid.
       limbType: new fields.StringField({ required: true, blank: true, initial: "", choices: {
@@ -511,7 +511,7 @@ export class CyberwareData extends SR2EDataModel {
         "": "SR2E.Limb.Kind.Unset", strength: "SR2E.Limb.Kind.Strength", quickness: "SR2E.Limb.Kind.Quickness",
         body: "SR2E.Limb.Kind.Body", smartlink: "SR2E.Limb.Kind.Smartlink", device: "SR2E.Limb.Kind.Device",
         weapon: "SR2E.Limb.Kind.Weapon", other: "SR2E.Limb.Kind.Other" } }),
-      // Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md). Essence when wired into
+      // Cyberlimb rules (docs/archive/plans/PLAN-cybertechnology-phase3.md). Essence when wired into
       // an eligible cyberlimb / when not (cyberguns), overriding the known-source tables
       // (Cybertechnology p.49, p.52); null = no override.
       essenceInLimb: new fields.NumberField({ required: false, nullable: true, initial: null, min: 0 }),
@@ -633,7 +633,7 @@ export class CyberwareData extends SR2EDataModel {
       capacity: new fields.NumberField({ initial: 0, min: 0 }),
       // Cyberware damage (optional; Cybertechnology pp.44–49): GM-editable state. Every
       // unrepaired secondary effect, the missed bonder/sealer treatments, and the points of
-      // dermal plating/sheathing rating lost (docs/PLAN-cybertechnology-phase5.md).
+      // dermal plating/sheathing rating lost (docs/archive/plans/PLAN-cybertechnology-phase5.md).
       conditions: new fields.ArrayField(new fields.SchemaField({
         id: new fields.StringField({ initial: "" }),
         table: new fields.StringField({ initial: "" }),
@@ -658,7 +658,7 @@ export class CyberwareData extends SR2EDataModel {
       modules: new fields.ArrayField(
         new fields.SchemaField({
           // Stable row identity: every mutation finds its row by id, never by position
-          // (docs/PLAN-money-queue-and-eye-accessories.md). Legacy rows get one lazily.
+          // (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md). Legacy rows get one lazily.
           id:          new fields.StringField({ initial: "" }),
           name:        new fields.StringField({ initial: "" }),
           essenceCost: new fields.NumberField({ initial: 0, min: 0 }),
@@ -737,7 +737,7 @@ export class CyberwareData extends SR2EDataModel {
 
     // Container cyberware: a module row is INSTALLED, so its Essence and cost
     // always count (switching an implant off doesn't give Essence back); `active`
-    // only gates its TN bonus (docs/PLAN-cybertechnology.md, Phase 0). capacityUsed
+    // only gates its TN bonus (docs/archive/plans/PLAN-cybertechnology.md, Phase 0). capacityUsed
     // feeds the sheet meter; capacityOver is the essence beyond the free allowance.
     let modEssence = 0, modCost = 0, modTn = 0;
     for (const m of this.modules ?? []) {
@@ -821,7 +821,7 @@ export class BiowareData extends SR2EDataModel {
       // only the mods are gated. Non-triggered implants ignore both.
       triggered: new fields.BooleanField({ initial: false }),
       active: new fields.BooleanField({ initial: false }),
-      // Damage to the implant itself (Shadowtech p.6; docs/PLAN-bioware-damage.md): its own 10-box
+      // Damage to the implant itself (Shadowtech p.6; docs/archive/plans/PLAN-bioware-damage.md): its own 10-box
       // track; Serious (6) or worse switches it off; past Deadly it is destroyed (sticky).
       damage: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 10 }),
       destroyed: new fields.BooleanField({ initial: false }),
@@ -1419,7 +1419,7 @@ export class VehicleModData extends SR2EDataModel {
       // key wins over the plain one. E.g. Drive-by-Wire { handling: "-R", handlingOff: "-R" }.
       effects: new fields.ObjectField({ initial: {} }),
       // "levels": one system bought in level batches (turbocharging, armor, drive-by-wire…): its family's effects are
-      // worked out once on the total; "" / "instance": independent equipment (docs/PLAN-vehicle-customization.md C2.4).
+      // worked out once on the total; "" / "instance": independent equipment (docs/archive/plans/PLAN-vehicle-customization.md C2.4).
       stack: new fields.StringField({ initial: "", blank: true }),
       // Customization (plan C1.3 / C3): state "" = ordinary installed equipment, "factory" = already in a production
       // vehicle's printed stats, "parts" / "tested" = bought, not working yet, "done" = installed; choice = e.g.

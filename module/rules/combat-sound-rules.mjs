@@ -1,5 +1,5 @@
 /**
- * Combat sounds (docs/PLAN-combat-sounds.md) — which sound an action makes. Pure:
+ * Combat sounds (docs/archive/plans/PLAN-combat-sounds.md) — which sound an action makes. Pure:
  * no Foundry. One sound per class and cadence, never per weapon; the class comes
  * from the weapon's range brackets (SR2E p.88), the cadence from rounds actually fired.
  */

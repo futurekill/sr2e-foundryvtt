@@ -1,5 +1,5 @@
 /**
- * Combat spells by the book (docs/PLAN-combat-spells.md): the cast dialog's target rows,
+ * Combat spells by the book (docs/archive/plans/PLAN-combat-spells.md): the cast dialog's target rows,
  * the per-target cards, and the claimed resistance.
  *
  * Resistance contract (P1.5): `once(target, "spellres:"+key)` → ONE pending public message

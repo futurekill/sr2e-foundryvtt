@@ -1,5 +1,5 @@
 /**
- * The cyberlimb model (docs/PLAN-cybertechnology-phase2.md). Pure: no Foundry.
+ * The cyberlimb model (docs/archive/plans/PLAN-cybertechnology-phase2.md). Pure: no Foundry.
  * Limb identity (what a limb is, which side) and option identity (what an option adds)
  * come ONLY from here; rules never read item names. Precedence for both: an explicit
  * field, then the item's `flags.sr2e.rule`, then a table of known compendium source

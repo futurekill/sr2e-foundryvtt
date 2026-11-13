@@ -1,4 +1,4 @@
-// Astral movement — the pure decisions (docs/PLAN-astral-barriers.md; SR2 p.145–147,
+// Astral movement — the pure decisions (docs/archive/plans/PLAN-astral-barriers.md; SR2 p.145–147,
 // Corporate Security Handbook p.37–39, p.103).
 import { describe, it, expect } from "vitest";
 import { isOnAstralPlane, astralBarrierKind, astralEdgeDecision, sceneAstralWalls,

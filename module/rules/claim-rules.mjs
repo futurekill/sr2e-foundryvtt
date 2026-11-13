@@ -1,5 +1,5 @@
 /**
- * Pure helpers for server-arbitrated once-only steps (docs/PLAN-same-user-writers.md).
+ * Pure helpers for server-arbitrated once-only steps (docs/archive/plans/PLAN-same-user-writers.md).
  * A step is claimed by creating an embedded marker with a deterministic id: the server
  * rejects a second create of the same id, so exactly one client wins.
  */

@@ -1,4 +1,4 @@
-// VR2.0 part 6a-0: Decoy (p.112), Null Operation and Scan Icon (p.117) — docs/PLAN-vr2-part6-frames.md.
+// VR2.0 part 6a-0: Decoy (p.112), Null Operation and Scan Icon (p.117) — docs/archive/plans/PLAN-vr2-part6-frames.md.
 import { describe, it, expect } from "vitest";
 import { decoyFooled, liveDecoy, decoyBoxes, nullInactivityMod, scanIconTN } from "../module/rules/vr2-decoy-rules.mjs";
 

@@ -323,7 +323,7 @@ async function repairStaleImplants({ apply = false } = {}) {
  * (`acquiredQuantity` / `acquiredListValue`) are all summed, so the merged pile
  * is worth exactly what the parts were and both the proportional sell-back and
  * the chargen bundle value are preserved. `system.cost` is untouched (catalog
- * data, per PLAN-ammo-stacking.md). Piles of different money provenance
+ * data, per docs/archive/plans/PLAN-ammo-stacking.md). Piles of different money provenance
  * (a tracked box vs an untracked/legacy box) are NOT merged — see the grouping.
  *
  * Safety: a loaded pile is preferred as the survivor, and every weapon naming a
@@ -416,7 +416,7 @@ async function consolidateAmmoNow(actor, { dryRun, quiet, itemId }) {
     // complete; an untracked group has no basis and stays untracked.
     let totalAcqQty = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredQuantity") ?? 0), 0);
     let totalAcqVal = group.reduce((s, i) => s + (i.getFlag("sr2e", "acquiredListValue") ?? 0), 0);
-    // Resale value must survive the merge (docs/PLAN-money-queue-and-eye-accessories.md).
+    // Resale value must survive the merge (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md).
     // An untracked group becomes tracked at exactly what selling each pile would pay; any
     // group merges only when the merged pile would sell for the SAME total as its piles.
     const separately = group.reduce((s, i) => s + saleQuote(i).price, 0);
@@ -524,13 +524,13 @@ Hooks.once("init", async () => {
   registerSR2EQuenchTests();
   registerSpellEffectHooks();
   registerSpiritServiceHooks();
-  registerVr2IcHooks();  // VR2.0 part 3: the IC sequencer (docs/PLAN-vr2-part3.md)
+  registerVr2IcHooks();  // VR2.0 part 3: the IC sequencer (docs/archive/plans/PLAN-vr2-part3.md)
   registerMbwHooks();   // move-by-wire complications (Cybertechnology pp.54–55)
   registerCyberDamageHooks();   // cyberware damage, repair, scarring (pp.44–49, 56; optional)
   registerCybermancyHooks();    // cybermancy (Cybertechnology pp.78–84; optional)
   registerDrugHooks();
   registerCalendariaHooks();
-  registerHealingClockHooks();     // healing on the game clock (docs/PLAN-healing-clock.md)
+  registerHealingClockHooks();     // healing on the game clock (docs/archive/plans/PLAN-healing-clock.md)
   registerPermanentDamage();       // Deadly wounds' permanent damage (core p.113–114)
   registerShapeshifters();         // shapeshifters: forms, regeneration, death checks (Companion pp.36–38)
   registerJackpointBehavior();
@@ -1310,7 +1310,7 @@ function _registerSystemSettings() {
     choices: { core: "Core Rulebook", vr2: "Virtual Realities 2.0" },
     default: "core",
     // Every client reloads, so no client mixes derived data from one ruleset with
-    // roll logic from the other (docs/PLAN-vr2-core.md step 1).
+    // roll logic from the other (docs/archive/plans/PLAN-vr2-core.md step 1).
     requiresReload: true
   });
 
@@ -1327,7 +1327,7 @@ function _registerSystemSettings() {
     requiresReload: true
   });
 
-  // VR2.0 optional rule "Utility Options" (pp.102–104; docs/PLAN-vr2-part5b.md). Reload: sizes and prices are derived.
+  // VR2.0 optional rule "Utility Options" (pp.102–104; docs/archive/plans/PLAN-vr2-part5b.md). Reload: sizes and prices are derived.
   game.settings.register("sr2e", "vr2UtilityOptions", {
     name: "VR2.0 utility options",
     hint: "Virtual Realities 2.0 only (optional rule, p.102): utilities may carry options (area, chaser, DINAB, limit, one-shot, optimization, penetration, sensitive, skulk, squeeze, targeting) that change their size, price and play.",
@@ -1452,7 +1452,7 @@ const PURCHASE_DRIVERS = ["rating", "options", "objectCodeOnly", "grade", "bodyS
                           "secondhand"];
 
 // A cyberlimb option's placement facts are RECORDED when it's attached, not inferred
-// from live siblings (docs/PLAN-cybertechnology-phase3.md §4): +10% if its new limb
+// from live siblings (docs/archive/plans/PLAN-cybertechnology-phase3.md §4): +10% if its new limb
 // already carries a different enhancement type, and the 60,000¥ lower-arm rate next to
 // an enhanced hand. Reassessed ONLY on the option's own link change; registered before
 // the purchase hook, for every user and item, so the facts are right even unpaid or with
@@ -1636,7 +1636,7 @@ function chargesFor(item) {
   return autoCharge && item.getFlag("sr2e", "paid") != null;   // free / GM-gifted items aren't charged
 }
 
-// Second-hand cyberware (SSC p.100; docs/PLAN-secondhand-cyberware.md): a failed part is
+// Second-hand cyberware (SSC p.100; docs/archive/plans/PLAN-secondhand-cyberware.md): a failed part is
 // cleared only by a GM, and can't be re-graded or re-rated (no refund leaks through
 // repriceDelta) — replace it. Delta is always custom-made, never second-hand
 // (Cybertechnology p.42): refused as a TRANSITION, so an existing bad record still edits.
@@ -1672,7 +1672,7 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
 });
 
 // Charge (or refund) the difference when a BOUGHT item's configuration changes on a
-// character (docs/PLAN-money-queue-and-eye-accessories.md, A2). The change itself moves
+// character (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, A2). The change itself moves
 // into the actor's money queue: this hook vetoes the direct write and re-issues it from
 // repriceQueued, where the live price, the charge, the `paid` flag and any rollback
 // settle in ONE entry — a sale, purchase or second change on this client waits behind it.
@@ -2471,7 +2471,7 @@ Hooks.on("createChatMessage", async (outcome) => {
     const next = { ...mvr, resolved: true, resolution: outcome.flags.sr2e.vr2ManeuverResolution ?? "" };
     await card.update({ content: renderManeuverCard(next), "flags.sr2e.vr2Maneuver": next });
   }
-  // Combat spells (docs/PLAN-combat-spells.md) and healing cards: the resolver may not own the card.
+  // Combat spells (docs/archive/plans/PLAN-combat-spells.md) and healing cards: the resolver may not own the card.
   for (const [key, render] of [["spell", renderCombatSpellCard], ["ram", renderRamCard], ["healing", renderHealingCard]]) {
     const st = card.flags?.sr2e?.[key];
     if (!st || st.resolved) continue;

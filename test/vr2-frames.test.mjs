@@ -1,4 +1,4 @@
-// VR2.0 part 6a-1: frame cores and loading (docs/PLAN-vr2-part6-frames.md, "6a-1 in detail"; VR2.0 pp.105–106).
+// VR2.0 part 6a-1: frame cores and loading (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-1 in detail"; VR2.0 pp.105–106).
 import { describe, it, expect } from "vitest";
 import { deriveProgram, activeOptions, programmingCap, UTILITY_OPTIONS, foldProgramming } from "../module/rules/vr2-options.mjs";
 import { coreProblems, programCapacity, frameInitiative, coreDinabProblem, loadingTerms, loadProblems, frameActualSize,

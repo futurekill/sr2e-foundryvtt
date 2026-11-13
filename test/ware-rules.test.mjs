@@ -1,4 +1,4 @@
-// Cybereyes, bioware with cyberware, social (docs/PLAN-cybertechnology-phase3b.md).
+// Cybereyes, bioware with cyberware, social (docs/archive/plans/PLAN-cybertechnology-phase3b.md).
 import { describe, it, expect } from "vitest";
 import { wareRule, WARE_SOURCES, physicalLimbs, fullCyberlimbs, muscleFactor, pumpEfficiency, cyberPositions,
          containerEssence, eyeReports, socialTN, socialModifiers, contactReaction } from "../module/rules/ware-rules.mjs";

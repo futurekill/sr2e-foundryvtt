@@ -1,4 +1,4 @@
-// docs/PLAN-money-queue-and-eye-accessories.md — the pure parts of the money queue and
+// docs/archive/plans/PLAN-money-queue-and-eye-accessories.md — the pure parts of the money queue and
 // eye accessories (the queue itself and the Foundry writes are covered by Quench).
 import { describe, it, expect } from "vitest";
 import { eyeAccessoryKind, EYE_ACCESSORIES, withRowIds, rowsPaid, rowsListValue } from "../module/rules/ware-rules.mjs";

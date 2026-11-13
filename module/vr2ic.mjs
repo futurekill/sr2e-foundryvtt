@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 3: the rest of the IC (docs/PLAN-vr2-part3.md). State is an append-only log
+ * VR2.0 part 3: the rest of the IC (docs/archive/plans/PLAN-vr2-part3.md). State is an append-only log
  * of durable records (`recordEvent`, deterministic ids the server arbitrates):
  * - on the DECKER: connections, requests, the sequencer's facts, exits, traces;
  * - on the DECK item: its permanent history (`vr2deck:`);
@@ -187,7 +187,7 @@ export const iconDown = (actor) => (actor?.system?.matrixPersona?.condition?.val
 /** A black IC's effective rating: +2 while the decker's icon is down (p.48). `rating` = a component's or a frozen one. */
 export const blackRating = (ic, decker, rating = null) => (rating ?? ic?.system?.rating ?? 0) + (iconDown(decker) ? 2 : 0);
 
-// ── Part 4b: constructs (docs/PLAN-vr2-part4b.md; p.52) ──────────────────────────
+// ── Part 4b: constructs (docs/archive/plans/PLAN-vr2-part4b.md; p.52) ──────────────────────────
 export const isConstruct = (ic) => ic?.type === "ic" && !!ic.system.construct?.enabled;
 /** The program profile an IC acts with: a construct's component, or the IC itself. */
 export function icProfile(ic, comp = "") {
@@ -857,7 +857,7 @@ export async function traceStart(actor, card) {
   });
 }
 
-// ── Part 5a: Track, Hog, Slow (docs/PLAN-vr2-part5.md §3–§5) ───────────────────────
+// ── Part 5a: Track, Hog, Slow (docs/archive/plans/PLAN-vr2-part5.md §3–§5) ───────────────────────
 
 /** Close an attack card's test and return its successes as they stand (Karma included). */
 export async function freezeSuccesses(st) {
@@ -868,7 +868,7 @@ export async function freezeSuccesses(st) {
   }
   return st.areaSuccesses ?? (test ? testTotalSuccesses(game.messages.get(st.testMessageId).flags.sr2e.test) : (st.successes ?? 0));
 }
-// ── Part 6a-0: Decoy (docs/PLAN-vr2-part6-frames.md; p.112) ─────────────────────
+// ── Part 6a-0: Decoy (docs/archive/plans/PLAN-vr2-part6-frames.md; p.112) ─────────────────────
 
 /** The decker's live decoy (folded; its successes read live from the Decoy card), or null. */
 export function liveDecoyOf(actor) {
@@ -1775,7 +1775,7 @@ export function flush() {
   return sequencer(async () => { for (const a of allDocs()) if (a.type === "character" && onLog(a)) await passFor(a); });
 }
 
-// ── Part 4a: the optional IC (docs/PLAN-vr2-part4.md; p.51–53) ───────────────
+// ── Part 4a: the optional IC (docs/archive/plans/PLAN-vr2-part4.md; p.51–53) ───────────────
 
 /** Expert IC (p.52) counts only for proactive programs, on attack and on resistance alike. */
 export const expertOf = (ic) => ic?.type === "ic" && (isConstruct(ic) || isProactive(ic.system.program)) ? (Number(ic.system.expert) || 0) : 0;

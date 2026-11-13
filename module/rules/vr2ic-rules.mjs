@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 3: the rest of the IC (docs/PLAN-vr2-part3.md; Virtual Realities 2.0 pp.40–53).
+ * VR2.0 part 3: the rest of the IC (docs/archive/plans/PLAN-vr2-part3.md; Virtual Realities 2.0 pp.40–53).
  * Pure: no Foundry. State is an append-only log of durable records; facts whose ORDER
  * matters carry the world-wide GM sequencer's `seq`. Folds never trust a client's clock.
  */
@@ -254,7 +254,7 @@ export function traceState(t, events, crashSeq = () => null) {
     lastBoundary: ticks.at(-1)?.boundary ?? null };
 }
 
-// ── Part 4a: the optional IC (docs/PLAN-vr2-part4.md; pp.51–53) ─────────────────
+// ── Part 4a: the optional IC (docs/archive/plans/PLAN-vr2-part4.md; pp.51–53) ─────────────────
 
 /** Proactive IC (p.41, p.45): they make Attack Tests. Trace only hunts, then turns reactive. */
 export const PROACTIVE_IC = new Set(["killer", "crippler-acid", "crippler-binder", "crippler-jammer", "crippler-marker",
@@ -331,7 +331,7 @@ export function partyBudget({ sv, members = [] }) {
   return { capacity, used, maxMembers, problems };
 }
 
-// ── Part 4b: constructs (docs/PLAN-vr2-part4b.md; p.52) ─────────────────────────
+// ── Part 4b: constructs (docs/archive/plans/PLAN-vr2-part4b.md; p.52) ─────────────────────────
 
 /** "<uuid>#<gen>" or "<uuid>#<gen>/<comp>" → parts. The ICON is uuid#gen; the suffix is a construct component. */
 export function parseIcKey(key) {
@@ -386,7 +386,7 @@ export function constructBudget({ sv, code, components = [], defenses = 0, threa
   return { capacity, used, perProgram, problems: [...new Set(problems)] };
 }
 
-// ── Part 5a: the utilities (docs/PLAN-vr2-part5.md; VR2.0 pp.97–100) ─────────────
+// ── Part 5a: the utilities (docs/archive/plans/PLAN-vr2-part5.md; VR2.0 pp.97–100) ─────────────
 
 /** Hog (p.98): 1 rating point per 2 net successes over the MPCP test; 0 = no infection. */
 export const hogPoints = (attack, mpcp) => Math.max(0, Math.floor(((Number(attack) || 0) - (Number(mpcp) || 0)) / 2));

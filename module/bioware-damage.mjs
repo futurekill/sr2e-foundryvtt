@@ -1,5 +1,5 @@
 /**
- * Bioware damage and repair (Shadowtech p.6; docs/PLAN-bioware-damage.md, approved by Codex).
+ * Bioware damage and repair (Shadowtech p.6; docs/archive/plans/PLAN-bioware-damage.md, approved by Codex).
  * Optional (`biowareDamage`). A single physical hit of Deadly severity (one commit landing 10+
  * boxes) posts ONE GM card per commit; its roll is claimed per attempt and persisted before
  * anything is applied; each hit is applied with a receipt on the item, from the LIVE item, and

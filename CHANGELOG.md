@@ -151,7 +151,7 @@
 ## 0.145.0 — 2026-11-11
 
 ### Added
-- **The Rigger 2 Vehicle List** (Rigger 2 module 0.8.0; docs/PLAN-vehicle-list.md): with the Rigger 2 module active,
+- **The Rigger 2 Vehicle List** (Rigger 2 module 0.8.0; docs/archive/plans/PLAN-vehicle-list.md): with the Rigger 2 module active,
   a vehicle the list covers uses its stats (Rigger 2 p.148–166), as Rigger 2 says they supersede earlier ones.
   - Importing such a vehicle from any compendium (the core vehicles, Rigger Black Book, Fields of Fire, Corporate
     Security, the Street Samurai Catalog, …) gives it the list's stat line and its factory equipment: turbocharging,
@@ -168,7 +168,7 @@
 ## 0.144.0 — 2026-11-11
 
 ### Added
-- **Customize an existing vehicle** (Rigger 2 p.118–146; docs/PLAN-vehicle-customization.md): the vehicle sheet's
+- **Customize an existing vehicle** (Rigger 2 p.118–146; docs/archive/plans/PLAN-vehicle-customization.md): the vehicle sheet's
   **Customize** button lists every modification the vehicle can take with its parts price (× Street Index),
   Availability, the Installation Test (skills and Target Number) and base time, and the room it takes; anything it
   can't take says why (room, the maximum counting levels it already has, the vehicle class, required tires, military
@@ -182,7 +182,7 @@
 - Modifications now also set **Sensor, Autonav and Pilot** ratings (Sensors, autonav systems, remote-control
   interface and advanced programming) and change Load (engine customization), on the sheet and the Vehicles tab.
 - **Modifications change a vehicle's stats on its sheet, wherever they came from** (vehicle customization, release 1;
-  docs/PLAN-vehicle-customization.md): a turbocharger, drive-by-wire, suspension, armor and so on added to an existing
+  docs/archive/plans/PLAN-vehicle-customization.md): a turbocharger, drive-by-wire, suspension, armor and so on added to an existing
   vehicle now raise its Speed, Acceleration, lower its Handling, etc. exactly as Rigger 2 prints (p.120–146), not just
   its Armor and Signature. The sheet shows the stored stat and, beside it, the stat with the modifications; vehicle
   tests, ramming (both vehicles), the test dialog and a character's Vehicles tab use the modified stats.
@@ -202,7 +202,7 @@
 ## 0.143.0 — 2026-11-07
 
 ### Added
-- **The Vehicle Workshop** (vehicle builder release 3, docs/PLAN-vehicle-builder.md): a guided window that designs a
+- **The Vehicle Workshop** (vehicle builder release 3, docs/archive/plans/PLAN-vehicle-builder.md): a guided window that designs a
   vehicle by Rigger 2's rules (p.108–146) in six steps (chassis, power plant, design options, modifications, Mark-Up,
   review), with a live summary of the stat line, Cargo/Load budgets, Design Points (itemized, with pages) and price.
   Open it from the Actors sidebar (**Vehicle Workshop**), a character's Vehicles tab (**Design a vehicle**, which links
@@ -249,7 +249,7 @@
   other features.
 - **Free Cargo and Load:** the sheet shows how much Cargo Factor and Load are still free once the design options and
   every installed modification take their share (Rigger 2 p.113, p.115).
-- **A new vehicle design engine** (the first part of the vehicle builder overhaul, docs/PLAN-vehicle-builder.md):
+- **A new vehicle design engine** (the first part of the vehicle builder overhaul, docs/archive/plans/PLAN-vehicle-builder.md):
   the Rigger 2 design rules exactly as printed (p.108–120), with an itemized, page-referenced Design Point
   breakdown. It isn't wired to a screen yet: the Workshop that uses it comes in a later release, and the current
   Design tab works as before until then.
@@ -836,7 +836,7 @@
 
 ### Added
 - **Bioware damage (Shadowtech p.6; optional setting "Bioware damage", off by default;**
-  docs/PLAN-bioware-damage.md).
+  docs/archive/plans/PLAN-bioware-damage.md).
   - **Damage:** a single physical hit of Deadly severity can damage a character's bioware. The
     GM's card rolls 1D6 − 3 for how many implants are hit, then picks them at random (dermal
     bioware is exempt). Each implant rolls 1D6 for its damage: −1 if cultured, +1 if
@@ -850,7 +850,7 @@
 ## 0.120.0 — 2026-10-28
 
 ### Added
-- **Permanent damage from Deadly wounds** (core p.113–114; docs/PLAN-deadly-permanent-damage.md,
+- **Permanent damage from Deadly wounds** (core p.113–114; docs/archive/plans/PLAN-deadly-permanent-damage.md,
   plan and code approved by Codex). When a character or NPC takes a Deadly wound, a card asks for
   the **permanent damage roll**: natural Body plus dermal armor against TN 4, +2 if a trauma patch
   was used.
@@ -876,7 +876,7 @@
 
 ### Added
 - **Healing on the game clock (Calendaria).** When the Calendaria module is active, healing
-  that takes time now takes game time (SR2E p.111–115; docs/PLAN-healing-clock.md, reviewed
+  that takes time now takes game time (SR2E p.111–115; docs/archive/plans/PLAN-healing-clock.md, reviewed
   and approved by Codex). Without Calendaria, or with **Healing on the game clock** switched
   off in the settings, healing resolves at once as before.
   - **Heal**, **First Aid** and **Recover Stun** roll as usual, then the level or Stun box comes
@@ -930,7 +930,7 @@
 ## 0.118.0 — 2026-10-24
 
 ### Added
-- **Combat spells work like weapon combat** (SR2E pp.127–132, docs/PLAN-combat-spells.md).
+- **Combat spells work like weapon combat** (SR2E pp.127–132, docs/archive/plans/PLAN-combat-spells.md).
   - **Per-target situation.** The cast dialog lists your targets, each with its own TN
     (Willpower for mana spells, Body for physical, **TN 8 for a vehicle**, p.109) and its own
     situation: **Can see it** (combat spells need line of sight), **Cover** (+4),
@@ -1444,7 +1444,7 @@ unchanged.
   and the server turns any other device away. If that device is closed mid-dose, the
   sheet lists the dose under **Unfinished doses**, and after 2 minutes the GM can
   **Force finish** it. The confirmation explains when that's safe. VR2.0 maneuver
-  results apply once in the same way. See docs/PLAN-same-user-writers.md.
+  results apply once in the same way. See docs/archive/plans/PLAN-same-user-writers.md.
 - **Increase Attribute is four spells, and Increase Cybered Attribute exists** (p.154–155).
   The compendium had one "Increase [Attribute]" with a +0(L) Drain. It is now
   Increase [Attribute] +1 to +4, Drain ((F / 2) + 1) at L/M/S/D (mana), plus Increase
@@ -1859,7 +1859,7 @@ in meat space.
 
 ### Added — substance tracking, part 1 (Shadowtech p.85–88, p.95, p.100)
 
-The groundwork for the full addiction rules (docs/PLAN-addiction.md). Each
+The groundwork for the full addiction rules (docs/archive/plans/PLAN-addiction.md). Each
 character now keeps a record of every dose and every Addiction/Tolerance test.
 - **A dose can't be half-applied.** Using a dose spends it and records it in
   one step. If the session drops mid-way, the rest (the effect, the overuse
@@ -3260,7 +3260,7 @@ not modelled yet, so melee is unchanged.
 
 Post-session fixes, part 2: the attack flow. Landed as one change because all
 three items touch the same dialog. Plan and its five-round Codex review are in
-`PLAN.md` / `PLAN-REVIEW-LOG.md`.
+`docs/archive/plans/PLAN.md` / `docs/archive/plans/PLAN-REVIEW-LOG.md`.
 
 ### Added
 - **Called shots (p.92).** +4 TN, Damage Code up one level (capped at D).
@@ -3318,7 +3318,7 @@ three items touch the same dialog. Plan and its five-round Codex review are in
 ## 0.79.0 — 2026-08-01
 
 Post-session fixes, part 1 of 2. Plan and the five-round Codex review that
-hardened it are in `PLAN.md` / `PLAN-REVIEW-LOG.md`.
+hardened it are in `docs/archive/plans/PLAN.md` / `docs/archive/plans/PLAN-REVIEW-LOG.md`.
 
 ### Added
 - **NPC attributes are rollable.** Click B/Q/S/C/I/W on an NPC sheet to roll it.
@@ -3394,7 +3394,7 @@ hardened it are in `PLAN.md` / `PLAN-REVIEW-LOG.md`.
 - This is a **ruling on an ambiguous passage**, recorded as such. The argument
   against is that p.70 also REDUCES the general by 2 when you specialize, which
   a single +2 reproduces (family = rating−2) and two do not (family = rating).
-  Reasoning for both readings is in `docs/PLAN-language-skills.md` and in the
+  Reasoning for both readings is in `docs/archive/plans/PLAN-language-skills.md` and in the
   header of `languageSkillRatings`, so a future reader can see it was a decision
   rather than a transcription.
 
@@ -3581,7 +3581,7 @@ hardened it are in `PLAN.md` / `PLAN-REVIEW-LOG.md`.
   its family 6 apart, contradicting the generic specialization rule two pages
   earlier (p.55/p.70), where the spread is 4. It is 4 below the language's own
   (boosted) rating: Spanish bought at 4 in chargen → **Spanish 6, Romance 2**.
-  Reasoning and the rejected alternative are in `docs/PLAN-language-skills.md`.
+  Reasoning and the rejected alternative are in `docs/archive/plans/PLAN-language-skills.md`.
 - Skill Web defaulting still reads the purchased rating for a language, and NPC
   rows show the derived number but have no family chip. Both recorded in the
   backlog rather than quietly fixed.
@@ -4677,7 +4677,7 @@ you'd bought with Edge — that's the off-by-N going away.
   tests per point over) as an indicator. Rides the existing Essence→Magic pipeline and
   the `autoEssence` setting. Ships the mechanics only; the Shadowtech catalog (bioware,
   expanded cyberware, gene-tech, drugs) is a separate `sr2e-shadowtech` content module.
-  Planned + cross-model reviewed — see PLAN.md / PLAN-REVIEW-LOG.md.
+  Planned + cross-model reviewed — see docs/archive/plans/PLAN.md / docs/archive/plans/PLAN-REVIEW-LOG.md.
   _Deferred to backlog: automating the overstress + magical-healing TN penalties and
   drug effects; Body Index on NPC/critter actors._
 - **Bioware modifiers, triggers, and armor.** Bioware `attributeMods` are **per-Level**

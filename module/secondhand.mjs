@@ -1,5 +1,5 @@
 /**
- * Second-hand cyberware (SSC p.100; Cybertechnology p.42; docs/PLAN-secondhand-cyberware.md).
+ * Second-hand cyberware (SSC p.100; Cybertechnology p.42; docs/archive/plans/PLAN-secondhand-cyberware.md).
  * Half price and the same Essence (priced in itemBaseCost). Once per adventure the GM may
  * call a Resistance Test: 5 dice vs TN 4, raised by circumstance (up to 8 for a crucial
  * strain), Karma rerolls at 2 per die. A part that fails "must be replaced. No repair is

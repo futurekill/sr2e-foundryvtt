@@ -1,4 +1,4 @@
-// The substance ledger fold (Shadowtech p.85–88, p.99). docs/PLAN-addiction.md.
+// The substance ledger fold (Shadowtech p.85–88, p.99). docs/archive/plans/PLAN-addiction.md.
 import { describe, it, expect } from "vitest";
 import { substanceState, orderEvents, nextStamp, addictionTnFor, stepId, HOUR, DAY, WEEK } from "../module/rules/substances.mjs";
 

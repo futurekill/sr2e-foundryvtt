@@ -1,4 +1,4 @@
-// Mobile companion mode — the pure decisions (docs/PLAN-companion.md).
+// Mobile companion mode — the pure decisions (docs/archive/plans/PLAN-companion.md).
 import { describe, it, expect } from "vitest";
 import { companionMode, overrideFromQuery, canvasPlan, companionActor } from "../module/rules/companion-rules.mjs";
 
@@ -72,7 +72,7 @@ describe("the target list", () => {
   });
 });
 
-describe("phone join (docs/PLAN-companion-join.md)", async () => {
+describe("phone join (docs/archive/plans/PLAN-companion-join.md)", async () => {
   const R = await import("../module/rules/companion-rules.mjs");
   it("strips ?companion= once, keeping everything else", () => {
     expect(R.stripCompanionParam("http://h:30000/game?companion=1")).toBe("/game");

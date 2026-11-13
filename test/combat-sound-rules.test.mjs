@@ -1,4 +1,4 @@
-// Combat sounds (docs/PLAN-combat-sounds.md): the class from the p.88 range
+// Combat sounds (docs/archive/plans/PLAN-combat-sounds.md): the class from the p.88 range
 // brackets, the cadence from rounds fired, and a fallback that never goes silent.
 import { describe, it, expect } from "vitest";
 import { rangeClass, cadence, attackSound, spellSound, blastSound } from "../module/rules/combat-sound-rules.mjs";

@@ -1,4 +1,4 @@
-/* Mobile companion mode (docs/PLAN-companion.md). Everything is scoped to
+/* Mobile companion mode (docs/archive/plans/PLAN-companion.md). Everything is scoped to
    body.sr2e-companion, which module/companion/boot.mjs sets on companion devices
    only, so the desktop interface is untouched. */
 

@@ -1,5 +1,5 @@
 /**
- * Matrix jackpoints — the pure decisions (docs/PLAN-matrix-jackpoints.md, Round 1
+ * Matrix jackpoints — the pure decisions (docs/archive/plans/PLAN-matrix-jackpoints.md, Round 1
  * design + Round 2–4 amendments). No Foundry here: module/jackpoints.mjs feeds
  * these the actor's session records, its matrixMode and the tab's own record.
  *
@@ -70,7 +70,7 @@ export function personaLit({ sceneId, sessions = {}, matrixMode }) {
   return !!matrixMode && !!w && w.destScene === sceneId;
 }
 
-// ── Persona tokens (docs/PLAN-matrix-persona-tokens.md) ───────────────────────
+// ── Persona tokens (docs/archive/plans/PLAN-matrix-persona-tokens.md) ───────────────────────
 
 /**
  * Which persona tokens one Matrix scene should gain or lose. `tokens` are the scene's

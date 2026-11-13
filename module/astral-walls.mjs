@@ -1,5 +1,5 @@
 /**
- * Astral movement through walls (docs/PLAN-astral-barriers.md, Stage 1).
+ * Astral movement through walls (docs/archive/plans/PLAN-astral-barriers.md, Stage 1).
  *
  * SR2 p.145: something ON the astral plane "can freely pass through" inanimate
  * objects — but cannot see through them, and living things block it. So for a

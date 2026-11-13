@@ -1191,7 +1191,7 @@ export class SR2EItem extends Item {
     }
 
     // Nets (SSC p.72, CSH p.103) fire a net, not damage: a net card the target resists,
-    // routed ahead of the blast and spread branches (docs/PLAN-netguns.md).
+    // routed ahead of the blast and spread branches (docs/archive/plans/PLAN-netguns.md).
     if (isRanged && this.system.ammo?.type === "net") {
       const targetTok = engage?.token?.obj ?? firstTarget();
       const kind = netKind(this, this.system.ammo?.loadedName ?? "");
@@ -1605,7 +1605,7 @@ export class SR2EItem extends Item {
     const effectKind = spellEffectKind(this);
     const igniteTarget = effectKind === "ignite" ? (firstTarget()?.actor ?? null) : null;
     const resistAttr = this.system.type === "mana" ? "willpower" : "body";
-    // Combat spells (docs/PLAN-combat-spells.md): each target's TN from LIVE documents —
+    // Combat spells (docs/archive/plans/PLAN-combat-spells.md): each target's TN from LIVE documents —
     // its Willpower/Body (TN 8 for a vehicle) plus its own situation (p.130). The caster's
     // movement (p.83) is caster-wide and rides on the roll.
     const combatMode = spellCategory === "combat" ? combatSpellMode(this) : null;
@@ -1987,7 +1987,7 @@ export class SR2EItem extends Item {
    * Multiple targets (SR2E p.129): the Force dice are split between them — one Spell Success
    * Test per target with its share and its own TN, and one Drain test per target at the
    * original, undivided Force. The whole ledger is checked before anything is spent.
-   * Foci and elemental aid stay with single-target casts (docs/PLAN-combat-spells.md P2).
+   * Foci and elemental aid stay with single-target casts (docs/archive/plans/PLAN-combat-spells.md P2).
    * @private
    */
   async _rollSplitCast(options) {

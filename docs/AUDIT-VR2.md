@@ -525,21 +525,21 @@ ruleset → Virtual Realities 2.0** to opt in.
   Cassie example), `MATRIX_MONITOR_MAX` (flat 10), and `simsenseOverloadTN`
   (Overload Damage TNs L2/M3/S5, Deadly auto-crash).
 
-- **The roll-time rewiring** (docs/PLAN-vr2-core.md, Codex-approved): VR2.0 System
+- **The roll-time rewiring** (docs/archive/plans/PLAN-vr2-core.md, Codex-approved): VR2.0 System
   Tests and the per-session security tally, cybercombat (TN table, utility Damage
   Levels, staging, Security Value/Bod resistance, resolve once), simsense overload,
   dump shock through one leave-the-Matrix path, deck ASIST modes, IC initiative and
   monitor, the host ACIFS UI and the persona budget warning. Code in `module/vr2.mjs`;
   Quench batch `sr2e.vr2-core`.
 
-- **Part 2** (docs/PLAN-vr2-part2.md, Codex-reviewed): combat maneuvers, improvised
+- **Part 2** (docs/archive/plans/PLAN-vr2-part2.md, Codex-reviewed): combat maneuvers, improvised
   attacks, program wear and Swap Memory, Shield and Medic, attribute attacks
   (cripplers; poison/restrict/reveal), IC programs and defensive options, crashed-IC
   tally and suppression, probe, the security sheaf, and the black-IC kill rule.
   Quench batch `sr2e.vr2-part2`.
 
 ### Still out of scope (own plans)
-Part 3 (see docs/PLAN-vr2-part2.md "Deferred"): black IC's damage to the decker, trace,
+Part 3 (see docs/archive/plans/PLAN-vr2-part2.md "Deferred"): black IC's damage to the decker, trace,
 hog, slow, tar baby/pit, rippers, blaster/sparky, data bombs, psychotropic IC, black
 hammer/killjoy, Restore, steamroller, scramble, and every optional rule (utility options,
 cascading/expert IC, constructs, party IC). Also: deck building/SOTA, frames/SKs, otaku,

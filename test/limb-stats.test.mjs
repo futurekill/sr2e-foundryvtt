@@ -1,4 +1,4 @@
-// The cyberlimb rules (docs/PLAN-cybertechnology-phase3.md; Cybertechnology pp.31, 49–52).
+// The cyberlimb rules (docs/archive/plans/PLAN-cybertechnology-phase3.md; Cybertechnology pp.31, 49–52).
 import { describe, it, expect } from "vitest";
 import { limbModel } from "../module/rules/limb-rules.mjs";
 import { limbStats, selectOptions, lacingArmor, limbEssence, limbOptionPrice, placementFacts,

@@ -1,6 +1,6 @@
 /**
  * Nature spirits vanish at sunrise and sunset (SR2E p.139): "no matter what …
- * All services end at that time." See docs/PLAN-nature-spirit-expiry.md.
+ * All services end at that time." See docs/archive/plans/PLAN-nature-spirit-expiry.md.
  *
  * One executor, the ACTIVE GM, one local queue. There is no job journal: the
  * rule's state is the world itself, so an interrupted run is finished by the

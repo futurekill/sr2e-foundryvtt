@@ -1,4 +1,4 @@
-// NPC alternate forms in the critters pack follow NPCData's flat form contract (docs/PLAN-shapeshifter-content.md).
+// NPC alternate forms in the critters pack follow NPCData's flat form contract (docs/archive/plans/PLAN-shapeshifter-content.md).
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 

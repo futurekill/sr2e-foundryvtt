@@ -1,6 +1,6 @@
 /**
  * Vehicle design from scratch: the Rigger 2 rules (book p.108–120; tables p.114, p.116, p.167–171), pure.
- * docs/PLAN-vehicle-builder.md §1a. No Foundry here: the Workshop, the data model and the tests all call this.
+ * docs/archive/plans/PLAN-vehicle-builder.md §1a. No Foundry here: the Workshop, the data model and the tests all call this.
  *
  * `designVehicle(design, tables, { mods })` returns the itemized Design Points (each line with its page), the stats
  * the design gives (BASE stats: Cargo and Load GROSS; mod effects are the data model's), the Cargo/Load budgets, the

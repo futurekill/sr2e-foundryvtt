@@ -1,5 +1,5 @@
 /**
- * Vehicle customization (Rigger 2 p.118–146; docs/PLAN-vehicle-customization.md C2/C3): pure rules. What a
+ * Vehicle customization (Rigger 2 p.118–146; docs/archive/plans/PLAN-vehicle-customization.md C2/C3): pure rules. What a
  * customization costs, where it can be bought, whether the vehicle can take it, and how long it takes to install.
  * No Foundry dependencies; the Workshop's customize mode and the purchase flow call these.
  */

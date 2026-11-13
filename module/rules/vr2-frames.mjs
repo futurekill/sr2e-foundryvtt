@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 6a-1: frame cores and loading, the pure decisions (docs/PLAN-vr2-part6-frames.md, "6a-1 in detail";
+ * VR2.0 part 6a-1: frame cores and loading, the pure decisions (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-1 in detail";
  * VR2.0 pp.105–106). No Foundry here.
  */
 import { deriveProgram, foldProgramming } from "./vr2-options.mjs";
@@ -92,7 +92,7 @@ export function activeLoad(records = [], { design, capacity, written }) {
   return { gen: t.task, copies: p.copies ?? [], loadingRating: p.loadingRating };
 }
 
-// ── Part 6a-2a: running frames (docs/PLAN-vr2-part6-frames.md, "6a-2a in detail") ──────────────
+// ── Part 6a-2a: running frames (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-2a in detail") ──────────────
 
 /** Upload time (p.91): "10 MePS can upload … 10 Mp of data per second". Null when the deck has no I/O bandwidth. */
 export const uploadSeconds = (size, io) => (Number(io) > 0 ? Math.ceil((Number(size) || 0) / Number(io)) : null);

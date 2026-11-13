@@ -1,4 +1,4 @@
-// The Rigger 2 Vehicle List rules (docs/PLAN-vehicle-list.md), against the generated list data when the sibling module
+// The Rigger 2 Vehicle List rules (docs/archive/plans/PLAN-vehicle-list.md), against the generated list data when the sibling module
 // is checked out (CI: the synthetic cases only).
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { proportionalRefund, chargenItemCost } from "../module/rules/sr2e-rules.mjs";
 
-// The two ammo money bugs (PLAN-ammo-stacking.md, problems 3 & 4).
+// The two ammo money bugs (docs/archive/plans/PLAN-ammo-stacking.md, problems 3 & 4).
 describe("proportionalRefund — kills the free-ammo exploit", () => {
   it("refunds nothing for an emptied box (the exploit)", () => {
     // Bought a 10-round box for 15¥, fired/reloaded it to 0 → sell refunds 0.

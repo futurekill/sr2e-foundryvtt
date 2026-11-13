@@ -2504,7 +2504,7 @@ export function registerSR2EQuenchTests() {
         });
       });
 
-      describe("Delta, secondhand bioware, cybersurgery (docs/PLAN-cybersurgery-grades.md)", () => {
+      describe("Delta, secondhand bioware, cybersurgery (docs/archive/plans/PLAN-cybersurgery-grades.md)", () => {
         // Buy through the real drop + Buy dialog; `fill(form)` sets the dialog's fields.
         const buy = async (actor, data, fill = () => {}, { action = "buy" } = {}) => {
           const seen = {};
@@ -2603,7 +2603,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Purchases" });
 
-    // ── The cyberlimb model (docs/PLAN-cybertechnology-phase2.md) ─────────────
+    // ── The cyberlimb model (docs/archive/plans/PLAN-cybertechnology-phase2.md) ─────────────
     quench.registerBatch("sr2e.cyberlimbs", (context) => {
       const { it, assert, afterEach } = context;
       const made = [];
@@ -2712,7 +2712,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cyberlimbs (model)" });
 
-    // ── Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md) ─────────────────
+    // ── Cyberlimb rules (docs/archive/plans/PLAN-cybertechnology-phase3.md) ─────────────────
     quench.registerBatch("sr2e.limbrules", (context) => {
       const { it, assert, afterEach } = context;
       const made = [];
@@ -2821,7 +2821,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cyberlimb rules" });
 
-    // ── Cybereyes, bioware with cyberware, social (docs/PLAN-cybertechnology-phase3b.md) ─
+    // ── Cybereyes, bioware with cyberware, social (docs/archive/plans/PLAN-cybertechnology-phase3b.md) ─
     quench.registerBatch("sr2e.warerules", (context) => {
       const { it, assert, afterEach } = context;
       const made = [];
@@ -2955,7 +2955,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cybereyes, bioware with cyberware, social" });
 
-    // ── Move-by-wire and reflex add-ons (docs/PLAN-cybertechnology-phase4.md) ──────
+    // ── Move-by-wire and reflex add-ons (docs/archive/plans/PLAN-cybertechnology-phase4.md) ──────
     quench.registerBatch("sr2e.mbw", (context) => {
       const { it, assert, afterEach } = context;
       const made = [];
@@ -3135,7 +3135,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Move-by-wire and reflex add-ons" });
 
-    // ── Cyberware damage, repair, scarring (docs/PLAN-cybertechnology-phase5.md) ──
+    // ── Cyberware damage, repair, scarring (docs/archive/plans/PLAN-cybertechnology-phase5.md) ──
     quench.registerBatch("sr2e.cyberdamage", (context) => {
       const { it, assert, afterEach, before, after } = context;
       const made = [];
@@ -3231,7 +3231,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Cyberware damage, repair, scarring" });
 
-    // ── Cybermancy (docs/PLAN-cybertechnology-phase6.md) ──────────────────────────
+    // ── Cybermancy (docs/archive/plans/PLAN-cybertechnology-phase6.md) ──────────────────────────
     quench.registerBatch("sr2e.cybermancy", (context) => {
       const { it, assert, afterEach, before, after } = context;
       const made = [];
@@ -8052,7 +8052,7 @@ export function registerSR2EQuenchTests() {
         assert.equal(game.messages.size, n, "no re-roll");
       });
 
-      // ── Stage 2: the dose commit and its resumable steps (docs/PLAN-addiction.md) ──
+      // ── Stage 2: the dose commit and its resumable steps (docs/archive/plans/PLAN-addiction.md) ──
       const PUMP = { name: "Quench Adrenal Pump", type: "bioware", flags: { sr2e: { adrenalPump: true } },
         system: { installed: true, triggered: true, active: false, rating: 1, bodyCost: 1.25, noReactionBonus: true,   // as the real pump (p.19)
           attributeMods: { quickness: 1, strength: 1, willpower: 1, reaction: 2 } } };
@@ -8974,7 +8974,7 @@ export function registerSR2EQuenchTests() {
         } finally { await world.delete(); }
       });
 
-      // ── One finisher per dose across clients (docs/PLAN-same-user-writers.md) ──
+      // ── One finisher per dose across clients (docs/archive/plans/PLAN-same-user-writers.md) ──
       const KAMI_OVER = foundry.utils.mergeObject(foundry.utils.deepClone(KAMIKAZE), { system: { quantity: 3 },
         flags: { sr2e: { drug: { absorb: 4, stimulant: true } } } });
       const confirmYes = async (fn) => {
@@ -9777,7 +9777,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Learning spells & elemental defense (p.132, p.141)" });
 
-    // ── Matrix jackpoints: shifting a decker's perception (docs/PLAN-matrix-jackpoints.md) ──
+    // ── Matrix jackpoints: shifting a decker's perception (docs/archive/plans/PLAN-matrix-jackpoints.md) ──
     quench.registerBatch("sr2e.jackpoints", (context) => {
       const { it, assert, before, after } = context;
       let J, meat, matrix, entry, jackRegion, behavior, startScene;
@@ -9940,7 +9940,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Matrix jackpoints (perception shift)" });
 
-    // ── Persona tokens appear on jack-in (docs/PLAN-matrix-persona-tokens.md) ──
+    // ── Persona tokens appear on jack-in (docs/archive/plans/PLAN-matrix-persona-tokens.md) ──
     quench.registerBatch("sr2e.persona-tokens", (context) => {
       const { it, assert, before, after, afterEach } = context;
       let J, P, R, meat, matrix, entry, jackRegion, behavior, startScene;
@@ -10224,7 +10224,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Persona tokens appear on jack-in" });
 
-    // ── Astral movement through walls (docs/PLAN-astral-barriers.md, Stage 1) ──
+    // ── Astral movement through walls (docs/archive/plans/PLAN-astral-barriers.md, Stage 1) ──
     quench.registerBatch("sr2e.astral-walls", (context) => {
       const { it, assert, before, after } = context;
       let scene, astral, body, startScene;
@@ -10316,7 +10316,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Astral movement through walls (p.145)" });
 
-    // ── Projection leaves the body (docs/PLAN-astral-barriers.md, Stage 2) ──
+    // ── Projection leaves the body (docs/archive/plans/PLAN-astral-barriers.md, Stage 2) ──
     quench.registerBatch("sr2e.astral-forms", (context) => {
       const { it, assert, before, after } = context;
       let F, scene, startScene;
@@ -10400,7 +10400,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Astral projection leaves the body (p.146)" });
 
-    // ── Fat bacteria zones (docs/PLAN-astral-barriers.md, Stage 3; CSH p.103) ──
+    // ── Fat bacteria zones (docs/archive/plans/PLAN-astral-barriers.md, Stage 3; CSH p.103) ──
     quench.registerBatch("sr2e.fab", (context) => {
       const { it, assert, before, after, beforeEach } = context;
       let FAB, AF, scene, region, behavior, mage, body, form, intruder, combat, startScene, prevLimit;
@@ -10559,7 +10559,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Fat bacteria zones (CSH p.103)" });
 
-    // ── Mobile companion screen (docs/PLAN-companion.md, Stage 2) ──
+    // ── Mobile companion screen (docs/archive/plans/PLAN-companion.md, Stage 2) ──
     // Runs on a desktop client: the screen is opened directly for a test character.
     quench.registerBatch("sr2e.companion", (context) => {
       const { it, assert, before, after } = context;
@@ -10822,7 +10822,7 @@ export function registerSR2EQuenchTests() {
         } finally { f.remove(); }
       });
 
-      // v14 same-user join (docs/PLAN-v14-phone-join.md): the offline window, with a FAKE
+      // v14 same-user join (docs/archive/plans/PLAN-v14-phone-join.md): the offline window, with a FAKE
       // socket and a stubbed reload, so this client never really disconnects.
       describe("letting a phone in (same user, v14+)", () => {
         const fake = (connected = true) => ({ connected, d: 0, c: 0,
@@ -11185,7 +11185,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Audit fixes (2026-10-16)" });
 
-    // ── A Resist button resolves once; a melee attack is defended once (docs/PLAN-resist-once.md) ──
+    // ── A Resist button resolves once; a melee attack is defended once (docs/archive/plans/PLAN-resist-once.md) ──
     quench.registerBatch("sr2e.resist-once", (context) => {
       const { describe, it, assert, afterEach } = context;
       const made = [], msgs = [];
@@ -11312,7 +11312,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Resist once" });
 
-    // ── Netguns (SSC p.72, CSH p.103; docs/PLAN-netguns.md) ──────────────────
+    // ── Netguns (SSC p.72, CSH p.103; docs/archive/plans/PLAN-netguns.md) ──────────────────
     quench.registerBatch("sr2e.netguns", (context) => {
       const { it, assert, before, after } = context;
       const made = { actors: [], tokens: [], msgs: [] };
@@ -11410,7 +11410,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Netguns" });
 
-    // ── VR2.0 core (docs/PLAN-vr2-core.md) ────────────────────────────────────
+    // ── VR2.0 core (docs/archive/plans/PLAN-vr2-core.md) ────────────────────────────────────
     quench.registerBatch("sr2e.vr2-core", (context) => {
       const { describe, it, assert, before, after } = context;
       const made = [], msgs = [];
@@ -11683,7 +11683,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: VR2.0 core" });
 
-    // ── VR2.0 part 2 (docs/PLAN-vr2-part2.md) ─────────────────────────────────
+    // ── VR2.0 part 2 (docs/archive/plans/PLAN-vr2-part2.md) ─────────────────────────────────
     quench.registerBatch("sr2e.vr2-part2", (context) => {
       const { describe, it, assert, before, after } = context;
       const made = [], msgs = [], tokens = [];
@@ -12008,7 +12008,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: VR2.0 part 2" });
 
-    // ── VR2.0 part 3: the rest of the IC (docs/PLAN-vr2-part3.md) ────────────────────
+    // ── VR2.0 part 3: the rest of the IC (docs/archive/plans/PLAN-vr2-part3.md) ────────────────────
     quench.registerBatch("sr2e.vr2-optional-ic", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [], tokens = [];
@@ -12434,7 +12434,7 @@ export function registerSR2EQuenchTests() {
       });
     });
 
-    // VR2.0 part 5a: the utilities (docs/PLAN-vr2-part5.md).
+    // VR2.0 part 5a: the utilities (docs/archive/plans/PLAN-vr2-part5.md).
     quench.registerBatch("sr2e.vr2-utilities", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [], tokens = [];
@@ -12673,7 +12673,7 @@ export function registerSR2EQuenchTests() {
       });
     });
 
-    // ── Vehicles (docs/PLAN-vehicle-builder.md) ──────────────────────────────────────────────────────────────────
+    // ── Vehicles (docs/archive/plans/PLAN-vehicle-builder.md) ──────────────────────────────────────────────────────────────────
     // Vehicles in play, core rules (docs/PLAN-vehicles-phase2.md Part 1). Every die is rigged (randomUniform 0.2 → all 5s:
     // TN ≤ 5 hits on every die, TN 6+ never), so each assertion is exact.
     quench.registerBatch("sr2e.vehicle-play", (context) => {
@@ -13260,7 +13260,7 @@ export function registerSR2EQuenchTests() {
         await v.sheet.close();
       });
 
-      // ── The Workshop (docs/PLAN-vehicle-builder.md §1c), with the Rigger 2 module's tables ──────────────────
+      // ── The Workshop (docs/archive/plans/PLAN-vehicle-builder.md §1c), with the Rigger 2 module's tables ──────────────────
       const W = () => import("../apps/vehicle-workshop.mjs");
       const haveTables = () => Object.keys(CONFIG.SR2E.vehicleDesignTables?.chassis ?? {}).length > 0;
       const pause = (ms = 350) => new Promise(r => setTimeout(r, ms));
@@ -14169,7 +14169,7 @@ export function registerSR2EQuenchTests() {
         assert.equal(starts.filter(Boolean).length, 1, "one start per generation");
       });
 
-      // Upgrading (VR2.0 p.107; docs/PLAN-vr2-upgrading.md).
+      // Upgrading (VR2.0 p.107; docs/archive/plans/PLAN-vr2-upgrading.md).
       const upSet = (rating, add = []) => (el) => {
         const r = el?.querySelector('input[name="rating"]'); if (r) r.value = String(rating);
         for (const k of add) { const c = el?.querySelector(`input[name="add_${k}"]`); if (c) c.checked = true; }
@@ -14701,7 +14701,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: VR2.0 part 3 (IC)" });
 
-    // ── VR2.0 part 6a-0: Decoy, Null Operation, Scan Icon (docs/PLAN-vr2-part6-frames.md) ──
+    // ── VR2.0 part 6a-0: Decoy, Null Operation, Scan Icon (docs/archive/plans/PLAN-vr2-part6-frames.md) ──
     quench.registerBatch("sr2e.vr2-decoy", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [], tokens = [];
@@ -14907,8 +14907,8 @@ export function registerSR2EQuenchTests() {
 
 
 
-    // ── The money queue (docs/PLAN-money-queue-and-eye-accessories.md, Part A) ──────
-    // VR2.0 part 7a: grid topology (docs/PLAN-vr2-part7-grids.md, "7a in detail").
+    // ── The money queue (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, Part A) ──────
+    // VR2.0 part 7a: grid topology (docs/archive/plans/PLAN-vr2-part7-grids.md, "7a in detail").
     quench.registerBatch("sr2e.vr2-grids", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [], regions = [];
@@ -15348,7 +15348,7 @@ export function registerSR2EQuenchTests() {
       });
     });
 
-    // VR2.0 part 6a-1: frame cores and loading (docs/PLAN-vr2-part6-frames.md, "6a-1 in detail").
+    // VR2.0 part 6a-1: frame cores and loading (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-1 in detail").
     quench.registerBatch("sr2e.vr2-frames", (context) => {
       const { it, assert, before, after, afterEach } = context;
       const made = [];
@@ -16516,7 +16516,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Area preview" });
 
-    // docs/PLAN-combat-spells.md: targets, the claimed resistance, Ram, Avoid an Oops, refunds.
+    // docs/archive/plans/PLAN-combat-spells.md: targets, the claimed resistance, Ram, Avoid an Oops, refunds.
     quench.registerBatch("sr2e.combat-spells", (context) => {
       const { describe, it, assert, after } = context;
       const made = [], tokens = [], msgs = [];
@@ -16721,7 +16721,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Combat spells" });
 
-    // docs/PLAN-healing-clock.md: time is INJECTED (reconcileHealing(actor, now)); world time never moves.
+    // docs/archive/plans/PLAN-healing-clock.md: time is INJECTED (reconcileHealing(actor, now)); world time never moves.
     quench.registerBatch("sr2e.healing-clock", (context) => {
       const { it, assert, before, after } = context;
       const made = [], msgs0 = { n: 0 };
@@ -16999,7 +16999,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Healing clock" });
 
-    // docs/PLAN-deadly-permanent-damage.md (core p.113–114).
+    // docs/archive/plans/PLAN-deadly-permanent-damage.md (core p.113–114).
     quench.registerBatch("sr2e.permanent-damage", (context) => {
       const { it, assert, before, after } = context;
       const made = [];
@@ -17105,7 +17105,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Permanent damage" });
 
-    // docs/PLAN-bioware-damage.md (Shadowtech p.6).
+    // docs/archive/plans/PLAN-bioware-damage.md (Shadowtech p.6).
     quench.registerBatch("sr2e.bioware-damage", (context) => {
       const { it, assert, before, after } = context;
       const made = [], msgs = [];
@@ -17270,7 +17270,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Bioware damage" });
 
-    // NPC Essence above 6 (docs/PLAN-npc-essence.md): critters print 2D6 / 8; the old 0–6 bound
+    // NPC Essence above 6 (docs/archive/plans/PLAN-npc-essence.md): critters print 2D6 / 8; the old 0–6 bound
     // silently reset them to 6.
     quench.registerBatch("sr2e.npc-essence", (context) => {
       const { it, assert, after } = context;
@@ -17372,8 +17372,8 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: NPC Essence above 6" });
 
-    // Spirit attack Power source and group totem bonuses (docs/PLAN-ancestor-spirit.md).
-    // ── Second-hand cyberware (SSC p.100; docs/PLAN-secondhand-cyberware.md) ──────
+    // Spirit attack Power source and group totem bonuses (docs/archive/plans/PLAN-ancestor-spirit.md).
+    // ── Second-hand cyberware (SSC p.100; docs/archive/plans/PLAN-secondhand-cyberware.md) ──────
     quench.registerBatch("sr2e.secondhand-cyberware", (context) => {
       const { it, assert, before, after } = context;
       const made = [];
@@ -17693,7 +17693,7 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: spirit attack Power and group totem bonuses" });
 
-    // ── Shapeshifters (Companion pp.36–38; core p.227–229; docs/PLAN-shapeshifters.md) ──────
+    // ── Shapeshifters (Companion pp.36–38; core p.227–229; docs/archive/plans/PLAN-shapeshifters.md) ──────
     quench.registerBatch("sr2e.shapeshifters", (context) => {
       const { it, assert, after } = context;
       const made = [];

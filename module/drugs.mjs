@@ -1,9 +1,9 @@
 /**
- * Drugs and toxins (Shadowtech p.85–100) — the lean core, see docs/PLAN-drugs.md.
+ * Drugs and toxins (Shadowtech p.85–100) — the lean core, see docs/archive/plans/PLAN-drugs.md.
  *
  * Automated: spending a dose, the drug's attribute Active Effects (with a
  * displayed duration, ended by hand), toxin damage resisted with Body, and the
- * addiction / tolerance tests, and the substance ledger (docs/PLAN-addiction.md):
+ * addiction / tolerance tests, and the substance ledger (docs/archive/plans/PLAN-addiction.md):
  * every dose and test is an append-only event under `flags.sr2e.substanceLog`,
  * folded by module/rules/substances.mjs. The rest is on the card for the GM.
  *
@@ -157,7 +157,7 @@ function effectDuration(d, actor) {
 const durationText = (d) => !d ? "" : d.minutes != null ? `${d.minutes} minute${d.minutes === 1 ? "" : "s"}`
   : `${d.turns} Combat Turn${d.turns === 1 ? "" : "s"}`;
 
-// ── The substance ledger (docs/PLAN-addiction.md) ─────────────────────────
+// ── The substance ledger (docs/archive/plans/PLAN-addiction.md) ─────────────────────────
 
 /** The actor's ledger events, each with its id. */
 export const ledgerOf = (actor) => Object.entries(actor?.flags?.sr2e?.substanceLog ?? {}).map(([id, e]) => ({ ...e, id }));
@@ -297,7 +297,7 @@ export function resumeAllDoses() {
   return Promise.all(runs);
 }
 
-// ── Substance time, reports and Karma (stage 3; docs/PLAN-addiction.md) ────
+// ── Substance time, reports and Karma (stage 3; docs/archive/plans/PLAN-addiction.md) ────
 
 /** Every actor with a ledger: world actors and unlinked tokens on every scene, by uuid. */
 export function ledgerActors() {
@@ -783,7 +783,7 @@ export function unfinishedDoses(actor) {
 }
 
 /**
- * GM: force-finish a dose whose holder stopped (docs/PLAN-same-user-writers.md §3). Not
+ * GM: force-finish a dose whose holder stopped (docs/archive/plans/PLAN-same-user-writers.md §3). Not
  * a fence: if the holder's device still runs, a step can land twice, and the dialog says so.
  */
 export async function forceFinishDose(actor, exposureId) {
@@ -820,7 +820,7 @@ export async function forceFinishDose(actor, exposureId) {
 /**
  * Use one dose (owner). Decide everything, then ONE atomic item update spends
  * the dose and stores the whole plan; then every consequence runs from that
- * plan and can be resumed (docs/PLAN-addiction.md R4 #3, R5).
+ * plan and can be resumed (docs/archive/plans/PLAN-addiction.md R4 #3, R5).
  */
 export function useDose(actor, itemId) {
   return queue(actor, async () => {

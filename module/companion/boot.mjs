@@ -1,5 +1,5 @@
 /**
- * Mobile companion mode — the shell (docs/PLAN-companion.md, Stage 1).
+ * Mobile companion mode — the shell (docs/archive/plans/PLAN-companion.md, Stage 1).
  *
  * A phone or tablet that logs into the normal Foundry address gets a touch-first
  * character screen instead of the desktop interface, while the player's computer

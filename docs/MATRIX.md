@@ -163,7 +163,7 @@ Matrix Combat p.178–179; Dump Shock p.180; Hacking Pool p.84.
 
 
 ## Jackpoints — putting the decker on a Matrix map
-See docs/PLAN-matrix-jackpoints.md for the design. GM setup:
+See docs/archive/plans/PLAN-matrix-jackpoints.md for the design. GM setup:
 1. Build the system's Matrix map as its own scene; draw a Region on it where
    personas arrive (the entry area). Give the players Limited (or Observer) on it.
 2. On the meat-space map, draw a Region over the terminal or port and add the
@@ -173,7 +173,7 @@ See docs/PLAN-matrix-jackpoints.md for the design. GM setup:
 The decker stands in the jackpoint and clicks **Jack in** on their token HUD;
 jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
 
-## VR2.0 part 4a — optional IC (docs/PLAN-vr2-part4.md)
+## VR2.0 part 4a — optional IC (docs/archive/plans/PLAN-vr2-part4.md)
 - Expert / cascading / party IC are per-IC fields (`expert`, `cascading`, `cascadeEpoch`, `party {id, size}`).
 - Cascade is DERIVED, never stored: `cascadeOutcomes()` reads each decker's `admit` facts (they carry the
   attack-time `cascade0` snapshot and final successes) and their acks; `cascadeOf(ic, host)` keeps this IC's
@@ -181,7 +181,7 @@ jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
   admission is the evidence); a legacy direct attack says so on its card.
 - Party IC: non-IC component programs aren't modelled. Constructs and black-IC Shield: part 4b.
 
-## VR2.0 part 4b — constructs, black-IC Shield (docs/PLAN-vr2-part4b.md)
+## VR2.0 part 4b — constructs, black-IC Shield (docs/archive/plans/PLAN-vr2-part4b.md)
 - Keys: the ICON is `uuid#gen`; a construct program's EFFECT key is `uuid#gen/<component id>` (hits, locks,
   traces, psychotropic/last-attack steps). Always parse with `parseIcKey` / `iconKeyOf` / `icOfKey`.
 - Every IC effect reads `icProfile(ic, comp)` (program, rating, class, subtypes) — never `ic.system.program`
@@ -193,7 +193,7 @@ jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
   `reconcileShieldFreeze` finishes interrupted ones. Tar facts are `v: 2` and `reconcileTar` finishes them.
 
 
-## VR2.0 part 5a — the utilities (docs/PLAN-vr2-part5.md)
+## VR2.0 part 5a — the utilities (docs/archive/plans/PLAN-vr2-part5.md)
 - Decker attacks on the connection log are ADMITTED by the sequencer finding the card (`admitDeckerCards`, before
   `processRequests`, and a `createChatMessage` hook). Attacker keys: IC `uuid#gen[/comp]`, decker
   `deck:<uuid>@<conn>` — parse with `parseAttackerKey`. A decker's incarnation ends on conn end or a crash
@@ -211,7 +211,7 @@ jacking out any way (HUD, sheet toggle, dump, GM) brings their screen back.
 - Restore: `vr2Session.iconRepair`, folded FIFO by `restoreState`. Evaluate: `degradation` derived from
   `flags.sr2e.evalRuns`/`evalRestores`; restores go through the sequencer's `evalRestore` request.
 
-## VR2.0 part 5b — utility options and programming (docs/PLAN-vr2-part5b.md)
+## VR2.0 part 5b — utility options and programming (docs/archive/plans/PLAN-vr2-part5b.md)
 - Setting `vr2UtilityOptions` (VR2.0 only; `utilityOptionsOn()`). Pure math: `module/rules/vr2-options.mjs`.
   `ProgramData` derives `utility` (one identity), `activeOpts`/`inertOpts` (`activeOptions`, row index `i`),
   `size`/`designSize`/`cost`; `derivedItemCost` prices `sys.activeOpts` (design size × base band).

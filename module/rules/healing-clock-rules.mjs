@@ -1,5 +1,5 @@
 /**
- * Healing on the game clock (docs/PLAN-healing-clock.md) — pure decisions, no Foundry.
+ * Healing on the game clock (docs/archive/plans/PLAN-healing-clock.md) — pure decisions, no Foundry.
  * SR2E core p.111 (bleeding), p.112 (Stun recovery), p.113 (natural healing), p.115 (first aid).
  * Times are world-time seconds.
  */

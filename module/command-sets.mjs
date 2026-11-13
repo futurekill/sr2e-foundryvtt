@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 6c: command sets (docs/PLAN-vr2-part6-frames.md, "6c in detail"; VR2.0 pp.104–105).
+ * VR2.0 part 6c: command sets (docs/archive/plans/PLAN-vr2-part6-frames.md, "6c in detail"; VR2.0 pp.104–105).
  *
  * A set is durable facts on its HOST, written only by the sequencer (the active GM's client):
  *   cs-open:<id>    {type: "csOpen", id, decker, name, orders, kind, steps, conn, sessionId, upload?}

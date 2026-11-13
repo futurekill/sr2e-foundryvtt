@@ -1,5 +1,5 @@
 /**
- * The companion screen (docs/PLAN-companion.md, Stage 2): a touch-first view of
+ * The companion screen (docs/archive/plans/PLAN-companion.md, Stage 2): a touch-first view of
  * one character with Status, Skills, Combat, Magic and Chat tabs.
  *
  * It registers the sheets' SHARED_ACTIONS and exposes `document`, so every button

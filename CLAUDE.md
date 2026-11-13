@@ -140,7 +140,7 @@ value that makes a document invalid fixes nothing (0.29.15 shipped that way). Su
 documents are reported by `reportInvalidDocuments()` on every active-GM load; repair is
 the GM's. Don't add automatic repair: old migrations aren't safe to replay on old raw
 data, and V13 keeps a repaired document out of the collection until reload.
-See docs/PLAN-migrate-invalid-documents.md.
+See docs/archive/plans/PLAN-migrate-invalid-documents.md.
 
 ## Derived state on prepared documents
 `prepareDerivedData` mutates the prepared document IN PLACE, and embedded items
@@ -185,7 +185,7 @@ messages behind some hosts (a raw `game.socket.emit`/`on` ping did not arrive
 GM-side at futurekill's table — the same reason Team Karma's cross-client sync
 fails there), so the relay was removed. Don't re-add a socket relay without
 first confirming `system.*` messages actually deliver in the target deployment.
-See docs/PLAN-summon-placement-movement.md.
+See docs/archive/plans/PLAN-summon-placement-movement.md.
 
 ## Documentation
 A feature isn't done until it's documented for users, with screenshots and (for anything with motion or several
@@ -195,25 +195,28 @@ How-To-Guides.md is the single source for the in-Foundry guides: `npm run gen-gu
 turns it into the "How-To Guides" journal (SR2E Player Guides pack), copying its images to `assets/guides/`. Never
 edit that journal's packs-src JSON by hand.
 
+Plans: a plan in progress lives in `docs/PLAN-<name>.md` (+ `-REVIEW-LOG.md`). Once it ships, `git mv` both to
+`docs/archive/plans/` and repoint every reference (code comments cite plan sections, in this repo and the modules).
+
 ## Known deferred work
-VR2.0 Matrix (optional `matrixRuleset`): parts 1–2 (docs/PLAN-vr2-core.md, PLAN-vr2-part2.md)
-and part 3, the rest of the IC (docs/PLAN-vr2-part3.md, `module/vr2ic.mjs`,
+VR2.0 Matrix (optional `matrixRuleset`): parts 1–2 (docs/archive/plans/PLAN-vr2-core.md, docs/archive/plans/PLAN-vr2-part2.md)
+and part 3, the rest of the IC (docs/archive/plans/PLAN-vr2-part3.md, `module/vr2ic.mjs`,
 `module/rules/vr2ic-rules.mjs`). Part 3 is an EVENT LOG of durable records (`vr2:` on the
 decker, `vr2deck:` on the deck item, on IC/hosts), folded by `foldVr2Ic`/`foldDeck`. Facts whose
 ORDER matters (attack admission, exits, trace ticks/spoofs, IC crashes, acks, connection ends)
 are written ONLY by the world-wide sequencer (`sequencer()`, the active GM's client, `seq`);
 players' clients create `request`s. Monitors and IC are changed only there. Under part 3
 `matrixMode` is DERIVED from the connection log (`system.vr2Conn`); host sessions carry `conn`.
-Optional IC (part 4a/4b) and the utilities (part 5a, docs/PLAN-vr2-part5.md: decker attackers use
+Optional IC (part 4a/4b) and the utilities (part 5a, docs/archive/plans/PLAN-vr2-part5.md: decker attackers use
 `deck:<uuid>@<conn>` keys — parse with `parseAttackerKey`) are done, and so are utility options and programming
-(part 5b, docs/PLAN-vr2-part5b.md: act through `activePrograms`/`spendUse`, read counts via `attackSuccesses`).
-Vehicle design (docs/PLAN-vehicle-builder.md, in progress): `module/rules/vehicle-design.mjs` is the ONE place the
+(part 5b, docs/archive/plans/PLAN-vr2-part5b.md: act through `activePrograms`/`spendUse`, read counts via `attackSuccesses`).
+Vehicle design (docs/archive/plans/PLAN-vehicle-builder.md, in progress): `module/rules/vehicle-design.mjs` is the ONE place the
 Rigger 2 design rules live (pure; `designVehicle` + the shared `vehicleCapacity` the data model also calls: usable
 cargo/load = gross − design options − every mod). Vehicles store GROSS Cargo/Load. Rulings: Acceleration 2 DP/pt; the
 Handling floor binds the final rating incl. Smart Materials; CF fractional. The Workshop
 (`module/apps/vehicle-workshop.mjs`, release 3) is the only designer: it saves BASE stats (`designVehicle().baseStats`:
 design options only, no mod effect; gross Cargo/Load). EVERY installed mod's effects are derived on top by ONE pass,
-`applyModEffects` (customization plan C1, docs/PLAN-vehicle-customization.md), into `VehicleData.effective` — readers
+`applyModEffects` (customization plan C1, docs/archive/plans/PLAN-vehicle-customization.md), into `VehicleData.effective` — readers
 use `effective*`, never the stored stats. Item `custom.state`: "" / "done" installed, "factory" already in the base,
 "parts" / "tested" not working yet, "removed" gone. A 0.143.0 design (`design.baseVersion` < 2) is converted by
 `module/vehicle-base.mjs`'s pending pass; until then only Armor/Signature are added.
@@ -227,7 +230,7 @@ mod items flagged `flags.sr2e.designMod`; unflagged mods are customizations it n
 effects in design are `VehicleModData.effects` formulas; option steppers read `optionStats` (options only), never the
 mod-adjusted stats.
 The Rigger 2 Vehicle List (`module/vehicle-list.mjs`, rules `module/rules/vehicle-list-rules.mjs`,
-docs/PLAN-vehicle-list.md): the R2 module registers `{rows, identity}` (`CONFIG.SR2E.registerVehicleList`; identity =
+docs/archive/plans/PLAN-vehicle-list.md): the R2 module registers `{rows, identity}` (`CONFIG.SR2E.registerVehicleList`; identity =
 compendium source UUID → vehicleId). A `preCreateActor` hook gives an IMPORT (compendiumSource, no duplicateSource, not
 stamped `flags.sr2e.r2Stats`) the row's stats + factory items (`reconcileFactory`); the GM's "Rigger 2 stats" window
 does the same for world vehicles and unlinked tokens, re-checking each target before it writes. Never touch a vehicle
@@ -255,7 +258,7 @@ Overhead (Part 2b-2, `module/vehicle-overhead.mjs`): EVERY Stress write goes thr
 the GM in the vehicle queue; money moves only on the payer's money writer (`moneyWriterFor`) inside its `moneyQueue`,
 behind `flags.sr2e.overheadReceipts.<tx>` (a `released` marker aborts a late charge). Quench scopes Month ends with
 `only` — never end a month over a world's real vehicles in a test.
-Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
+Upgrading (p.107, docs/archive/plans/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the
 `flags.sr2e.upgradeApplied` marker). Source code is derived (`hasSource`: not `objectCodeOnly`, or a completed write).
@@ -295,15 +298,15 @@ attempting session, failed-attempt sessions stashed in `flags.sr2e.skSessions`; 
 Part 6c (0.140.0; `module/command-sets.mjs`): a command set is facts on its HOST (csOpen / csStep / csSteps / csMark),
 folded by `csState`; a step is SETTLED by request, bound to the set's original connection and session, its verdict
 frozen then; a program set's upload is 0.136.0's `uploadOpen` with `snapshot.kind: "commandSet"` (it makes no actor),
-and `reconcileOwner` opens its set. Remaining VR2.0: the upgrading plan (docs/PLAN-vr2-upgrading.md).
+and `reconcileOwner` opens its set. Remaining VR2.0: the upgrading plan (docs/archive/plans/PLAN-vr2-upgrading.md).
 Remaining deferred (was): command sets (6c) — each needs its own Codex-reviewed plan meeting the
-requirements in docs/PLAN-vr2-part6-frames.md.
+requirements in docs/archive/plans/PLAN-vr2-part6-frames.md.
 The success-test TN/dice breakdown is localized (`SR2E.Roll.*`), and so is every roll
 label (`SR2E.RollLabel.*` via `RL()`/`AL()` from `module/util/roll-label.mjs`, 0.116.1–2;
 `test/roll-labels.test.mjs` fails on a key missing from lang/en.json). Still English:
 the modifier fragments callers pass in (`modParts`, `env.source`). New labels use `RL()`.
 
-Money (0.117.0, docs/PLAN-money-queue-and-eye-accessories.md): every write to a
+Money (0.117.0, docs/archive/plans/PLAN-money-queue-and-eye-accessories.md): every write to a
 character's nuyen or `paid` provenance goes through `moneyQueue(actor, fn)` in
 `module/money.mjs` with checked writes (`updated`/`applyUpdate`/`created`/`deleted`/
 `adjustNuyen`). Never await a moneyQueue entry from inside another for the same actor.
@@ -343,14 +346,14 @@ overload, the monitors and a caller's own marker (`extra`) land in ONE update,
 in a `damage:<uuid>` queue. Never call `applyDamage` from inside that queue.
 Drug TN penalties come from `options.tnContext` on `rollSuccessTest`
 (`rollSkillTest` derives it); a new skill or attack roll that calls
-`rollSuccessTest` directly must pass one. See docs/PLAN-drugs-full.md.
+`rollSuccessTest` directly must pass one. See docs/archive/plans/PLAN-drugs-full.md.
 A step that must happen ONCE across clients (any device or user may run it) is claimed with
 `once(actor, key)` (`module/claims.mjs`): the server rejects a second embedded create of the
 same deterministic id. A world-document create with `keepId` REPLACES instead, so never use a
 ChatMessage id as a dedupe. A dose's steps run only on the holder of its claim; others are
 PENDING (the settle barrier holds), and the GM can force-finish a stuck one from the sheet.
 The markers are hidden disabled ActiveEffects (`flags.sr2e.claim`): tests that count
-`actor.effects` must exclude them. See docs/PLAN-same-user-writers.md.
+`actor.effects` must exclude them. See docs/archive/plans/PLAN-same-user-writers.md.
 
 ## Cyberlimbs
 Limb identity (type, side, coverage) and limb-option kind come ONLY from
@@ -360,7 +363,7 @@ unclassified. Never read item names. `limbIdentity` is derived every preparation
 (never stored). `limbModel` derives orphans and conflicts; nothing rewrites links (a
 drop blanks a dropped option's link). Phase-3 rules must use `forSideRules` /
 `forLimbRules` (unknown sides never guessed; overlaps never double-counted).
-See docs/PLAN-cybertechnology-phase2.md.
+See docs/archive/plans/PLAN-cybertechnology-phase2.md.
 The RULES (`module/rules/limb-stats.mjs`, Phase 3) read only that model: one counted
 option per kind per limb (`selectOptions`). CharacterData clears and rebuilds
 `system.limbs` and every item's `limbEssence` marker each pass; the averages replace
@@ -368,7 +371,7 @@ Strength/Quickness only while a full cyber limb holds a position. NPCs get no li
 rules (their stats are printed). Placement facts (`limbSurcharge`, `limbAdjacent`) are
 RECORDED by the preUpdateItem placement hook on the option's own link change, never
 inferred from siblings; rollback passes `sr2eKeepPlacementFacts`. The coordination TN
-lives in `testTnModifiers` only. See docs/PLAN-cybertechnology-phase3.md.
+lives in `testTnModifiers` only. See docs/archive/plans/PLAN-cybertechnology-phase3.md.
 Phase 3b (`module/rules/ware-rules.mjs`): ware identity is `wareRule(flags, source)`
 (rule flag → legacy adrenalPump flag → source uuid), never names. The PHYSICAL limb
 model (`physicalLimbs(sourcesOf(items))`, source-only, ignores implant failure) drives
@@ -378,7 +381,7 @@ Prices take the single-eye and muscle factors ONLY in `itemBaseCost` via `wareCt
 (the stored `cost` is never discounted), so every caller (drop, purchase hook,
 chargen, surgery) must pass `wareCtx`. Social values are always derived;
 the `cyberSocial` setting gates only showing and applying them. See
-docs/PLAN-cybertechnology-phase3b.md.
+docs/archive/plans/PLAN-cybertechnology-phase3b.md.
 Phase 4 (`module/mbw.mjs`, `module/rules/mbw-rules.mjs`): move-by-wire complications are
 an APPEND-ONLY log of durable deterministic-id records (`recordEvent` in claims.mjs:
 `flags.sr2e.claim.durable`, never pruned), folded by `foldMbw`. NEVER store derived
@@ -388,13 +391,13 @@ records one event after checking admission. CCSS losses are DERIVED in
 `_naturalAttribute` (floor 1), and DL4 Intelligence 0 is an explicit override. Seizure
 damage is admitted by `once()` and receipted in `commitDamage`'s same update (`extra` +
 `skipIf`, `source: "seizure"`). Move-by-wire's printed attributeMods are final (the
-Phase 1 provisional values match p.39). See docs/PLAN-cybertechnology-phase4.md.
+Phase 1 provisional values match p.39). See docs/archive/plans/PLAN-cybertechnology-phase4.md.
 Phase 5 (`module/cyberdamage.mjs`, optional `cyberDamage`): GM-EDITABLE state, NOT an event
 log: cyberware `conditions[]`, `skinMissed`, `skinLoss`, and the character's
 `flags.sr2e.scars`. One wound card per commit receipt (`once`), with its snapshot persisted
 in the message flags. Each action resolves on its own, Apply refuses a changed snapshot,
 and scars carry stable ids. A skin loss clamps only dermal plating/sheathing Body. See
-docs/PLAN-cybertechnology-phase5.md.
+docs/archive/plans/PLAN-cybertechnology-phase5.md.
 Phase 6 (`module/cybermancy.mjs`, `module/rules/cym-rules.mjs`, optional `cybermancy`): an
 event log like Phase 4 (`cym:*` records, folded by `foldCym`), never stored state.
 `essence.signed` is derived for every character after ALL losses, and only cybermantic
@@ -404,7 +407,7 @@ the charge with its receipt, then items with deterministic ids, then op-done. Re
 and Cancel share the claim. Lethal records are never voidable (`revive` corrects them).
 A character's own RAW roll must use `characterTN` (CDS +3); `testTnModifiers` adds it
 even under a `tnPolicy`. Healing out of overflow writes `flags.sr2e.cymCare` in the
-healing update itself. See docs/PLAN-cybertechnology-phase6.md.
+healing update itself. See docs/archive/plans/PLAN-cybertechnology-phase6.md.
 
 ## Substance ledger (addiction)
 Substance use is an append-only event log per actor (`flags.sr2e.substanceLog`),
@@ -416,7 +419,7 @@ plan (`completeDose`/`resumeDoses`), each step receipted. Implants: always
 check `workingImplant(actor, item)` (Kamikaze can burn them out), never just
 `system.installed`. Tests must scope clock advances (`advanceSubstanceClock(t,
 {only})`), never fire `updateWorldTime` with invented times at every ledger.
-See docs/PLAN-addiction.md.
+See docs/archive/plans/PLAN-addiction.md.
 
 ## Astral walls and forms
 `module/astral-walls.mjs` subclasses the registered MOVE polygon backend
@@ -437,7 +440,7 @@ generation.
 travels), validate `passed + pending`. Foundry splits a move at regions whose
 behaviours listen for enter/exit, and each resumed stretch fires preMoveToken
 again.
-See docs/PLAN-astral-barriers.md.
+See docs/archive/plans/PLAN-astral-barriers.md.
 
 ## Mobile companion mode
 `module/companion/` (+ pure decisions in `module/rules/companion-rules.mjs`): a touch
@@ -454,11 +457,11 @@ companion. A template part must render ONE root element. Same-user devices never
 targets (Foundry drops a user's own `userActivity`), so targets are shared through
 the User document. Order comes from the SERVER: every map applies the stored record,
 its own echoes included, and never compares device clocks. Phone picks go through
-`updateSharedTargets` (a queue). See docs/PLAN-companion.md.
+`updateSharedTargets` (a queue). See docs/archive/plans/PLAN-companion.md.
 A user already online can't pick themselves on Foundry's join page (only the page
 blocks it, not the server), so `companion-join.html` in the system root posts to
 `/join` itself; the computer's Settings → **Open on phone** QR links to it. Treat the
-page's URL fragment as hostile (textContent only). See docs/PLAN-companion-join.md.
+page's URL fragment as hostile (textContent only). See docs/archive/plans/PLAN-companion-join.md.
 
 ## Matrix jackpoints
 `module/jackpoints.mjs` (+ pure decisions in `module/rules/jackpoint-rules.mjs`):
@@ -469,8 +472,8 @@ rest), and a per-TAB view record in sessionStorage. EVERY `matrixMode` change on
 the driving client goes through `matrixQueue(actor, …)` — the sheet toggle and
 dump shock do; any new path must too. Reconciliation runs via
 `scheduleReconcile`, never directly. Never `await canvas.animatePan` (it never
-resolves in a hidden tab). See docs/PLAN-matrix-jackpoints.md.
-Persona tokens (`module/persona-tokens.mjs`, docs/PLAN-matrix-persona-tokens.md) are the
+resolves in a hidden tab). See docs/archive/plans/PLAN-matrix-jackpoints.md.
+Persona tokens (`module/persona-tokens.mjs`, docs/archive/plans/PLAN-matrix-persona-tokens.md) are the
 astral-forms pattern: only the active GM's client creates/deletes `personaManaged` tokens,
 from `desiredPersonas` re-derived before every write; hand-placed personas are never touched.
 "Usable" is ONE predicate (`personaUsable`). `scheduleReconcile` schedules them OUTSIDE the
@@ -478,7 +481,7 @@ Matrix queue (a jack-in on the GM's own client holds that queue while it waits f
 Sessions snapshot `destRegion`; `sessionValid` checks it.
 
 ## Healing on the game clock
-`module/healing-clock.mjs` (+ pure `module/rules/healing-clock-rules.mjs`, docs/PLAN-healing-clock.md):
+`module/healing-clock.mjs` (+ pure `module/rules/healing-clock-rules.mjs`, docs/archive/plans/PLAN-healing-clock.md):
 with Calendaria active and `healingClock` on, healing courses and bleeding run on world time. State
 lives at `flags.sr2e.healClock.<stateKey(actor.uuid)>` (keyed by the OWNING actor, so token actors
 never read inherited state). A `preUpdateActor` hook keeps per-column revisions, `restGen`, wound and
@@ -490,7 +493,7 @@ while another device holds the bleeding — then refuse). Never call `reconcileH
 with `testSeam.force`; never advance world time.
 
 ## Permanent damage from Deadly wounds
-`module/permanent-damage.mjs` (+ `module/rules/permanent-damage-rules.mjs`, docs/PLAN-deadly-permanent-damage.md):
+`module/permanent-damage.mjs` (+ `module/rules/permanent-damage-rules.mjs`, docs/archive/plans/PLAN-deadly-permanent-damage.md):
 episode state at `flags.sr2e.permDmg.<permKey(uuid)>` kept by a `preUpdateActor` hook; each episode's
 outcome is a durable `recordEvent` (`permdmg:<uuid>:<g>:<attempt>`, voids `permdmg-void:…`) and
 EVERYTHING else (attribute loss, healing multipliers, doctor requirement, pending) is derived from
@@ -502,7 +505,7 @@ no longer clamps (p.192: Good Karma may exceed it).
 `NPCData.essence` has no upper bound (critters print 2D6 / 8; Essence Drain's cap is per creature
 type, core p.217 — the GM's). Foundry 13 CLAMPS an out-of-range NumberField on construction instead
 of rejecting it, so a schema `max` silently rewrites stat blocks; never re-add one. The NPC sheet's
-Essence input has its own save guard (blank → no save) in actor-sheet.mjs. docs/PLAN-npc-essence.md.
+Essence input has its own save guard (blank → no save) in actor-sheet.mjs. docs/archive/plans/PLAN-npc-essence.md.
 
 ## Spirit attacks and totem groups
 A spirit's manifest attack comes ONLY from `spiritAttackSummary(sys)` (rules/sr2e-rules.mjs) —
@@ -510,10 +513,10 @@ rollSpiritAttack and the sheet tooltip both use it; a profile's `attack.power` i
 or "strength". Totem conjuring dice come ONLY from `totemConjuringBonus` (explicit domain → group →
 inherited best member, never summed), used for both the Conjuring and Drain pools. Content modules
 add spirit types by extending CONFIG at `init` (world documents are prepared before `setup`).
-docs/PLAN-ancestor-spirit.md.
+docs/archive/plans/PLAN-ancestor-spirit.md.
 
 ## Second-hand cyberware
-SSC p.100 + Cybertechnology p.42 (docs/PLAN-secondhand-cyberware.md, Codex-approved round 4).
+SSC p.100 + Cybertechnology p.42 (docs/archive/plans/PLAN-secondhand-cyberware.md, Codex-approved round 4).
 `system.secondhand` is a CONDITION on standard/alpha/beta (never delta: `cyberSecondhand` ignores
 it there and `preUpdateItem` refuses the transition), priced ×.5 in `itemBaseCost` after the grade.
 Bioware keeps its own `secondhand` GRADE (Shadowtech p.12). The Resistance Test lives in
@@ -523,7 +526,7 @@ GM through a `closesTests` message that is also the retry record (`applied`). `s
 gates a failed part's mods in actor-data; cyberlimbs and limb options are excluded (reminder only).
 
 ## Shapeshifters
-Companion pp.36–38 + core pp.227–229 (docs/PLAN-shapeshifters.md; Codex plan rounds 1–5). Pure rules in
+Companion pp.36–38 + core pp.227–229 (docs/archive/plans/PLAN-shapeshifters.md; Codex plan rounds 1–5). Pure rules in
 `module/rules/shapeshift-rules.mjs`, the rest in `module/shapeshift.mjs`. A character is a shapeshifter by
 `race === "shapeshifter"` + `shapeshifter.species`; its form modifiers are a NATURAL term added after the base
 cap in `_naturalAttribute` (never in `.racial`, never in `naturalInfo` — advancement prices off base). NPC forms

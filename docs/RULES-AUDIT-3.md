@@ -9,7 +9,7 @@ less-common path; **low** = missing automation the GM can cover by hand.
 
 ## Combat
 
-### C1 — Ranged damage stages on gross successes, not net (HIGH) — ✅ FIXED (`stageByNet`, PLAN-net-staging.md)
+### C1 — Ranged damage stages on gross successes, not net (HIGH) — ✅ FIXED (`stageByNet`, docs/archive/plans/PLAN-net-staging.md)
 p.91 *Determine Outcome of Attack*: the attacker raises the base damage "for
 every two full successes the attacker rolls **over the target's total**"; the
 defender lowers it for every two full successes "the target rolls over the
@@ -48,7 +48,7 @@ full auto that runs short follows the same rule. `item.mjs` refuses the attack
 ("not enough for a N-round burst"). `burstDamageBonus(2)` already returns the
 right numbers; only the refusal and the 1-round case are missing.
 
-### C4 — Multiple-target modifier missing for ranged fire (med) — ✅ FIXED (PLAN-ranged-multi-target.md; also fixed recoil surviving a same-index turn change)
+### C4 — Multiple-target modifier missing for ranged fire (med) — ✅ FIXED (docs/archive/plans/PLAN-ranged-multi-target.md; also fixed recoil surviving a same-index turn change)
 p.92: semi-auto and burst fire at a second target in the same Combat Phase is
 +2. p.93: full auto walked between targets is +2 per new target, and wastes one
 round per metre between them. Melee has this (`multiMod`); ranged does not.
@@ -68,7 +68,7 @@ p.100/102: "The one who generates the most successes has hit… Ties go to the
 attacker." Read literally, a 0–0 exchange is a hit at base damage, which is what
 the code does. The GM confirmed that reading; no change.
 
-### C8 — Karma on a ranged attack never reaches its damage card (med) — ✅ FIXED (PLAN-karma-damage-sync.md)
+### C8 — Karma on a ranged attack never reaches its damage card (med) — ✅ FIXED (docs/archive/plans/PLAN-karma-damage-sync.md)
 The damage card is static: Karma rerolls or bought successes after it posts do
 not change its staging, and an initial miss (0 successes) posts no damage card at
 all, so Karma cannot turn it into a hit. Fix via the dependent-card sync used by
@@ -102,19 +102,19 @@ p.139: a shaman may summon or keep only **one** nature spirit at a time. p.140:
 a mage may have at most **Charisma** elementals bound; the rite takes Force
 hours and consumes 1,000¥ × Force of materials (spent even on failure).
 
-### A1 — Astral combat is not an opposed test (HIGH for astral play) — ✅ FIXED (PLAN-astral-combat.md)
+### A1 — Astral combat is not an opposed test (HIGH for astral play) — ✅ FIXED (docs/archive/plans/PLAN-astral-combat.md)
 p.147: astral attacks "are like melee combat (see p.100)". So: both sides roll,
 most successes hits (ties to the attacker), the net stages the damage up, and
 the hit party then resists with Astral Body, staging down per 2 successes. The
 code has the attacker roll and the defender resist with Willpower, using
 `attacker − resist` as the net — one roll where the book has two.
 
-### A2 — Astral attack skill (low) — ✅ FIXED (PLAN-astral-combat.md)
+### A2 — Astral attack skill (low) — ✅ FIXED (docs/archive/plans/PLAN-astral-combat.md)
 p.147: with an active weapon focus, Armed Combat; otherwise Unarmed Combat, *or*
 Sorcery in place of either. The code always uses Sorcery, and falls back to raw
 Willpower dice when there is no Sorcery skill.
 
-### A3 — No Astral Combat Pool (med) — ✅ FIXED (PLAN-astral-combat.md)
+### A3 — No Astral Combat Pool (med) — ✅ FIXED (docs/archive/plans/PLAN-astral-combat.md)
 p.147: ⌊(Intelligence + Willpower + Charisma) ÷ 2⌋, works like the Combat Pool
 for astral combat. Not modelled.
 

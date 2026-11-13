@@ -1,5 +1,5 @@
 /**
- * Spirit services (SR2E p.139–142) — see docs/PLAN-spirit-services.md.
+ * Spirit services (SR2E p.139–142) — see docs/archive/plans/PLAN-spirit-services.md.
  *
  * Services are a plain counter, changed only by an explicit action of the
  * spirit's owner (or the GM, as an owner). Every change runs in ONE per-spirit

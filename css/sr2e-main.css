@@ -4056,21 +4056,21 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e .sr2e-substances .sr2e-substance-state { flex: 2; }
 .sr2e .sr2e-substances .sr2e-substance-alert { margin: 0.25em 0; font-weight: 600; color: var(--sr2e-danger); }
 
-/* VR2.0 part 3 panel (docs/PLAN-vr2-part3.md): inline buttons in its notes. */
+/* VR2.0 part 3 panel (docs/archive/plans/PLAN-vr2-part3.md): inline buttons in its notes. */
 .sr2e .vr2-ic-panel button { display: inline-flex; width: auto; margin: 0 0 0 4px; padding: 0 6px; line-height: 20px; }
 
 /* Container rows waiting for their ids (legacy eyes): read-only for a moment. */
 .sr2e .modules-table.rows-locked { pointer-events: none; opacity: 0.6; }
 .sr2e .cyber-row.eye-drop-target { outline: 2px dashed var(--sr2e-accent, #b066ff); outline-offset: -2px; }
 
-/* Combat-spell target table (docs/PLAN-combat-spells.md P1.3): Foundry draws an unchecked
+/* Combat-spell target table (docs/archive/plans/PLAN-combat-spells.md P1.3): Foundry draws an unchecked
    box in the light theme's ink, invisible on this dialog's dark panel. */
 .sr2e-cs-targets input[type="checkbox"]:not(:checked)::before { color: var(--sr2e-text-muted, #aaa1c0); }
 .sr2e-cs-targets th, .sr2e-cs-targets td { text-align: center; padding: 2px 4px; }
 .sr2e-cs-targets td:first-child { text-align: left; }
 .sr2e-attack__check:has(input[name="cs_split"]:not(:checked)) + .sr2e-cs-split { display: none; }
 
-/* Healing on the game clock (docs/PLAN-healing-clock.md §7). */
+/* Healing on the game clock (docs/archive/plans/PLAN-healing-clock.md §7). */
 .heal-clock { margin-top: 4px; font-size: 11px; display: grid; gap: 2px; }
 .heal-clock__row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 
@@ -4093,7 +4093,7 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .npc-form-table input[type="text"] { width: 100%; min-width: 4em; }
 .npc-weapon-row.other-form { opacity: 0.55; }
 
-/* ── Vehicle Workshop (module/apps/vehicle-workshop.mjs; docs/PLAN-vehicle-builder.md §1c) ─────────────────── */
+/* ── Vehicle Workshop (module/apps/vehicle-workshop.mjs; docs/archive/plans/PLAN-vehicle-builder.md §1c) ─────────────────── */
 .sr2e-workshop .window-content { padding: 0; background: var(--sr2e-bg); color: var(--sr2e-text); font-family: var(--sr2e-font); }
 .sr2e-workshop .ws-root { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .sr2e-workshop .ws-empty { margin: auto; max-width: 46ch; text-align: center; line-height: 1.5; color: var(--sr2e-text-muted); }
@@ -4194,7 +4194,7 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-vehicle-sheet .vehicle-base-notice { border: 1px solid var(--sr2e-gold-dim); padding: 6px 10px; margin: 6px 0; }
 .sr2e-vehicle-sheet .vehicle-base-notice ul { margin: 4px 0 4px 18px; }
 .sr2e-vehicle-sheet .vehicle-base-notice button { width: auto; margin-right: 6px; }
-/* Customize window (docs/PLAN-vehicle-customization.md C3) */
+/* Customize window (docs/archive/plans/PLAN-vehicle-customization.md C3) */
 .sr2e-customize .window-content { padding: 8px 12px; }
 .sr2e-customize .sr2e-customize-body { display: flex; flex-direction: column; gap: 8px; height: 100%; }
 .sr2e-customize .vc-hint, .sr2e-customize .vc-muted { color: var(--sr2e-text-dim, #9aa); font-size: 12px; }

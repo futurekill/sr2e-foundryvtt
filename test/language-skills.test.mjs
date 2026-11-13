@@ -9,7 +9,7 @@
 //      read as an ADDITIONAL native-speaker bonus.
 // The counter-argument (p.70 also REDUCES the general by 2, which a single +2
 // reproduces and a double +2 does not) was weighed and overruled by the GM.
-// Both readings are written up in docs/PLAN-language-skills.md.
+// Both readings are written up in docs/archive/plans/PLAN-language-skills.md.
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { languageSkillRatings, skillRollRating, skillSubRatings } from "../module/rules/sr2e-rules.mjs";

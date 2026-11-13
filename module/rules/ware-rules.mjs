@@ -1,6 +1,6 @@
 /**
  * Cybereyes, bioware with cyberware, and the optional social penalties
- * (docs/PLAN-cybertechnology-phase3b.md; Cybertechnology pp.45, 56–58). Pure: no Foundry.
+ * (docs/archive/plans/PLAN-cybertechnology-phase3b.md; Cybertechnology pp.45, 56–58). Pure: no Foundry.
  * Item identity comes from `flags.sr2e.rule`, then known compendium sources; never names.
  */
 import { limbModel, forLimbRules, SIDED } from "./limb-rules.mjs";
@@ -46,7 +46,7 @@ export function wareRule(flags = {}, source = null) {
   return (source && WARE_SOURCES[source]) || null;
 }
 
-// --- Eye accessories (Cybertechnology p.45; docs/PLAN-money-queue-and-eye-accessories.md, B) ---
+// --- Eye accessories (Cybertechnology p.45; docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, B) ---
 
 /**
  * Compendium items that are cybereye accessories, by source uuid → the eye-slot kind

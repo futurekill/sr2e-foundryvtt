@@ -31,7 +31,7 @@ import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPe
 
 /**
  * VR2.0: a program that can't be used (part 2's crash flag, part 3's crash record for its
- * CURRENT load, or corruption of its key on the active deck; docs/PLAN-vr2-part3.md §2).
+ * CURRENT load, or corruption of its key on the active deck; docs/archive/plans/PLAN-vr2-part3.md §2).
  */
 export function programUnusable(actor, item) {
   if (item?.system?.crashed) return true;
@@ -391,7 +391,7 @@ export class CharacterData extends SR2EDataModel {
     // (re)derived below — magic.max depends on the Essence this collection feeds,
     // so consulting it here would be circular (Shadowtech bioware Essence rule).
     const isAwakened = this.magic.type !== "none";
-    // VR2.0 part 3 (docs/PLAN-vr2-part3.md §0): once a decker is on the connection log,
+    // VR2.0 part 3 (docs/archive/plans/PLAN-vr2-part3.md §0): once a decker is on the connection log,
     // being in the Matrix IS having a live connection, derived both ways every pass, so no
     // delayed write can switch a newer connection off. Before that, the stored field rules.
     const conn = isVR2() ? liveOpen(eventsOf(this.parent).filter(e => String(e.key).startsWith("vr2:"))) : null;
@@ -966,7 +966,7 @@ export class CharacterData extends SR2EDataModel {
     const deck = this.parent?.items?.find(i =>
       (i.type === "gear" && i.system.category === "cyberdeck" && i.system.deck?.active) ||
       (i.type === "cyberware" && i.system.cranialDeck && workingImplant(this.parent, i) && i.system.deck?.active));
-    // VR2.0 part 3 (docs/PLAN-vr2-part3.md §2): the deck's permanent history lives on the
+    // VR2.0 part 3 (docs/archive/plans/PLAN-vr2-part3.md §2): the deck's permanent history lives on the
     // deck item itself (the manual fallback: on the actor), folded every pass, never stored.
     const history = isVR2() ? foldDeck(eventsOf(deck ?? this.parent).filter(e => String(e.key).startsWith("vr2deck:"))) : null;
     if (deck) {
@@ -1030,7 +1030,7 @@ export class CharacterData extends SR2EDataModel {
   /**
    * VR2.0 online-icon state, always after the programs (manual personas too): attribute
    * damage as it actually landed, in commit order, then an improvised attack's sacrifice
-   * last (docs/PLAN-vr2-part2.md §5, §7). Both live in the session, so they end with it.
+   * last (docs/archive/plans/PLAN-vr2-part2.md §5, §7). Both live in the session, so they end with it.
    * @private
    */
   _applyIconState() {
@@ -1084,7 +1084,7 @@ export class CharacterData extends SR2EDataModel {
     // Kamikaze (p.99): failed implants still cost Essence and Body Index, and do
     // nothing else. MAO (p.100) limits an active adrenal pump.
     const working = !substancesOf(this.parent).implantsFailed;
-    // Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md). Neutral first, every pass
+    // Cyberlimb rules (docs/archive/plans/PLAN-cybertechnology-phase3.md). Neutral first, every pass
     // (the reset contract); the Essence markers are cleared on EVERY cyberware item
     // before the model is built, so nothing reads the previous pass.
     mods.biowareQuickness = 0;
@@ -1271,7 +1271,7 @@ export class CharacterData extends SR2EDataModel {
   }
 
   /**
-   * Bioware with cyberware (Cybertechnology pp.56–57; docs/PLAN-cybertechnology-phase3b.md).
+   * Bioware with cyberware (Cybertechnology pp.56–57; docs/archive/plans/PLAN-cybertechnology-phase3b.md).
    * Clears every `limbDiscount` marker FIRST, builds the PHYSICAL limb model from item
    * sources (failed implants are still there), sets the muscle discount, and returns the
    * rule of every ware item plus the pump and suprathyroid efficiencies.
@@ -1471,7 +1471,7 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   /**
-   * Cybermancy (optional; Cybertechnology pp.80–84, docs/PLAN-cybertechnology-phase6.md §1, §3):
+   * Cybermancy (optional; Cybertechnology pp.80–84, docs/archive/plans/PLAN-cybertechnology-phase6.md §1, §3):
    * the consequences of NEGATIVE signed Essence, for a character whose operation is on record.
    * Willpower is immune to spells that raise it, loses 1 per half point, and up to 4 come back
    * (never above the rating before cybermancy). Runs after the attributes and limb averages.
@@ -1771,7 +1771,7 @@ export class NPCData extends SR2EDataModel {
       willpower: SR2EDataModel.attributeField(3),
       // No upper bound: critters print Essence above 6 (vampires 2D6, shapeshifters 8) and Essence
       // Drain raises it to twice the creature type's maximum (core p.217) — a per-type cap the GM
-      // applies (docs/PLAN-npc-essence.md). A schema max silently reset such stat blocks to 6.
+      // applies (docs/archive/plans/PLAN-npc-essence.md). A schema max silently reset such stat blocks to 6.
       essence: new fields.SchemaField({
         value: new fields.NumberField({ initial: 6.0, min: 0 }),
         max: new fields.NumberField({ initial: 6.0, min: 0 }),
@@ -2089,7 +2089,7 @@ export class VehicleData extends SR2EDataModel {
         }),
         modDP:  new fields.NumberField({ initial: 0, min: 0 }),
         markUp: new fields.NumberField({ initial: 1, min: 0 }),
-        // Version 2 (docs/PLAN-vehicle-builder.md): the Workshop's choices for module/rules/vehicle-design.mjs.
+        // Version 2 (docs/archive/plans/PLAN-vehicle-builder.md): the Workshop's choices for module/rules/vehicle-design.mjs.
         // Version 1 = the old Design tab's fields above, never repriced on load.
         version: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
         choices: new fields.ObjectField({ initial: {} }),
@@ -2139,7 +2139,7 @@ export class VehicleData extends SR2EDataModel {
     this.stressPermanent = permanentStress(this.parent?.flags?.sr2e?.engineStress);
     this.stressRating = Math.max(this.stress ?? 0, this.stressPermanent);
 
-    // The effective stats (docs/PLAN-vehicle-customization.md C1): the stored stats are the BASE and every installed
+    // The effective stats (docs/archive/plans/PLAN-vehicle-customization.md C1): the stored stats are the BASE and every installed
     // mod's effects come on top, from the ONE effect pass the Workshop also uses (applyModEffects). Recomputed from the
     // stored fields every preparation, never written back. A 0.143.0 Workshop design that isn't converted yet
     // (design.baseVersion < 2) still has its design mods baked in, so only Armor/Signature are added, as before.
@@ -2391,11 +2391,11 @@ export class ICData extends SR2EDataModel {
       specialAbilities: new fields.ArrayField(new fields.StringField()),
       notes: new fields.HTMLField({ initial: "" }),
 
-      // VR2.0 (docs/PLAN-vr2-part2.md §3): the IC program, which sets its class; its
+      // VR2.0 (docs/archive/plans/PLAN-vr2-part2.md §3): the IC program, which sets its class; its
       // defensive options (p.50); and a generation bumped on every crash, so a reset IC
       // starts with no maneuver records.
       program: new fields.StringField({ initial: "", blank: true, choices: () => ({ "": "—", ...CONFIG.SR2E.icPrograms }) }),
-      // Part 3 (docs/PLAN-vr2-part3.md §2): the program's variant, its trap link (the hidden
+      // Part 3 (docs/archive/plans/PLAN-vr2-part3.md §2): the program's variant, its trap link (the hidden
       // gray/black IC it triggers), an exploding scramble's bomb, and what it protects.
       psychotropic: new fields.StringField({ initial: "", blank: true, choices: () => CONFIG.SR2E.icPsychotropic }),
       scramble: new fields.StringField({ initial: "", blank: true, choices: () => CONFIG.SR2E.icScramble }),
@@ -2406,7 +2406,7 @@ export class ICData extends SR2EDataModel {
       defense: new fields.StringField({ initial: "", blank: true, choices: { "": "—", shield: "Shield", shift: "Shift" } }),
       armorDefense: new fields.BooleanField({ initial: false }),
       generation: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
-      // Part 4a (docs/PLAN-vr2-part4.md): the optional IC (p.51–53). Expert: + shifts dice from damage
+      // Part 4a (docs/archive/plans/PLAN-vr2-part4.md): the optional IC (p.51–53). Expert: + shifts dice from damage
       // resistance to attack, − the other way (1–3). Cascading: misses and neutralized hits raise its SV /
       // rating (derived from the deckers' records); the epoch is bumped to start it over. Party: a
       // cluster id and its ORIGINAL size N.
@@ -2417,7 +2417,7 @@ export class ICData extends SR2EDataModel {
         id: new fields.StringField({ initial: "", blank: true }),
         size: new fields.NumberField({ integer: true, initial: 0, min: 0 })
       }),
-      // Part 4b (docs/PLAN-vr2-part4b.md): a construct — one icon, one monitor, several IC programs (p.52).
+      // Part 4b (docs/archive/plans/PLAN-vr2-part4b.md): a construct — one icon, one monitor, several IC programs (p.52).
       // Component ids are set once when a row is added; effects are keyed `uuid#gen/<id>`.
       construct: new fields.SchemaField({
         enabled: new fields.BooleanField({ initial: false }),
@@ -2567,7 +2567,7 @@ export class HostData extends SR2EDataModel {
 }
 
 /**
- * VR2.0 part 6a-2a: a running frame (docs/PLAN-vr2-part6-frames.md, "6a-2a in detail"; VR2.0 pp.105–107). Written ONCE
+ * VR2.0 part 6a-2a: a running frame (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-2a in detail"; VR2.0 pp.105–107). Written ONCE
  * by the GM's client from the sequencer's upload snapshot; its loaded programs are locked embedded program items. Its
  * monitor, and whether it has ended, are derived from the owner's records (module/frames.mjs `frameState`).
  */

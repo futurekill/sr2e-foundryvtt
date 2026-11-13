@@ -1,6 +1,6 @@
 /**
  * Eye accessories dropped onto a cybereye (Cybertechnology p.45;
- * docs/PLAN-money-queue-and-eye-accessories.md, Part B).
+ * docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, Part B).
  *
  * A compendium/sidebar accessory (a purchase) or one the character already owns (a move)
  * dropped on a cybereye's row on the Gear tab becomes a row of that eye. Accessories are

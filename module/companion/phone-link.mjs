@@ -1,5 +1,5 @@
 /**
- * "Open on phone" (docs/PLAN-companion-join.md, docs/PLAN-v14-phone-join.md). Foundry's
+ * "Open on phone" (docs/archive/plans/PLAN-companion-join.md, docs/archive/plans/PLAN-v14-phone-join.md). Foundry's
  * join page won't offer a user who is already online.
  * - v13: the QR opens the system's own join page (companion-join.html), which signs
  *   the phone in through Foundry's normal /join route.

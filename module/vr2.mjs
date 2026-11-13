@@ -1,5 +1,5 @@
 /**
- * The Virtual Realities 2.0 Matrix at roll time (docs/PLAN-vr2-core.md). Reached only
+ * The Virtual Realities 2.0 Matrix at roll time (docs/archive/plans/PLAN-vr2-core.md). Reached only
  * when isVR2() — except resolution, which follows the CARD's ruleset, so a fight
  * started under one ruleset finishes under it.
  *
@@ -46,7 +46,7 @@ const sessionQueue = (actor, fn) => enqueueAttack(`vr2session:${actor.uuid}`, fn
 const opQueue = (actor, fn) => enqueueAttack(`vr2op:${actor.uuid}`, fn);
 
 /**
- * The ONE rule for which programs count (docs/PLAN-vr2-part2.md §4). Core: every loaded
+ * The ONE rule for which programs count (docs/archive/plans/PLAN-vr2-part2.md §4). Core: every loaded
  * program at its rating. VR2.0: loaded, not crashed, with rating left after wear.
  */
 export function usablePrograms(actor) {
@@ -60,7 +60,7 @@ export function usablePrograms(actor) {
 /** A program's rating as it counts now (VR2.0: what wear has left). */
 export const programRating = (item) => isVR2() ? (item.system.effectiveRating ?? 0) : Math.max(0, (item.system.rating ?? 0) - (item.system.degradation ?? 0));
 
-// ── Part 5b: utility options (VR2.0 pp.102–104; docs/PLAN-vr2-part5b.md) ─────────────────
+// ── Part 5b: utility options (VR2.0 pp.102–104; docs/archive/plans/PLAN-vr2-part5b.md) ─────────────────
 
 /** An active option of this program ({kind, rating, target}) or null. Empty unless the setting is on. */
 export const optionOf = (item, kind) => item?.system?.activeOpts?.find(o => o.kind === kind) ?? null;
@@ -235,7 +235,7 @@ async function replaceSessions(actor, live, last) {
   await actor.update(update);
 }
 
-// ── Part 7a: grid topology (docs/PLAN-vr2-part7-grids.md, "7a in detail") ────
+// ── Part 7a: grid topology (docs/archive/plans/PLAN-vr2-part7-grids.md, "7a in detail") ────
 
 /** Every place (a Host actor of any kind) as the pure rules see it. */
 export function topoSnapshot() {
@@ -517,7 +517,7 @@ export function vr2DisconnectToGrid(actor) {
 
 /**
  * The tally update for `base` more host successes, with its receipt and every sheaf row it
- * crosses, as ONE update (docs/PLAN-vr2-part2.md §1). Call inside the session queue.
+ * crosses, as ONE update (docs/archive/plans/PLAN-vr2-part2.md §1). Call inside the session queue.
  */
 export function tallyUpdate(actor, s, base, eventId, { exact = false, path = "flags.sr2e.vr2Session" } = {}) {
   // Part 3: a traced decker's tally accelerates, +1 per increase (p.46); a carried tally is already counted (part 7a).
@@ -1982,7 +1982,7 @@ export async function applyManeuverResult(msg) {
     if (!actor || !designatedWriter(actor)) continue;
     const applied = () => !!actor.flags?.sr2e?.vr2Maneuvers?.applied?.[r.resultId];
     if (applied()) continue;
-    // One write per result even across one user's devices (docs/PLAN-same-user-writers.md
+    // One write per result even across one user's devices (docs/archive/plans/PLAN-same-user-writers.md
     // §5); re-validated after the claim's round-trip.
     if (!(await once(actor, `maneuver.${r.resultId}`)) || applied() || !sessionsHold()) continue;
     await actor.update({ ...w.set, [`flags.sr2e.vr2Maneuvers.applied.${r.resultId}`]: true });
@@ -2157,7 +2157,7 @@ export async function vr2SwapMemory(actor, item) {
     swaps in a fresh copy of ${esc(item.name)} (rating ${item.system.rating}).</div>` });
 }
 
-// ── Part 6a-0: Scan Icon (docs/PLAN-vr2-part6-frames.md; p.117) ──────────────────
+// ── Part 6a-0: Scan Icon (docs/archive/plans/PLAN-vr2-part6-frames.md; p.117) ──────────────────
 
 /** Scan Icon: Computer vs the targeted icon's Masking less (Scanner − its Sleaze); a Simple Action. */
 export async function vr2ScanIcon(actor, ctx = null) {

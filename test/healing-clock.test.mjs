@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { clockChanges, courseValid, dueEvents, lethalOverflow, bleedTicks, stunSuccesses, stunBoxSeconds,
          goldenHour, emptyState, normalize, BLEED_S, HOUR } from "../module/rules/healing-clock-rules.mjs";
 
-// docs/PLAN-healing-clock.md; SR2E core p.111–115.
+// docs/archive/plans/PLAN-healing-clock.md; SR2E core p.111–115.
 const mon = (phys, over = 0, stun = 0) => ({ phys, over, stun });
 const withCourses = () => {
   const st = emptyState();

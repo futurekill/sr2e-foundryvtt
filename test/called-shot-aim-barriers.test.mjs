@@ -1,6 +1,6 @@
 // Called shots (p.92), Take Aim (p.82) and Barriers (p.98). Every rule read
 // from a 300 dpi render, not the text layer. Plan and the five-round Codex
-// review that hardened it: PLAN.md / PLAN-REVIEW-LOG.md.
+// review that hardened it: docs/archive/plans/PLAN.md / docs/archive/plans/PLAN-REVIEW-LOG.md.
 import { describe, it, expect } from "vitest";
 import {
   CALLED_SHOT_TN, CALLED_SHOT_STEPS, canCallShot,

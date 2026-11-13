@@ -1,5 +1,5 @@
 /**
- * Once-only steps across clients (docs/PLAN-same-user-writers.md): `once(actor, key)` is
+ * Once-only steps across clients (docs/archive/plans/PLAN-same-user-writers.md): `once(actor, key)` is
  * true only for the ONE call whose marker create the server accepted. Markers are
  * hidden, disabled, change-less ActiveEffects (sheets don't list actor effects).
  */
@@ -28,7 +28,7 @@ export async function once(actor, key, event = null) {
 /**
  * Record an immutable event (an append-only log entry): like `once`, a deterministic-id
  * marker the server creates exactly once, but DURABLE (never pruned) and carrying a
- * payload. True only for the call that created it. (docs/PLAN-cybertechnology-phase4.md §8)
+ * payload. True only for the call that created it. (docs/archive/plans/PLAN-cybertechnology-phase4.md §8)
  */
 export async function recordEvent(actor, key, payload = {}) {
   const id = claimId(key);

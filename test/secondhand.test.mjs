@@ -1,5 +1,5 @@
 // Second-hand cyberware — SSC p.100 (half price, same Essence; 2 Karma per die re-rolled),
-// Cybertechnology p.42 (standard/alpha/beta only). docs/PLAN-secondhand-cyberware.md.
+// Cybertechnology p.42 (standard/alpha/beta only). docs/archive/plans/PLAN-secondhand-cyberware.md.
 import { describe, it, expect } from "vitest";
 import { itemBaseCost, cyberSecondhand, karmaRerollCost, secondhandDead, gradeEssenceCost } from "../module/rules/sr2e-rules.mjs";
 

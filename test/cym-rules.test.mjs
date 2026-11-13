@@ -1,4 +1,4 @@
-// Cybermancy (docs/PLAN-cybertechnology-phase6.md; Cybertechnology pp.78–84).
+// Cybermancy (docs/archive/plans/PLAN-cybertechnology-phase6.md; Cybertechnology pp.78–84).
 import { describe, it, expect } from "vitest";
 import { band, survivalTN, cdsBand, cymWillpower, cymSocial, magicSurcharge, overflowMax, cancerDevelops,
          cdsTreatTN, cdsRecoveryDays, foldCym, DAY_S } from "../module/rules/cym-rules.mjs";

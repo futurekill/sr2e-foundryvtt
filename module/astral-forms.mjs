@@ -1,5 +1,5 @@
 /**
- * Projection leaves the body (docs/PLAN-astral-barriers.md, Stage 2; SR2 p.146).
+ * Projection leaves the body (docs/archive/plans/PLAN-astral-barriers.md, Stage 2; SR2 p.146).
  *
  * While a linked character is projecting, its body token stays where it is
  * (comatose, marked) and an astral-form token — same actor, flagged
@@ -38,7 +38,7 @@ function formData(body) {
   const data = body.toObject();
   delete data._id;
   const sr2e = { ...(data.flags?.sr2e ?? {}) };
-  // A netted body doesn't make a netted form (docs/PLAN-netguns.md).
+  // A netted body doesn't make a netted form (docs/archive/plans/PLAN-netguns.md).
   for (const k of ["moveLedger", "fabReveal", "fabExitGen", "astralFast", "persona", "net"]) delete sr2e[k];
   Object.assign(sr2e, { astralForm: body.uuid, astralOnly: true, astralFormOrigin: { x: body.x, y: body.y } });
   data.flags = { ...(data.flags ?? {}), sr2e };

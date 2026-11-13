@@ -1,6 +1,6 @@
 /**
  * Substance use and abuse (Shadowtech p.85–88, p.99) — the ledger fold.
- * See docs/PLAN-addiction.md (Round 1 design, Round 2–5 amendments).
+ * See docs/archive/plans/PLAN-addiction.md (Round 1 design, Round 2–5 amendments).
  *
  * Pure: `substanceState(events, now)` replays an actor's append-only substance
  * events plus every timed rule in between, in one global timeline (the

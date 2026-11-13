@@ -1,5 +1,5 @@
 /**
- * Permanent damage from Deadly wounds (SR2E core p.113–114; docs/PLAN-deadly-permanent-damage.md).
+ * Permanent damage from Deadly wounds (SR2E core p.113–114; docs/archive/plans/PLAN-deadly-permanent-damage.md).
  * Pure: no Foundry.
  */
 import { claimId } from "./claim-rules.mjs";

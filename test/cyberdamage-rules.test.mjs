@@ -1,4 +1,4 @@
-// Cyberware damage, repair and scarring (docs/PLAN-cybertechnology-phase5.md; Cybertechnology pp.44–49, 56).
+// Cyberware damage, repair and scarring (docs/archive/plans/PLAN-cybertechnology-phase5.md; Cybertechnology pp.44–49, 56).
 import { describe, it, expect } from "vitest";
 import { woundLevel, woundThreshold, gradeResistTN, TABLES, secondaryEffect, degrades, skinBody, skinRepairPrice,
          scarSeverity, scarProcedures } from "../module/rules/cyberdamage-rules.mjs";

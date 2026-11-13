@@ -639,7 +639,7 @@ export const MIGRATIONS = [
   {
     version: "0.111.0",
     // Report-only: what the cyberlimb rules now change, read from the PREPARED
-    // character (docs/PLAN-cybertechnology-phase3.md §6). Nothing is written.
+    // character (docs/archive/plans/PLAN-cybertechnology-phase3.md §6). Nothing is written.
     migrateActor(source) {
       const a = CURRENT_ACTOR;
       if (source.type !== "character" || !a?.system?.limbs) return null;
@@ -658,7 +658,7 @@ export const MIGRATIONS = [
   },
   {
     version: "0.112.0",
-    // Report-only (docs/PLAN-cybertechnology-phase3b.md §5), from the PREPARED actor.
+    // Report-only (docs/archive/plans/PLAN-cybertechnology-phase3b.md §5), from the PREPARED actor.
     migrateActor(source) {
       const a = CURRENT_ACTOR;
       if (!a) return null;
@@ -687,7 +687,7 @@ export const MIGRATIONS = [
   },
   {
     version: "0.113.0",
-    // Report-only (docs/PLAN-cybertechnology-phase4.md §10), from the PREPARED character.
+    // Report-only (docs/archive/plans/PLAN-cybertechnology-phase4.md §10), from the PREPARED character.
     migrateActor(source) {
       const m = CURRENT_ACTOR?.system?.mbw;
       if (source.type !== "character" || !m) return null;
@@ -701,7 +701,7 @@ export const MIGRATIONS = [
   },
   {
     version: "0.118.0",
-    // Combat spells carry their damage type as data (docs/PLAN-combat-spells.md P1.2).
+    // Combat spells carry their damage type as data (docs/archive/plans/PLAN-combat-spells.md P1.2).
     // Detected by value: a blank field is the only thing it writes.
     migrateItem(source) {
       if (source.type !== "spell" || source.system?.category !== "combat" || source.system?.damageType) return null;

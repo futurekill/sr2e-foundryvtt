@@ -1,5 +1,5 @@
 /**
- * One money queue per actor (docs/PLAN-money-queue-and-eye-accessories.md, Part A).
+ * One money queue per actor (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, Part A).
  *
  * Every operation that moves a character's nuyen, or the `paid` provenance that decides
  * refunds, runs its re-read → check → write → compensate section inside
@@ -125,7 +125,7 @@ export const hasRefundableStock = (item) =>
 /**
  * A hand edit of refundable stock, applied in the owner's money queue only if the live
  * quantity is still the one the sheet showed (else nothing is written; the caller
- * re-renders). docs/PLAN-money-queue-and-eye-accessories.md, A2.
+ * re-renders). docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, A2.
  */
 export function queuedQuantityEdit(item, shown, value) {
   const actor = item.parent;

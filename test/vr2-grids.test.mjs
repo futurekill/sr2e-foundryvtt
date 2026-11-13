@@ -1,4 +1,4 @@
-// VR2.0 part 7a: grid topology (docs/PLAN-vr2-part7-grids.md, "7a in detail").
+// VR2.0 part 7a: grid topology (docs/archive/plans/PLAN-vr2-part7-grids.md, "7a in detail").
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { RTG_TABLE, easyGridRatings, variableShift, shifted, reachable, scopeOf, seedTally, carryAmount, wiredPlace,

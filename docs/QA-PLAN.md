@@ -407,7 +407,7 @@ Switch **Settings → Matrix ruleset → Virtual Realities 2.0** (clients reload
 - [ ] Crash IC with a decker's attack: Suppress / Let it register (once); Release from the Matrix tab.
 - [ ] Host sheaf: add steps; a System Test crossing a step whispers the GM; a passive/active step raises the alert.
 
-### 10c. VR2.0 part 3: the rest of the IC (`sr2e.vr2-ic` batch; docs/PLAN-vr2-part3.md)
+### 10c. VR2.0 part 3: the rest of the IC (`sr2e.vr2-ic` batch; docs/archive/plans/PLAN-vr2-part3.md)
 A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Jack in (sheet or jackpoint), then **jack out**: dump shock posts ONCE; jacking in again gives a fresh tally.
 - [ ] Graceful Logoff from the leave dialog RUNS the System Test; only a success leaves without dump shock.
@@ -424,7 +424,7 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Host sheet **Start shutdown** / **Next turn**: the warning, then every decker on it is dumped; jacking in to it refuses until **Reset**.
 - [ ] Psychotropic black IC: on the way out, the Willpower card; failing it adds the condition (cyberphobia: +rating on Computer tests and a test to jack in); **Recovery test** ends it.
 
-### 10d. VR2.0 part 4a: optional IC (`sr2e.vr2-optional-ic` batch; docs/PLAN-vr2-part4.md)
+### 10d. VR2.0 part 4a: optional IC (`sr2e.vr2-optional-ic` batch; docs/archive/plans/PLAN-vr2-part4.md)
 2026-10-30: batch 7/7; with vr2-core, vr2-part2, vr2-ic, manipulation-damage, astral 67/67; full sr2e.** 723/726 (3 hidden-pane timeouts, pass on rerun).
 - [ ] IC sheet (VR2): **Expert** −3…+3 and **Cascading** are editable only for proactive programs (killer, cripplers, blaster, sparky, rippers, black, trace).
 - [ ] Expert Offense-2 on a Green-6 host: the IC's attack rolls 8 dice; a decker's hit on it is resisted with 4.
@@ -434,7 +434,7 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Shield that cancels every attack success: no Matrix damage at all.
 - [ ] A crippler on a connected decker: Resist waits for the GM's admission.
 
-### 10e. VR2.0 part 4b: constructs and black-IC Shield (`sr2e.vr2-constructs` batch; docs/PLAN-vr2-part4b.md)
+### 10e. VR2.0 part 4b: constructs and black-IC Shield (`sr2e.vr2-constructs` batch; docs/archive/plans/PLAN-vr2-part4b.md)
 2026-10-30: batch 6/6 (real attack path); full sr2e.** 732/733 (sr2e.purchases timing flake, 16/16 on rerun).
 - [ ] IC sheet: tick **Construct**, add programs (killer, black, tar…), set Threat. The capacity line and its problems update; the program/Cascading/Party controls hide.
 - [ ] Attack from the construct: the dialog lists its attack programs; the roll is SV + Threat; the card names the program.
@@ -442,7 +442,7 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] After a decker's System Test with a utility, the GM card offers the construct's tar program; if it wins, only that program shows as crashed (dimmed row).
 - [ ] A decker with Shield resisting a black IC: the Shield prompt comes first; cancelling every success → "Shield stops … black IC", no damage, no hold.
 
-### 10f. VR2.0 part 5a: the utilities (`sr2e.vr2-utilities` batch; docs/PLAN-vr2-part5.md)
+### 10f. VR2.0 part 5a: the utilities (`sr2e.vr2-utilities` batch; docs/archive/plans/PLAN-vr2-part5.md)
 - [ ] Decker vs decker, both jacked in: the defender's Resist works (the GM's client admits the card).
 - [ ] Black Hammer (Orange host → Serious): a hit locks the target; jacking out takes Willpower; the attacker
       gets ONE last attack (GM can Waive it from the whisper); a kill drops the link with NO MPCP shot. Killjoy: Stun.
@@ -458,7 +458,7 @@ A GM must be online: the GM's client sequences every part-3 event.
 - [ ] Evaluate: GM macro `macros/evaluate-decay.js` (or `game.sr2e.degradeEvaluate()`) takes ⌈1D6 ÷ 2⌉ off every
       evaluate program once; Resume on the card adds nothing; the program row's "−N" buys points back for Karma.
 
-### 10g. VR2.0 part 5b: utility options and programming (`sr2e.vr2-options` batch, 13 tests; docs/PLAN-vr2-part5b.md)
+### 10g. VR2.0 part 5b: utility options and programming (`sr2e.vr2-options` batch, 13 tests; docs/archive/plans/PLAN-vr2-part5b.md)
 2026-10-30: batch 10/10; full sr2e.** 754/754; Vitest 1428.
 2026-11-03: +3 tests (team programming; one-shot Cloak/Lock-On; DINAB attack resisted to nothing → −1): batch 13/13.
 2026-11-04: after Codex plan rounds 2–6 + code review rounds 1–3 (approved): batch 18/18; full sr2e.** 762/763 in one
@@ -727,13 +727,13 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
 
 ---
 
-## Cyberlimbs (docs/PLAN-cybertechnology-phase2.md)
+## Cyberlimbs (docs/archive/plans/PLAN-cybertechnology-phase2.md)
 - [ ] Drop a Cyberarm (Full) and a Cybertechnology Cyberhand: both typed automatically; set sides; a left arm + left hand shows an overlap.
 - [ ] Attach an Increased Strength to "Cyberarm (left)"; uninstall the arm (option shows "isn't installed"), reinstall (attached again).
 - [ ] Drag that option to another character: it arrives "— detached —".
 - [ ] An NPC with cyberware shows the Cyberlimbs section; reassign and detach an option there.
 
-## Cyberlimb rules (docs/PLAN-cybertechnology-phase3.md)
+## Cyberlimb rules (docs/archive/plans/PLAN-cybertechnology-phase3.md)
 Automated: `test/limb-stats.test.mjs` (book examples) and Quench `sr2e.limbrules`.
 - [ ] A Strength 6 character with one unenhanced cyberarm shows Strength 5 and the
       "Cyberlimbs (average of four limbs)" line in the attribute tooltip.
@@ -746,7 +746,7 @@ Automated: `test/limb-stats.test.mjs` (book examples) and Quench `sr2e.limbrules
 - [ ] A spur set as a cyberlimb option and attached to a cyberarm shows 0 Essence.
 - [ ] An NPC with cyberlimbs keeps its printed Strength.
 
-## Cybereyes, bioware with cyberware, social (docs/PLAN-cybertechnology-phase3b.md)
+## Cybereyes, bioware with cyberware, social (docs/archive/plans/PLAN-cybertechnology-phase3b.md)
 Automated: `test/ware-rules.test.mjs` and Quench `sr2e.warerules`.
 - [ ] A cybereye item shows Eyes (pair/single) and row Kind/Eye columns; a weapon and a
       camera in one eye show the ⚠ on the item and the gear row.
@@ -756,7 +756,7 @@ Automated: `test/ware-rules.test.mjs` and Quench `sr2e.warerules`.
 - [ ] An adrenal pump's attribute tooltip reads "Adrenal Pump (60%)" with a cyberleg, a
       cyberhand and a cybertorso.
 
-## Move-by-wire and reflex add-ons (docs/PLAN-cybertechnology-phase4.md)
+## Move-by-wire and reflex add-ons (docs/archive/plans/PLAN-cybertechnology-phase4.md)
 Automated: `test/mbw-rules.test.mjs` and Quench `sr2e.mbw`.
 - [ ] A character with move-by-wire shows the "Move-by-wire & reflexes" panel; Athletics
       rolls show "+N move-by-wire".
@@ -767,7 +767,7 @@ Automated: `test/mbw-rules.test.mjs` and Quench `sr2e.mbw`.
       result from Records restores it.
 - [ ] With a reflex trigger installed, wired reflexes rows have a power toggle.
 
-## Cyberware damage, repair, scarring (docs/PLAN-cybertechnology-phase5.md)
+## Cyberware damage, repair, scarring (docs/archive/plans/PLAN-cybertechnology-phase5.md)
 Automated: `test/cyberdamage-rules.test.mjs` and Quench `sr2e.cyberdamage`.
 - [ ] Setting on: hit a character for 6+ physical boxes → ONE whispered card; Stun doesn't.
 - [ ] Roll 2D6 → Choose the item and roll → the item shows ⚠ on the gear tab; "Repaired" in the
@@ -776,7 +776,7 @@ Automated: `test/cyberdamage-rules.test.mjs` and Quench `sr2e.cyberdamage`.
       Degradation check; a loss lowers Body.
 - [ ] Scarring check records a scar; its surgery link updates it.
 
-## Cybermancy (docs/PLAN-cybertechnology-phase6.md)
+## Cybermancy (docs/archive/plans/PLAN-cybertechnology-phase6.md)
 Automated: `test/cym-rules.test.mjs` and Quench `sr2e.cybermancy`.
 - [ ] Setting on, as GM: buy cyberware that takes a character below 0 Essence; the surgery
       dialog offers "Delta clinic: cybermancy authorized", and its preview names the survival TN.
@@ -800,7 +800,7 @@ Automated: `test/cym-rules.test.mjs` and Quench `sr2e.cybermancy`.
 If those five all work, the core loop is healthy.
 
 ## 18. Shopping, payouts & integrations (v0.26.0)
-- [ ] Cybersurgery (docs/PLAN-cybersurgery-grades.md): drop cyberware on an in-play character: the Buy dialog shows the surgeon's TN and the procedure; 0 successes → +15% Essence, the fee and the wound land, and a card is posted. In chargen, or for an uninstalled spare: no surgery section.
+- [ ] Cybersurgery (docs/archive/plans/PLAN-cybersurgery-grades.md): drop cyberware on an in-play character: the Buy dialog shows the surgeon's TN and the procedure; 0 successes → +15% Essence, the fee and the wound land, and a card is posted. In chargen, or for an uninstalled spare: no surgery section.
 - [ ] Finish character creation: the Starting money dialog (unspent Resources ÷ 10 + 3D6 × 1,000¥); Roll sets nuyen and posts the 3D6.
 - [ ] Delta grade: ×10 price, ×.5 Essence. Secondhand bioware: the discount label follows the input; editing the discount on the item re-prices it.
 - [ ] **Street pricing:** set a Street Index ≠ 1 on a gear item → the item sheet
@@ -892,7 +892,7 @@ If those five all work, the core loop is healthy.
 - [ ] With Foundry open for you in a second tab, your name stays grey (the dialog says why).
 - [ ] A phone already signed in as someone else opens that account (sign out there, scan again).
 - [ ] A GM gets the separate-phone-user text, and no Let my phone in.
-- [ ] Two devices, one dose (docs/PLAN-same-user-writers.md): take a second Kamikaze dose (overuse) on the computer; one dose card and one Light Stun, on both devices.
+- [ ] Two devices, one dose (docs/archive/plans/PLAN-same-user-writers.md): take a second Kamikaze dose (overuse) on the computer; one dose card and one Light Stun, on both devices.
 - [ ] Close the computer's tab during a dose (or stub a step to fail): the phone's sheet lists it under Unfinished doses; after 2 minutes the GM's open sheet shows Force finish without a refresh; it lands once.
 
 ## VR2.0 Decoy, Null Operation, Scan Icon (`sr2e.vr2-decoy` batch)
@@ -954,7 +954,7 @@ If those five all work, the core loop is healthy.
 - Shadowtech **Import history**: the Substances row shows the item's name.
 - `sr2e.movement` hooks finish inside their 15 s budget; no "Quench Movement" scenes left.
 
-## Money queue and eye accessories (0.117.0; docs/PLAN-money-queue-and-eye-accessories.md)
+## Money queue and eye accessories (0.117.0; docs/archive/plans/PLAN-money-queue-and-eye-accessories.md)
 - Quench `sr2e.money-queue` and `sr2e.eye-accessory-drop` (delayed/failing writes are stubbed).
 - Live: drag Low-Light Vision from the Cyberware compendium onto a Cybereyes row on the Gear
   tab → a row in the eye, 3,750¥ charged, Essence unchanged; the row's × refunds it.
@@ -985,19 +985,19 @@ If those five all work, the core loop is healthy.
   "Sound on this phone" turns them back to what they were and off again; "Open full Foundry
   on this device" restores them.
 
-## NPC Essence above 6 (docs/PLAN-npc-essence.md)
+## NPC Essence above 6 (docs/archive/plans/PLAN-npc-essence.md)
 - [ ] Quench batch `sr2e.npc-essence` passes (7 tests).
 - [ ] An NPC sheet: type 9 in Essence → saved; clear it → still 9; type −1 → warned, still 9.
 - [ ] Paranormal Animals' Nosferatu imports from its compendium with Essence 7.
 - [ ] A Heal spell on an Essence-12 critter suggests TN 2.
 
-## Spirit attack Power and group totem bonuses (docs/PLAN-ancestor-spirit.md)
+## Spirit attack Power and group totem bonuses (docs/archive/plans/PLAN-ancestor-spirit.md)
 - [ ] Quench batch `sr2e.spirit-attack-power` passes (4 tests).
 - [ ] A Rat shaman conjuring a city spirit: the card shows +2 totem dice on Conjuring and Drain.
 - [ ] A spirit sheet's Attack tooltip matches what the attack rolls (earth: Reaction dice, (F)S).
 - [ ] Startup (with Cyberpirates): save a Force-4 ancestor spirit, reload, read it before any update → B6 Q4 S5 R4, ×3, Strength-power M Stun (2026-10-29: passed).
 
-## Second-hand cyberware (docs/PLAN-secondhand-cyberware.md)
+## Second-hand cyberware (docs/archive/plans/PLAN-secondhand-cyberware.md)
 - [ ] Quench batch `sr2e.secondhand-cyberware` passes (12 tests; 2026-10-29: passed).
 - [ ] Buy dialog: the Second-hand box hides when Delta is picked; second-hand alpha costs ×1.5 street.
 - [ ] Item sheet: *Resistance Test* → TN prompt → 5 dice; the card's reroll button reads 2 Karma per die.
@@ -1005,7 +1005,7 @@ If those five all work, the core loop is healthy.
   a player can't untick FAILED; selling it offers 0¥.
 - [ ] A second-hand item can't be fitted into a cybereye as an accessory row.
 
-## Shapeshifters (docs/PLAN-shapeshifters.md)
+## Shapeshifters (docs/archive/plans/PLAN-shapeshifters.md)
 - [ ] Quench batch `sr2e.shapeshifters` passes (21 tests; 2026-10-29: 21 passed; full sr2e.** 720/720).
 - [ ] Drop the Companion's Shapeshifter (Bear) on a new character: header shows Species Bear, human form;
   priority panel uses the Shapeshifter table and warns until Race is A.
@@ -1029,7 +1029,7 @@ If those five all work, the core loop is healthy.
   How-To-Guides section; images and GIFs load from systems/sr2e/assets/guides (verified 2026-11-03: 5 pages, the
   jackpoint GIF plays); wiki links open the GitHub wiki.
 
-## VR2.0 grid topology (`sr2e.vr2-grids` batch; docs/PLAN-vr2-part7-grids.md 7a)
+## VR2.0 grid topology (`sr2e.vr2-grids` batch; docs/archive/plans/PLAN-vr2-part7-grids.md 7a)
 - [ ] Settings → VR2.0 grid topology on: the GM gets a chat list of any jackpoint whose wiring doesn't fit its kind.
 - [ ] Actors directory → **New grid** → Rhine-Ruhr › Essen (LTG): both the RTG and the LTG are created with the
       table's ratings, the LTG under the RTG.
@@ -1058,7 +1058,7 @@ If those five all work, the core loop is healthy.
 - [ ] 7c: a trace completing over the satlink: the card says satellite uplink, with no response table and no Dump
       button.
 
-## VR2.0 frames (`sr2e.vr2-frames` batch; docs/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b, 6a-2c, 6b, 6c)
+## VR2.0 frames (`sr2e.vr2-frames` batch; docs/archive/plans/PLAN-vr2-part6-frames.md 6a-1, 6a-2a, 6a-2b, 6a-2c, 6b, 6c)
 - [ ] New program → Frame core *Smart*, rating 6, Bod 2 / Evasion 2 / Masking 1 / Sensor 1, DINAB-4: size (6 + 4)² × 3
       = 300 Mp. Without DINAB the sheet lists the problem and programming refuses.
 - [ ] Write it (the code button), then **Load programs…**: pick two programs over the capacity → refused; within it →
@@ -1104,7 +1104,7 @@ If those five all work, the core loop is healthy.
       **Upload finished (GM)** → the set opens with Control first.
 - [ ] Leave the host before settling: Settle step is refused. GM: Executed / Purged / Cancel / Change tests on the host sheet.
 
-## VR2.0 program upgrading (`sr2e.vr2-options` batch; docs/PLAN-vr2-upgrading.md)
+## VR2.0 program upgrading (`sr2e.vr2-options` batch; docs/archive/plans/PLAN-vr2-upgrading.md)
 - [ ] Matrix ruleset VR2.0. Browse R2 on the Matrix tab → **↑** → new rating 4 → Next → Roll: the card says base time
       24 days (32 − 8) ÷ successes, TN 4. The row shows *upgrading to 4* and Browse still works (Browse a host).
 - [ ] While upgrading, change its rating on the sheet → refused; tick *Object code only* → refused.
@@ -1115,7 +1115,7 @@ If those five all work, the core loop is healthy.
 - [ ] A bought program (paid): tick *Object code only* → 25% refunded; add an option on the sheet → the difference
       is charged.
 
-## Vehicles (`sr2e.vehicles` batch; docs/PLAN-vehicle-builder.md)
+## Vehicles (`sr2e.vehicles` batch; docs/archive/plans/PLAN-vehicle-builder.md)
 - [ ] A vehicle with Cargo 6 / Load 70, add a Ring Mount (1 CF, 25 kg) and an Electronics Port (0.5 CF): the sheet
       shows "→ 4.5 free" and "→ 45 free". Delete the port: 5 free.
 - [ ] Off-road Handling, Stall and the *More* fields (entry, fuel, economy, L/T, setup, Availability, Street Index,
@@ -1156,7 +1156,7 @@ If those five all work, the core loop is healthy.
       buys a third: all three are charged by the same client (the request's `writer`), and the balance is right.
 
 
-## Rigger 2 Vehicle List (0.145.0; docs/PLAN-vehicle-list.md)
+## Rigger 2 Vehicle List (0.145.0; docs/archive/plans/PLAN-vehicle-list.md)
 - [ ] Rigger 2 on: drag the core Chrysler-Nissan Patrol-1 into the world: its stats are the list's (Speed 180,
       Accel 10, 174,000¥), it has factory Turbocharging 2, and Customize offers turbocharging only from level 3.
 - [ ] Duplicate that vehicle and edit its Speed: the copy keeps the edit.

@@ -1,5 +1,5 @@
 /**
- * Fat bacteria zones (docs/PLAN-astral-barriers.md, Stage 3; Corporate Security
+ * Fat bacteria zones (docs/archive/plans/PLAN-astral-barriers.md, Stage 3; Corporate Security
  * Handbook p.103). A `fatBacteria` Region Behaviour marks a FAB-filled space:
  *   - astral movement inside is held to normal speed (module/movement.mjs);
  *   - astral perception made from inside is at +4 (rollAssense);

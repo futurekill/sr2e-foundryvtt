@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 6a-2a: running frames — the frame actor, upload, lifecycle and damage (docs/PLAN-vr2-part6-frames.md,
+ * VR2.0 part 6a-2a: running frames — the frame actor, upload, lifecycle and damage (docs/archive/plans/PLAN-vr2-part6-frames.md,
  * "6a-2a in detail"; VR2.0 pp.105–107, p.91, p.124).
  *
  * Everything that matters is a durable fact on the OWNER's log, written by the sequencer (the active GM's client):
@@ -56,7 +56,7 @@ export function stateFor(owner, id) {
 /** The same for a frame actor. An SK (6b) has its own state, from facts on itself. */
 export const frameState = (frame) => isSK(frame) ? skState(frame) : stateFor(sync(frame?.system?.ownerUuid), frame?.system?.uploadId || frame?.id);
 
-// ── Part 6b: SKs (docs/PLAN-vr2-part6-frames.md, "6b in detail"; VR2.0 pp.140–141) ──────────
+// ── Part 6b: SKs (docs/archive/plans/PLAN-vr2-part6-frames.md, "6b in detail"; VR2.0 pp.140–141) ──────────
 /** A semi-autonomous knowbot: a frame actor of kind "sk", the GM's, its facts on itself. */
 export const isSK = (a) => a?.type === "frame" && a.system?.kind === "sk";
 /** The records about a frame: an SK's own, else its owner's log (6b §1). */
@@ -478,7 +478,7 @@ export async function hitFrame(frame, card, boxes, armorRef = null, shieldRef = 
   return { before, after: frameState(frame).monitor, mine: r.nonce === nonce };
 }
 
-// ── Part 6a-2b: commanding dumb frames (docs/PLAN-vr2-part6-frames.md, "6a-2b in detail"; VR2.0 pp.106–107) ──────
+// ── Part 6a-2b: commanding dumb frames (docs/archive/plans/PLAN-vr2-part6-frames.md, "6a-2b in detail"; VR2.0 pp.106–107) ──────
 
 /**
  * Why `actor` can't command `frame` now, or "" (§1–§2). Checked before anything is spent; `after` re-checks only the

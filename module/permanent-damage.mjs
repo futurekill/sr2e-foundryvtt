@@ -1,5 +1,5 @@
 /**
- * Permanent damage from Deadly wounds (SR2E core p.113–114; docs/PLAN-deadly-permanent-damage.md).
+ * Permanent damage from Deadly wounds (SR2E core p.113–114; docs/archive/plans/PLAN-deadly-permanent-damage.md).
  *
  * A `preUpdateActor` hook keeps the episode state (`flags.sr2e.permDmg.<permKey(uuid)>`) in the
  * same update as the monitor change. Each episode's outcome is a durable record

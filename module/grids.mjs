@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 7a, grid topology: the GM's tools and the hooks (docs/PLAN-vr2-part7-grids.md, "7a in detail").
+ * VR2.0 part 7a, grid topology: the GM's tools and the hooks (docs/archive/plans/PLAN-vr2-part7-grids.md, "7a in detail").
  * The decisions are pure (module/rules/vr2-grids.mjs); where a decker is and the tally ledger live with the
  * sessions in module/vr2.mjs. Grids are Host actors with a `kind`.
  */

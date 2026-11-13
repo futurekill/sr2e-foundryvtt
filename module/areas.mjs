@@ -1,6 +1,6 @@
 /**
  * Map areas: blasts, shotgun spreads, area spells, Poltergeist, Ice Sheet, rituals
- * (docs/PLAN-v16-prep.md §1). v14 merges MeasuredTemplate into Region and v16 removes
+ * (docs/archive/plans/PLAN-v16-prep.md §1). v14 merges MeasuredTemplate into Region and v16 removes
  * the template shim, so:
  * - v13 creates MeasuredTemplates (v13 Regions have no cone);
  * - v14+ creates Regions, built by Foundry's own template conversion so the shape,

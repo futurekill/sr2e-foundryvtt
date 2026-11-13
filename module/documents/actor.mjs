@@ -811,7 +811,7 @@ export class SR2EActor extends Actor {
       return ui.notifications.warn("That test decided an exchange that is already resolved — it is closed to Karma.");
     }
     // A substance roll counts at its own time; once substance time has moved
-    // past it, its result is settled (docs/PLAN-addiction.md, option A).
+    // past it, its result is settled (docs/archive/plans/PLAN-addiction.md, option A).
     const sub = message.getFlag("sr2e", "substanceTest");
     if (sub && substanceKarmaClosed(this, sub.eventId)) {
       return ui.notifications.warn("Time has moved on since that test — its result is settled; Karma no longer applies.");
@@ -861,7 +861,7 @@ export class SR2EActor extends Actor {
     } else if (action === "avoidGlitch") {
       // All-1s disaster → simple failure for 1 Karma; no further Karma allowed
       if (!state.criticalGlitch || state.glitchAvoided) return;
-      // A spell's misfire has ONE decision (docs/PLAN-combat-spells.md P1.4).
+      // A spell's misfire has ONE decision (docs/archive/plans/PLAN-combat-spells.md P1.4).
       if (message.getFlag("sr2e", "spellCast") && !oopsClaimed) return decideOops(message, "avoided");
       if (karmaAvail < 1) return ui.notifications.warn("No Karma Pool available.");
       state.glitchAvoided = true;
@@ -889,7 +889,7 @@ export class SR2EActor extends Actor {
     }
 
     // Re-checked after paying: a resistance may have closed the test meanwhile
-    // (docs/PLAN-combat-spells.md P1.5). The spend never took effect, so it comes back.
+    // (docs/archive/plans/PLAN-combat-spells.md P1.5). The spend never took effect, so it comes back.
     if (game.messages.get(message.id)?.flags?.sr2e?.test?.closed || isTestClosed(message.id)) {
       await this._refundKarma(paid ?? {});
       return ui.notifications.warn("That test was closed by a resistance while you spent Karma — the Karma was refunded.");
@@ -1542,7 +1542,7 @@ export class SR2EActor extends Actor {
     // them as already bought (a GM-supplied rite, materials on hand).
     const materials = kind === "elemental" && opts.materials !== false ? elementalMaterialsCost(force) : 0;
     if (materials > 0) {
-      // Charged in the money queue against the live balance (docs/PLAN-money-queue-and-eye-accessories.md).
+      // Charged in the money queue against the live balance (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md).
       const paidFor = await moneyQueue(this, () => adjustNuyen(this, -materials), "conjuring materials");
       if (!paidFor) {
         return ui.notifications.warn(`The rite's materials cost ${materials.toLocaleString()}¥ (1,000¥ × Force, SR2E p.140); ${this.name} has ${(this.system.nuyen ?? 0).toLocaleString()}¥.`);
@@ -3100,7 +3100,7 @@ export class SR2EActor extends Actor {
         msg += ` — <strong>CRASHED!</strong>`;
         if (this.type === "character") {
           // Dumped: leave the Matrix and suffer dump shock (p.180)
-          // Through the Matrix queue: a jackpoint session ends in order (docs/PLAN-matrix-jackpoints.md R3 #1).
+          // Through the Matrix queue: a jackpoint session ends in order (docs/archive/plans/PLAN-matrix-jackpoints.md R3 #1).
           await matrixQueue(this, () => this.update({ "system.matrixMode": false, "system.dumpShock": true }));
           msg += ` <em>${this.name} is dumped from the Matrix (dump shock: +2 to all TNs until shaken — Willpower(4) to recover, SR2E p.180).</em>`;
         } else {
@@ -3625,7 +3625,7 @@ export class SR2EActor extends Actor {
     // rolled this is a Body Success Test, so biosystem overstress applies
     // (Shadowtech p.7). Ties resolve to Willpower, which keeps it unambiguous.
     const usingBody = body > will;
-    // On the game clock (docs/PLAN-healing-clock.md) the box lands when its rest is over.
+    // On the game clock (docs/archive/plans/PLAN-healing-clock.md) the box lands when its rest is over.
     let adm = null;
     if (clock) {
       adm = await admitStart(this, "stun");

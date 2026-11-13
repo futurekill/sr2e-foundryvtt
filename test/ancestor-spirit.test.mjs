@@ -1,4 +1,4 @@
-// Spirit-group totem bonuses and spirit attack summaries (docs/PLAN-ancestor-spirit.md).
+// Spirit-group totem bonuses and spirit attack summaries (docs/archive/plans/PLAN-ancestor-spirit.md).
 import { describe, it, expect } from "vitest";
 import { totemConjuringBonus, spiritAttackSummary, spiritAttributes } from "../module/rules/sr2e-rules.mjs";
 import { SR2E } from "../module/config.mjs";

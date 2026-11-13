@@ -1,4 +1,4 @@
-// Vehicle customization (Rigger 2 p.118–146; docs/PLAN-vehicle-customization.md): quotes, maxima, time, capacity.
+// Vehicle customization (Rigger 2 p.118–146; docs/archive/plans/PLAN-vehicle-customization.md): quotes, maxima, time, capacity.
 import { describe, it, expect } from "vitest";
 import { customizationQuote, installTime, vehicleTraits, specFormula, installSkills } from "../module/rules/vehicle-custom.mjs";
 import { vehicleCapacity } from "../module/rules/vehicle-design.mjs";

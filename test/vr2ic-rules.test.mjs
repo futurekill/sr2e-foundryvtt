@@ -1,4 +1,4 @@
-// VR2.0 part 3 (docs/PLAN-vr2-part3.md; Virtual Realities 2.0 pp.40–53).
+// VR2.0 part 3 (docs/archive/plans/PLAN-vr2-part3.md; Virtual Realities 2.0 pp.40–53).
 import { describe, it, expect } from "vitest";
 import { blackDamage, grayTN, mpcpLoss, traceFactor, locationTurns, datatrailTurns, relocateTN, defuseTN, pcpicMod,
          psychoRecoveryTN, wormInfects, shutdownDice, finalWarning, traceTally, tarWins, personaVR2, foldDeck,

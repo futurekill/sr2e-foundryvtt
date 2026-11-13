@@ -1,5 +1,5 @@
 /**
- * Healing on the game clock (docs/PLAN-healing-clock.md): with Calendaria active, a stage of
+ * Healing on the game clock (docs/archive/plans/PLAN-healing-clock.md): with Calendaria active, a stage of
  * natural healing, a First Aid treatment and a box of Stun recovery land when their time has
  * passed; an unstabilized dying character bleeds a box every 10 minutes (SR2E p.111–115).
  *

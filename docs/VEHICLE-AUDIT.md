@@ -1,7 +1,7 @@
 # Vehicle stats audit (vehicle builder release 4b, 2026-11-11)
 
 Every vehicle the system and the content modules ship, checked against the stat line its own book prints
-(docs/PLAN-vehicle-audit.md, Codex-approved round 2). 135 documents in 8 books. Method: a blind Codex transcription
+(docs/archive/plans/PLAN-vehicle-audit.md, Codex-approved round 2). 135 documents in 8 books. Method: a blind Codex transcription
 of every stat page, diffed against the shipped data; **every difference read from the page render** (never a text
 layer). Fixes are in each module's pack sources (and its generator where a re-run is safe); ids, file names and art are
 unchanged, and a script checked that only stat fields, notes and the corrected names changed.

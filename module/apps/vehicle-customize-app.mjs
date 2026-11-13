@@ -1,5 +1,5 @@
 /**
- * The Customize window (docs/PLAN-vehicle-customization.md C3.1): the modifications an EXISTING vehicle can take by the
+ * The Customize window (docs/archive/plans/PLAN-vehicle-customization.md C3.1): the modifications an EXISTING vehicle can take by the
  * customization rules (Rigger 2 p.118–146), each with its parts price, Availability, Street Index, Installation Test
  * and room, and the vehicle's purchases in progress. Buying writes a request (module/vehicle-customize.mjs).
  */

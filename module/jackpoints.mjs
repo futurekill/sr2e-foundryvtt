@@ -1,6 +1,6 @@
 /**
  * Matrix jackpoints — shifting a decker's perception to a Matrix scene
- * (docs/PLAN-matrix-jackpoints.md: Round 1 design + Round 2–4 amendments).
+ * (docs/archive/plans/PLAN-matrix-jackpoints.md: Round 1 design + Round 2–4 amendments).
  *
  * The GM draws a Region over a terminal and gives it the "Matrix jackpoint"
  * behaviour, pointing at an entry Region on a Matrix scene. Each decker's persona

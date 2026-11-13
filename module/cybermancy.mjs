@@ -1,5 +1,5 @@
 /**
- * Cybermancy (optional `cybermancy`; docs/PLAN-cybertechnology-phase6.md; Cybertechnology pp.78–84).
+ * Cybermancy (optional `cybermancy`; docs/archive/plans/PLAN-cybertechnology-phase6.md; Cybertechnology pp.78–84).
  * Every operation, scheduled event and death is a durable event record (`recordEvent`),
  * folded by `foldCym`. Every lethal or permanent outcome is a GM click; periodic events are
  * PROMPTED on the game clock, never applied. The sheet panel is the durable list of what's pending.
@@ -212,7 +212,7 @@ export async function applyOperation(uuid, opId, { resume = false } = {}) {
 /**
  * An implant created by a cybermantic operation that isn't done or cancelled yet. Its
  * money lives in the operation's receipt, so selling, deleting, repricing or moving it
- * would refund it twice (docs/PLAN-money-queue-and-eye-accessories.md).
+ * would refund it twice (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md).
  */
 export function unfinishedCymImplant(actor, item) {
   const opId = item?.flags?.sr2e?.cymOp;

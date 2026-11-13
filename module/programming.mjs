@@ -1,5 +1,5 @@
 /**
- * VR2.0 programming (pp.100–102; docs/PLAN-vr2-part5b.md §4). The lifecycle is an append-only log of durable records
+ * VR2.0 programming (pp.100–102; docs/archive/plans/PLAN-vr2-part5b.md §4). The lifecycle is an append-only log of durable records
  * on the program item (`recordEvent`), folded by `foldProgramming` (rules/vr2-options.mjs). Nothing is overwritten:
  * a log is its own record, and a task has ONE period record and ONE end record whose ids the server arbitrates, so
  * two devices can't both freeze a period or both end a task, and a delayed write only adds a record to its own task

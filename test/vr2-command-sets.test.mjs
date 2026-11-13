@@ -1,4 +1,4 @@
-// VR2.0 part 6c: command sets (docs/PLAN-vr2-part6-frames.md, "6c in detail"; VR2.0 pp.104–105).
+// VR2.0 part 6c: command sets (docs/archive/plans/PLAN-vr2-part6-frames.md, "6c in detail"; VR2.0 pp.104–105).
 import { describe, it, expect } from "vitest";
 import { csHours, csStepList, csState, csAdmits } from "../module/rules/vr2-command-sets.mjs";
 

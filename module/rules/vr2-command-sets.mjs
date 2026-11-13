@@ -1,5 +1,5 @@
 /**
- * VR2.0 part 6c: command sets (docs/PLAN-vr2-part6-frames.md, "6c in detail"; VR2.0 pp.104–105). Pure: the state of a
+ * VR2.0 part 6c: command sets (docs/archive/plans/PLAN-vr2-part6-frames.md, "6c in detail"; VR2.0 pp.104–105). Pure: the state of a
  * set is folded from the durable facts on its host, never stored.
  */
 

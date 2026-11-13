@@ -1,5 +1,5 @@
 /**
- * Ritual sorcery (SR2E p.133–137) — a GM worksheet. See docs/PLAN-ritual-sorcery.md.
+ * Ritual sorcery (SR2E p.133–137) — a GM worksheet. See docs/archive/plans/PLAN-ritual-sorcery.md.
  *
  * The GM runs the ritual on their own client. Its state is ONE record: a
  * GM-whispered chat message (`flags.sr2e.ritual`) whose card shows the progress
