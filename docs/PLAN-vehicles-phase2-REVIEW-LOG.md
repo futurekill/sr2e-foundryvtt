@@ -296,3 +296,22 @@ the damage commit; speed snapshots; ram entitlement consumed by the next action;
 successes always add DP; only the jacked-in rigger exempt; components; groups keep speeds; action costs + Autonav toggle;
 a full magic contract incl. ties and the LOS/domain/astral exceptions; core methods refuse under Rigger 2 and cards keep
 their ruleset.
+
+## Part 3 plan, round 2 — Codex (draft 2, fresh session): REVISE, 15 findings
+1. Round hooks run before every driver's pools refresh; recovery after the round changed. 2. A Positioning bonus created
+`turns.<r+1>`, which counted as opened. 3. No stale-input protection between begin and resolve. 4. Cross-document
+recovery order undefined. 5. spendPosition not idempotent; positionReserved reads game.combat. 6. Two Stress receipts
+for speeding, no "was above" marker. 7. The chase driver didn't reach controllerOf's callers. 8. Relocation by a
+passenger unauthorized. 9. Ram entitlement lifetime vs "next available action". 10. Follow-up claim-before-post could lose
+cards. 11. Old core cards couldn't resolve as core (global refusal, setting-driven getters). 12. Called shots bypassing
+Light immunity (core only). 13. Destroyed: automatic crash only for weapons/spells. 14. Armoured slits untargetable.
+15. Mana-barrier riders through the core barrier path.
+
+### Claude's response (draft 3)
+All taken: SR2ECombat closes round r (after the action pass) before advancing, then refreshes every chase driver and
+opens r+1, idempotent by `opened`/`closed`; revs + immutable inputs at begin, stale refusal at resolve; resolving record
+with pending effects then replay then done; idempotent `spendPosition` by slot id, `positionReserved` by its own combat;
+one speeding receipt and an `over` marker; one `driverOf` resolver threaded through every vehicle path; relocation's
+acting character; entitlement = the driver's next combat turn; follow-ups reconcile by message flag; explicit ruleset
+passed down card chains (`vehicleDamageMods(level, ruleset)`); no called-shot bypass; Destroyed split by source; slits
+untargetable; barrier spells as walls with BR = Force through the R2 procedure.

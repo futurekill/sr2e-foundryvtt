@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 2 (2026-11-12, after Codex Part 3 round 1)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 3 (2026-11-12, after Codex Part 3 rounds 1–2)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -469,25 +469,39 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
     of the character OR NPC driving it, token actors allowed; B1 #5), rigged (bool, derived at action time from the
     driver's `rigging` + VCR), speed, terrain, autonav (bool), group (gid|null), aboard: [uuids], rev }`.
   - `pairs.<pid>` = `{ pursuer: eid, quarry: eid, distance, contact: true | { hiddenBy, successes, round, npcTurns } }`.
-  - `turns.<round>.<eid>` = `{ vp, tp, sp, dp: null | { value, messageId }, dpSlot, positionBonus, escapeBonus, ms }`.
-  - `actions.<aid>` = one record per vehicle action (below). `closed.<round>` = true when that turn's End-of-turn ran.
-- **Driver identity** (B1 #5): `entry.driver` is set on the panel (default `controllerOf(vehicle)`; an NPC or a token
-  actor may drive). Authorization for an entry's actions: the GM, or an owner of the driver actor. Skill dice come from
+  - `turns.<round>.<eid>` = `{ vp, tp, sp, dp: null | { value, messageId }, dpSlot, positionBonus, escapeBonus, ms,
+    over (the vehicle was above its Speed Rating this turn) }`.
+  - `actions.<aid>` = one record per vehicle action (below). `opened.<round>` / `closed.<round>` = that turn's open /
+    close ran (B2 #2: a Positioning bonus may create `turns.<r+1>` early; it never counts as opened).
+  - Every entry and pair has a `rev`, bumped by any change to its speed, terrain, autonav, distance or contact.
+- **Driver identity** (B1 #5, B2 #7): `entry.driver` is set on the panel (default `controllerOf(vehicle)`; an NPC or a
+  token actor may drive). ONE resolver, `driverOf(vehicle)` = the active chase entry's driver, else `controllerOf`, is
+  used by every vehicle path under Rigger 2: `riggedInto`, `mayResistFor`, damage-resistance pool selection
+  (`rollVehicleDamageResistance`), crash claims and Crash Tests, rigger feedback, and the driver's damage Initiative
+  penalty (`worstControlledInitMod`, extended to a manual driver's vehicle). Authorization for an entry's actions: the
+  GM, or an owner of the driver actor (relocation: of the acting aboard character, 3a.5). Skill dice come from
   the driver (`_vehicleSkill`, available on every SR2EActor); an NPC driver adds its `professionalRating` dice to Success
   Tests and the Open Test (p.44), and has no Control Pool.
-- **Action transactions** (B1 #4): a vehicle action is (1) the GM op `chaseBegin {combatId, round, eid, kind}` →
-  checks the live round, the entry's driver and rev, writes `actions.<aid> = {eid, round, kind, driver, state:
-  "rolling"}` and returns `aid`; (2) the driver's client spends any Control Pool (3a.2) and rolls the test, the message
-  carrying `flags.sr2e.chaseAction = {combatId, aid}`; (3) the GM op `chaseResolve {combatId, aid, messageId}` reads the
-  roll FROM the message (successes, provenance), refuses a stale round/driver, and in the chase queue writes the
-  result with stable effect ids: speed (entry), Stress (`adjustStress` with eventId `chase-<aid>`), DP bonuses, contact,
-  ram entitlement, `state: "done"`. Side effects in other queues (Stress, damage) use those deterministic event ids, so
-  a re-run is a no-op; the GM's pass on ready and at each turn boundary resumes every action whose message exists but
-  whose state isn't "done", and lets the GM cancel ones with no message.
-- **Turn lifecycle bound to `SR2ECombat`** (B1 #1): `chaseOpenTurn {combatId, round}` and `chaseCloseTurn {combatId,
-  round}` are idempotent by round (`turns.<round>` exists / `closed.<round>`), called by the active GM from the combat's
-  round-change hook AFTER the pool refresh (`startCombat` and `nextRound` already refresh pools first). Close of round r
-  runs before open of r+1; a second call is a no-op. The panel's "End turn" just advances the combat (`nextRound`).
+- **Action transactions** (B1 #4, B2 #3–#4): a vehicle action is
+  (1) the GM op `chaseBegin {combatId, round, eid, kind, actor, target, expectRevs}` → in the chase queue: checks the
+  live round, the driver (or acting character), that the entry has no other action "rolling" (one at a time per entry)
+  and that the entry/pair revs equal `expectRevs`; computes and STORES the immutable test inputs (TN parts, opponent MS,
+  speeds, distance, terrain, autonav) with the revs: `actions.<aid> = {eid, round, kind, actor, inputs, revs, state:
+  "rolling"}`; returns them, so the dialog shows exactly what will be rolled;
+  (2) the acting client spends any Control Pool (3a.2) and rolls at those inputs, the message carrying
+  `flags.sr2e.chaseAction = {combatId, aid}`;
+  (3) the GM op `chaseResolve {combatId, aid, messageId}` reads the roll FROM the message; refuses (state "stale") if
+  any rev it depended on changed since begin; else in ONE Combat update writes the chase changes (speed, contact, bonuses,
+  entitlements, `over`) together with `state: "resolving"` and the immutable result + its pending external effects
+  (Stress, damage, follow-ups), each with a deterministic event id; (4) each external effect is applied idempotently by
+  its id (`adjustStress`, `commitVehicleDamage`); (5) `state: "done"`. The GM's pass (ready, and before each turn
+  boundary) replays the effects of every "resolving" action and resolves "rolling" ones whose message exists; ones with
+  no message can be cancelled by their actor or the GM.
+- **Turn lifecycle bound to `SR2ECombat`** (B1 #1, B2 #1): for a combat with a chase under Rigger 2, `SR2ECombat`
+  itself (GM side) does, in order: in `nextRound` BEFORE advancing — await the pass over round r's actions, then
+  `chaseCloseTurn(r)`; after advancing — refresh EVERY chase driver's and pedestrian's pools explicitly (whatever the
+  pool-refresh mode; the Combat Turn refresh p.42), then `chaseOpenTurn(r+1)`; `startCombat` likewise refreshes then
+  opens round 1. Both ops are idempotent by `opened.<r>` / `closed.<r>`. The panel's "End turn" calls `nextRound`.
   **(ruling)** The system keeps Foundry's Initiative roll at the round's start; the book's order (Driver Points step 4
   before Initiative step 5) has no mechanical effect except that passengers' limits need the DP, so a passenger can't
   act offensively until their vehicle's DP is recorded (3a.6) and the DP dialog is offered at the round's start.
@@ -512,9 +526,11 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   the GM sets NPCs' and any incapacitated driver's, p.42), distances, terrain.
 - **Driver Points** (B1 #2): (1) `chaseDPStart {combatId, round, eid}` reserves the slot (`turns.<r>.<eid>.dpSlot =
   {id, driver}`; refused if a slot or a DP exists); (2) the driver's pool client spends the allocated Control Pool
-  through `spendPosition(driver, n, testId, { combatId, round })` — **extended to take the combat and round
-  explicitly** instead of `game.combat` (existing callers pass nothing and keep today's behaviour) — held out of the pool
-  until the turn ends (p.44; the next round's refresh returns them, and DP for round r+1 opens only after that refresh);
+  through `spendPosition(driver, n, slotId, { combatId, round })` — **extended** to take the combat and round explicitly
+  (existing callers keep `game.combat`), to be IDEMPOTENT by test id (an existing `byTest[slotId]` returns that amount,
+  no second debit, B2 #5), and to validate the slot with the GM record before debiting; `positionReserved` reads the
+  reservation's OWN combat (`game.combats.get(combatId)?.round === round`), never `game.combat`. The dice are held out of
+  the pool until the turn ends (p.44); the next round's refresh (B2 #1) returns them before DP opens;
   (3) the Open Test card carries the slot id; (4) `chaseDPDone {slotId, messageId}` records the DP. A slot with no card
   can be cancelled by its driver or the GM (the held dice stay held until the turn ends: they were committed). NPC
   drivers: the GM rolls from the panel. No Karma rerolls are offered on an Open Test card.
@@ -523,9 +539,11 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   jacked-in rigger keeps the VCR's (2b); passengers and pedestrians unchanged; the vehicle damage Initiative penalty
   (3b.1) as today. In `_getInitiativeParts`.
 - **Step 7, close of turn** (`chaseCloseTurn`): for each pair in contact, distance −= pursuer speed − quarry speed (not
-  below 0; the GM can edit and change terrain afterwards); speeding Stress (R3-2) for any vehicle that spent the turn
-  above its damage-reduced Speed Rating and has no `chase-over-<combatId>-<round>-<eid>` receipt yet; NPC relocation
-  counters advance; expired ram entitlements cleared (3b.2).
+  below 0; the GM can edit and change terrain afterwards); NPC relocation counters advance.
+- **Speeding Stress** (R3-2, B2 #6): `turns.<r>.<eid>.over` is set when the turn opens with the vehicle above its
+  damage-reduced Speed Rating, or when any resolution leaves it above; the Stress has ONE receipt for every path,
+  eventId `chase-over-<combatId>-<round>-<eid>`, applied as a resolving effect when `over` is first set and replayed at
+  close of turn if missing (braking or crashing later in the turn doesn't undo it).
 - **Action costs** (p.45, B1 #16): accelerating/braking, positioning, ramming, hiding and performing a non-driving
   action are Complex Actions — every action card says so. **Autonav on/off** is a Simple Action, a Free Action for a
   rigger jacked in: a per-entry toggle (vehicle sheet / Vehicles tab) that writes `entry.autonav` through the chase op
@@ -559,7 +577,8 @@ its speed is unchanged **(ruling: the book says only how far it gets)**. Cruiser
   MS exceeds ≤10 +2, ≥11 +4; vehicle above its Speed Rating +4; autonav active −Rating as printed; + the hiding test's
   successes; the hiding vehicle's terrain −3/−1/0/+3). Success → contact restored; the pursuer's driver and passengers
   may act against it on their next actions. NPC pursuers try for 5 Combat Turns then give up (close of turn); a player
-  gives up on the panel. Relocation isn't a vehicle action, so it goes through the same transaction with kind "relocate".
+  gives up on the panel. Relocation goes through the same transaction with kind "relocate" and `actor` = the aboard
+  character making the test (B2 #8): authorized for an owner of THAT character, who must be aboard the pursuing entry.
 
 ### 3a.6 Passengers (p.49)
 - `entry.aboard` lists the characters in the vehicle (the panel; the driver is listed too). **Only the rigger** — the
@@ -575,10 +594,12 @@ statistics; +1 TN per additional vehicle on the group's tests. Each member keeps
 result applies to each member with its own statistics (Acceleration × successes for each).
 
 ### 3a.8 The core paths under Rigger 2 (B1 #19)
-`rollVehicleTest` (Position/Crash), `rollVehicleRam` and `rollEscapeTest` keep their signatures; under Rigger 2 they
-refuse with a message naming the R2 action (macros included). Every vehicle-combat card stores `ruleset` at creation;
-its buttons resolve by THAT, never the current setting; cards without it are core. The Driving Test (2a) stays for
-non-combat maneuvers.
+`rollVehicleTest` (Position/Crash), `rollVehicleRam` and `rollEscapeTest` keep their signatures plus an optional
+`{ ruleset }`. Called WITHOUT one under Rigger 2 (a new action, a macro) they refuse with a message naming the R2 action.
+Every vehicle-combat card stores `ruleset` at creation (cards without it are core); its buttons pass it EXPLICITLY down
+the whole chain — the roll, `rollVehicleDamageResistance`, `resolveCrash`, `commitVehicleDamage` and its follow-ups,
+and the damage-modifier lookups (`vehicleDamageMods(level, ruleset)` replaces the getters' implicit setting read,
+B2 #11) — so an old core card resolves by core after the switch. The Driving Test (2a) stays for non-combat maneuvers.
 
 ### 3b.1 Vehicle damage levels and rigger feedback (p.49–50)
 - **Vehicle Damage Modifiers Table** under Rigger 2: Light +1 TN / −1 Initiative / no reduction; Moderate +2 / −2 /
@@ -586,16 +607,21 @@ non-combat maneuvers.
   table; max = reduced Speed Rating × 1.5.
 - **Rigger feedback** (B1 #12): EACH damage application to a vehicle whose (staged) Damage Level is Serious → the rigger
   jacked in controlling it resists 6M Physical; an application that destroys it → 6S (R3-3: Body, no armour, Combat Pool
-  allowed). A follow-up record in the SAME damage commit (`flags.sr2e.vfollow.<eventId>.feedback = {rigger, code}`),
-  posted once by the GM's pass (claim), resolved once per rigger (receipt).
+  allowed). A follow-up record in the SAME damage commit (`flags.sr2e.vfollow.<eventId>.feedback = {rigger, code,
+  state: "pending"}`); resolved once per rigger (receipt).
+- **Follow-up delivery** (B2 #10): the active GM's pass, in the vehicle queue, posts each pending follow-up card with
+  `flags.sr2e.vfollowId = <eventId>.<kind>`; before posting it looks for a message with that id (reconcile) and, if found,
+  marks the follow-up `posted` instead; after the create returns it marks `posted` with the message id. An interruption
+  between create and mark is healed by the reconcile; nothing is claimed before the card exists.
 
 ### 3b.2 Impact (p.50) and ramming (p.47–48)
 - **Impact damage**: Power = speed ÷ 10 rounded UP (148 → 15); Damage Level by the **Impact Damage Levels Table** (1–20
   L, 21–60 M, 61–200 S, 201+ D); a ram uses the DIFFERENCE in speed. Resisted with Body dice + Control Pool (≤ the
   driver's driving skill), TN = Power, no armour or other reduction; every 2 successes stage down one level.
-- **Ram entitlement** (B1 #8): the target must be closer than the rammer's Acceleration Rating, or the rammer holds an
-  entitlement from an acceleration (3a.3) = `{target, fromAid}` consumed by the driver's NEXT vehicle action (a ram
-  uses it, any other action drops it) and dropped at the close of the turn after the one it was gained in.
+- **Ram entitlement** (B1 #8, B2 #9): the target must be closer than the rammer's Acceleration Rating, or the rammer
+  holds an entitlement from an acceleration (3a.3) = `{target, fromAid, after: {round, turn}}` valid for the driver's NEXT
+  available action — the driver combatant's next turn in the combat tracker after `after` — and consumed then whether
+  used or declined (the GM's combat-turn hook drops it when that turn passes without a ram). No other expiry.
 - **Ramming Test** vs Handling + the **Ramming Target Modifiers Table** (MS −2/−4/+2/+4, above Speed Rating +1, autonav
   + (Rating + 2), terrain −1/0/+1/+2, VCR −rating) + damage. Success → a collision event `vcol.<aid>` snapshotted in the
   action record: both vehicles' speeds, the occupants of both, the rammer's successes. Both resist impact at the speed
@@ -613,10 +639,10 @@ non-combat maneuvers.
 ### 3b.3 Crashing (p.51–52)
 - **Triggers** (B1 #7), classified per damage EVENT, recorded as a pending follow-up in the SAME commit
   (`flags.sr2e.vfollow.<eventId>.crash`): damage from a ram (source "ram"); Serious damage from a single attack (a
-  weapon or spell event whose staged level is Serious); the monitor reaching Destroyed (then it crashes automatically,
-  no test). Crash damage itself (source "crash") never triggers another. No per-phase dedupe under Rigger 2: each
-  qualifying event is its own. The GM's pass posts each pending Crash Test card once (claim) — recoverable after an
-  interruption.
+  weapon or spell event whose staged level is Serious); the monitor reaching Destroyed (below). Crash damage itself (source "crash") never triggers another. No per-phase dedupe under Rigger 2: each
+  qualifying event is its own. **Destroyed** (B2 #13): from a weapon or spell attack → the vehicle crashes automatically
+  (p.53); from any other qualifying source (a ram, a collision) → a Crash Test (p.51); crash damage never recurses.
+  Cards post through the follow-up delivery (3b.1).
 - **Speed source** (B1 #6): every damage event and Crash Test card snapshots the vehicle's CURRENT speed (the chase
   entry's speed; outside a chase, the GM enters it on the card, default 0 = parked) and the chase/event ids; the crash
   resolution uses that snapshot. Core defaults are unchanged.
@@ -630,7 +656,10 @@ non-combat maneuvers.
 Barrier Rating × 20 vs the speed: ≤ → the vehicle halts; standard crash damage (impact at its speed) for it and its
 occupants. > → it breaks through, LOSES speed = Barrier Rating × 20 and keeps going; damage Power = the Barrier Rating,
 level from the speed lost (Impact table); restrained occupants take no damage, unrestrained ones resist as 3b.2. Under
-Rigger 2 this replaces Part 1's "Hit" for walls (the mana-barrier rider stays, 3c). Cruiser #2 vs 16: 320 ≥ 300 → stops.
+Rigger 2 this replaces Part 1's "Hit" for walls. **Barrier spells** (p.54, B2 #15): a physical barrier is a wall with
+Barrier Rating = the spell's Force for the vehicle and everyone aboard; a mana barrier ignores the vehicle and its
+enclosed occupants, but an exposed rider (bike, open top) hits it as a wall with Barrier Rating = Force through this
+same R2 procedure (not `resolveBarrier`'s core path). Cruiser #2 vs 16: 320 ≥ 300 → stops.
 
 ### 3b.5 Pedestrians (p.52–53)
 The pedestrian resists Power = speed ÷ 10 at ONE level higher than the Impact table (Destroyed → Power + half, rounded
@@ -640,7 +669,8 @@ step-up. The vehicle resists one level LOWER than the table (1–20 none, 21–6
 ### 3b.6 Weapons against vehicles (p.53)
 `r2VehicleHit` (pure) replaces `vehicleHit` under Rigger 2, with the same inputs (`ratedLevel`, `calledShot`, staging,
 `apds`, `antiVehicle`, `basePower`) and the same caller callbacks/receipts (B1 #13):
-- A weapon RATED Light can't affect a vehicle unless it uses special ammunition (APDS, a called shot as today); any
+- A weapon RATED Light can't affect a vehicle unless it uses special ammunition (APDS and the like; a called shot does
+  NOT bypass it under Rigger 2, B2 #12 — components are their own rule below); any
   other weapon's level drops one (D→S, S→M, M→L) — a Moderate weapon does Light damage. Grenades and explosives too;
   anti-vehicle munitions keep their level.
 - Armour reduces the Power fully (AV: by half, rounded down); a weapon whose standard Power (unaugmented by burst/full
@@ -674,7 +704,8 @@ step-up. The vehicle resists one level LOWER than the table (1–20 none, 21–6
 - **Spells at characters in vehicles** (B1 #18): open vehicles (bikes, open-topped) — targetable with line of sight;
   enclosed occupants can't be targeted by a spell that needs line of sight, EXCEPT damaging manipulations (which need
   none, p.54); tinted windows let occupants see and cast OUT while blocking sight IN; blown-out windows of cars, trucks,
-  buses open the view; windows of campers and the like, or blown-out armoured slits, give only +4 Partial Cover. The
+  buses open the view; windows of campers and the like give only +4 Partial Cover; an armoured vehicle's vision slits
+  are too small to target through even blown out, and most APCs have no windows (B2 #14). The
   spell dialog, when the target is aboard a vehicle in a chase, shows these as a checklist (enclosed / windows blown /
   partial cover +4) that sets the modifier or refuses the cast.
 - **Natural domains**: a vehicle and its passengers are in the domain they travel through; a shaman needs no line of
