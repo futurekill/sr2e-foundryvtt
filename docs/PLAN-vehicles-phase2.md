@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 11 (2026-11-13, after Codex Part 3 rounds 1–10)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 12 (2026-11-13, after Codex Part 3 rounds 1–11)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -751,20 +751,29 @@ B2 #11) — so an old core card resolves by core after the switch. The Driving T
 - **Speed source** (B1 #6): every damage event and Crash Test card snapshots the vehicle's CURRENT speed (the chase
   entry's speed; outside a chase, the GM enters it on the card, default 0 = parked) and the chase/event ids; the crash
   resolution uses that snapshot. Core defaults are unchanged.
-- **Driving Success Tests keep today's context** (B10 #2): every new Driving Success Test in Part 3 (acceleration,
-  positioning, hiding, relocating, ramming, the Crash Test, walls) builds its TN on `rollVehicleTest`'s existing
+- **Driving Success Tests keep today's context** (B10 #2, B11 #1): every Part 3 test the book makes a Driving Test
+  (as each section above names it — accelerating/braking, positioning, the ram, the Crash Test) builds its TN on `rollVehicleTest`'s existing
   base — Handling + damage modifier + the defaulting penalty `_vehicleSkill(...).penalty` + Vehicle Empathy (Handling
   −1 in physical contact, R2 p.16) + the electronic/skill note — and adds only its own table's modifiers. R3-1's
-  no-penalty default applies to the Driver Points Open Test alone.
+  no-penalty default applies to the Driver Points Open Test alone. Relocation keeps its Perception Test against
+  Signature (3a.5) and wall collisions keep their own procedure (3b.4): neither is a Driving Test.
 - **Crash resolution is one recoverable transaction** (B10 #3), keyed by the follow-up id `fid` (=
   `<eventId>.crash`), stored on the vehicle (`flags.sr2e.crashes.<randomID>` holding `fid`, written in `vdmg:<uuid>`):
   `claimed` (who rolls; the card's button) → `rolled {messageId}` (the Crash Test card carries `fid`) → `resolving`
   {the immutable outcome + pending effects: speed 0, vehicle damage, each occupant's damage, each with an event id
   DERIVED from `fid` — `<fid>:speed`, `<fid>:vehicle`, `<fid>:occupant:<uuid>`} → `done`. Effects apply by those ids
-  (idempotent: `commitVehicleDamage` takes the derived id instead of minting a fresh one; occupant damage uses the
-  existing resist-once receipts). The GM's pass reconciles each state: a `claimed` record with no card after its
-  claimer left is reopened (the button returns); a `rolled` record resolves from its card; `resolving` replays its
-  effects. Today's `crashTestFromCard` / `resolveCrash` are reshaped into these steps, for core and Rigger 2 alike.
+  (idempotent: `commitVehicleDamage` takes the derived id instead of minting a fresh one). The GM's pass reconciles
+  each state (B11 #2): a `claimed` record is first matched against messages carrying its `fid` — a card found
+  promotes it to `rolled`; with no card it is reopened (the button returns) only when its claimer is no longer
+  active or the GM forces it; a `rolled` record resolves from its card; `resolving` replays its effects.
+- **Occupant damage is its own recoverable step** (B11 #3; replaces today's claim-then-roll `occupantResist` for
+  every vehicle-occupant resistance, crash and impact alike): each occupant effect `<fid>:occupant:<uuid>` is a
+  record `pending` → `rolled {messageId, result}` (the resistance card carries the effect id) → `done`. The damage is
+  written by the occupant actor's writer in ONE actor update together with the receipt
+  `flags.sr2e.dmgReceipts.<randomKey> = <effectId>` (checked first: a present receipt means already applied). The
+  pass reconciles `pending` against cards with the effect id (promote to `rolled`), applies `rolled` ones through
+  the receipt check, and reopens the resist button only when no card exists and the roller is gone. Nothing is
+  claimed before a result exists, and nothing is applied twice. Today's `crashTestFromCard` / `resolveCrash` are reshaped into these steps, for core and Rigger 2 alike.
 - **Crash Test** = Driving Test vs Handling + the **Crash Test Modifiers Table**: vehicle damaged + its damage modifier;
   terrain −1/0/+2/+4; speed vs the driver's Reaction: < ×20 0, < ×30 +1, < ×40 +2, more +4 ("driver wounded + Damage
   Modifier" is the wound penalty `rollSuccessTest` adds — not doubled). Autonav dice (= Rating) and Control Pool (≤

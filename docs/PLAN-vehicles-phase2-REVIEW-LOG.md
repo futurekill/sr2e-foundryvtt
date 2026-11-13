@@ -426,3 +426,14 @@ All taken. (1) Every pair's distance changes at close; hidden pairs' distance sh
 Part 3 Driving Success Test starts from `rollVehicleTest`'s base TN (Handling, damage, defaulting penalty, Vehicle
 Empathy); R3-1 covers only the DP Open Test. (3) Crashes are a durable transaction on the vehicle (claimed → rolled →
 resolving → done) with effect ids derived from the follow-up id; the GM pass reconciles each state; core and R2.
+
+## Part 3 plan, round 11 — Codex (draft 11, fresh session): REVISE, 3 findings
+1. The shared Driving-Test TN base wrongly listed relocation (a Perception Test vs Signature, p.48) and walls (no
+Driving Test, p.52). 2. Crash recovery missed a `claimed` record whose card was posted before `rolled` was written.
+3. Occupant damage relied on today's claim-then-roll `occupantResist`, which can lose or double damage on interruption.
+
+### Claude's response (draft 12)
+All taken. (1) The base applies only to the book's Driving Tests; relocation and walls keep their own procedures.
+(2) `claimed` records reconcile against cards carrying the fid first; reopen only with no card and the claimer gone.
+(3) Occupant resistance becomes a recoverable record (pending → rolled → done) whose damage is written with a receipt
+in one actor update, for crash and impact occupants alike.
