@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature.
-- **Part 5 — drones, EW, special operations** (p.33–36, p.62–72, p.77–80).
+- **Part 5 — drones, EW, special operations** (p.33–36, p.62–72, p.77–80): draft 1 below, awaiting Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1083,6 +1083,269 @@ M.C. Jammer/Aguilar; Monkeywrench ED; Steeler; Moly/Tubbs; the scatter example).
 target hides; one jammer roll read at two observers' TNs; a boost allocation refused over Body; a manual R2 attack
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
+
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.33–36, p.62–72, p.77–80), draft 1 (2026-11-13)
+_Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
+words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
+Part 1's control model (`controlledVehicles`, the Autopilot command) is untouched. Three releases: **5a** (remote
+control networks, drones and robots), **5b** (electronic warfare against networks), **5c** (special vehicle operations
+and the security rigger). 5a needs Part 4a (transmitters, Flux, ECM/ECCM toggles); 5b needs 5a; 5c needs only Part 2._
+
+### 5.0 Records and transactions
+- Same contract as Parts 3–4: GM ops through `gmCall`, reserved event ids, immutable roll inputs, a `rev` per record,
+  terminal receipts, rolled steps (reserve → spend → arm → card → record), stale cards "not counted".
+- **The network belongs to its deck.** A remote-control deck is an item: R2 `Remote Control Deck` (cyberware) or
+  `Remote Control Deck (External)` (gear) on a character, or a deck hardwired into a vehicle (5a.7). Its record is
+  `flags.sr2e.rcNet` on that ITEM, written only by GM ops in the queue `rcnet:<deckItemUuid>`. Lock order:
+  `chase-membership` → `chase:<combatId>` → `rcnet:<deckUuid>` → `vdmg:<uuid>`; nothing applies damage while holding
+  `rcnet:` (dump shock is a follow-up delivered after release, as Part 3b's follow-ups are).
+- **Control stays ONE truth**: `controlledVehicles` (Part 1's GM op `control`) remains "who controls this vehicle".
+  Under R2 a DRONE (`vehicleType === "drone"` or `riggerAdapted` and no one aboard driving) can be controlled only
+  through a network: the `control` op refuses a drone that is not affiliated, and affiliation / disaffiliation write
+  `controlledVehicles` and the network record in ONE GM step (`setControl` runs inside `rcnet:`). Non-drone vehicles
+  are unchanged (driven from inside, datajack/manual/rig).
+- A deck item that is deleted, uninstalled or unequipped ends its network: the GM's reconcile (on `updateItem` /
+  `deleteItem` of a deck) disaffiliates every drone, as one op; the rigger is dumped only when the deck was in use
+  (5a.6).
+
+### 5a.1 Subscriber lists and affiliation (p.62, p.64)
+- `rcNet = { rev, subscribers: [vehicleUuid…], affiliated: { [vehicleKey]: { since: {combatId, round} } }, primary:
+  vehicleKey|null, ivis: {…} (5a.5), hardwired: [vehicleUuid] (5a.7) }`, `vehicleKey = followId(vehicle.uuid)`.
+- Subscriber list ≤ 2 × deck rating; affiliated (actively controlled) ≤ deck rating. Only subscribers can affiliate.
+  Editing the list (deck panel, out of combat or as the GM) is not an action (the book gives none).
+- **Affiliate / disaffiliate** = one Simple Action each; "substitute" = disaffiliate + affiliate as 2 Simple Actions
+  or 1 Complex (one card, one op, the action cost stated). A drone affiliated this Combat Turn can't act this Turn
+  (`since` = the current combat round; the drone's actions check it). **Ruling R5-1 (pending, default = the rule):**
+  the p.64 example has Josie's GPV act in her next Combat Phase of the SAME Turn, contradicting the rule; Part 4's
+  precedent (R4-1) follows the rule.
+- A non-affiliated subscriber is independent: the rigger can't see through or command it; it can't talk to the rest
+  of the network.
+- Range: affiliation, commands and observation need the drone inside the deck's transmitter range (Part 4a.3, the deck
+  as a transmitter, base Flux 2); out of range = a lost carrier (5b.6) on all three channels.
+
+### 5a.2 Operative modes (p.65–66)
+- Per affiliated drone the rigger's mode is DERIVED: **primary** (`rcNet.primary`, the one drone the rigger is jumped
+  into), **secondary** (the others while a primary is set), **captain's chair** (no primary). `droneMode(rigger, drone)`
+  in `module/rules/drone-rules.mjs` (pure) returns `primary | secondary | captain | null`.
+- Jumping into a primary needs a VCR (`isVcr` cyberware) and the rigger jacked in (`rigging`); captain's chair is the
+  only mode without a VCR (p.65). Jump into a primary drone / return to captain's chair: Simple Actions (p.65).
+- **primary**: the drone is driven as if the rigger were jacked into it: `riggedInto(rigger, drone)` true; Combat and
+  Control Pool allowed; all rigger bonuses (VCR TN modifiers, Part 2b `riggerTnParts`); no Comprehension Test.
+- **secondary** and **captain**: the drone's own tests use its **Pilot** (effective) in place of the rigger's skill or
+  attribute (p.65, p.67); no Combat/Control/Task Pool; only IVIS Pool dice (5a.5). Captain's chair keeps the rigger's
+  Initiative bonuses (Rigger X's +2D6). `riggedInto` is false for them; `controllerOf` still names the rigger.
+- Every drone test site (Driving Test, Part 3a chase actions, gunnery incl. Part 4b's sensor gunnery, Arm Tests 5c.2)
+  asks ONE helper `droneTestDice(drone, { skillDice })` → `{ dice, pools: [...], source: "pilot" | "rigger" }`; Part 4b's
+  "a drone without a rigger uses Pilot" and Part 3a's deferred "drones driving themselves" both resolve here. Pilot
+  replaces only the skill/attribute; equipment dice (⌊Sensor ÷ 2⌋ on sensor gunnery) are unchanged.
+- **Observe**: captain's chair — through any subscriber (Free Action); primary — through the primary (Free), through a
+  secondary (Complex, p.64–65). Observe in Detail: Simple, captain's chair any drone / primary only. Shown as action
+  buttons on the deck panel with their cost; they gate the rigger's Perception through that drone's sensors (Part 4's
+  "rigging sight").
+
+### 5a.3 Issuing commands (p.66–67)
+- Replaces Part 1 #13's Autopilot command for drones under R2: the **Comprehension Test**. The GM rates the
+  command's complexity (core Skill Success Table p.68 → TN) and the rigger may downgrade it first (the card states the
+  final complexity). Dice = the drone's Pilot + Non-Matrix Programming specialization dice (≤ Pilot; Computer skill's
+  specialization on the rigger's sheet) + IVIS successes added (5a.5); no other pools. TN modifiers: +2 when the rigger
+  is jumped into a primary and commands a secondary (p.65); command-channel degradation (5b.3). ≥1 success obeys;
+  successes = latitude (card text).
+- One Complex Action per command; a command goes to one drone or, if IDENTICAL, to a group (each drone rolls its own
+  test; group size ≤ deck rating). Commanding the primary needs no command (the rigger drives it); commanding any
+  other drone does.
+- Commands are issued as the rigger declares actions; all network drones act in the SAME Combat Phase, after the
+  rigger (Step 2B, core p.78). Implementation: drones are not combatants (5a.4); the rigger's turn card lists "drone
+  actions" whose rolls follow the rigger's. A drone's standing command is stored on its own record
+  `flags.sr2e.droneOrder = { text, successes, messageId, rev }` (shown on the deck panel's status report).
+
+### 5a.4 Drones, robots and Initiative (p.65, p.67)
+- A network drone (not a robot) has no Initiative of its own: it acts in its rigger's phases (5a.3). The Combat
+  tracker refuses adding a non-robot network drone as a combatant (a GM override warns).
+- **Robots** (`flags.sr2e.robot` / the vehicle's `design.traits` "robot"; the R2 module stamps its two robots): Reaction
+  = 2 × Pilot; Initiative dice = Learning Pool + 1, max 4 (not drawn from the pool); **Learning Pool** = Pilot by
+  default, a vehicle field `learningPool` (blank = Pilot) for printed exceptions (Toyota MK-Guyver: LP 2 "for Search
+  & Rescue" — the scope note shown). LP augments any Success Test a character would augment with Combat, Control or
+  Task Pool; refreshes at the start of each Combat Turn and each phase the robot acts; not available while a rigger is
+  jumped into it (primary). A robot rolls its own Initiative and is a combatant; it may also draw IVIS dice. Robots
+  can't interface with the Matrix (no Matrix rules apply: noted). "Dice Pools and Threat Ratings" (p.67): the GM may
+  set `threatRating` as for NPCs (help text).
+
+### 5a.5 BattleTac IVIS (p.66–67)
+- Needs a BattleTac IVIS master unit on the deck (R2 `BattleTac IVIS Master Unit` RC-deck/CRD items) and the drones'
+  IVIS software (R2 `BattleTac IVIS Receiver Module` vehicle mod).
+- **IVIS Test** before the group's Comprehension Test: dice = the rigger's Vehicle Tactics specialization (Tactics
+  concentration / Military Theory defaulting via the Skill Web, SRComp p.48) vs TN 5. Successes split between the
+  group's Comprehension Test dice and an **IVIS Pool** (`rcNet.ivis = { groupId, drones, pool, spent: {…}, task }`).
+- IVIS Pool dice: any drone of the group, any of its actions; refresh at the end of each Combat Turn until the task is
+  completed or a new task is given; then gone. Not for a drone the rigger is jumped into.
+
+### 5a.6 Dump shock (p.64)
+- Whenever a rigger is dumped from a network (system channel lost, 5b.4; jumped into a drone when its simsense carrier
+  is lost, 5b.3; the deck destroyed or ripped out while in use): (1) **disoriented** 10 Combat Turns: +2 TN on all the
+  rigger's Success Tests (a timed Active Effect, `flags.sr2e.dumpShock`, read by `testTnModifiers`); (2) resist
+  **(deck rating + 4)S Stun** (the existing resist-damage button, no armour, the Part 2 neural-damage helper's
+  points); (3) **Willpower (4)** to shorten: duration = ⌈⌈30 ÷ successes⌉ ÷ 3⌉ Combat Turns (0 successes: 10).
+- Follow-up delivered after the `rcnet:` op (never inside it), once per dump event id.
+
+### 5a.7 Hardwiring a deck (p.64)
+- A vehicle with Rigger Adaptation and an Electronics Port may have a deck hardwired: the deck item lives on the
+  VEHICLE (a gear item, or the R2 deck item dropped on it). Effects: the deck may take an engine Flux boost of up to
+  ⌊Body ÷ 2⌋ (Part 4a.3's boost, already rule-checked there); the rigger in that vehicle gets its protection; the
+  driver can drive while jacked into the deck. A hardwired vehicle can't be disaffiliated (the op refuses).
+
+### 5a.8 The deck panel and actions (p.64–65)
+- One window per deck (character sheet → deck → "Network"): subscribers, affiliated, mode, primary, IVIS pool,
+  standing orders, signal monitors (5b), and the action list with costs: Free — sensors on/off for one drone (online at
+  the next Turn), ECM/ECCM on/off for one drone (Part 4 toggles, online next Turn), arm/disarm a weapon (one armed
+  weapon per drone; switching = one Free Action), status report, observe; Simple — affiliate/disaffiliate, observe in
+  detail, the same Free Action on several drones (captain's chair), jump into a primary, return to captain's chair;
+  Complex — interception, MIJI, fire a weapon (any single drone; Combat Pool only with the primary when jacked by a
+  cybernetic link), issue a command, intercept a channel, observe through a secondary, operate the primary (accelerate/
+  brake, position, ram, hide — Part 3a's actions with the rigger's pools), reconnect a lost carrier, regenerate
+  degradation.
+- Action costs are shown and stated on cards; the system doesn't count actions per phase (as Parts 3–4).
+
+### 5b — Electronic warfare against networks (p.68–72)
+Channels: every network has **command**, **simsense** and **system** channels, each with a **Signal Monitor** of 10
+boxes (the Signal Condition Monitors diagram, p.70): Light from 1 box (+1 TN), Moderate from 3 (+2), Serious from 6
+(+3), 10 = channel disengaged. (Read from the diagram's box marks; checked against both examples: 2 boxes Light, 4
+Moderate.) Stored in `rcNet.monitors = { command, simsense, system }` with per-event receipts
+(`rcNet.ewReceipts.<eventId>`).
+
+**5b.1 Signal interception (p.68–69).** Complex Action. The intruder needs a device whose range (Part 4a.3, both
+devices' ranges: the LEAST powerful device's range must cover the distance) reaches the target deck. Dice = the
+intruder's device rating (+ Task Pool: not in the system, noted) vs TN = target deck rating + 3. Successes = channels
+intercepted (the intruder picks; if they don't, the GM). Record: `flags.sr2e.ewIntercepts.<netKey>` on the
+INTRUDER's deck item `{ channels: [...], alertMod, rev }`, where `netKey = followId(targetDeck.uuid)`.
+- **Encryption** (p.69): a deck with an encryption module (R2 `Remote Control Encryption Module`) first needs an
+  Electronic Warfare Concentration Test (decryption module rating added as dice) vs encryption rating + 4. **Ruling
+  R5-2 (pending, default = the rule):** the rule needs successes GREATER than ⌈deck rating ÷ 2⌉ (Rating 6 → 4); the
+  p.69 example accepts "at least 3" for Rating 6. Failure:
+  the target network is on alert and every later interception/MIJI against it +2, cumulative per failure.
+- **Reading a channel** (p.69): a Complex Action each time; every such action the GM rolls a detection Success Test
+  for the network: deck rating dice vs the intruder's Electronic Warfare Concentration (rating used as TN); success =
+  the network detects, goes on alert, switches frequencies: the intercepts are void and the next Interception Test
+  takes +2. Intercepted simsense = see what the drones sense; system = position/direction/ammo/damage of any single
+  drone; command = hear orders.
+
+**5b.2 MIJI (p.69–70).** A Complex Action needing an intercept of the relevant channel. **Opposed**: intruder rolls
+their device's Flux (Part 4a.3, modified) vs TN = the target deck's rating; the target rigger rolls their deck's Flux
+vs TN = the intruder's protocol emulation module rating (meaconing, intrusion, interference) or the intruder's ECM
+rating (jamming). Both may use Task Pool (not in system). Intruder wins: Signal Monitor boxes = net successes on the
+channel the operation hits. One opposed test card, both sides roll on their own clients (Part 3a's opposed-roll
+pattern), the GM op resolves once both are recorded.
+- **Meaconing** (p.70): needs a protocol emulation module; command or system channel; the degradation modifier applies
+  to Driving, Gunnery and other physical tests made with a drone's Pilot, and IVIS Tests — not Comprehension Tests nor
+  drones the rigger directly controls (the scan clips "made with a drone's Pilot Rating, as well as IVIS Tests").
+- **Intrusion** (p.70–71): needs a deck + protocol emulation; system, command or simsense channel; wins create a bogus
+  object; the target rigger sees through it on Perception (3) with ≥2 successes (+ degradation modifier); drones keep
+  believing until the illusion is dispelled by ECCM regeneration (5b.5). A prepared bogus object: an Open Computer (or
+  Non-Matrix Programming) Test made 1D6 + 1 hours beforehand; its result replaces the Perception TN (Josie: 8, +1
+  Light). Stored as a note on the channel record (no automation of the drones' belief beyond the card).
+- **Jamming** (p.71–72): needs ECM + a deck; the intruder picks the channel. Command: degradation modifiers to
+  Comprehension and IVIS Tests; 10 boxes → drones cut off (do the last command or hold, act only in self-defence).
+  Simsense: modifiers to the rigger's Perception and Manual Gunnery tests through the drone; for a remotely-rigged
+  drone they also apply to the rigger's TNs and Initiative like damage modifiers; 10 boxes while jumped in → dump shock.
+  System: modifiers to indirect-fire Gunnery Tests with the network (Part 4b.4's FDDM), and the network's
+  BattleTac FDDM performance.
+- **Interference** (p.72): needs a deck + protocol emulation; system channel only. After the first MIJI test, each
+  later Combat Phase either side may spend a Complex Action to attack/counterattack (another opposed MIJI test); the
+  LOSER's system channel takes the boxes (the intruder's own system channel included — an interference contest
+  degrades both networks' monitors); the first to 10 boxes on the opponent (or the one staying while the other exits)
+  takes the whole network; the loser is shut out and dumped (5a.6). Taking over = the intruder's deck becomes the
+  drones' network: one GM op moves the drones (subscribers, affiliation, `controlledVehicles`) from the loser's record
+  to the winner's, with the takeover receipt.
+
+**5b.3 Degradation modifiers.** `channelTn(net, channel)` (pure) = 0/+1/+2/+3 by boxes; each consumer above asks it:
+the drone test helper (5a.2) for meaconing/command/system; the Comprehension Test; the rigger's TN for simsense
+(through `riggerTnParts` with a `droneUuid` context) and Initiative (the worst-damage-modifier path in
+`worstControlledInitMod` takes the simsense term too).
+
+**5b.4 Regenerating MIJI degradation (p.72).** Complex Action: ECCM Test (the network's ECCM rating dice, Task Pool —
+none) vs TN = the higher of the intruder's deck or ECM rating + 3 (the intruder recorded on the boxes' events); every 2
+successes clear 1 box on the chosen channel; one channel per action.
+
+**5b.5 Lost carriers (p.72).** A channel at 10 boxes loses its carrier. Before reconnecting: regenerate until at least
+one box is clear (5b.4); then a Control Systems Concentration Test (the rigger's skill) with the channel's degradation
+modifier and the rigger's own Physical/Stun damage modifiers; success when successes > filled boxes.
+
+### 5c.1 Lifting and pulling (p.33–34)
+- Within Load Rating (or the sum of several vehicles' Load Ratings): no test. Only a crane/winch/boom (R2 `Winch` mod,
+  or GM) lifts; any vehicle pulls with a tow bar/cable.
+- **Pull Test** up to 2 × Load Rating, short distances (< ½ km): a Body Test (the vehicle's Body dice; Stress dice
+  allowed, Part 2a `stressDice`) vs the Pull Test Target Numbers/Modifiers Table: ≤1 × Load 3, 1.1–1.5 × 5, 1.6–2 × 8;
+  bad conditions +1, terrible +3, stuck in ground +1 to +4 (GM), pulling without rollers (ground) +4, vehicle braced in
+  place −2 (bracing takes 1 Turn; braced = immobile). Table key in the dialog's help.
+- Side effects even on failure (p.34): ≤1.5 × Load half speed, +1 Stress per hour; 1.6–2 × quarter speed, +1 Stress per
+  minute (Stress through GM op `stress`, the card gives the rate; the system doesn't time it). Over 1.5 × Load: extra
+  Body (4) Test, failure +1 Stress.
+
+### 5c.2 Mechanical arms and legs (p.34–35)
+- **Arm Test** (articulate motion): Handling Rating as TN (GM may raise/lower); controlled by a rigger: Control Pool
+  dice up to the rigger's Quickness; a drone not directly controlled uses Pilot in place of Quickness (`droneTestDice`).
+  Dice: the controller's Quickness (or Pilot).
+- **Arm Skill Test**: the skill's TN +1 per Handling point above 3 (Handling 4 → +1, 5 → +2).
+- **Arm melee**: the same Handling modifier; effective Strength = Body × Body (R2 `Mechanical Arms` mod: Strength = Body²
+  + enhancement, already derived by the design pass) — the melee attack uses that Strength.
+- **Legs**: walking/running by core p.83 (the Speed Rating is the walking speed; running = Speed × 2.5); character
+  combat rules, not vehicle combat (the vehicle is excluded from the chase); can't kick (attempting = a fall).
+
+### 5c.3 Air-cushion vehicles, aircraft, trains (p.35–36)
+- **ACV**: damage from crashes never exceeds Serious (Part 3b's crash record caps the level for hovercraft); the ACV
+  Terrain Classifications Table replaces the terrain help for ACVs (Open/Normal/Restricted/Tight descriptions); slopes
+  are the GM's.
+- **Runways**: the Runway Distances Table (B = Body): Normal takeoff B × 150 / B × 225, landing B × 300 / B × 450;
+  STOL 40/125, 75/200; VSTOL 20/45, 40/100; VTOL none — first value under Load, second at or above. A profile field on
+  aircraft (`ltProfile` exists: read it) → the sheet shows the distances.
+- **Unusual surfaces**: a Driving Test, base TN 3 takeoff / 4 landing, + Takeoff and Landing Modifiers (cross winds +2,
+  heavy cross winds +3, rough/uneven +1, STOL profile +1, VSTOL +3, arrestor cable/crash net −1 landing only) + the
+  Driving Test Modifiers Table; rough/uneven also a 6L damage resistance for the aircraft (Part 3b's vehicle
+  resistance). Uses Part 2a's Driving Test with a "takeoff/landing" preset.
+- **Monorails and trains**: engines and cars are separate vehicles; Driving Test against the engine's Handling (the
+  train's highest engine Handling); Load Rating of engines sums for pulling; each car/engine has its own Body/Armor and
+  damage. Help text only (no train linkage automation), noted.
+
+### 5c.4 The security rigger (p.77–80)
+- **CCSS**: a new world item type `ccss` (the smallest model: no token, no monitor of its own): Technical Rating 1–10,
+  Vigilance Code (Blue/Green/Amber/Red = 1/2/3/4 successes), encryption, coverage notes, its RC deck rating (drone
+  command limit) and the drone/vehicle UUIDs it commands; it acts as a network (5a) with its own `rcNet`. Adding an
+  item type needs a server restart (system.json `documentTypes`), noted for the release.
+  The security rigger is a character/NPC "assuming the body".
+- **Rigger Perception Tests Table** (p.78): door/gate open-close 5, lock tampering no alarm 3, successful tampering 3 ×
+  tamper successes, device destroyed 4, carefully deactivated 6, system on alert −2; a triggered alarm needs no test.
+  A GM button rolls the rigger's secret Perception.
+- **Actions in a CCSS** (p.78): the Free/Simple/Complex list shown as reference (Speak a Word "(p.? SRII)" clipped).
+  Control a room / fire a weapon system / issue a command / operate a drone use the network rules (5a); "Rigger
+  Bonuses in a CCSS": VCR initiative and cyberware bonuses; Task Pools for encryption/protocols; an intruding rigger
+  only Karma Pool; NPC riggers may add Threat dice; when assuming the body no dice pools but Karma; pools return when
+  jumped into a drone, room or corridor.
+- **Accessing a security system** (p.79–80): five steps, each a Complex Action, each needing successes ≥ the Vigilance
+  Code's count; failure on 2–4 puts the system on alert: (1) find a hardwire access point (GM); (2) tap a dataline —
+  dataline tap rating + Electronics vs Technical Rating; (3) defeat encryption — decryption module rating + Intelligence
+  vs Technical Rating; (4) adjust to protocols — protocol emulation rating + Intelligence vs Technical Rating; (5)
+  rigger combat. Gear required: RC deck, rigger protocol emulation module, dataline tap (if needed), rigger decryption
+  module. A step tracker on the CCSS item per intruder (`flags.sr2e.ccssAccess.<intruderKey>`), GM-written.
+- **Rigger combat** (p.80): rigged Initiative per standard rules (acts every tenth phase as standard: the clipped
+  sentence read as "a rigger acts during every tenth phase"); the winner of Initiative may attack (Complex) or
+  disengage (Free; re-entering = Complex); attack = opposed Willpower Test, attacker may add Control Pool dice up to
+  their Willpower; the winner deals (Willpower)L Stun, +1 level per 2 net successes; the loser resists with Body
+  (+ Control Pool up to Body). Ends when one disengages or passes out; the winner controls the system and gets all
+  information the defeated rigger had.
+- **Decking a rigged system** (p.80): the decker uses a cyberdeck with a rigger protocol emulation module, does steps
+  1–3, then rigger combat with: no Matrix programs, +2 TN on all tests, Initiative −2 with no Response Increase dice,
+  Control Pool = ⌈emulation utility rating ÷ 2⌉, damage as non-lethal black IC (VR2.0 p.49 — under core the core book's
+  non-lethal black IC).
+
+### Checks
+Pure rules in `module/rules/drone-rules.mjs` (modes, Comprehension dice, robot Initiative/Reaction, dump shock
+duration, Signal Monitor bands, interception/MIJI/regeneration/reconnect thresholds, Pull Test TN and side effects,
+Arm Test modifiers, runway distances, takeoff/landing TN, Vigilance thresholds, rigger combat staging), unit-tested
+with the book's examples (Josie's deck 4 → 8 subscribers/4 active; Rigger X; York's TN 6; Jammer's TN 9/8 and 3
+successes; Trixie's 4 boxes → Moderate; Josie's intrusion 2 net, 2 boxes Light, TN 8 +1; Jammer's interference rounds;
+dump shock durations). Quench `sr2e.drones`: affiliation limit refused at rating + 1; a drone affiliated this Turn
+can't act; a captain's-chair drone test rolls Pilot with no pools; a primary drone uses the rigger's pools; a dump
+delivers one card per event; a MIJI opposed test resolved once with the boxes; an interference takeover moves the
+drones in one op; a stale card "not counted". Everything under core stays as Part 1 (Quench under a stubbed setting).
 
 ## Key decisions & tradeoffs
 - Ruleset switch = a world setting with reload (VR2.0 pattern), added in Part 2 when the first R2 rule exists, so
