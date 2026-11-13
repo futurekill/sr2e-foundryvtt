@@ -90,10 +90,12 @@
                title="Ram another vehicle — target its token to pre-fill stats (SR2E p.107)">
               <i class="fas fa-car-burst"></i> Ram
             </a>
+            {{#unless @root.rigger2}}
             <a class="vehicle-ctrl-btn" data-action="escapeTest"
                title="Escape Test as pursuer (SR2E p.107)">
               <i class="fas fa-person-running"></i> Escape
             </a>
+            {{/unless}}
             <a class="vehicle-ctrl-btn" data-action="vehicleHitObject"
                title="Hit a wall or a barrier (SR2E p.109)">
               <i class="fas fa-road-barrier"></i> Hit

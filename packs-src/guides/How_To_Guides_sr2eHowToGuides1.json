@@ -120,6 +120,31 @@
       }
     },
     {
+      "_id": "f38e8b7ef6e8157e",
+      "name": "Run a Rigger 2 chase",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 500000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a vehicle chase by <em>Rigger 2</em> (pp.41–49): speeds, distances, Maneuver Scores and who can act when.</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-r2-chase.png\" alt=\"The Chase window: two cars, their Maneuver Scores, the action buttons and the pursuit\"></p>\n<p><strong>The GM, before the first Combat Turn</strong></p>\n<ol>\n<li>Settings → Vehicle ruleset → <strong>Rigger 2</strong>. Make a combat as usual.</li>\n<li>Combat tracker → <strong>Chase</strong> → <strong>Set up a chase</strong>. <strong>Add</strong> each vehicle with its driver, speed and terrain, and each\npedestrian. <strong>Pursuit:</strong> who chases whom, and how far apart. Tick passengers in each vehicle&#39;s <strong>Aboard</strong> list.</li>\n<li>Players tell you their starting speeds; you set the NPCs&#39;. Then <strong>Begin Combat</strong>.</li>\n</ol>\n<p><strong>Every Combat Turn</strong></p>\n<ol>\n<li>Each driver: <strong>Driver Points</strong>, adding any Control Pool dice. The Maneuver Score appears.</li>\n<li>On your action: <strong>Accelerate</strong>, <strong>Brake</strong>, <strong>Position</strong>, <strong>Stop at…</strong> or <strong>Hide</strong> — the dialog shows the dice and\nthe TN with every modifier. Use Karma if you like, then <strong>Apply to the chase</strong> on the card.</li>\n<li>Passengers shoot and cast as usual, but only in Combat Phases up to the vehicle&#39;s Driver Points.</li>\n<li>Lost them? Anyone aboard the pursuer clicks <strong>Relocate</strong> on the pursuit row.</li>\n<li><strong>Next Turn</strong> as usual: distances change and pools refresh on their own.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>A sports car is quicker in a chase than a van: set each vehicle&#39;s <strong>Class</strong> on its sheet if the design doesn&#39;t say.</li>\n<li>Above the Speed Rating the row turns orange: 1 Stress each turn you stay there.</li>\n<li>Ramming and crashing are still the core rules (Vehicles tab → Ram; Crash Test cards) until the next release.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "a3bb81ee4ccf9902",
       "name": "Drive by the Rigger 2 rules",
       "type": "text",
@@ -134,7 +159,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },
@@ -634,7 +659,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2500000,
+      "sort": 2600000,
       "ownership": {
         "default": -1
       },

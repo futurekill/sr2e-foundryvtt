@@ -258,6 +258,15 @@ Overhead (Part 2b-2, `module/vehicle-overhead.mjs`): EVERY Stress write goes thr
 the GM in the vehicle queue; money moves only on the payer's money writer (`moneyWriterFor`) inside its `moneyQueue`,
 behind `flags.sr2e.overheadReceipts.<tx>` (a `released` marker aborts a late charge). Quench scopes Month ends with
 `only` — never end a month over a world's real vehicles in a test.
+The chase (Part 3a, `module/chase.mjs`, reads in `module/chase-state.mjs`, window `module/apps/chase-panel.mjs`):
+`flags.sr2e.chase` on a Combat, written ONLY by the active GM's ops; lock order `chase-membership` → `chase:<combatId>`
+→ `vdmg:<uuid>` (every vehicle damage commit routes through `setChaseRoute`); never apply Stress/damage while holding a
+chase queue. Every roll is one `actions.<aid>` record (rolling → publishing → resolving → done / cancelRequested →
+cancelled / stale); pool spends carry receipts (`positionReserve.byTest.<aid>` for DP, `chaseSpend.<aid>` otherwise).
+`controllerOf`/`riggedInto` return the chase driver first. EVERY combat's `nextRound` is the staged, resumable
+`advanceRound` (`flags.sr2e.roundTransition`, queue `round:<combatId>`): refreshes go through the pool writer with the
+receipt `flags.sr2e.poolRefresh = "<combatId>:<round>"`; Initiative is stamped `flags.sr2e.initRound`. Weapon/spell
+rolls call `passengerLimit` synchronously first (macros capture targets before their first await).
 Upgrading (p.107, docs/archive/plans/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the

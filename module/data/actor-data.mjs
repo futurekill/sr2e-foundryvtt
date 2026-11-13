@@ -1,3 +1,4 @@
+import { VEHICLE_POINTS } from "../rules/vehicle-combat-rules.mjs";
 import { permanentStress, rigBonuses, isVehicleSkillName } from "../rules/vehicle-r2-rules.mjs";
 import { isRigger2 } from "../vehicle-mode.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
@@ -2045,6 +2046,8 @@ export class VehicleData extends SR2EDataModel {
     const fields = foundry.data.fields;
     return {
       vehicleType: new fields.StringField({ initial: "ground" }),
+      // Rigger 2 Vehicle Points class (p.42; docs/PLAN-vehicles-phase2.md 3a.1); blank = derived (chase.mjs classOf).
+      r2Class: new fields.StringField({ initial: "", blank: true, choices: ["", ...Object.keys(VEHICLE_POINTS)] }),
       // Driving skill override (e.g. "bike"); empty = type default from
       // CONFIG.SR2E.vehicleSkillDefaults
       skill: new fields.StringField({ initial: "", blank: true }),

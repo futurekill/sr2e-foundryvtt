@@ -4210,3 +4210,23 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-customize .vc-blocked td:not(:first-child) { opacity: 0.55; }
 .sr2e-vehicle-sheet .mod-state { font-style: normal; font-size: 10px; padding: 0 4px; border: 1px solid var(--sr2e-gold-dim); color: var(--sr2e-gold); }
 .sr2e-vehicle-sheet .mod-step { width: auto; flex: 0 0 auto; padding: 0 6px; line-height: 20px; font-size: 11px; }
+
+/* Rigger 2 chase panel (module/apps/chase-panel.mjs) */
+.sr2e-chase .chase-body { padding: 6px; overflow-y: auto; }
+.sr2e-chase table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.sr2e-chase th, .sr2e-chase td { border-bottom: 1px solid var(--color-border-light-2, #8884); padding: 3px 4px; vertical-align: top; text-align: left; }
+.sr2e-chase .chase-actions { width: 15em; }
+.sr2e-chase .chase-actions button { display: inline-block; flex: none; width: auto; margin: 1px; padding: 0 6px; line-height: 1.6; font-size: 0.85em; }
+.sr2e-chase .chase-aboard { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 3px; }
+.sr2e-chase .chase-chip { padding: 0 4px; border: 1px solid var(--color-border-light-2, #8886); border-radius: 3px; font-size: 0.85em; }
+.sr2e-chase .chase-chip a { margin-left: 4px; }
+.sr2e-chase .chase-aboard select, .sr2e-chase .chase-group input { width: auto; flex: none; font-size: 0.85em; }
+.sr2e-chase .chase-group { display: inline-flex; gap: 4px; align-items: center; font-size: 0.85em; }
+.sr2e-chase .chase-group input { width: 6em; }
+.sr2e-chase .chase-over td { background: color-mix(in oklch, orange 12%, transparent); }
+.sr2e-chase .chase-warn { color: var(--color-level-warning, #c60); }
+.sr2e-chase .chase-transition { padding: 4px 6px; margin-bottom: 6px; border: 1px solid var(--color-border-light-2, #8886); border-radius: 4px; }
+.sr2e-chase .chase-add .form-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 4px 0; }
+.sr2e-chase .chase-add select, .sr2e-chase .chase-add input { width: auto; flex: none; }
+.sr2e-chase-open { flex: none; width: auto; margin: 2px 4px; padding: 0 8px; }
+.sr2e-passenger-limit { font-size: 0.8em; opacity: 0.85; }

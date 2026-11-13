@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.150.0 — 2026-11-13
+
+### Added
+- **The Rigger 2 chase** (R2 p.41–49; docs/PLAN-vehicles-phase2.md Part 3a), under the Rigger 2 vehicle ruleset:
+  - A **Chase** window from the combat tracker. The GM adds vehicles and pedestrians, drivers, passengers, NPC groups,
+    speeds, terrain and who pursues whom at what distance (Combat Turn step 1, p.42).
+  - **Maneuver Score** = Vehicle Points (the new **Class** on the vehicle sheet; the 20-row table, p.42, derived from the
+    design when blank) + Terrain Points + Speed Points + **Driver Points**, an Open Test (keep the highest die, sixes
+    re-rolled and added) with the Control Pool dice the driver allocates, held for the turn (p.44). A pedestrian's is
+    their Quickness.
+  - Vehicle actions, each a Complex Action with every modifier shown before the roll: **Accelerate/Brake** (p.45:
+    Acceleration × successes, up to Speed Rating × 1.5; a change of twice the distance to an opponent entitles a ram),
+    **Positioning** (p.47: successes add to next turn's Driver Points; or stop at a point), **Hiding** (p.48: contact
+    lost, Escape Bonus) and **Relocating** (p.49: an aboard character's Perception Test vs Signature). **Autonav**
+    on/off (Simple; Free for a jacked-in rigger). NPC vehicle groups roll once with the fastest member's statistics,
+    +1 TN per extra vehicle.
+  - **End of turn** (p.44): every pursuit's distance changes by the difference in speeds; NPC pursuers stop looking
+    after 5 Combat Turns; every driver's, passenger's and pedestrian's pools refresh (p.42).
+  - **Speeding** costs 1 Stress once per Combat Turn spent above the Speed Rating (also when damage lowers the rating).
+  - **Passengers** (p.49): no offensive action (weapon attacks, spells) in a Combat Phase above the vehicle's Driver
+    Points, nor before they're rolled; marked 🚫 in the tracker; the GM may override. Only the rigger is exempt.
+  - **Initiative** (p.44): a driver who isn't jacked in rolls natural Reaction + 1D6.
+  - Every roll is recorded exactly once from its chat card (the card's **Apply to the chase**, after any Karma); a roll
+    whose vehicle changed meanwhile (damage, a new driver) is "not counted"; a cancelled roll's dice can't be spent late.
+
+### Changed
+- **Every Combat Turn change is staged and resumable** (all combats): it records how far it got, so a GM reload or a
+  late player resumes it without re-rolling Initiative, re-posting the card or refreshing pools twice. A player's
+  pools are refreshed on their own client. Pool spends wait while a turn is changing.
+- Under Rigger 2 the core Position Test and Escape Test are replaced by the chase's Positioning and Hiding (sheet and
+  macros say so). Ramming and crashing stay core until Part 3b.
+
 ## 0.149.0 — 2026-11-12
 
 ### Added

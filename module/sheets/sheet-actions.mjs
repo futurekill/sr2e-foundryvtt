@@ -3324,9 +3324,10 @@ export async function promptVehicleTestOptions(actor, vehicle, preset = {}) {
   // Spent only on the pool's own client (its player's, else the GM's): one writer per pool.
   const controlAvail = isPoolClient(actor) ? (actor.system.dicePools?.control?.value ?? 0) : 0;
   const controlCap   = Math.min(controlAvail, sk.cap);
-  // Under Rigger 2 the Driving Test replaces the Handling Test; Position/Crash stay core until R2 vehicle combat (Part 3).
+  // Under Rigger 2 the Driving Test replaces the Handling Test and the chase panel's Positioning the Position Test
+  // (Part 3a); the Crash Test stays core until Part 3b.
   const r2 = (await import("../vehicle-mode.mjs")).isRigger2();
-  const type0 = preset.testType ?? (r2 ? "position" : "handling");
+  const type0 = preset.testType ?? (r2 ? "crash" : "handling");
 
   const readOp = (root) => ({
     complex: !!root.querySelector("[name=opComplex]")?.checked,
@@ -3377,7 +3378,7 @@ export async function promptVehicleTestOptions(actor, vehicle, preset = {}) {
         <div class="form-group" style="margin:2px 0;"><label>Test:</label>
           <select id="sr2e-vt-type" name="testType">
             ${r2 ? "" : `<option value="handling" ${type0 === "handling" ? "selected" : ""} title="Out of combat (p.183)">Handling Test</option>`}
-            <option value="position" ${type0 === "position" ? "selected" : ""}>Position Test</option>
+            ${r2 ? "" : `<option value="position" ${type0 === "position" ? "selected" : ""}>Position Test</option>`}
             <option value="crash" ${type0 === "crash" ? "selected" : ""}>Crash Test</option>
           </select></div>
         <div class="form-group" id="sr2e-vt-terrain-row" style="margin:2px 0;"><label>Terrain:</label>

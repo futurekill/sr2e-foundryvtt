@@ -530,6 +530,28 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
       clears it. Workshop: add an engine customization level and save → one check; save again → none.
 - [ ] Back to Core Rulebook: no Rigger 2 panel, the Handling Test is back; Stress values kept.
 
+### The chase (Part 3a; Quench `sr2e.vehicle-chase`; unit `test/vehicle-combat-rules.test.mjs`)
+- [ ] Rigger 2 on, GM: combat tracker → **Chase** → Set up a chase. Add two vehicles with drivers and a pursuit
+      (pursuer, quarry, distance). A vehicle sheet shows **Class** (Vehicle Points, p.42), derived when blank.
+- [ ] Begin combat: each vehicle's row shows VP/TP/SP; its driver's owner gets **Driver Points**: an Open Test (keep the
+      highest die, sixes re-rolled and added), Control Pool dice held for the turn; the Maneuver Score appears. A
+      second click is refused. NPC drivers add their Professional Rating, no Control Pool.
+- [ ] Accelerate/Brake (p.45): the dialog shows dice vs TN with every modifier; the card's **Apply to the chase**
+      (after any Karma) changes the speed (max Speed Rating × 1.5); going above the Speed Rating marks the row and
+      costs 1 Stress, once per turn.
+- [ ] Position (+successes to next turn's Driver Points); Stop at… (Josie: 56 of 140 m, speed kept); Hide → the pursuit
+      shows "hidden", the quarry's next Maneuver Score has the Escape Bonus; Relocate (an aboard character's
+      Perception) restores contact. An NPC pursuer gives up after 5 Combat Turns.
+- [ ] Next turn while a roll is unapplied: the turn waits ("Turn changing… waiting"); Cancel (or apply) → Resume → the
+      turn ends, every distance changes by the speed difference, pools of drivers/passengers/pedestrians refresh once.
+- [ ] Weapon damage lands on a vehicle between its action's dialog and Apply: the card says "not counted" (stale).
+      Damage that cuts the Speed Rating below its speed: the row turns "above its Speed Rating", 1 Stress.
+- [ ] A passenger with Initiative 17 in a car with Driver Points 11 (Blade, p.49): 🚫11 in the tracker; a shot in Phase
+      17 is refused (the GM may override); the rigger jacked in is exempt; nobody fires before the DP are rolled.
+- [ ] A manual driver's Initiative: natural Reaction + 1D6 (no wired reflexes); jacked in: the VCR's.
+- [ ] Under Rigger 2 the Position Test is gone from the vehicle test dialog and the Escape button from the Vehicles tab;
+      Ram and Crash stay core until Part 3b. Back to core: no Chase button.
+
 ### Maintenance overhead (Part 2b-2; Quench `sr2e.vehicle-r2` → "Maintenance overhead")
 - [ ] Rigger 2 on, GM: Actors sidebar → **Month ends** → confirm. Each vehicle linked to a character gets the month:
       1% of its value (a 40,000¥ van → 400¥) + 10 per Stress taken that month. Click twice quickly: one month.

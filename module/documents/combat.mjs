@@ -15,7 +15,10 @@
  */
 import { spendInitiative, nextEligibleTurnIndex, livingCombatantIds } from "../rules/sr2e-rules.mjs";
 import { processCombatBoundary, postCountCards } from "../elementals.mjs";
-import { nextPhaseSeq } from "../engagement.mjs";
+import { nextPhaseSeq, enqueueAttack } from "../engagement.mjs";
+import { gmCall } from "../vehicle-play.mjs";
+import { chaseOf, chaseUnion } from "../chase-state.mjs";
+import { chaseCloseStage, chaseOpenStage, requestRefresh, hasChase } from "../chase.mjs";
 
 export class SR2ECombat extends Combat {
 
@@ -27,12 +30,13 @@ export class SR2ECombat extends Combat {
     const unrolled = this.combatants.filter(c => !c.isDefeated && !c.heldOut && c.initiative === null).map(c => c.id);
     if (unrolled.length) await this.rollInitiative(unrolled, { updateTurn: false });
     await super.startCombat();
-    // SR2E p.84: all Dice Pools are full at the first step of the first Combat
-    // Turn of an encounter (unless auto-refresh is off).
-    if (this._poolRefreshMode() !== "off") await this._refreshAllActors();
     // Don't trust super's turn pointer (it can land on a corpse): point at the
     // highest living total, or clear it if nobody can act.
-    return this._pointAtFirstLiving();
+    await this._pointAtFirstLiving();
+    // SR2E p.84: all Dice Pools are full at the first step of the first Combat Turn of an encounter (unless
+    // auto-refresh is off), plus a chase's drivers, passengers and pedestrians; then the chase opens round 1.
+    await this.setFlag("sr2e", "roundTransition", { from: 0, to: 1, seq: this.getFlag("sr2e", "boundarySeq") ?? 0, stage: "refreshing", start: true });
+    return this.advanceRound(0);
   }
 
   /** Configured pool-refresh behaviour: "action" (RAW), "round", or "off". */
@@ -45,16 +49,6 @@ export class SR2ECombat extends Combat {
   async _refreshActorPools(combatant) {
     if (!game.user.isGM) return;
     await combatant?.actor?.refreshDicePools?.();
-  }
-
-  /** Refresh every distinct combatant actor's refreshable pools. GM-side. */
-  async _refreshAllActors() {
-    if (!game.user.isGM) return;
-    const seen = new Map();
-    // Key by uuid, not actor.id: distinct UNLINKED tokens can share a base Actor
-    // id yet hold independent pools (ActorDelta), so id-dedup would drop all but one.
-    for (const c of this.combatants) if (c.actor) seen.set(c.actor.uuid, c.actor);
-    for (const actor of seen.values()) await actor.refreshDicePools?.();
   }
 
   /** Set initiative to null on every defeated combatant that still holds one. */
@@ -118,46 +112,117 @@ export class SR2ECombat extends Combat {
 
   /**
    * @override
-   * A new Combat Turn (SR2E p.78): everyone re-rolls Initiative, and the
-   * countdown restarts from the new highest total.
+   * A new Combat Turn (SR2E p.78): everyone re-rolls Initiative, and the countdown restarts from the new highest
+   * total. Runs as ONE staged, resumable round change (docs/PLAN-vehicles-phase2.md 3.0) on the active GM.
    */
   async nextRound() {
-    await this.unsetFlag("sr2e", "lastActorId");
-    // A new Combat Turn: re-roll ONLY the living. The defeated stay out with
-    // null initiative — re-rolling a corpse used to give it a fresh high total
-    // that jumped it to the top of the tracker.
-    await this._clearDefeatedInitiative();
-    const live = livingCombatantIds(this.combatants);
-    // A Combat Turn is ending: elementals sustaining spells for mages in this
-    // combat spend a point of Force (SR2E p.142) — BEFORE the new Turn begins,
-    // so a spell that runs out ends first. Boundaries are counted by a monotonic
-    // counter committed with the round, so a retried Next Round cannot charge
-    // twice and editing the round number charges nothing. Best effort: turns it
-    // could not count get a recovery card once the new round is committed.
-    const outgoing = this.round;
-    const seq = (this.getFlag("sr2e", "boundarySeq") ?? 0) + 1;
-    const failures = outgoing >= 1 ? await processCombatBoundary(this, seq, outgoing) : [];
-    await this.update({ round: this.round + 1, turn: null, "flags.sr2e.boundarySeq": seq,
-                        "flags.sr2e.phaseSeq": nextPhaseSeq(this) });
-    if (failures.length) await postCountCards(this, seq, outgoing, failures);
-    if (live.length) await this.rollInitiative(live, { updateTurn: false });
+    if (!game.user.isGM) return gmCall("roundAdvance", { combatId: this.id, from: this.round });
+    return this.advanceRound(this.round);
+  }
 
-    await ChatMessage.create({
-      content: `<div class="sr2e-item-card">
-        <strong>Combat Turn ${this.round}</strong> — Initiative re-rolled.
-        Phases count down from the highest total; each action costs 10 Initiative.
-      </div>`
-    });
+  /**
+   * The staged round change from round `from`: closing (chase) → advancing → initiative → pointing → refreshing →
+   * opening (chase). Each stage is idempotent and recorded in flags.sr2e.roundTransition, so a resume (GM reload, a
+   * writer's ack) continues where it stopped. A no-op unless the combat is on `from` or a change from it is underway.
+   */
+  advanceRound(from) {
+    return enqueueAttack(`round:${this.id}`, () => this._advance(from));
+  }
 
-    // Point the tracker at the new highest living total (or clear it).
-    const result = await this._pointAtFirstLiving();
-    // "round" refreshes everyone at the top of the new Combat Turn; "action"
-    // refreshes just the combatant whose action opens the Turn (the rest get
-    // theirs as their actions come up in nextTurn).
-    const mode = this._poolRefreshMode();
-    if (mode === "round") await this._refreshAllActors();
-    else if (mode === "action") await this._refreshActorPools(this.combatant);
-    return result;
+  /** Resume an unfinished round change (the GM's ready pass, a writer's ack). */
+  resumeRound() {
+    const t = this.getFlag("sr2e", "roundTransition");
+    return t ? this.advanceRound(t.from) : null;
+  }
+
+  /** @private */
+  async _advance(from) {
+    if (!game.user.isGM) return this;
+    let t = this.getFlag("sr2e", "roundTransition");
+    if (t && t.from !== from) return this;
+    if (!t) {
+      if (this.round !== from) return this;
+      t = { from, to: from + 1, seq: (this.getFlag("sr2e", "boundarySeq") ?? 0) + 1,
+            stage: hasChase(this) ? "closing" : "advancing" };
+      await this.setFlag("sr2e", "roundTransition", t);
+    }
+    const stage = async (next) => { t = { ...t, stage: next }; await this.setFlag("sr2e", "roundTransition", t); };
+
+    if (t.stage === "closing") {
+      const r = await chaseCloseStage(this, t.from);
+      if (!r.done) return this;   // waiting on players' rolls or acks; the panel lists them, the GM resumes
+      await stage("advancing");
+    }
+    if (t.stage === "advancing") {
+      await this.unsetFlag("sr2e", "lastActorId");
+      // Re-roll ONLY the living: the defeated stay out with null initiative.
+      await this._clearDefeatedInitiative();
+      // Elementals sustaining spells spend Force at the boundary (SR2E p.142), deduplicated by `seq`, which is
+      // stored before the call so a resume reuses it.
+      const failures = t.from >= 1 ? await processCombatBoundary(this, t.seq, t.from) : [];
+      if (this.round !== t.to) {
+        await this.update({ round: t.to, turn: null, "flags.sr2e.boundarySeq": t.seq, "flags.sr2e.phaseSeq": nextPhaseSeq(this) });
+      }
+      if (failures.length) await postCountCards(this, t.seq, t.from, failures);
+      await stage("initiative");
+    }
+    if (t.stage === "initiative") {
+      // A resume rolls only the living still missing this round's roll (SR2ECombatant stamps initRound).
+      const missing = livingCombatantIds(this.combatants).filter(id => this.combatants.get(id)?.getFlag("sr2e", "initRound") !== t.to);
+      if (missing.length) await this.rollInitiative(missing, { updateTurn: false });
+      const key = `${this.id}:${t.to}`;
+      if (!game.messages.some(m => m.getFlag("sr2e", "roundCard") === key)) {
+        await ChatMessage.create({ flags: { sr2e: { roundCard: key } }, content: `<div class="sr2e-item-card">
+          <strong>Combat Turn ${t.to}</strong> — Initiative re-rolled.
+          Phases count down from the highest total; each action costs 10 Initiative.
+        </div>` });
+      }
+      await stage("pointing");
+    }
+    if (t.stage === "pointing") {
+      await this._pointAtFirstLiving();
+      await stage("refreshing");
+    }
+    if (t.stage === "refreshing") {
+      // "round" refreshes everyone; "action" the combatant opening the Turn (the rest get theirs in nextTurn); a
+      // chase also refreshes every driver, passenger and pedestrian (R2 p.42), whatever the mode.
+      const mode = this._poolRefreshMode();
+      const actors = t.start ? (mode === "off" ? [] : this._combatantActors())
+        : mode === "round" ? this._combatantActors() : mode === "action" ? [this.combatant?.actor].filter(Boolean) : [];
+      if (!await this._refreshWithReceipt(actors, t.to)) return this;   // a player's client is refreshing; it resumes us
+      await stage(hasChase(this) ? "opening" : "done");
+    }
+    if (t.stage === "opening") {
+      await chaseOpenStage(this, t.to);
+    }
+    await this.unsetFlag("sr2e", "roundTransition");
+    return this;
+  }
+
+  /** Every distinct combatant actor (by uuid: unlinked tokens sharing a base actor keep their own pools). */
+  _combatantActors() {
+    const seen = new Map();
+    for (const c of this.combatants) if (c.actor) seen.set(c.actor.uuid, c.actor);
+    return [...seen.values()];
+  }
+
+  /**
+   * Refresh `actors` plus the chase union exactly once each for round `to` (receipt flags.sr2e.poolRefresh), each
+   * through its pool writer. True when every one carries the receipt; false while a player's client still owes one.
+   * @private
+   */
+  async _refreshWithReceipt(actors, to) {
+    const receipt = `${this.id}:${to}`;
+    const all = new Map(actors.map(a => [a.uuid, a]));
+    for (const uuid of chaseUnion(chaseOf(this))) {
+      const a = fromUuidSync(uuid);
+      if (a) all.set(a.uuid, a);
+    }
+    let done = true;
+    for (const actor of all.values()) {
+      if (!await requestRefresh(actor, receipt, this.id)) done = false;
+    }
+    return done;
   }
 
   /**

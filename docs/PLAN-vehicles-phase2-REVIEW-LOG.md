@@ -456,3 +456,35 @@ findings and user rulings. The shared rolled-step protocol addresses round 12's 
 
 ### Claude's response
 Plan locked at draft 13. Build order: 3a (the chase), 3b (damage), 3c (magic), each with a Codex code review.
+
+## Part 3a code, round 1 — Codex (working tree, fresh session): REVISE, 8 findings
+1. Passenger limits read only the Open Test, not the Positioning/Escape bonuses that are part of Driver Points (p.47–49).
+2. "Apply" closed the test outside the Karma queue: a reroll could land after the recorded result.
+3. The pool-writer refresh socket accepted any actor/receipt: a forged or stale request could refresh spent pools.
+4. `chaseDriverUuid` was unused: the chase driver didn't drive resistance permissions, pool choice or crash cards.
+5. Autonav and Signature read the base stats, not the modified ones.
+6. The TN helpers floored at 2 before defaulting; Vehicle Empathy was missing.
+7. A GM speed edit above the Speed Rating mid-turn skipped speeding Stress.
+8. A refresh interrupted between the actor and its foci left the foci unrefreshed for good.
+
+### Claude's response
+All taken. (1) `dp.total` = Open Test + Positioning + Escape, used for the passenger limit. (2) Apply closes the test in
+`karma:<messageId>` on the clicking client before the GM records it. (3) The writer refreshes only for a combat in
+"refreshing" with that round's receipt, a participant, and itself the pool client. (4) `controllerOf` (and `riggedInto`)
+return the chase entry's driver first, so every existing vehicle path follows it. (5) `effective.autonav/signature`.
+(6) Helpers return the raw sum; defaulting + Empathy join before the floor. (7) The edit sets `over` with the same
+per-turn Stress receipt. (8) Foci first, the actor's receipt last; nothing refreshes once the actor carries it.
+
+## Part 3a code, round 2 — Codex (round-1 fixes only, fresh session): REVISE, 2 findings
+1. The GM's close pass still closed and recorded a Success Test card outside its roller's Karma queue.
+2. `riggedInto` let a stale `controlledVehicles` entry win over the chase driver.
+
+### Claude's response
+Both taken. (1) The GM pass records automatically only Open Tests and cards their roller already applied (closed in the
+Karma queue); any other card holds the turn and the panel offers the GM an explicit **Apply now** (an override, like any
+GM force). (2) With a chase driver, `riggedInto` is true only for that driver; `controlledVehicles` is the fallback.
+
+## Part 3a code, round 3 — Codex (round-2 fixes only, fresh session): APPROVED
+"No material problems found in the round-2 fixes. Published unclosed cards have the GM's Apply now path; vanished
+rollers without cards have forced cancellation. Existing `riggedInto` callers remain compatible with chase-driver
+precedence and the fallback."

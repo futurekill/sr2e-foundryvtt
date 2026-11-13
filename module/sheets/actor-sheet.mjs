@@ -1,4 +1,6 @@
 import { isRigger2 } from "../vehicle-mode.mjs";
+import { classOf } from "../chase.mjs";
+import { VEHICLE_POINTS, R2_CLASS_LABELS } from "../rules/vehicle-combat-rules.mjs";
 import { shiftView } from "../shapeshift.mjs";
 import { skInitDice } from "../rules/vr2-frames.mjs";
 import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES, weaponUsable, activeFormOf } from "../rules/shapeshift-rules.mjs";
@@ -2150,6 +2152,12 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       category: d.category, plantCost: this.document.system.plantCost,
       traits: ["drone", "transport", "tractor", "truck", "zeppelin", "electricAircraft"].map(t => ({ key: t, on: (d.traits ?? []).includes(t) || (t === "transport" && d.transport) }))
     } : null;
+    // Rigger 2 vehicle combat (p.42): the Vehicle Points class; blank = derived from the design or type.
+    if (isRigger2()) {
+      const derived = classOf({ system: { ...this.document.system.toObject(), r2Class: "" } });
+      context.r2Classes = Object.entries(VEHICLE_POINTS).map(([key, vp]) => ({ key, label: `${R2_CLASS_LABELS[key]} (${vp >= 0 ? "+" : ""}${vp})` }));
+      context.r2ClassDerived = derived ? R2_CLASS_LABELS[derived] : "none (set one)";
+    }
     context.baseConvert = game.user.isGM && !this.document.system.baseConverted ? this.document.getFlag("sr2e", "baseConvert") : null;
     context.r2 = (await import("../vehicle-play.mjs")).r2Context(this.document);
     return context;

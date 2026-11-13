@@ -1,3 +1,4 @@
+import { passengerGate, passengerLimit } from "../chase.mjs";
 import { adeptPowersWork, weaponUsable, inAnimalForm } from "../rules/shapeshift-rules.mjs";
 import { parseDrainCode } from "../data/item-data.mjs";
 import { moneyQueue, applyUpdate } from "../money.mjs";
@@ -563,6 +564,7 @@ export class SR2EItem extends Item {
     // For vehicle-mounted weapons, the gunner (a character) rolls — skills,
     // wound penalties and recoil are theirs; the weapon stays on the vehicle.
     const actor = options.gunner ?? this.parent;
+    if (passengerLimit(actor) && !await passengerGate(actor)) return;   // sync unless limited: callers capture targets synchronously
     if (!actor) return;
     // A shapeshifter's gear doesn't shift; a multi-form critter's attacks belong to their form (Companion p.36).
     if (!weaponUsable(actor.type, actor.system, this.system)) return ui.notifications.warn(`${actor.name} can't use ${this.name} in this form.`);
@@ -1540,6 +1542,7 @@ export class SR2EItem extends Item {
   async _rollSpellcast(options = {}) {
     const actor = this.parent;
     if (!actor) return;
+    if (passengerLimit(actor) && !await passengerGate(actor)) return;   // sync unless limited: callers capture targets synchronously
     if (options.split?.length) return this._rollSplitCast(options);
 
     // Force is provided by the cast dialog; fall back to the item's stored value.

@@ -10,6 +10,7 @@ import { crashTrigger, woundLevelOf, impactDamage, reservedControl, levelBelow }
 import { resolveBarrier } from "./rules/sr2e-rules.mjs";
 import { r2Speed, engineFailureStress, permanentStress, repairQuote, repairHours, drivingTN, stressDice, ruleOfOne, drivingStressOutcome, overhaul } from "./rules/vehicle-r2-rules.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
+import { poolsLocked, actionOf, chaseDriverUuid } from "./chase-state.mjs";
 import { brRound, installTime } from "./rules/vehicle-custom.mjs";
 import { stressPatch, mechanicLabour } from "./rules/vehicle-overhead-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
@@ -65,6 +66,9 @@ export function onVehicleSocket(data) {
 export function controllerOf(vehicle) {
   const uuid = vehicle?.uuid;
   if (!uuid) return null;
+  // Rigger 2 chase: the entry's driver (a character or NPC, token actors allowed) drives it (plan 3.0 driverOf).
+  const chaseDriver = chaseDriverUuid(vehicle);
+  if (chaseDriver) return fromUuidSync(chaseDriver) ?? null;
   return game.actors.find(a => a.type === "character" && (a.system.controlledVehicles ?? []).includes(uuid)) ?? null;
 }
 
@@ -90,8 +94,10 @@ export function isPoolClient(actor) {
 
 /** Is this character jacked into this vehicle through a VCR (rigging AND controlling it)? */
 export function riggedInto(character, vehicle) {
-  return !!(character?.system?.rigging && (character.system.vehicleControlRig ?? 0) > 0
-    && (character.system.controlledVehicles ?? []).includes(vehicle?.uuid));
+  if (!(character?.system?.rigging && (character.system.vehicleControlRig ?? 0) > 0)) return false;
+  // A chase driver takes precedence over a stale `controlledVehicles` entry (plan 3.0 driverOf).
+  const chaseDriver = chaseDriverUuid(vehicle);
+  return chaseDriver ? chaseDriver === character.uuid : (character.system.controlledVehicles ?? []).includes(vehicle?.uuid);
 }
 
 /** Take or give up control of a linked vehicle (the GM writes it, clearing every other controller). */
@@ -145,12 +151,16 @@ export function commitVehicleDamage(vehicle, boxes, { source = "weapon", eventId
   return gmCall("damage", { vehicleUuid: vehicle.uuid, boxes, source, eventId: eventId ?? foundry.utils.randomID(16), receipt, woundLevel });
 }
 
+/** chase.mjs's damage route (lock order chase-membership → chase:<combatId> → vdmg:<uuid>); null = direct. */
+let chaseRoute = null;
+export function setChaseRoute(fn) { chaseRoute = fn; }
+
 GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLevel }, user) => {
   const vehicle = fromUuidSync(vehicleUuid);
   if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
   const path = receipt?.path ?? `flags.sr2e.vdmg.${eventId}`;
   if (!path.startsWith("flags.sr2e.")) throw new Error("bad receipt path");
-  const r = await enqueueAttack(`vdmg:${vehicleUuid}`, async () => {
+  const commit = () => enqueueAttack(`vdmg:${vehicleUuid}`, async () => {
     // Validated at commit time (control may have changed while this waited; code review #8).
     if (!mayCommit(user, vehicle)) throw new Error(`${user?.name} may not damage ${vehicle.name}`);
     if (foundry.utils.getProperty(vehicle, path) != null) return { landedBoxes: 0, skipped: true };
@@ -164,6 +174,7 @@ GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLeve
       inCombat: !!phase });
     return { landedBoxes: value - before, trigger, preSpeed, phase };
   });
+  const r = chaseRoute ? await chaseRoute(vehicle, commit) : await commit();
   // Triggers run after the queued step (the crash commits through this same queue), on what the step captured.
   if (r.trigger === "autoCrash") await resolveCrash(vehicle, { speed: r.preSpeed, auto: true });
   else if (r.trigger === "crashTest" && await once(vehicle, `crashTestDue:${r.phase}`)) await postCrashTestDue(vehicle);
@@ -238,9 +249,12 @@ export function passengerButton({ power, level, key, mode = "impact", poolOk = f
 
 /* ── Control Pool spends (plan Part 1 #6, #7) ─────────────────────────────────────────────────────────────────── */
 
+const TURN_CHANGING = "The Combat Turn is changing — try again in a moment.";
+
 /** Debit up to `n` dice of a pool on this client, in the actor's one pool queue; returns what was debited. */
 export function spendPool(actor, key, n) {
   return defenseQueue(actor.uuid, async () => {
+    if (poolsLocked(actor)) throw new Error(TURN_CHANGING);
     const pool = actor.system.dicePools?.[key];
     const d = Math.max(0, Math.min(Math.floor(Number(n) || 0), pool?.value ?? 0));
     if (d) await actor.update({ [`system.dicePools.${key}.value`]: pool.value - d, [`system.dicePools.${key}.max`]: pool.max });
@@ -249,23 +263,33 @@ export function spendPool(actor, key, n) {
 }
 
 /**
- * A Position Test's Control Pool dice (p.105): debited AND recorded as held for this round in one queued update, so a
- * refresh can never land between the two (code review #6). Returns the dice paid.
+ * Control Pool dice held for the rest of the turn (p.105; Rigger 2 Driver Points, p.44): debited AND recorded under
+ * `testId` in one queued update, so a refresh can never land between the two. Idempotent by test id: a recorded
+ * amount is returned, never debited again; a "void" receipt (a cancelled slot, plan 3a.2) refuses the spend. With
+ * `combatId` the reservation belongs to that combat (default: the current one) and a chase slot must still be
+ * "rolling" in the GM's record. Returns the dice paid.
  */
-export function spendPosition(rigger, n, testId = foundry.utils.randomID(12)) {
-  const c = game.combat;
+export function spendPosition(rigger, n, testId = foundry.utils.randomID(12), { combatId = null, round = null } = {}) {
+  const c = combatId ? game.combats.get(combatId) : game.combat;
   return defenseQueue(rigger.uuid, async () => {
+    if (poolsLocked(rigger)) throw new Error(TURN_CHANGING);
+    const rnd = round ?? c?.round;
+    const cur = rigger.getFlag("sr2e", "positionReserve");
+    const same = c?.started && cur?.combatId === c.id && cur?.round === rnd;
+    const prior = same ? cur.byTest?.[testId] : undefined;
+    if (prior === "void") return 0;
+    if (prior != null) return Number(prior) || 0;
+    if (combatId && actionOf(combatId, testId)?.state !== "rolling") return 0;
     const pool = rigger.system.dicePools?.control;
     const d = Math.max(0, Math.min(Math.floor(Number(n) || 0), pool?.value ?? 0));
     if (!d) return 0;
     const upd = { "system.dicePools.control.value": pool.value - d, "system.dicePools.control.max": pool.max };
     if (c?.started) {
-      const cur = rigger.getFlag("sr2e", "positionReserve");
-      if (cur?.combatId === c.id && cur?.round === c.round) upd[`flags.sr2e.positionReserve.byTest.${testId}`] = d;
+      if (same) upd[`flags.sr2e.positionReserve.byTest.${testId}`] = d;
       else {
         // A new round replaces the record: unset first, since a flag update merges and would keep old tests.
         if (cur) await rigger.update({ "flags.sr2e.-=positionReserve": null });
-        upd["flags.sr2e.positionReserve"] = { combatId: c.id, round: c.round, byTest: { [testId]: d } };
+        upd["flags.sr2e.positionReserve"] = { combatId: c.id, round: rnd, byTest: { [testId]: d } };
       }
     }
     await rigger.update(upd);
@@ -273,10 +297,11 @@ export function spendPosition(rigger, n, testId = foundry.utils.randomID(12)) {
   });
 }
 
-/** Control Pool dice still held by this round's Position Tests. */
+/** Control Pool dice still held by the current round of the reservation's OWN combat. */
 export function positionReserved(rigger) {
-  const c = game.combat;
-  return c?.started ? reservedControl(rigger?.getFlag("sr2e", "positionReserve"), c.id, c.round) : 0;
+  const r = rigger?.getFlag("sr2e", "positionReserve");
+  const c = r ? game.combats?.get(r.combatId) : null;
+  return c?.started ? reservedControl(r, c.id, c.round) : 0;
 }
 
 /* ── Ramming (p.107): the opposed card ────────────────────────────────────────────────────────────────────────── */

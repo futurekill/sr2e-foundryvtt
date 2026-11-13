@@ -55,6 +55,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
+import { poolsLocked, drivenEntry } from "../chase-state.mjs";
 import { controllerOf, riggedInto, commitVehicleDamage, resolveCrash, spendPool, spendPosition, positionReserved, renderVehicleRamCard, worstControlledInitMod, isPoolClient } from "../vehicle-play.mjs";
 import { vehicleOperationMod, vehicleSkillDice, positionOutcomes, manipulationVsVehicle } from "../rules/vehicle-play-rules.mjs";
 /** An attribute's display name ("Quickness"); Reaction isn't in the attribute list. */
@@ -343,6 +344,16 @@ export function cleanSpellDefinition(src) {
   };
 }
 
+/**
+ * A core vehicle-combat path called under Rigger 2 without an explicit ruleset (a sheet button, a macro): refused,
+ * naming the Rigger 2 action that replaces it (docs/PLAN-vehicles-phase2.md 3a.8). A core card passes "core".
+ */
+function r2Refuses(options, r2Action) {
+  if (!isRigger2() || (options?.ruleset ?? "rigger2") === "core") return false;
+  ui.notifications.warn(`SR2E | Under the Rigger 2 vehicle rules this is the ${r2Action} action on the chase panel (combat tracker).`);
+  return true;
+}
+
 export class SR2EActor extends Actor {
 
   // All derived-data computation (cyberware/adept modifiers, essence, pools,
@@ -503,6 +514,11 @@ export class SR2EActor extends Actor {
   }
 
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
+    // A staged round change is refreshing this actor's pools: a spend now would be wiped (docs/PLAN-vehicles-phase2.md 3.0).
+    if (Object.values(options.poolDice ?? {}).some(n => n > 0) && poolsLocked(this)) {
+      ui.notifications.warn("SR2E | The Combat Turn is changing — try again in a moment.");
+      return null;
+    }
     // Apply wound penalty (SR2E Injury Modifier, cumulative across the
     // physical and stun columns) and the sustained-spell penalty
     // (+2 per spell sustained by concentration, SR2E p.130).
@@ -695,20 +711,25 @@ export class SR2EActor extends Actor {
    * does NOT (it is not in dicePools). Committed Spell Defense releases when the
    * Magic Pool refreshes (p.132). Only touches pools this actor type actually
    * has, and only writes when something changed (so it never forces a re-render).
+   * With `receipt` (a staged round change, docs/PLAN-vehicles-phase2.md 3.0 step 5) the refresh happens at most once
+   * per receipt: it is written in the same update as the pools (and on each focus with its reset), and a document
+   * already carrying it is skipped, so a resumed round change never restores dice spent after the first refresh.
+   * @param {{receipt?: string}} [o]
    * @returns {Promise<Actor|undefined>}
    */
-  async refreshDicePools() {
+  async refreshDicePools({ receipt = null } = {}) {
     // In the Spell Defense queue: the refresh clears committed Spell Defense,
     // which must not interleave with a grant or a resistance spend (p.132).
-    return defenseQueue(this.uuid, () => this._refreshDicePools());
+    return defenseQueue(this.uuid, () => this._refreshDicePools(receipt));
   }
 
   /** @private */
-  async _refreshDicePools() {
-    const updates = dicePoolRefreshUpdates(this.system.dicePools);
+  async _refreshDicePools(receipt = null) {
+    const fresh = !receipt || this.getFlag("sr2e", "poolRefresh") !== receipt;
+    const updates = fresh ? dicePoolRefreshUpdates(this.system.dicePools) : {};
     // Position Test dice stay out of the Control Pool for the rest of the turn (SR2E p.105).
     const held = positionReserved(this);
-    if (held > 0 && this.system.dicePools?.control) {
+    if (fresh && held > 0 && this.system.dicePools?.control) {
       const ctl = this.system.dicePools.control;
       updates["system.dicePools.control.value"] = Math.max(0, (ctl.max ?? 0) - held);
       updates["system.dicePools.control.max"] = ctl.max;
@@ -721,25 +742,28 @@ export class SR2EActor extends Actor {
     // makes "gone (pffft!) forever" structurally true rather than remembered.
     // Unused drawn Team Karma evaporates rather than becoming the character's.
     const k = this.system.karma;
-    if (k) {
+    if (k && fresh) {
       if ((k.spent ?? 0) !== 0) updates["system.karma.spent"] = 0;
       if ((k.drawn ?? 0) !== 0) updates["system.karma.drawn"] = 0;
     }
+    // Spell focus dice refresh on exactly this path — the book says to treat them "exactly like Magic Pool dice for
+    // the purposes of when they refresh" (p.137). `spent` lives on embedded items, so this is NOT behind the actor
+    // update's early return (else "foci sometimes don't refresh"). Bulked into one call.
+    // With a receipt the foci go FIRST (each stamped) and the actor's receipt LAST: the actor's receipt means the
+    // whole refresh is done, and an interrupted one resumes skipping only what already carries it.
+    const refreshFoci = async () => {
+      const focusUpdates = this.items
+        .filter(i => i.type === "focus" && (i.system.spent ?? 0) !== 0 && (!receipt || i.getFlag("sr2e", "poolRefresh") !== receipt))
+        .map(i => ({ _id: i.id, "system.spent": 0, ...(receipt ? { "flags.sr2e.poolRefresh": receipt } : {}) }));
+      if (focusUpdates.length) await this.updateEmbeddedDocuments("Item", focusUpdates);
+    };
+    if (!fresh) return;
+    if (receipt) {
+      await refreshFoci();
+      updates["flags.sr2e.poolRefresh"] = receipt;
+    }
     if (!foundry.utils.isEmpty(updates)) await this.update(updates);
-
-    // Spell focus dice refresh on exactly this path — the book says to treat them
-    // "exactly like Magic Pool dice for the purposes of when they refresh"
-    // (p.137).
-    //
-    // This deliberately runs AFTER the actor update and is NOT behind the same
-    // early return. `spent` lives on embedded items, not system.dicePools, so
-    // returning when the actor pools happened to be unchanged would skip focus
-    // refresh — presenting as "foci sometimes don't refresh", which is miserable
-    // to diagnose. Bulked into one call.
-    const focusUpdates = this.items
-      .filter(i => i.type === "focus" && (i.system.spent ?? 0) !== 0)
-      .map(i => ({ _id: i.id, "system.spent": 0 }));
-    if (focusUpdates.length) await this.updateEmbeddedDocuments("Item", focusUpdates);
+    if (!receipt) await refreshFoci();
   }
 
   /**
@@ -1083,6 +1107,21 @@ export class SR2EActor extends Actor {
       return { base, dice: 1, rigged: false, astral: true, notes };
     }
 
+    // Rigger 2 p.44 (Combat Turn step 5): a character DRIVING a vehicle in a chase without being jacked in rolls
+    // natural Reaction + 1D6 — no wired or boosted reflexes, adept powers or magic — less the vehicle's damage
+    // Initiative modifier. A jacked-in rigger keeps the VCR's (below). (docs/PLAN-vehicles-phase2.md 3a.2)
+    const driving = isRigger2() && (this.type === "character" || this.type === "npc") ? drivenEntry(this.uuid) : null;
+    const jacked = !!(system.rigging && (system.vehicleControlRig ?? 0) > 0);
+    const drivenMod = driving ? (fromUuidSync(driving.entry.uuid)?.system?.damageInitMod ?? 0) : 0;
+    if (driving && !jacked) {
+      const natural = system.rigReactionBase ?? system.reaction?.base ?? 0;
+      const base = Math.max(0, natural - woundPenalty + drivenMod);
+      notes.push(`Driving (R2 p.44): natural Reaction ${natural}`);
+      if (woundPenalty) notes.push(`−${woundPenalty} wound`);
+      if (drivenMod) notes.push(`${drivenMod} vehicle damage`);
+      return { base, dice: 1, rigged: false, tac: 0, notes };
+    }
+
     // While rigging, the derived Reaction/initiative dice already reflect
     // VCR-only bonuses (CharacterData.prepareDerivedData); the roll adds the
     // worst CONTROLLED vehicle's damage Initiative modifier (p.106: "the lowest
@@ -1091,7 +1130,7 @@ export class SR2EActor extends Actor {
     const rigged = !!(system.rigging && vcr > 0);
     const reaction = system.reaction?.value ?? 0;
 
-    const vehicleMod = rigged ? worstControlledInitMod(this) : 0;
+    const vehicleMod = rigged ? Math.min(worstControlledInitMod(this), drivenMod) : 0;
 
     // A TLE-x episode (Cybertechnology p.55): Initiative −2 in the meat-body modes
     // (normal and rigging; the Matrix and astral branches returned above).
@@ -2083,6 +2122,8 @@ export class SR2EActor extends Actor {
    */
   async rollVehicleTest(vehicle, options = {}) {
     const testType = options.testType ?? "handling";
+    // Rigger 2 replaces the core chase (p.41): its Positioning action, on the chase panel (plan 3a.8).
+    if (testType === "position" && r2Refuses(options, "Positioning")) return null;
     const terrain  = options.terrain  ?? "normal";
     const sk = this._vehicleSkill(vehicle);
     const damageMod = vehicle.system.damageTnMod ?? 0;
@@ -2169,6 +2210,7 @@ export class SR2EActor extends Actor {
    * @param {object} opts { fleeingSuccesses, pursuerSuccesses, intelligence?, terrain? }
    */
   async rollEscapeTest(opts) {
+    if (r2Refuses(opts, "Hiding")) return null;
     const fleeing = opts.fleeingSuccesses ?? 0;
     const pursuer = opts.pursuerSuccesses ?? 0;
     if (pursuer >= fleeing) {

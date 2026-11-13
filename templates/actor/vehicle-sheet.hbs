@@ -16,6 +16,15 @@
         <input type="text" name="system.skill" value="{{system.skill}}"
                placeholder="{{system.drivingSkill}}" />
       </div>
+      {{#if r2Classes}}
+      <div class="form-group">
+        <label title="Rigger 2 Vehicle Points Table (p.42), for the Maneuver Score in a chase">Class:</label>
+        <select name="system.r2Class">
+          <option value="" {{selected system.r2Class ""}}>From the design: {{r2ClassDerived}}</option>
+          {{#each r2Classes}}<option value="{{key}}" {{selected ../system.r2Class key}}>{{label}}</option>{{/each}}
+        </select>
+      </div>
+      {{/if}}
     </div>
   </div>
 

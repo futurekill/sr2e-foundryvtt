@@ -13218,6 +13218,246 @@ export function registerSR2EQuenchTests() {
       });
     }, { displayName: "SR2E: Vehicles, Rigger 2 operations" });
 
+    // Rigger 2 vehicle combat, the chase (docs/PLAN-vehicles-phase2.md Part 3a). The ruleset is stubbed on this client
+    // only (no world setting changes); the test's own combat is never made active.
+    quench.registerBatch("sr2e.vehicle-chase", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [], combats = [], t0 = Date.now();
+      let g = null;
+      const mk = async (d) => { const a = await Actor.create(d); made.push(a); return a; };
+      // u: one face for every die, or a list cycled (0.01 = a six, 0.2 = a five).
+      const faces = async (u, fn) => {
+        const r = CONFIG.Dice.randomUniform; let i = 0;
+        CONFIG.Dice.randomUniform = Array.isArray(u) ? () => u[i++ % u.length] : () => u;
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = r; }
+      };
+      const FIVES = 0.2, ELEVENS = [0.01, 0.2];
+      const mods = async () => ({ ...(await import("../vehicle-play.mjs")), ...(await import("../chase.mjs")), ...(await import("../chase-state.mjs")) });
+      before(() => {
+        g = game.settings.get;
+        game.settings.get = function (ns, k) { return ns === "sr2e" && k === "vehicleRuleset" ? "rigger2" : g.call(this, ns, k); };
+      });
+      after(async function () {
+        this.timeout(30000);
+        game.settings.get = g;
+        for (const c of combats) { try { await c.delete(); } catch (e) {} }
+        const ids = game.messages.filter(m => (m._stats?.createdTime ?? 0) >= t0).map(m => m.id);
+        if (ids.length) await ChatMessage.deleteDocuments(ids);
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+
+      const driver = (name, rating = 4, pr = 2) => mk({ name, type: "npc", system: { professionalRating: pr, quickness: { base: 4 }, intelligence: { base: 4 } },
+        items: [{ name: "Car", type: "skill", system: { rating } }] });
+      const car = (name, sys = {}) => mk({ name, type: "vehicle", system: { handling: 4, speed: 120, acceleration: 10, body: 3, signature: 3, ...sys } });
+
+      /** A started combat with a chase: cars A (chased by B) at the given speeds, both NPC-driven. */
+      async function chase({ speedA = 100, speedB = 100, distance = 100, handlingA = 4 } = {}) {
+        const { gmCall } = await mods();
+        const da = await driver("Quench Chase Driver A"), db = await driver("Quench Chase Driver B");
+        const va = await car("Quench Chase Car A", { handling: handlingA }), vb = await car("Quench Chase Car B");
+        const combat = await Combat.create({ scene: null, active: false });
+        combats.push(combat);
+        await combat.createEmbeddedDocuments("Combatant", [{ actorId: da.id }, { actorId: db.id }]);
+        await gmCall("chaseSetup", { combatId: combat.id });
+        const a = await gmCall("chaseAddEntry", { combatId: combat.id, uuid: va.uuid, driver: da.uuid, speed: speedA });
+        const b = await gmCall("chaseAddEntry", { combatId: combat.id, uuid: vb.uuid, driver: db.uuid, speed: speedB });
+        const pid = await gmCall("chasePair", { combatId: combat.id, pursuer: b.eid, quarry: a.eid, distance });
+        await combat.startCombat();
+        return { combat, da, db, va, vb, A: a.eid, B: b.eid, pid };
+      }
+      const ch = (combat) => combat.getFlag("sr2e", "chase");
+
+      async function rollDp(combat, eid, u = FIVES) {
+        const { gmCall } = await mods();
+        const { aid, inputs } = await gmCall("chaseDPStart", { combatId: combat.id, round: combat.round, eid });
+        await gmCall("chaseArm", { combatId: combat.id, aid });
+        const n = inputs.skill + inputs.pr;
+        const roll = await faces(u, () => new Roll(`{${Array(n).fill("1d6x6").join(",")}}kh`).evaluate());
+        const msg = await roll.toMessage({ flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } });
+        return gmCall("chaseResolve", { combatId: combat.id, aid, messageId: msg.id });
+      }
+      async function act(combat, eid, kind, opts = {}, u = FIVES) {
+        const { gmCall } = await mods();
+        const { aid, inputs } = await gmCall("chaseBegin", { combatId: combat.id, round: combat.round, eid, kind, ...opts });
+        await gmCall("chaseArm", { combatId: combat.id, aid });
+        const actor = fromUuidSync(ch(combat).actions[aid].actor);
+        const r = await faces(u, () => actor.rollSuccessTest(inputs.dice, inputs.tn, { flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } }));
+        const out = await gmCall("chaseResolve", { combatId: combat.id, aid, messageId: r.testMessageId });
+        return { aid, inputs, out, successes: r.successes };
+      }
+
+      describe("The staged round change (3.0)", () => {
+        it("a plain combat advances once: round, Initiative and the card exactly once; a repeat from the old round is a no-op", async () => {
+          const a = await driver("Quench Round A"), b = await driver("Quench Round B");
+          const combat = await Combat.create({ scene: null, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: a.id }, { actorId: b.id }]);
+          await combat.startCombat();
+          await combat.nextRound();
+          await combat.advanceRound(1);   // a duplicate request
+          assert.equal(combat.round, 2);
+          assert.isUndefined(combat.getFlag("sr2e", "roundTransition"));
+          assert.isTrue(combat.combatants.contents.every(c => c.getFlag("sr2e", "initRound") === 2));
+          assert.equal(game.messages.filter(m => m.getFlag("sr2e", "roundCard") === `${combat.id}:2`).length, 1);
+        });
+        it("a resume at 'initiative' rolls only who is missing; the refresh receipt keeps spent dice spent", async () => {
+          const a = await driver("Quench Resume A"), b = await driver("Quench Resume B");
+          const combat = await Combat.create({ scene: null, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: a.id }, { actorId: b.id }]);
+          await combat.startCombat();
+          // Interrupted after advancing: round 2 written, A already rolled.
+          await combat.update({ round: 2, turn: null });
+          const ca = combat.combatants.find(c => c.actorId === a.id), cb = combat.combatants.find(c => c.actorId === b.id);
+          await ca.update({ initiative: 99 });
+          await cb.update({ initiative: null });
+          await combat.setFlag("sr2e", "roundTransition", { from: 1, to: 2, seq: 1, stage: "initiative" });
+          await combat.resumeRound();
+          assert.equal(ca.initiative, 99, "A keeps its roll");
+          assert.isNotNull(cb.initiative, "B rolled");
+          // Refreshing twice for one receipt refreshes once.
+          await a.refreshDicePools({ receipt: "x:2" });
+          const max = a.system.dicePools.combat.max;
+          await a.update({ "system.dicePools.combat.value": 0, "system.dicePools.combat.max": max });
+          await a.refreshDicePools({ receipt: "x:2" });
+          assert.equal(a.system.dicePools.combat.value, 0, "the second refresh for the same receipt is skipped");
+        });
+        it("pool spends are refused while the turn is refreshing", async () => {
+          const { spendPool } = await mods();
+          const a = await driver("Quench Lock A");
+          const combat = await Combat.create({ scene: null, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: a.id }]);
+          await combat.setFlag("sr2e", "roundTransition", { from: 1, to: 2, seq: 1, stage: "refreshing" });
+          let threw = false;
+          try { await spendPool(a, "combat", 1); } catch (e) { threw = /changing/.test(e.message); }
+          await combat.unsetFlag("sr2e", "roundTransition");
+          assert.isTrue(threw);
+        });
+      });
+
+      describe("The chase (R2 p.41–49)", () => {
+        it("opens round 1 with VP/TP/SP; Driver Points set the Maneuver Score; a second DP is refused", async () => {
+          const { combat, A } = await chase({ speedA: 100 });
+          const t = ch(combat).turns[1][A];
+          assert.deepEqual([t.vp, t.tp, t.sp], [0, -2, 10], "car 0, normal −2, 100 m/CT → 10");
+          await rollDp(combat, A);
+          assert.equal(ch(combat).turns[1][A].dp.value, 5, "fives: the highest die is 5");
+          assert.equal(ch(combat).turns[1][A].ms, 0 - 2 + 10 + 5);
+          const { gmCall } = await mods();
+          let refused = false;
+          try { await gmCall("chaseDPStart", { combatId: combat.id, round: 1, eid: A }); } catch (e) { refused = true; }
+          assert.isTrue(refused);
+        });
+        it("accelerating adds Acceleration × successes; above the Speed Rating costs 1 Stress once per turn", async () => {
+          const { combat, A, B, va } = await chase({ speedA: 115 });
+          await rollDp(combat, A); await rollDp(combat, B);
+          const r = await act(combat, A, "accelerate");
+          assert.equal(r.out.state, "done");
+          assert.equal(ch(combat).entries[A].speed, Math.min(180, 115 + 10 * r.successes));
+          assert.isTrue(ch(combat).turns[1][A].over);
+          assert.equal(va.system.stressRating, 1);
+          await act(combat, A, "accelerate");
+          assert.equal(va.system.stressRating, 1, "still once this turn");
+        });
+        it("hiding breaks contact; relocating restores it", async () => {
+          const { combat, A, B, db, pid } = await chase({ handlingA: 2 });
+          await rollDp(combat, A); await rollDp(combat, B);
+          const h = await act(combat, A, "hide", {}, FIVES);
+          assert.equal(h.inputs.tn, 4, "Handling 2 + normal terrain +2");
+          assert.isAbove(h.successes, 0);
+          assert.equal(ch(combat).pairs[pid].contact.successes, h.successes);
+          const r = await act(combat, B, "relocate", { target: pid, actorUuid: db.uuid }, ELEVENS);
+          assert.equal(r.inputs.tn, 3 + h.successes - 1, "Signature 3 + hiding successes, normal terrain −1");
+          assert.isTrue(ch(combat).pairs[pid].contact);
+        });
+        it("a stamp change (weapon damage) between begin and record makes the action stale", async () => {
+          const { gmCall, commitVehicleDamage } = await mods();
+          const { combat, A, B, va } = await chase();
+          await rollDp(combat, A); await rollDp(combat, B);
+          const { aid, inputs } = await gmCall("chaseBegin", { combatId: combat.id, round: 1, eid: A, kind: "brake" });
+          await gmCall("chaseArm", { combatId: combat.id, aid });
+          await commitVehicleDamage(va, 3, { source: "weapon", eventId: "quench-chase-dmg" });
+          const r = await faces(FIVES, () => fromUuidSync(ch(combat).actions[aid].actor).rollSuccessTest(inputs.dice, inputs.tn,
+            { flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } }));
+          const out = await gmCall("chaseResolve", { combatId: combat.id, aid, messageId: r.testMessageId });
+          assert.match(out.refused, /changed/);
+          assert.equal(ch(combat).actions[aid].state, "stale");
+          assert.equal(ch(combat).entries[A].speed, 100, "nothing applied");
+        });
+        it("a cancelled Driver Points slot is voided: a late Control Pool spend under its id is refused", async () => {
+          const { gmCall, spendPosition } = await mods();
+          const { combat, A } = await chase();
+          // A character driver (NPCs have no Control Pool).
+          const da = await mk({ name: "Quench Chase Rigger", type: "character", system: { quickness: { base: 4 }, intelligence: { base: 4 }, vehicleControlRig: 1 },
+            items: [{ name: "Car", type: "skill", system: { rating: 4 } }] });
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { driver: da.uuid } });
+          const { aid } = await gmCall("chaseDPStart", { combatId: combat.id, round: 1, eid: A });
+          await gmCall("chaseCancel", { combatId: combat.id, aid });
+          assert.equal(ch(combat).actions[aid].state, "cancelled");
+          const before = da.system.dicePools.control.value;
+          assert.isAbove(before, 0);
+          assert.equal(await spendPosition(da, 2, aid, { combatId: combat.id, round: 1 }), 0);
+          assert.equal(da.system.dicePools.control.value, before);
+          await rollDp(combat, A);   // a new slot is allowed after the tombstone
+          assert.isNotNull(ch(combat).turns[1][A].dp);
+        });
+        it("the turn closes only when no roll is pending; distances change by the speed difference (p.44)", async () => {
+          const { gmCall } = await mods();
+          const { combat, A, B, pid } = await chase({ speedA: 100, speedB: 130, distance: 100 });
+          await rollDp(combat, A);
+          const { aid } = await gmCall("chaseDPStart", { combatId: combat.id, round: 1, eid: B });
+          await combat.nextRound();
+          assert.equal(combat.round, 1, "waiting on B's Driver Points");
+          assert.equal(combat.getFlag("sr2e", "roundTransition")?.stage, "closing");
+          await gmCall("chaseCancel", { combatId: combat.id, aid });
+          await combat.resumeRound();
+          assert.equal(combat.round, 2);
+          assert.equal(ch(combat).pairs[pid].distance, 70, "100 − (130 − 100)");
+          assert.isTrue(ch(combat).opened[2]);
+        });
+        it("damage that lowers the Speed Rating below the speed records an overCheck: 1 Stress", async () => {
+          const { commitVehicleDamage } = await mods();
+          const { combat, A, va } = await chase({ speedA: 115 });
+          assert.isFalse(ch(combat).turns[1][A].over);
+          await commitVehicleDamage(va, 6, { source: "weapon", eventId: "quench-chase-oc" });
+          assert.isTrue(ch(combat).turns[1][A].over, "Serious damage cuts the Speed Rating below 115");
+          assert.equal(va.system.stressRating, 1);
+          assert.deepEqual(ch(combat).overChecks ?? {}, {});
+        });
+        it("a speed the GM sets above the Speed Rating mid-turn is speeding: 1 Stress, once", async () => {
+          const { gmCall } = await mods();
+          const { combat, A, va } = await chase({ speedA: 100 });
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { speed: 130 } });
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { speed: 140 } });
+          assert.isTrue(ch(combat).turns[1][A].over);
+          assert.equal(va.system.stressRating, 1);
+        });
+        it("the chase driver is the vehicle's controller; Positioning successes raise next turn's Driver Points", async () => {
+          const { controllerOf } = await mods();
+          const { combat, A, B, va, da } = await chase();
+          assert.equal(controllerOf(va)?.uuid, da.uuid);
+          await rollDp(combat, A); await rollDp(combat, B);
+          const p = await act(combat, A, "position");
+          assert.equal(ch(combat).turns[2][A].positionBonus, p.successes);
+          await combat.nextRound();
+          await rollDp(combat, A);
+          const dp = ch(combat).turns[2][A].dp;
+          assert.equal(dp.total, dp.value + p.successes, "the passengers' limit counts the bonus (p.47, p.49)");
+        });
+        it("passengers can't act offensively above the Driver Points; a manual driver rolls natural Reaction + 1D6", async () => {
+          const { gmCall, passengerLimit } = await mods();
+          const { combat, A, da } = await chase();
+          const p = await driver("Quench Chase Passenger");
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: p.id, initiative: 17 }]);
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { aboard: [p.uuid] } });
+          assert.equal(passengerLimit(p)?.dp, null, "none before DP");
+          await rollDp(combat, A);
+          assert.equal(passengerLimit(p)?.phase, 17, "17 > 5");
+          const parts = da._getInitiativeParts();
+          assert.equal(parts.dice, 1);
+          assert.match(parts.notes.join(" "), /Driving/);
+        });
+      });
+    });
+
     quench.registerBatch("sr2e.vehicles", (context) => {
       const { it, assert, after } = context;
       const made = [];

@@ -30,4 +30,13 @@ export class SR2ECombatant extends Combatant {
     // Fallback for combatants with no actor (e.g. manually-added tokens)
     return super.getInitiativeRoll(formula);
   }
+
+  /**
+   * @override Stamp the round an Initiative total was set in, in the same update, so a resumed round change rolls
+   * only the combatants still missing this round's roll (docs/PLAN-vehicles-phase2.md 3.0 stage 3).
+   */
+  async _preUpdate(changed, options, user) {
+    if (changed.initiative != null && this.combat) foundry.utils.setProperty(changed, "flags.sr2e.initRound", this.combat.round);
+    return super._preUpdate(changed, options, user);
+  }
 }

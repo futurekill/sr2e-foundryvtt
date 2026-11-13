@@ -1,0 +1,103 @@
+<div class="chase-body">
+{{#if none}}
+  {{#if rigger2}}
+    {{#if gm}}
+      <p>No chase in this combat. A chase tracks speeds, distances and Maneuver Scores for Rigger 2 vehicle combat
+        (Rigger 2 p.41–49).</p>
+      <button type="button" data-action="setup"><i class="fas fa-car-side"></i> Set up a chase</button>
+    {{else}}<p>No chase in this combat.</p>{{/if}}
+  {{else}}<p>Chases are a Rigger 2 rule: the GM switches the vehicle ruleset in the system settings.</p>{{/if}}
+{{else}}
+
+  {{#if transition}}
+  <div class="chase-transition">
+    <strong>Turn changing:</strong> {{transition}}
+    {{#if waiting.length}}— waiting for these rolls to be applied or cancelled:{{/if}}
+    {{#if gm}}<button type="button" data-action="resume" title="Re-check and continue"><i class="fas fa-play"></i> Resume</button>{{/if}}
+  </div>
+  {{/if}}
+  {{#if waiting.length}}
+  <ul class="chase-waiting">
+    {{#each waiting}}<li>{{label}}
+      {{#if card}}<button type="button" data-action="applyNow" data-aid="{{aid}}" title="Record the card as it stands now (no more Karma on it)">Apply now</button>
+      {{else}}{{#if mine}}<button type="button" data-action="cancel" data-aid="{{aid}}" {{#if force}}data-force="1" title="The roller's client is gone: cancel anyway"{{/if}}>Cancel</button>{{/if}}{{/if}}</li>{{/each}}
+  </ul>
+  {{/if}}
+
+  <h3>Vehicles and pedestrians</h3>
+  <table class="chase-entries">
+    <thead><tr><th>Entry</th><th>Driver / aboard</th><th>Speed</th><th>Terrain</th><th>Maneuver Score</th><th>Actions</th></tr></thead>
+    <tbody>
+    {{#each entries}}
+      <tr data-eid="{{eid}}" class="{{#if over}}chase-over{{/if}}">
+        <td><strong>{{name}}</strong><br><small class="{{#if noClass}}chase-warn{{/if}}">{{cls}}</small>
+          {{#unless joined}}<br><small>joins at Combat Turn {{joinsAt}}</small>{{/unless}}
+          {{#if ../gm}}<br><label class="chase-group" title="NPC vehicles with the same group name roll once (Rigger 2 p.49)">Group <input type="text" data-field="group" value="{{group}}" placeholder="—"></label>{{/if}}</td>
+        <td>{{#if (eq kind "vehicle")}}
+            {{#if ../gm}}
+              <select data-field="driver"><option value="">—</option>{{#each ../actorOpts}}<option value="{{uuid}}" {{selected ../driverUuid uuid}}>{{name}}</option>{{/each}}</select>
+              <div class="chase-aboard">{{#each aboardChips}}<span class="chase-chip">{{name}}<a data-action="unboard" data-uuid="{{uuid}}" title="Off the vehicle">✕</a></span>{{/each}}
+                <select data-field="aboardAdd" title="Put a passenger aboard"><option value="">+ passenger…</option>{{#each ../actorOpts}}<option value="{{uuid}}">{{name}}</option>{{/each}}</select></div>
+            {{else}}{{driver}}{{#if aboard}}<br><small>Aboard: {{aboard}}</small>{{/if}}{{/if}}
+          {{else}}on foot{{/if}}</td>
+        <td>{{#if ../gm}}<input type="number" data-field="speed" value="{{speed}}" min="0" style="width:5em">{{else}}{{speed}}{{/if}} m/CT
+          {{#if rating}}<br><small>Rating {{rating}}, max {{maxSpeed}}</small>{{/if}}
+          {{#if over}}<br><small class="chase-warn">above its Speed Rating: 1 Stress this turn</small>{{/if}}</td>
+        <td>{{#if ../gm}}<select data-field="terrain">{{#each terrains}}<option value="{{k}}" {{#if sel}}selected{{/if}}>{{k}}</option>{{/each}}</select>{{else}}{{terrain}}{{/if}}</td>
+        <td>{{#if ms}}<strong>{{ms}}</strong>{{else}}—{{/if}}<br><small>{{msParts}}</small></td>
+        <td class="chase-actions">
+          {{#if canDp}}<button type="button" data-action="dp" title="Open Test (Rigger 2 p.42)">Driver Points</button>{{/if}}
+          {{#if canAct}}
+            <button type="button" data-action="act" data-kind="accelerate">Accelerate</button>
+            <button type="button" data-action="act" data-kind="brake">Brake</button>
+            <button type="button" data-action="act" data-kind="position">Position</button>
+            <button type="button" data-action="act" data-kind="position" data-stop="1" title="Positioning to stop at a point (p.47)">Stop at…</button>
+            <button type="button" data-action="act" data-kind="hide">Hide</button>
+            <button type="button" data-action="autonav" title="Simple Action; Free for a rigger jacked in (p.45)">Autonav {{#if autonav}}off{{else}}on{{/if}}</button>
+          {{/if}}
+          {{#if ../gm}}<button type="button" data-action="remove" title="Remove from the chase"><i class="fas fa-trash"></i></button>{{/if}}
+        </td>
+      </tr>
+    {{/each}}
+    </tbody>
+  </table>
+
+  <h3>Pursuits</h3>
+  <table class="chase-pairs">
+    <thead><tr><th>Pursuer</th><th>Quarry</th><th>Distance</th><th>Contact</th><th></th></tr></thead>
+    <tbody>
+    {{#each pairs}}
+      <tr data-pid="{{pid}}">
+        <td>{{pursuer}}</td><td>{{quarry}}</td>
+        <td>{{#if ../gm}}<input type="number" data-field="distance" value="{{distance}}" min="0" style="width:5em">{{else}}{{#if hidden}}?{{else}}{{distance}}{{/if}}{{/if}} m</td>
+        <td>{{contact}}</td>
+        <td>{{#each spotters}}<button type="button" data-action="relocate" data-actor="{{uuid}}" title="Perception Test (Rigger 2 p.49)">Relocate ({{name}})</button>{{/each}}
+          {{#if ../gm}}<button type="button" data-action="removePair"><i class="fas fa-trash"></i></button>{{/if}}</td>
+      </tr>
+    {{/each}}
+    </tbody>
+  </table>
+
+  {{#if gm}}
+  <details class="chase-add" {{#unless entries.length}}open{{/unless}}>
+    <summary>Add to the chase</summary>
+    <div class="form-group"><label>Add</label>
+      <select name="newKind"><option value="vehicle">a vehicle</option><option value="pedestrian">a pedestrian</option></select>
+      <select name="newVehicle"><option value="">vehicle…</option>{{#each vehicleOpts}}<option value="{{uuid}}">{{name}}</option>{{/each}}</select>
+      <select name="newPedestrian"><option value="">or pedestrian…</option>{{#each actorOpts}}<option value="{{uuid}}">{{name}}</option>{{/each}}</select></div>
+    <div class="form-group"><label>Driver</label>
+      <select name="newDriver"><option value="">—</option>{{#each actorOpts}}<option value="{{uuid}}">{{name}}</option>{{/each}}</select>
+      <label>Speed</label><input type="number" name="newSpeed" value="0" min="0" style="width:5em">
+      <label>Terrain</label><select name="newTerrain">{{#each terrains}}<option value="{{this}}" {{#if (eq this "normal")}}selected{{/if}}>{{this}}</option>{{/each}}</select>
+      <button type="button" data-action="addEntry"><i class="fas fa-plus"></i> Add</button></div>
+    <div class="form-group"><label>Pursuit</label>
+      <select name="pairPursuer">{{#each pairOpts}}<option value="{{eid}}">{{name}}</option>{{/each}}</select> chases
+      <select name="pairQuarry">{{#each pairOpts}}<option value="{{eid}}">{{name}}</option>{{/each}}</select>
+      at <input type="number" name="pairDistance" value="100" min="0" style="width:5em"> m
+      <button type="button" data-action="addPair"><i class="fas fa-plus"></i> Add</button></div>
+    <p class="hint">Starting speeds and distances are Step 1 of the Combat Turn (Rigger 2 p.42). Players declare their
+      own starting speeds; you set the NPCs'. Distances change at the end of every Combat Turn.</p>
+  </details>
+  {{/if}}
+{{/if}}
+</div>
