@@ -604,3 +604,21 @@ legs"). 4.0 adds contact/device generations bumped by the GM on every loss, stor
 locomotion; 4b.4 a full launch payload + gunner/source identities, ONE ammunition writer per weapon (`ammo:<uuid>`,
 receipts, money → ammo lock order), Combat Pool excluded only on targeted indirect missile attacks, the +2 only in the
 Driving Test path.
+
+## Part 4 plan, round 3 — Codex (draft 3, fresh session): REVISE, 8 findings
+1. Range loss checked only at round changes/EW actions misses a leave-and-return in between.
+2. Contact generations per observer conflate independent transmitter ranges.
+3. Launch admission isn't serialized with round closure.
+4. Reloads must keep the reserve owner's money/inventory queue (shared reserves).
+5. The payload snapshot isn't atomic with the spend.
+6. Rating-0 stock sensors still unaddressable.
+7. Component upgrades limited to two examples.
+8. Non-missile indirect fire (mortars, artillery; p.60) omitted.
+
+### Claude's response (draft 4)
+All taken. 4.0: generations per directed transmitter→recipient link plus device and hide generations; the GM's
+`ewSweep` runs on every range-affecting change (token moves, chase distances, boosts, conditions). 4a.1: components keyed
+by any p.27 component. 4a.3: explicit `sensorInstalled` for Rating-0 systems. 4b.4: reloads stay under the reserve
+owner's money queue then the ammo queue; one atomic validate+debit+snapshot; an admission fence under `round:<combatId>`
+drained by the closing stage. 4b.5: non-missile indirect fire (p.60 re-read): same spotting/equipment, missile-only
+terms 0, the Gunnery Test resolved when fired — a stated reading; weapon-specific artillery rules come from their items.

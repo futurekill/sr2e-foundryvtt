@@ -893,7 +893,7 @@ pending survives a reload → crash → occupants (one receipt each, vehicle sta
 feedback per event (two Serious hits → two); weapons; spells; an old core card resolves by core after the switch; core
 path unchanged with the ruleset off.
 
-## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 3 (2026-11-13, after Codex Part 4 rounds 1–2)
+## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 4 (2026-11-13, after Codex Part 4 rounds 1–3)
 _Read from 110-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. Everything below applies
 only under `isRigger2()`; the core attack flow (incl. the p.108 Moving Target Table) is untouched under core. Two
 releases: **4a** (sensors, Flux and range, ECM/ECCM/ED/ECD, locks), **4b** (gunnery modes, missiles, indirect fire,
@@ -909,11 +909,16 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
   **reserved event ids, immutable roll inputs, a revision per record, terminal receipts**. A roll is a rolled step
   (Part 3.0): reserve → spend → arm → card → record; a card for a superseded or cancelled reservation is "not counted".
 - Identities are key-safe and token-aware: `followId(actor.uuid)` (unlinked token actors stay distinct).
-- Validity (R4-2) is CHECKED on read against **generations** (round 2 #4): each vehicle keeps
-  `flags.sr2e.ewGen = { contact: { <observerKey>: n }, device: { <deviceId>: n } }`, bumped by the GM op in the
-  vehicle queue whenever contact is lost (the target hides from that observer, Part 3a; it leaves the transmitter's
-  range, checked at each round change and on every EW/lock action) or a device switches off, stops working or is
-  removed. A lock or EW record stores the generations it was made under and is valid only while they still match, so
+- Validity (R4-2) is CHECKED on read against **generations** (round 2 #4, round 3 #1–2): each vehicle keeps
+  `flags.sr2e.ewGen = { link: { <deviceId>→<recipientKey>: n }, device: { <deviceId>: n }, hide: { <observerKey>: n } }`
+  — one generation per DIRECTED transmitter→recipient relationship, so a short-range ECM link can lapse while a
+  longer-range sensor lock on the same pair survives. The GM's `ewSweep` (vehicle queue) re-evaluates every recorded
+  relationship's range and bumps the ones that broke, triggered by ANY change that can affect range: token movement
+  (`updateToken` x/y/elevation), chase distance edits and round changes, boosts, transmitter conditions and Flux
+  settings, and every EW/lock action; `hide` bumps when the target hides from that observer (Part 3a); `device` when
+  a device switches off, stops working or is removed. Each lock/EW record stores the exact generations it depends on
+  (its transmitter's `device`, the `link` and the observer's `hide`) and is valid only while all still match, so
+  regaining range or switching a device back on never revives it. A lock or EW record stores the generations it was made under and is valid only while they still match, so
   regaining range or switching a device back on never revives an old record. Readers never mutate a record; a GM clear
   bumps the generation.
 - **Baseline Signature** = `VehicleData.effective.signature` (installed modifications included); contextual EW is a
@@ -923,7 +928,9 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
 - Sensor Rating = `system.effective.sensor`. Components by rating (p.27): 0 rangefinders, ultrasound, laser proximity;
   1 + proximity detectors, video (not trideo) cameras, basic radar, signature-recognition, low-light and telescopic;
   2–4 + thermographic; 5+ + flare compensation; magnification 50 × rating. A pure `sensorComponents(rating, upgrades)`.
-- **Component upgrades** (p.27): `system.components = { magnification: levels, flareCompensation: bool }` declared in
+- **Component upgrades** (p.27, round 3 #7): `system.components = { <componentKey>: { added: bool, level } }` keyed by
+  ANY p.27 component (thermographic, low-light, flare compensation, magnification levels, …; adding one the rating
+  doesn't include, or upgrading one it has), declared in
   the SYSTEM's `VehicleModData` (round 2 #6; blank/0 default, reload + `invalidDocumentIds` check) and persisted
   through the customization request flow; for the built-in sensor (4a.3) the same object lives at
   `flags.sr2e.sensorComponents` on the vehicle, written only by the customization delivery; parts cost = original sensor cost × 0.10
@@ -949,7 +956,10 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
 - **Transmitters** are the vehicle's working devices with their own identity (item id): sensors, ECM, ECCM, ED, ECD,
   radios, remote-control decks. A vehicle whose `effective.sensor` > 0 with no Sensors item (stock sensors, e.g. the
   R2 Westwind, Sensor 1) has a **built-in sensor** with the fixed identity `builtin-sensor` (round 2 #5): boosts,
-  components and generations address it by that id. Flux Rating Table: RC deck 2; sensors/ECM-family rating × 1.5 rounded up; other
+  components and generations address it by that id. Presence is explicit (round 3 #6): a vehicle field
+  `sensorInstalled` (default true when `effective.sensor` > 0 or a Sensors item exists; settable for Rating-0 systems,
+  which p.27 equips with rangefinders, ultrasound and laser proximity and p.31 gives 250 m at Flux 0), so a Rating-0
+  sensor system is distinct from no sensors. Flux Rating Table: RC deck 2; sensors/ECM-family rating × 1.5 rounded up; other
   transmitters the device rating; cyberware 0. Any device may run lower (to 0).
 - **Boosts** (p.30): `flags.sr2e.fluxBoosts = { [itemId]: { engine, amplifiers: { [ampItemId]: n } } }`, written only by
   the GM op `fluxBoost`, which validates the WHOLE allocation in one vehicle-queue step against the live vehicle:
@@ -1048,7 +1058,17 @@ nothing is invented.
   reloads — runs on the weapon's ammo writer (its owner's active client, else the active GM) inside the queue
   `ammo:<weaponUuid>`, with a receipt `flags.sr2e.ammoReceipts.<eventId>` in the same update. A launch spends there
   first (receipt = the launch id), then the GM op records the launch citing the receipt. A reload that buys ammunition
-  charges in the payer's `moneyQueue` and then writes in `ammo:` (lock order money → ammo, never the reverse).
+  charges in the payer's `moneyQueue` and then writes in `ammo:` (lock order money → ammo, never the reverse). EVERY
+  reload that changes reserve items keeps today's `reloadWeapon()` contract — it runs under the reserve OWNER's
+  `moneyQueue` (round 3 #4: different weapons, sales and consolidation share reserves) and acquires the weapon's
+  `ammo:` queue inside it.
+- **Atomic launch spend** (round 3 #5): in ONE update inside `ammo:` the writer validates the loaded round is a
+  missile, debits it, and writes the receipt WITH the payload snapshot (`ammoReceipts.<launchId> = { payload }`); the
+  launch record copies the payload from the receipt, never from a separate read, so a reload can't swap it.
+- **Admission fence** (round 3 #3): launches are admitted under the combat's `round:<combatId>` queue (the one the
+  staged round change uses): a launch reserves `flags.sr2e.launchAdmit.<round>.<launchId>` on the Combat there and
+  is refused once the closing stage of that round has begun; the closing stage drains every admitted reservation
+  (spent → launched, or released) before it can complete.
 - **Phase 0** (p.59): every launch strikes at the end of its Combat Turn. The staged round change (Part 3a 3.0) gets a
   **closing stage for every combat** (not only chases) that is blocked while any launch of that round is not
   terminal: each launch's Missile Attack Test (Gunnery + Intelligence, + ⌊Sensor ÷ 2⌋ in continuous lock; Combat Pool
@@ -1075,6 +1095,13 @@ nothing is invented.
   user attacking with another weapon also takes the Second Firearm modifier (core p.90).
 - **Missile Attack Test** (the firer, at Phase 0): Gunnery + Intelligence + the spotter's successes; no Combat Pool; TN
   4b.3 (Moly: 5 + 1 = 6 dice vs 3; Tubbs: 6 + 4 + 3 = 13 vs 6).
+- **Non-missile indirect fire** (round 3 #8; p.60: "drones, mortars and Ballista missile launchers, and other general
+  artillery weapons"): the book writes the procedure for missiles only. Reading, stated in the docs: the same
+  equipment and spotter rules; the missile-only terms (½ missile Sensor, missile Intelligence) are 0 for a weapon
+  that isn't a guided missile; the attack is the firer's standard Gunnery Test resolved WHEN FIRED (no Phase-0 delay,
+  which p.59 ties to missile flight) with the Sensor-Enhanced Targeting modifiers, + the spotter's successes, no Combat
+  Pool. Failed spotting → area-effect (4b.6) as for missiles. Weapon-specific artillery rules (Fields of Fire mortars
+  and the like) apply as their own items say; any the system lacks are listed in the docs, not invented.
 
 ### 4b.6 Area-effect attacks (p.60–61)
 - When: the Indirect Fire Test fails; the lock isn't kept to Phase 0; targets spread over an area; no Signature; no
