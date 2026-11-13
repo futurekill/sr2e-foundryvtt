@@ -250,6 +250,11 @@ The rigger (Part 2b-1): quality effects key on `system.qualityRule` (derived: th
 `actor.riggerTnParts(tnContext)`; `_vehicleSkill(vehicle, { mode })` takes the test's control mode (half-cost VCR
 defaulting, encephalon chips only when rigged); multi-skill installation rounds commit ONLY through the GM op
 `installRound` (`custom.partialId` + `custom.partial.<id>`, failure records `custom.brFails.<testMsgId>`).
+Overhead (Part 2b-2, `module/vehicle-overhead.mjs`): EVERY Stress write goes through `stressPatch` (a vitest greps for
+`"system.stress":` elsewhere) so `flags.sr2e.overhead.stress` counts the month's increases. Month records change only on
+the GM in the vehicle queue; money moves only on the payer's money writer (`moneyWriterFor`) inside its `moneyQueue`,
+behind `flags.sr2e.overheadReceipts.<tx>` (a `released` marker aborts a late charge). Quench scopes Month ends with
+`only` — never end a month over a world's real vehicles in a test.
 Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the

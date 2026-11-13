@@ -12889,7 +12889,7 @@ export function registerSR2EQuenchTests() {
     // Rigger 2 standard vehicle operations (docs/PLAN-vehicles-phase2.md Part 2a): Stress, the Driving Test, engine
     // checks, repairs. The GM ops and flows don't read the world setting (the sheets do), so nothing here changes it.
     quench.registerBatch("sr2e.vehicle-r2", (context) => {
-      const { describe, it, assert, after } = context;
+      const { describe, it, assert, before, after } = context;
       const made = [], t0 = Date.now();
       const vp = () => import("../vehicle-play.mjs");
       const mk = async (d) => { const a = await Actor.create(d); made.push(a); return a; };
@@ -13134,6 +13134,86 @@ export function registerSR2EQuenchTests() {
           const [n] = await v.createEmbeddedDocuments("Item", [{ name: "Quench Mod 2", type: "vehicle_mod", system: { rating: 1, custom: { state: "parts" } } }]);
           const r3 = await installRound(v, n, args("", true, [{ skill: V, successes: 0, key: "u1" }, { skill: E, successes: 0, key: "u2" }]));
           assert.deepEqual([r3.failed, Object.keys(n.system.custom.brFails).length, n.system.custom.partialId], [true, 0, ""]);
+        });
+      });
+
+      // Part 2b-2 (R2 p.18–19). Month ends is scoped to the test vehicles; the hidden month setting is put back.
+      describe("Maintenance overhead (R2 p.18–19)", () => {
+        let month0;
+        const ohm = () => import("../vehicle-overhead.mjs");
+        const months = (v) => v.getFlag("sr2e", "overhead")?.months ?? {};
+        const endMonth = async (vs) => (await vp()).gmCall("overheadMonthEnd", { expectedMonth: game.settings.get("sr2e", "vehicleOverheadMonth"), only: vs.map(v => v.uuid) });
+        before(async function () { month0 = game.settings.get("sr2e", "vehicleOverheadMonth"); });
+        after(async function () { await game.settings.set("sr2e", "vehicleOverheadMonth", month0); });
+        const setup = async (name, cost = 40000) => {
+          const v = await mk({ name: `Quench OH ${name}`, type: "vehicle", system: { body: 3, cost } });
+          const c = await mk({ name: `Quench OH ${name} owner`, type: "character", system: { nuyen: 100000, lifestyle: "middle", karma: { current: 5, total: 5 }, linkedVehicles: [v.uuid] } });
+          return { v, c };
+        };
+        it("Month ends: once per expected month; this month's Stress counts (+10 each); an unpaid month is missed once (+1 Stress)", async () => {
+          const { adjustStress } = await vp();
+          const { v } = await setup("Westwind");
+          await adjustStress(v, 2, { eventId: "oh-s1" }); await adjustStress(v, -1, { eventId: "oh-s2" });
+          assert.equal(v.getFlag("sr2e", "overhead").stress, 2, "only increases count");
+          const m = game.settings.get("sr2e", "vehicleOverheadMonth");
+          const [a, b] = await Promise.all([endMonth([v]), endMonth([v])]);
+          assert.equal(game.settings.get("sr2e", "vehicleOverheadMonth"), m + 1, "advanced once");
+          assert.ok(a.already || b.already);
+          assert.deepEqual([months(v)[m + 1].amount, v.getFlag("sr2e", "overhead").stress], [420, 0]);
+          await endMonth([v]);
+          assert.isTrue(months(v)[m + 1].missed);
+          assert.equal(v.system.stressRating, 2, "1 + 1 for the missed month");
+          assert.equal(v.getFlag("sr2e", "overhead").stress, 1, "counted in the new month");
+          await endMonth([v]);
+          assert.equal(v.system.stressRating, 3, "month m+2 missed now; m+1 not again");
+        });
+        it("paying: Lifestyle credit, Karma at 500¥; catch-up needs the current month; two payers → one charge", async () => {
+          const { payOverhead } = await ohm();
+          const { v, c } = await setup("Stallion", 500000);
+          const c2 = await mk({ name: "Quench OH second payer", type: "character", system: { nuyen: 100000, linkedVehicles: [v.uuid] } });
+          await endMonth([v]);
+          const m = game.settings.get("sr2e", "vehicleOverheadMonth");
+          await Promise.all([payOverhead(c, [{ vehicleUuid: v.uuid, month: m }], { karma: 2 }), payOverhead(c2, [{ vehicleUuid: v.uuid, month: m }])]);
+          const charged = [100000 - c.system.nuyen, 100000 - c2.system.nuyen];
+          assert.equal(charged.filter(n => n > 0).length, 1, "one payer charged");
+          assert.isTrue(months(v)[m].paid);
+          if (charged[0]) assert.deepEqual([charged[0], c.system.karma.current], [5000 - 200 - 1000, 3], "credit 200, 2 Karma");
+          // Catch-up: month m+1 missed at m+2's end; paying it alone is refused.
+          await endMonth([v]); await endMonth([v]);
+          const w = ui.notifications.warn; let warned = 0; ui.notifications.warn = () => warned++;
+          try { await payOverhead(c, [{ vehicleUuid: v.uuid, month: m + 1 }]); } finally { ui.notifications.warn = w; }
+          assert.isTrue(warned > 0 && !months(v)[m + 1].paid && !months(v)[m + 1].tx, "refused, nothing held");
+          await payOverhead(c, [{ vehicleUuid: v.uuid, month: m + 1 }, { vehicleUuid: v.uuid, month: m + 2 }]);
+          assert.isTrue(months(v)[m + 1].paid && months(v)[m + 2].paid);
+        });
+        it("an interrupted payment: a receipt without settle is settled before the month is judged; a reservation without one is released", async () => {
+          const oh = await ohm(), { gmCall } = await vp();
+          const { v, c } = await setup("Van");
+          await endMonth([v]);
+          const m = game.settings.get("sr2e", "vehicleOverheadMonth");
+          await gmCall("overheadReserve", { tx: "qtx1", payerUuid: c.uuid, picks: [{ vehicleUuid: v.uuid, month: m }] });
+          await oh.releaseOverhead(c, "qtx1");
+          assert.notOk(months(v)[m].tx, "freed");
+          assert.isTrue(c.getFlag("sr2e", "overheadReceipts").qtx1.released);
+          await gmCall("overheadReserve", { tx: "qtx2", payerUuid: c.uuid, picks: [{ vehicleUuid: v.uuid, month: m }] });
+          await c.update({ "flags.sr2e.overheadReceipts.qtx2": { rows: [{ vehicleUuid: v.uuid, month: m, amount: 400 }], amount: 400, karma: 0 } });
+          await endMonth([v]);   // charged but never settled: the assessment settles it, so it isn't missed
+          assert.deepEqual([months(v)[m].paid, months(v)[m].missed, v.system.stressRating], [true, false, 0]);
+        });
+        it("restore: 1 Good Karma + B/R (4) per attempt; an attempt reserved before its Karma is released and the next can reserve", async () => {
+          const oh = await ohm(), { gmCall } = await vp();
+          const { v, c } = await setup("Crawler", 1250);
+          await c.createEmbeddedDocuments("Item", [{ name: "Ground Vehicles (B/R)", type: "skill", system: { rating: 4 } }]);
+          await endMonth([v]); await endMonth([v]);
+          const m = game.settings.get("sr2e", "vehicleOverheadMonth") - 1;
+          await oh.payOverhead(c, [{ vehicleUuid: v.uuid, month: m }, { vehicleUuid: v.uuid, month: m + 1 }]);
+          assert.isTrue(months(v)[m].missed && months(v)[m].paid);
+          await gmCall("overheadRestoreReserve", { vehicleUuid: v.uuid, month: m, rtx: "qr1", payerUuid: c.uuid });
+          await oh.releaseOverhead(c, "qr1", { field: "restoreTx" });
+          assert.notOk(months(v)[m].restoreTx, "released");
+          const karma = c.system.karma.current, stress = v.system.stressRating;
+          await faces(ALL_FIVES, () => oh.restoreOverhead(c, v, m));
+          assert.deepEqual([c.system.karma.current, v.system.stressRating, months(v)[m].restored], [karma - 1, stress - 1, true]);
         });
       });
     }, { displayName: "SR2E: Vehicles, Rigger 2 operations" });

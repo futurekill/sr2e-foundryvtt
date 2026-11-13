@@ -11,7 +11,7 @@
  * Removing a bought item writes `custDelivery.<id> = "removed"` first; recovery never recreates it and finishes the
  * deletion. Every step re-reads the live documents, so a replay changes nothing.
  */
-import { isEngineCustomization, engineCheckForInstall, installRound } from "./vehicle-play.mjs";
+import { isEngineCustomization, engineCheckForInstall, installRound, labourQuote } from "./vehicle-play.mjs";
 import { customizationQuote, vehicleTraits, installSkills, familyOf, brPenalty } from "./rules/vehicle-custom.mjs";
 import { applyModEffects, modProblems, vehicleCapacity, modCounts, modBaked } from "./rules/vehicle-design.mjs";
 import { moneyQueue, adjustNuyen } from "./money.mjs";
@@ -383,7 +383,7 @@ export async function installationTest(vehicle, item, worker) {
   ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: worker }), content: out.disaster
     ? `<p><strong>${item.name}</strong>: <strong>disastrous failure</strong> — a required test came up all 1s (${all}; R2 p.14). The attempt ends; the GM rules on the damage (the parts stay unless the GM removes them).</p>`
     : out.complete
-    ? `<p><strong>${item.name}</strong> installed on ${vehicle.name} in <strong>${out.hours} ${q.baseUnit}</strong> (base ${q.baseTime} ÷ ${q.combine === "sum" ? "all" : "the lowest"} successes: ${all}). Click Finish on the vehicle when the time has passed.</p>`
+    ? `<p><strong>${item.name}</strong> installed on ${vehicle.name} in <strong>${out.hours} ${q.baseUnit}</strong> (base ${q.baseTime} ÷ ${q.combine === "sum" ? "all" : "the lowest"} successes: ${all}). Click Finish on the vehicle when the time has passed.${labourQuote(out.hours, q.baseUnit)}</p>`
     : out.failed
     ? `<p><strong>${item.name}</strong>: the Installation Test failed (${all}; every test needs a success, TN ${q.tn}). The parts stay; try again.</p>`
     : `<p><strong>${item.name}</strong>: ${all}. Passed tests are kept; roll the failed one again (+1 TN for each repeat, until the skill rises — R2 p.14).</p>` });

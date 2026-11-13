@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.149.0 — 2026-11-12
+
+### Added
+- **Vehicle maintenance overhead** under Rigger 2 (p.18–19; docs/PLAN-vehicles-phase2.md 2b.5):
+  - **Month ends** (GM, Actors sidebar) closes the month for every vehicle linked to a character: its overhead is 1%
+    of its cost value (the vehicle plus its accessories and modifications at their listed prices, rounded up) + 10 per
+    Stress Point it took that month. A month still unpaid when the next one ends is **missed**: +1 Stress, once.
+    Clicking twice never closes two months.
+  - **Overhead** (character Vehicles tab) pays the months due for the character's linked vehicles: the Lifestyle
+    credit (Middle 200¥, High 1,500¥, Luxury 3,000¥ a month, shared among the vehicles) and Good Karma at 500¥ a point.
+    A missed month can only be paid with the current one. Each payment is reserved by the GM first, charged once
+    behind a receipt, then settled; two players paying the same month never both pay, and a stuck payment can be
+    released.
+  - **Restore** a paid missed month: 1 Good Karma and a Vehicle Build/Repair (4) Test per attempt; success removes the
+    Stress Point.
+- **Mechanic labour** (p.19) quoted on repair and installation cards: Level 1 100¥/h (8 h a day, 5 days a week;
+  faster is overtime at ×1.5, plus the contact fee), Level 2 50¥/h, Level 3 25¥/h or free.
+
+### Changed
+- Every Stress change also counts toward the month's overhead (increases only).
+
 ## 0.148.0 — 2026-11-12
 
 ### Added

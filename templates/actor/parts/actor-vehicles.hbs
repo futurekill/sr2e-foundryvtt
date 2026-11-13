@@ -54,7 +54,9 @@
     <div class="vehicles-instructions">
       <p>Drag a Vehicle or Drone actor from the sidebar to link it, or
         <button type="button" class="btn-small" data-action="openWorkshop" title="Design one from scratch with the Rigger 2 rules; it's linked to this character when you create it">
-          <i class="fas fa-screwdriver-wrench"></i> Design a vehicle</button></p>
+          <i class="fas fa-screwdriver-wrench"></i> Design a vehicle</button>
+        {{#if rigger2}}<button type="button" class="btn-small" data-action="openOverhead" title="Rigger 2 p.18–19: pay your vehicles' monthly overhead (Lifestyle credit, Good Karma) and restore missed months">
+          <i class="fas fa-file-invoice-dollar"></i> Overhead</button>{{/if}}</p>
     </div>
 
     {{#if linkedVehicles.length}}

@@ -530,6 +530,16 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
       clears it. Workshop: add an engine customization level and save → one check; save again → none.
 - [ ] Back to Core Rulebook: no Rigger 2 panel, the Handling Test is back; Stress values kept.
 
+### Maintenance overhead (Part 2b-2; Quench `sr2e.vehicle-r2` → "Maintenance overhead")
+- [ ] Rigger 2 on, GM: Actors sidebar → **Month ends** → confirm. Each vehicle linked to a character gets the month:
+      1% of its value (a 40,000¥ van → 400¥) + 10 per Stress taken that month. Click twice quickly: one month.
+- [ ] Character Vehicles tab → **Overhead**: Middle Lifestyle → 200¥ credit; 2 Good Karma → −1,000¥; Pay → nuyen and
+      Karma drop once, the month shows paid; the card itemises it.
+- [ ] Leave a month unpaid and end the next: it's missed, +1 Stress. Pay only the missed month → refused; with the
+      current month → paid. **Restore** → 1 Karma + Vehicle B/R (4); success → −1 Stress.
+- [ ] Two players tick the same month and pay together: only one is charged.
+- [ ] Repair card / installation card show the mechanic labour quote (Level 1 / 2 / 3).
+
 ### The rigger under Rigger 2 (Part 2b-1; Quench `sr2e.vehicle-r2` → "The rigger")
 - [ ] VCR 3 + Move-by-Wire Level 1, Quickness 4, Intelligence 4: Control Pool 9 (core: 10); jacked in: Reaction 8, 3D6.
 - [ ] Jacked in, no Gunnery, fire a vehicle weapon: no Combat Pool offered (defaulting); Gunnery 3: at most 3.

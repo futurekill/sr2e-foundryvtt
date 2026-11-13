@@ -261,3 +261,18 @@ by `isRigger2()`; `_webDefaultForNode` returns its source and a Reaction source 
 counts for Vertigo only with an effective VCR.
 
 ## Part 2b-1 code, round 2 — Codex (fresh session, the four fixes only): APPROVED
+
+## Part 2b-2 code, round 1 — Codex (fresh session): REVISE, 6 findings
+1. A vehicle's first assessment could be skipped if Month ends stopped after advancing the setting. 2. A GM's release
+ran in the GM's money queue and could race the payer's debit. 3. `overheadFree` didn't bind reservations to their payer
+(and took any field). 4. A restore result accepted any receipt id (e.g. a payment receipt). 5. A charged but unsettled
+payment could be judged missed before recovery settled it. 6. Interrupted restore releases weren't finished or offered.
+
+### Claude's response
+All taken: starting cursors are written before the month advances; only the payer's money writer (active owning player,
+else the GM) pays, restores or releases; frees are limited to `tx`/`restoreTx` and to the payer's own reservations;
+restore results require the reservation's own Karma receipt (restore, vehicle, month, payer) and ids are never reused;
+the assessment settles charged reservations first; the GM pass frees released reservations and the dialog offers
+Release for a released or unpaid attempt.
+
+## Part 2b-2 code, round 2 — Codex (fresh session, the six fixes only): APPROVED

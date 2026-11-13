@@ -11,6 +11,7 @@ import { resolveBarrier } from "./rules/sr2e-rules.mjs";
 import { r2Speed, engineFailureStress, permanentStress, repairQuote, repairHours, drivingTN, stressDice, ruleOfOne, drivingStressOutcome, overhaul } from "./rules/vehicle-r2-rules.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 import { brRound, installTime } from "./rules/vehicle-custom.mjs";
+import { stressPatch, mechanicLabour } from "./rules/vehicle-overhead-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { RL } from "./util/roll-label.mjs";
@@ -22,6 +23,10 @@ const isActiveGM = () => !!game.users.activeGM?.isSelf;
 
 const pending = new Map();
 const GM_OPS = {};
+/** Register a GM op from another module (vehicle-overhead.mjs). */
+export function gmOp(name, fn) { GM_OPS[name] = fn; }
+/** This month's Stress so far (R2 p.18), raised by every Stress writer through stressPatch. */
+export const overheadCounter = (vehicle) => Number(vehicle.getFlag("sr2e", "overhead")?.stress) || 0;
 
 /** Run `op` on the active GM's client (here when this IS the active GM) and return its result. */
 export function gmCall(op, args) {
@@ -501,7 +506,7 @@ GM_OPS.stress = async ({ vehicleUuid, delta, eventId, driverUuid, overhaulSucces
     const before = vehicle.system.stressRating ?? 0, permanent = vehicle.system.stressPermanent ?? 0;
     const after = overhaulSuccesses != null ? overhaul({ stress: before, permanent, successes: overhaulSuccesses }).stress
       : Math.max(permanent, before + delta, 0);
-    await vehicle.update({ [path]: after - before, "system.stress": after });
+    await vehicle.update({ [path]: after - before, ...stressPatch({ before, after, counter: overheadCounter(vehicle) }) });
     return { before, stress: after, removed: before - after };
   });
 };
@@ -530,7 +535,7 @@ GM_OPS.drivingResolve = async ({ messageId }, user) => {
     const out = drivingStressOutcome({ failed, stress, body: st.body, ones, skill: threshold, stressRoll, ruleRoll });
     if (out.addStress) {
       const after = stress + out.addStress;   // adding never meets the permanent floor
-      await vehicle.update({ [`flags.sr2e.vstress.rule1-${messageId}`]: out.addStress, "system.stress": after });
+      await vehicle.update({ [`flags.sr2e.vstress.rule1-${messageId}`]: out.addStress, ...stressPatch({ before: stress, after, counter: overheadCounter(vehicle) }) });
     }
     return { successes, ones, threshold, failed, stress, stressRoll, ruleRoll, out };
   });
@@ -635,8 +640,9 @@ function recordEngineCheck(vehicle, id, { source, levels = null, label, dice, tn
     const ok = (roll?.successes ?? 0) > 0;
     const d6 = ok ? 0 : (await new Roll("1d6").evaluate()).total;   // hidden: the result goes to the GM's whisper only
     const points = ok ? 0 : engineFailureStress(d6);
+    const before = vehicle.system.stressRating ?? 0;
     await vehicle.update({ ...extra, [`flags.sr2e.engineStress.${id}`]: { source, levels, successes: roll?.successes ?? 0, d6, points, at: Date.now() },
-      "system.stress": (vehicle.system.stressRating ?? 0) + points });
+      ...stressPatch({ before, after: before + points, counter: overheadCounter(vehicle) }) });
     await ChatMessage.create({ whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id), speaker: ChatMessage.getSpeaker({ actor: vehicle }),
       content: `<div class="sr2e-damage-result"><strong>Secret engine check: ${esc(vehicle.name)}</strong> — ${esc(label)}:
         ${roll?.successes ?? 0} success${roll?.successes === 1 ? "" : "es"}. ${ok ? "The engine holds." : `It will fail: +${points} permanent Stress (1D6 = ${d6}, ÷ 2 rounded up; R2 p.120).`}</div>` });
@@ -683,7 +689,8 @@ GM_OPS.replaceEngine = async ({ vehicleUuid }, user) => {
       designUpdate = workshopUpdate(ws.design, r, ch, pp, vehicle.name);
     }
     if (items.length) await vehicle.deleteEmbeddedDocuments("Item", items);
-    await vehicle.update({ ...designUpdate, "flags.sr2e.-=engineStress": null, "system.stress": Math.max(0, (vehicle.system.stress ?? 0) - points) });
+    await vehicle.update({ ...designUpdate, "flags.sr2e.-=engineStress": null,
+      ...stressPatch({ before: vehicle.system.stress ?? 0, after: Math.max(0, (vehicle.system.stress ?? 0) - points), counter: overheadCounter(vehicle) }) });
     return { points };
   });
 };
@@ -884,10 +891,17 @@ export async function gmStressTest(vehicle) {
 /* ── Sheet flows (Rigger 2 only) ──────────────────────────────────────────────────────────────────────────────── */
 
 /** The vehicle's Build/Repair skill name (car/bike → Ground Vehicles (B/R), boats, aircraft). */
-async function brSkillFor(vehicle) {
+export async function brSkillFor(vehicle) {
   const { customizeContext } = await import("./vehicle-customize.mjs");
   const { installSkills } = await import("./rules/vehicle-custom.mjs");
   return installSkills(["vehicleBR"], customizeContext(vehicle).traits)[0];
+}
+
+/** What a mechanic charges for the work (R2 p.19), quoted on the card; parts are separate. Days = 8-hour working days. */
+export function labourQuote(time, unit = "hours") {
+  const hours = (Number(time) || 0) * (unit === "days" ? 8 : 1);
+  const f = (l) => mechanicLabour(l, hours).cost.toLocaleString();
+  return `<br><em>Mechanic labour (R2 p.19), ${hours} h at 8 h a day, 5 days a week: Level 1 ${f(1)}¥ (plus the contact fee; faster = overtime at ×1.5), Level 2 ${f(2)}¥, Level 3 ${f(3)}¥ (or free, the GM's call).</em>`;
 }
 
 /** Pick a character the user owns to do the work. */
@@ -955,7 +969,7 @@ export async function repairFlow(vehicle) {
     if (!res) return;
     const r = await repairOp(vehicle, "tested", { jobId: job.id, successes: res.successes ?? 0, repairerUuid: f.worker.uuid });
     return say(r?.failed ? `No success: the repair of ${esc(vehicle.name)} doesn't get anywhere; try again.`
-      : `${esc(vehicle.name)} is in the shop for <strong>${r.hours} hours</strong> (${job.baseHours} ÷ ${res.successes}); it can't be used meanwhile. Finish it when the time has passed.`);
+      : `${esc(vehicle.name)} is in the shop for <strong>${r.hours} hours</strong> (${job.baseHours} ÷ ${res.successes}); it can't be used meanwhile. Finish it when the time has passed.${labourQuote(r.hours)}`);
   }
   const choice = await foundry.applications.api.DialogV2.wait({ window: { title: `Repair: ${vehicle.name}` }, rejectClose: false,
     content: `<p>${job.state === "working" ? `In the shop: ${job.hoursLeft} hours of work.` : `Taken back mid-repair: ${job.hoursLeft} hours left.`}</p>`,

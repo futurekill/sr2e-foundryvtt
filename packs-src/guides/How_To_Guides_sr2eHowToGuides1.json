@@ -170,6 +170,31 @@
       }
     },
     {
+      "_id": "2742d83a82a3fedd",
+      "name": "Pay your vehicles' upkeep (Rigger 2)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 700000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> the monthly maintenance overhead from <em>Rigger 2</em> p.18–19.</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-overhead.png\" alt=\"The overhead dialog: each linked vehicle's due and missed months, Restore on a paid missed month, the Lifestyle credit and Good Karma\"></p>\n<p><strong>The GM, when a month of game time has passed</strong></p>\n<ol>\n<li><strong>Actors sidebar → Month ends</strong> → confirm. Every vehicle linked to a character gets its bill for the month.</li>\n</ol>\n<p><strong>Each player</strong></p>\n<ol>\n<li><strong>Vehicles tab → Overhead.</strong> Tick the months to pay. Leave <strong>Use the Lifestyle credit</strong> on (Middle 200¥, High\n1,500¥, Luxury 3,000¥ a month), and add Good Karma if you like (500¥ a point). <strong>Pay.</strong></li>\n<li>Skipped a month? It&#39;s <strong>missed</strong> once the next month ends, and the vehicle takes 1 Stress. Pay it together with the\ncurrent month, then click <strong>Restore</strong> on it: 1 Good Karma and a Vehicle B/R (4) Test win the Stress Point back.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>The bill is 1% of the vehicle&#39;s value plus 10¥ per Stress Point it took that month: drive gently.</li>\n<li>A payment stuck halfway (a disconnect) shows <strong>Release</strong> on its month; the GM&#39;s client settles any payment that was\nalready charged.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "2ee6f48dadf6f3ab",
       "name": "Set up a Matrix jackpoint",
       "type": "text",
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },

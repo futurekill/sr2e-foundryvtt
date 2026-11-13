@@ -48,6 +48,7 @@ import { registerVehicleWorkshop, openVehicleWorkshop } from "./apps/vehicle-wor
 import { registerVehicleBase, convertVehicleBases, reapplyDesign, keepAsEdited } from "./vehicle-base.mjs";
 import { registerVehicleCustomize } from "./vehicle-customize.mjs";
 import { registerVehicleList, openVehicleListUpdate } from "./vehicle-list.mjs";
+import { registerVehicleOverhead } from "./vehicle-overhead.mjs";
 import { registerFabBehavior, registerFabHooks } from "./fab.mjs";
 import { registerCompanion } from "./companion/boot.mjs";
 import { registerPhoneLink } from "./companion/phone-link.mjs";
@@ -543,6 +544,7 @@ Hooks.once("init", async () => {
   registerVehicleBase();
   registerVehicleCustomize();
   registerVehicleList();
+  registerVehicleOverhead();
   registerAstralWalls();
   registerAstralWallHooks();
   registerNetHooks();

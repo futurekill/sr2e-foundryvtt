@@ -4242,6 +4242,11 @@ const SHARED_ACTIONS = {
    * @this {ApplicationV2}
    */
   /** Design a new vehicle in the Workshop, linked to this character when it's created. */
+  // Vehicle overhead (Rigger 2 p.18–19): pay due months, restore missed ones.
+  openOverhead: async function() {
+    (await import("../vehicle-overhead.mjs")).openOverheadDialog(this.document);
+  },
+
   openWorkshop: async function() {
     (await import("../apps/vehicle-workshop.mjs")).openVehicleWorkshop(null, { linkTo: this.document });
   },
