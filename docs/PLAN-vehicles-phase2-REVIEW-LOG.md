@@ -401,3 +401,16 @@ membership queue, so a transfer could slip between routing and commit.
 All taken. Transfers are `transfers.<randomID>` on the target holding the vehicle uuid as a value and a full copy of
 the entry, with idempotent stages recorded → removed → added, finished by the ready pass before anything else.
 `commitVehicleDamage` routes inside `chase-membership` (waiting out any pending transfer), then takes chase → vdmg.
+
+## Part 3 plan, round 9 — Codex (draft 9, fresh session): REVISE, 3 findings
+1. The closing pass applied effects (→ `commitVehicleDamage`: membership → chase → vdmg) while holding the chase
+queue: a lock-order inversion that deadlocks. 2. Transfers dropped the turn's DP, reservations, bonuses, contact and
+receipts (or would double-charge them in the target). 3. The transfer snapshot could go stale while a source action
+still ran.
+
+### Claude's response (draft 10)
+(1) Taken: effects are applied only after releasing the chase queue, each through its own normal path; resolution and
+the GM/closing passes read under the lock, release, apply, re-enter. (2–3) Resolved by removing the feature: the book
+has no rule for moving a vehicle between simultaneous chases. A vehicle may be removed (only with nothing in flight;
+its turn's records stay in the source) and added to another chase, joining from that chase's NEXT round, so no turn
+counts in two chases. Rounds 7–8's transfer records go with it.

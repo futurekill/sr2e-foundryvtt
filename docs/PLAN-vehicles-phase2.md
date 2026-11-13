@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 9 (2026-11-13, after Codex Part 3 rounds 1–8)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 10 (2026-11-13, after Codex Part 3 rounds 1–9)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -478,18 +478,17 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
     **One entry per document** (B6 #3): a vehicle or pedestrian uuid appears in at most ONE entry of ONE active chase
     in the world, and a character is aboard at most one vehicle. Membership changes are serialized by ONE
     world-wide queue, `chase-membership` (B7 #1; every chase GM op runs on the active GM, so one queue there orders
-    them all): `chaseAddEntry`, aboard changes, entry removal and `chaseTransfer` all run inside it, check every
-    active combat's chase (including pending transfers) and refuse a uuid already present. `chaseTransfer` is
-    recoverable (B8 #1–#2): it first writes, on the TARGET chase, `transfers.<tid>` (tid = randomID; the uuid is a
-    value, never a key) = `{ vehicleUuid, from: combatId, fromEid, toEid, entry: <a full copy of the source entry —
-    uuid, driver, speed, terrain, autonav, group, aboard>, stage: "recorded" }`, which counts as membership; then
-    removes the source entry (refused while it has a non-terminal action or DP slot) → `stage: "removed"`; then adds
-    `entries.<toEid>` from the stored copy → clears the record. Each stage is idempotent (remove: no-op if
-    `fromEid` is gone; add: no-op if `toEid` exists), so the GM's ready pass — which finishes every pending transfer
-    BEFORE anything else in the membership queue runs — can resume from any point.
+    them all): `chaseAddEntry`, aboard changes and entry removal run inside it, check every active combat's chase
+    and refuse a uuid already present. **No transfers** (B9 #2–#3): the book has no rule for moving a vehicle between
+    two simultaneous chases, and carrying a turn's DP, reservations, bonuses, contact and receipts across correctly
+    is a large cost for a case no table needs, so `chaseTransfer` is dropped (rounds 7–8's transfer records with it).
+    To move a vehicle, the GM removes it — allowed only under `chase-membership` → that chase's queue with no
+    non-terminal action or DP slot for it; its records for the current turn stay in the source chase (Stress already
+    charged stays charged) — and adds it to the other chase, where a new entry gets `joinedRound` = that chase's NEXT
+    round: it takes part from that round's opening (no DP, no actions, no speeding check before), so nothing of one
+    turn is ever counted in two chases.
     **Damage routing** (B8 #3): `commitVehicleDamage` for ANY vehicle runs inside `chase-membership`: it looks up
-    the vehicle's chase there (refusing to proceed while a transfer record for it exists — the ready pass finishes it
-    first), then takes that chase's queue (if any) and `vdmg:<uuid>`, so membership can't change between lookup and
+    the vehicle's chase there, then takes that chase's queue (if any) and `vdmg:<uuid>`, so membership can't change between lookup and
     commit. (Damage commits are short GM-side writes; one world-wide order for them is fine at table scale.)
     Lock order: `chase-membership` → `chase:<combatId>` → `vdmg:<vehicleUuid>`. So `driverOf`, the damage-speed lookup and every receipt keyed by entry are unambiguous.
   - `pairs.<pid>` = `{ pursuer: eid, quarry: eid, distance, contact: true | { hiddenBy, successes, round, npcTurns } }`.
@@ -529,9 +528,13 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   any rev it depended on changed since begin, or any vehicle's LIVE stamp differs from the stored one (weapon damage or
   a driver change made outside the chase queue shows up here); else in ONE Combat update writes the chase changes (speed, contact, bonuses,
   entitlements, `over`) together with `state: "resolving"` and the immutable result + its pending external effects
-  (Stress, damage, follow-ups), each with a deterministic event id; (4) each external effect is applied idempotently by
-  its id (`adjustStress`, `commitVehicleDamage`); (5) `state: "done"`. The GM's pass (ready, and before each turn
-  boundary) replays the effects of every "resolving" action and resolves "publishing" ones whose message exists; ones with
+  (Stress, damage, follow-ups), each with a deterministic event id — and RELEASES the chase queue; (4) each external
+  effect is applied idempotently by its id through its own normal path (`adjustStress`; `commitVehicleDamage`, which
+  takes membership → chase → vdmg itself) — **never while the caller holds a chase queue** (B9 #1: that would
+  invert the lock order and deadlock); (5) the chase queue is taken again to write `state: "done"`. The GM's pass
+  (ready, and the closing stage) works the same way: under the chase queue it only reads which actions are
+  "resolving" and which effects are pending, releases it, applies them, and re-enters; the closing stage completes
+  only on a pass that finds nothing resolving or pending. It replays the effects of every "resolving" action and resolves "publishing" ones whose message exists; ones with
   no message can be cancelled by their actor or the GM. Publication is serialized with cancellation exactly like a
   DP slot (3a.2, B4 #4): before posting, the acting client calls `chaseArm {aid}` (rolling → "publishing" in the chase
   queue); cancel is accepted only in "rolling" (never while publishing) and becomes terminal only after the acting
