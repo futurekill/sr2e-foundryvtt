@@ -119,6 +119,7 @@
           <span class="soft-grant">{{#if soft.system.grantedSkill}}{{soft.system.grantedSkill}} {{soft.system.rating}}{{else}}<em>(set granted skill)</em>{{/if}}</span>
           <span class="soft-type" title="{{soft.system.cost}}¥">{{soft.system.mp}} Mp</span>
           {{#if soft.system._overBudget}}<span class="soft-warn" title="Slotted but not running — over the Skillwire/chipjack capacity"><i class="fas fa-triangle-exclamation"></i></span>{{/if}}
+          {{#if soft.system._viaEncephalon}}<span class="soft-encephalon" title="Run by the encephalon, without skillwires: counts only while controlling a vehicle by its rig (Rigger 2 p.17)"><i class="fas fa-brain"></i></span>{{/if}}
           <div class="item-controls">
             <a data-action="toggleSlot" title="{{#if soft.system.slotted}}Un-slot{{else}}Slot{{/if}}">
               <i class="fas {{#if soft.system.slotted}}fa-bolt{{else}}fa-power-off{{/if}}"></i>

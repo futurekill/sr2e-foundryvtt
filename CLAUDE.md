@@ -245,6 +245,11 @@ overhauls pass `overhaulSuccesses` so removal is computed on the live value). A 
 op `drivingResolve` (claim + roll + Stress in the vehicle queue). Permanent Stress = the sum of `flags.sr2e.engineStress`
 records; only `replaceEngine` (GM op) removes them. Workshop saves that add engine levels write
 `flags.sr2e.pendingEngineChecks.<id>` in the same update; `gmEnginePass` resolves them. Speed is never rewritten.
+The rigger (Part 2b-1): quality effects key on `system.qualityRule` (derived: the `rule` field, else the pack UUID in
+`module/rules/quality-rules.mjs`), read via `actor.qualityValues()`; rigger TN modifiers live in ONE place,
+`actor.riggerTnParts(tnContext)`; `_vehicleSkill(vehicle, { mode })` takes the test's control mode (half-cost VCR
+defaulting, encephalon chips only when rigged); multi-skill installation rounds commit ONLY through the GM op
+`installRound` (`custom.partialId` + `custom.partial.<id>`, failure records `custom.brFails.<testMsgId>`).
 Upgrading (p.107, docs/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the

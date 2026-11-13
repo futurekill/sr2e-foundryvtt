@@ -50,12 +50,14 @@
           <span class="ef-name">{{q.name}}</span>
           <span class="ef-value" title="Build-point value">{{q.system.signedValue}}</span>
           <span class="ef-controls item-controls">
+            {{#if (eq q.system.qualityRule "gremlins")}}<a data-action="gremlinsCheck" title="Gremlins check (GM, Rigger 2 p.15): 2D6 when the character handles a piece of equipment — on a 2 it breaks down"><i class="fas fa-dice"></i></a>{{/if}}
             <a data-action="editItem" title="Edit"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem" title="Delete"><i class="fas fa-trash"></i></a>
           </span>
         </div>
         {{/each}}
       </div>
+      {{#if bioRejectionVcr}}<p class="hint ef-warn"><i class="fas fa-triangle-exclamation"></i> Bio-Rejection: the body rejects the implants a vehicle control rig needs — riggers can't take this Flaw (Rigger 2 p.14). The GM's call.</p>{{/if}}
       {{else}}
       <p class="hint ef-empty">No Edges or Flaws. Drag them from the compendium or click <strong>+ Add Edge / Flaw</strong>.</p>
       {{/if}}

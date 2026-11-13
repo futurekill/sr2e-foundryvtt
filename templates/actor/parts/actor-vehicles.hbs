@@ -33,6 +33,22 @@
         </div>
         {{/if}}
       </div>
+      {{#if (or rigger2 hasVertigo)}}
+      <div class="rigger-stats-row flexrow rigger-toggles">
+        {{#if system.vcrSwitchable}}
+        <label title="Rigger 2 p.17: a reflex-triggered VCR switched off (a Simple Action) is no VCR at all — no rigging, Control Pool or Reaction bonus, and no decking penalty">
+          <input type="checkbox" name="system.vcrOff" {{checked system.vcrOff}}> VCR switched off</label>
+        {{/if}}
+        {{#if (and rigger2 (or vcrFromCyberware system.vehicleControlRig))}}
+        <label title="Rigger 2 p.16–17: a second, decker datajack bypasses the VCR — no +1 TN while decking and no Hacking Pool cut">
+          <input type="checkbox" name="system.deckerJack" {{checked system.deckerJack}}> Decker datajack</label>
+        {{/if}}
+        {{#if hasVertigo}}
+        <label title="Simsense Vertigo (Rigger 2 p.15): +1 to all TNs and −1 Initiative while operating a simsense device. Rigging, decking and smartlinked attacks count by themselves; tick this for anything else (display link, simrig, a smartlinked weapon held ready)">
+          <input type="checkbox" name="system.usingSimsense" {{checked system.usingSimsense}}> Using simsense (Vertigo)</label>
+        {{/if}}
+      </div>
+      {{/if}}
     </fieldset>
 
     <div class="vehicles-instructions">

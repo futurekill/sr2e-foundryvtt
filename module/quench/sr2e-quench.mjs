@@ -13037,6 +13037,105 @@ export function registerSR2EQuenchTests() {
           assert.equal(v.system.conditionMonitor.value, 0);
         });
       });
+
+      // Part 2b-1 (R2 p.12–19). The ruleset is read through game.settings.get: stubbed on this client only (no world
+      // setting changes); actors are re-prepared inside.
+      describe("The rigger (R2 p.12–19)", () => {
+        const asR2 = async (fn) => {
+          const g = game.settings.get;
+          game.settings.get = function (ns, k) { return ns === "sr2e" && k === "vehicleRuleset" ? "rigger2" : g.call(this, ns, k); };
+          try { return await fn(); } finally { game.settings.get = g; }
+        };
+        const prep = (a) => { a.reset(); return a; };
+        const rigger = async (name, extra = []) => {
+          const a = await mk({ name, type: "character", system: { quickness: { base: 4 }, intelligence: { base: 4 } } });
+          await a.createEmbeddedDocuments("Item", [{ name: "Vehicle Control Rig", type: "cyberware", system: { installed: true, rating: 3, isVcr: true, essenceCost: 2 } }, ...extra]);
+          return a;
+        };
+        it("Control Pool: natural Quickness, −1 per move-by-wire level; rigging Reaction/Initiative cut by it (Monkeywrench)", async () => {
+          const a = await rigger("Quench R2 Monkeywrench", [{ name: "Move-by-Wire System (Level 1)", type: "cyberware", flags: { sr2e: { rule: "move-by-wire:1" } },
+            system: { installed: true, essenceCost: 1, attributeMods: { quickness: 1, reaction: 2, initiativeDice: 1 } } }]);
+          assert.equal(a.system.quickness.value, 5, "MBW Quickness counts outside the rig");
+          assert.equal(a.system.dicePools.control.max, 10, "core: (5 + 4) ÷ 2 + 6");
+          await asR2(async () => {
+            prep(a);
+            assert.equal(a.system.dicePools.control.max, 9, "R2: (4 + 4) ÷ 2 + 6 − 1");
+            await a.update({ "system.rigging": true });
+            assert.deepEqual([a.system.reaction.value, a.system.initiative.dice], [8, 3], "Reaction 4 + 4, 3D6");
+          });
+          await a.update({ "system.rigging": false });
+        });
+        it("a reflex-triggered VCR switched off is no VCR: no pool, no decking penalty; a rigger decking: +1 TN and Hacking Pool − VCR", async () => {
+          const a = await rigger("Quench R2 Otto");
+          await a.update({ "system.cyberdeck.mpcp": 8 });
+          await a.createEmbeddedDocuments("Item", [{ name: "Computer", type: "skill", system: { rating: 4 } }]);
+          const core = a.system.dicePools.hacking.max;
+          await asR2(async () => {
+            prep(a);
+            assert.equal(a.system.dicePools.hacking.max, Math.max(0, core - 3), "less the VCR level");
+            await a.update({ "system.matrixMode": true });
+            assert.deepEqual(a.riggerTnParts({}), [["rigger decking", 1]]);
+            await a.update({ "system.deckerJack": true });
+            assert.equal(a.system.dicePools.hacking.max, core, "a decker datajack exempts");
+            assert.deepEqual(a.riggerTnParts({}), []);
+            await a.update({ "system.deckerJack": false, "system.vcrOff": true });
+            assert.equal(a.system.vehicleControlRig, 3, "no trigger: can't be switched off");
+            await a.items.find(i => i.system.isVcr).update({ "system.installed": false });
+            await a.items.find(i => i.system.isVcr).update({ "system.reflexTrigger": true, "system.installed": true });
+            assert.deepEqual([a.system.vehicleControlRig, a.system.dicePools.control.max, a.system.dicePools.hacking.max], [0, 0, core]);
+          });
+          await a.update({ "system.matrixMode": false });
+        });
+        it("encephalon: a Car activesoft without skillwires counts only when rigged; VCR defaulting at half cost", async () => {
+          const a = await rigger("Quench R2 Encephalon", [
+            { name: "Encephalon", type: "cyberware", flags: { sr2e: { rule: "encephalon" } }, system: { installed: true, rating: 1, essenceCost: 0.75 } },
+            { name: "Car Activesoft", type: "gear", system: { category: "skillsoft", grantedSkill: "Motorboat", grantedSkillCategory: "active", rating: 4, slotted: true } }]);
+          const v = await mk({ name: "Quench R2 Nightrunner", type: "vehicle", system: { body: 3, handling: 4, skill: "motorboat" } });
+          await asR2(async () => {
+            prep(a);
+            assert.equal(a.items.find(i => i.type === "gear").system._viaEncephalon, true);
+            const rig = a._vehicleSkill(v, { mode: "rigged" }), man = a._vehicleSkill(v, { mode: "manual" });
+            assert.deepEqual([rig.dice, rig.penalty], [4, 0], "the chip's rating, rigged");
+            assert.ok(man.penalty > 0, "manual: defaulting");
+            await a.items.find(i => i.type === "gear").update({ "system.slotted": false });
+            const half = a._vehicleSkill(v, { mode: "rigged" });
+            assert.equal(half.penalty * 2, a._vehicleSkill(v, { mode: "manual" }).penalty, "Reaction → Motorboat at half (R2 p.12)");
+          });
+        });
+        it("qualities by source: Simsense Vertigo +1 TN and −1 Initiative on simsense; Spike Resistance on neural Willpower", async () => {
+          const a = await mk({ name: "Quench R2 Vertigo", type: "character", system: { willpower: { base: 5 } } });
+          await a.createEmbeddedDocuments("Item", [
+            { name: "Simsense Vertigo", type: "quality", system: { kind: "flaw", pointValue: -2 },
+              _stats: { compendiumSource: "Compendium.sr2e-rigger-2.r2-qualities.Item.f94365525601975a" } },
+            { name: "Spike Resistance", type: "quality", system: { kind: "edge", pointValue: 4, rule: "spike-resistance" } }]);
+          assert.equal(a.items.find(i => i.name === "Simsense Vertigo").system.qualityRule, "simsense-vertigo", "derived from the source");
+          assert.deepEqual(a.riggerTnParts({}), []);
+          const before = a._getInitiativeParts().base;
+          await a.update({ "system.usingSimsense": true });
+          assert.deepEqual(a.riggerTnParts({}), [["Simsense Vertigo", 1]]);
+          assert.equal(a._getInitiativeParts().base, before - 1);
+          assert.equal(a.neuralWillpower(), 7);
+        });
+        it("multi-skill B/R (R2 p.14): the pass is kept, the failure recorded (+1); two clients on one attempt → one wins", async () => {
+          const { installRound } = await vp();
+          const v = await mk({ name: "Quench R2 Garage", type: "vehicle", system: { body: 3 } });
+          const [m] = await v.createEmbeddedDocuments("Item", [{ name: "Quench Mod", type: "vehicle_mod", system: { rating: 1, custom: { state: "parts" } } }]);
+          const V = "Ground Vehicles (B/R)", E = "Electronics (B/R)", spec = { levels: 1, tn: 4, baseTime: 12 };
+          const args = (prevId, fresh, rolls) => ({ prevId, fresh, spec, worker: "Actor.w", skills: [V, E], rolls, combine: "lowest", unit: "hours" });
+          const r1 = await installRound(v, m, args("", true, [{ skill: V, successes: 2, key: "t1" }, { skill: E, successes: 0, key: "t2", rating: 3 }]));
+          const id = m.system.custom.partialId;
+          assert.ok(id && !r1.complete);
+          assert.deepEqual(m.system.custom.brFails.t2, { worker: "Actor.w", skill: E, rating: 3 });
+          const both = await Promise.allSettled([installRound(v, m, args(id, false, [{ skill: E, successes: 3, key: "t3" }])),
+            installRound(v, m, args(id, false, [{ skill: E, successes: 1, key: "t4" }]))]);
+          assert.equal(both.filter(x => x.status === "fulfilled").length, 1, "the second finds the attempt changed");
+          assert.deepEqual([m.system.custom.state, m.system.custom.attempt.results[0].successes, m.system.custom.partialId], ["tested", 2, ""]);
+          // An all-fail round records nothing.
+          const [n] = await v.createEmbeddedDocuments("Item", [{ name: "Quench Mod 2", type: "vehicle_mod", system: { rating: 1, custom: { state: "parts" } } }]);
+          const r3 = await installRound(v, n, args("", true, [{ skill: V, successes: 0, key: "u1" }, { skill: E, successes: 0, key: "u2" }]));
+          assert.deepEqual([r3.failed, Object.keys(n.system.custom.brFails).length, n.system.custom.partialId], [true, 0, ""]);
+        });
+      });
     }, { displayName: "SR2E: Vehicles, Rigger 2 operations" });
 
     quench.registerBatch("sr2e.vehicles", (context) => {

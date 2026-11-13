@@ -1,3 +1,4 @@
+import { isRigger2 } from "../vehicle-mode.mjs";
 import { evaluateDegradation } from "../rules/vr2ic-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
@@ -9,6 +10,7 @@ import { designOf } from "../programming.mjs";
 import { deckModeFields } from "./actor-data.mjs";
 import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
+import { QUALITY_RULES, qualityRule } from "../rules/quality-rules.mjs";
 import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
 import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining } from "../rules/sr2e-rules.mjs";
 
@@ -542,6 +544,8 @@ export class CyberwareData extends SR2EDataModel {
       // bonuses apply only while jacked in (SR2E p.85) — do NOT also give the
       // item attributeMods for them.
       isVcr: new fields.BooleanField({ initial: false }),
+      // A VCR built with a reflex trigger (Rigger 2 p.17): switchable with a Simple Action; factory only.
+      reflexTrigger: new fields.BooleanField({ initial: false }),
       // Tactical computer (Shadowtech p.53): its rating adds to Initiative, up
       // to the natural Reaction maximum. Set the *effective* level here — extra
       // senses (+1 each) and an orientation system (+2) raise it, and the book
@@ -699,6 +703,11 @@ export class CyberwareData extends SR2EDataModel {
     this.cost         = row ? row.cost         : this._source.cost;
     this.availability = row ? row.availability : this._source.availability;
     this.streetIndex  = row ? row.streetIndex  : this._source.streetIndex;
+    // A reflex-triggered VCR (Rigger 2 p.17): +13,000¥ and +0.2 Essence on the rig itself.
+    if (this.isVcr && this.reflexTrigger && isRigger2()) {
+      this.essenceCost = Math.round(((this.essenceCost ?? 0) + 0.2) * 100) / 100;
+      this.cost = (this.cost ?? 0) + 13000;
+    }
 
     // Cyberlimb option formula pricing (SR2 p.261). Derive from `_source` so the
     // result never re-multiplies a previously prepared value that got saved back
@@ -1437,7 +1446,13 @@ export class VehicleModData extends SR2EDataModel {
         // The purchase that brought it (plan C3.2): { id, payer (uuid or "" = no charge), amount }; the passed
         // Installation Test (C3.4): { id, by, results [{skill, successes}], ok, hours, unit, spec {levels, choice, tn, baseTime, R0} }.
         receipt: new fields.ObjectField({ initial: {} }),
-        attempt: new fields.ObjectField({ initial: {} })
+        attempt: new fields.ObjectField({ initial: {} }),
+        // Multi-skill tests (Rigger 2 p.14): the attempt in progress (`partialId`) and its kept passes, keyed by attempt
+        // so a new attempt never merges into an old one: partial.<id> = { spec, passed {skill: successes} }.
+        partialId: new fields.StringField({ initial: "", blank: true }),
+        partial: new fields.ObjectField({ initial: {} }),
+        // Durable failure records, keyed by test message: { worker (uuid), skill, rating } — the retry penalty source.
+        brFails: new fields.ObjectField({ initial: {} })
       }),
       restrictions: new fields.ArrayField(new fields.StringField(), { initial: [] }),
       // A stable identity for rules that name a mod (drive-by-wire, rigger adaptation, autonav).
@@ -1595,10 +1610,21 @@ export class QualityData extends SR2EDataModel {
       // does not increase the character's actual Attribute Rating to the new
       // maximum. To do that, players must take bonus Attribute Points."
       maximumBonus: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Automated effect (Rigger 2 p.14–16): set by the content packs; copies without it
+      // resolve through their compendium source (`qualityRule`). blank:true or every
+      // existing quality goes invalid.
+      rule: new fields.StringField({ initial: "", blank: true, choices: {
+        "": "SR2E.Quality.NoRule",
+        ...Object.fromEntries(QUALITY_RULES.map(r => [r, `SR2E.Quality.Rule.${r}`]))
+      }}),
 
       source: new fields.StringField({ initial: "" }),
       notes: new fields.HTMLField({ initial: "" })
     };
+  }
+
+  prepareDerivedData() {
+    this.qualityRule = qualityRule(this.rule, sourceOf(this.parent));
   }
 
   /** Signed value as a display string, e.g. "+2" / "-3". */

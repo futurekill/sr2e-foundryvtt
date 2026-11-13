@@ -29,6 +29,8 @@ export const WARE_SOURCES = Object.fromEntries([
   ...of("comm-headware", SYS("17d0945110b4cb33"), SYS("b2cc43aa6248a93b"), SYS("399qebdkfbz9i75m"), SYS("ebujgdogforfeqen"),
     ...["bcf6634f8d183c65", "0e2a4d29461c41a8", "68e658d6b72a62b8", "cde8e55950028420", "1b0b6f5f2aaa4286", "e3caae71f62f4900",
       "842ab9ef6cf2bcb9", "d4d209097e89fb53", "ba35beabd41162b8", "442b3110dca81095", "2b8b037fdc69b930"].map(id => CT("ct-headware", id))),
+  // Runs vehicle activesofts while rigging without skillwires (Rigger 2 p.17).
+  ...of("encephalon", SYS("501ec03f28acd6d8"), CT("ct-matrixware", "0ea573e8e5d55c13")),
   ...of("datajack", SYS("b59ff8773d6c2f11"), CT("ct-matrixware", "41fb1314fbfcd8c0"), CT("ct-matrixware", "2298c394b579eb3f"),
     ST("st-cyberware", "b71df0e525220f05"))
 ]);

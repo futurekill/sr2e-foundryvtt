@@ -147,3 +147,39 @@ describe("customization review C3 (round 2)", () => {
     expect(customizationQuote(ec, 1, v).problems.join()).toMatch(/maximum is 150/);
   });
 });
+
+describe("multi-skill B/R tests (Rigger 2 p.14)", async () => {
+  const { brPenalty, brRound } = await import("../module/rules/vehicle-custom.mjs");
+  const skills = ["Ground Vehicles (B/R)", "Electronics (B/R)"];
+  const [V, E] = skills;
+  it("one passes, one fails: the pass is kept and the failure recorded (+1 next time)", () => {
+    const r = brRound({ skills, worker: "w", rolls: [{ skill: V, successes: 2, key: "m1" }, { skill: E, successes: 0, key: "m2", rating: 4 }] });
+    expect(r.passed).toEqual({ [V]: 2 });
+    expect(r.records).toEqual({ m2: { worker: "w", skill: E, rating: 4 } });
+    expect(r.complete).toBe(false);
+    expect(brPenalty(r.records, "w", E, 4)).toBe(1);
+  });
+  it("a failure rolled before the pass is recorded too (same round)", () => {
+    const r = brRound({ skills, worker: "w", rolls: [{ skill: E, successes: 0, key: "m1", rating: 3 }, { skill: V, successes: 1, key: "m2" }] });
+    expect(Object.keys(r.records)).toEqual(["m1"]);
+  });
+  it("every test fails: an ordinary failure, no record, no penalty", () => {
+    const r = brRound({ skills, worker: "w", rolls: [{ skill: V, successes: 0, key: "a" }, { skill: E, successes: 0, key: "b" }] });
+    expect(r).toMatchObject({ failed: true, records: {} });
+  });
+  it("the retry completes with the kept pass", () => {
+    const r = brRound({ skills, worker: "w", passed: { [V]: 2 }, rolls: [{ skill: E, successes: 3, key: "m3" }] });
+    expect(r.complete).toBe(true);
+    expect(r.results).toEqual([{ skill: V, successes: 2 }, { skill: E, successes: 3 }]);
+  });
+  it("all 1s on any required test: disastrous, the attempt ends", () => {
+    expect(brRound({ skills, worker: "w", passed: { [V]: 2 }, rolls: [{ skill: E, successes: 0, allOnes: true, key: "x" }] }))
+      .toMatchObject({ disaster: true, passed: {} });
+  });
+  it("penalty: per worker and skill; raising the skill clears it", () => {
+    const rec = { a: { worker: "w", skill: E, rating: 4 }, b: { worker: "w", skill: E, rating: 4 }, c: { worker: "x", skill: E, rating: 4 } };
+    expect(brPenalty(rec, "w", E, 4)).toBe(2);
+    expect(brPenalty(rec, "w", E, 5)).toBe(0);
+    expect(brPenalty(rec, "w", V, 4)).toBe(0);
+  });
+});

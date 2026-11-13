@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.148.0 — 2026-11-12
+
+### Added
+- **The rigger under Rigger 2** (R2 p.12–19; docs/PLAN-vehicles-phase2.md 2b-1):
+  - **Control Pool** = the rigger's Reaction from NATURAL Quickness (no cyberware Quickness, move-by-wire's included;
+    Intelligence enhancers count) + 2 per VCR level. **Move-by-wire** works against the rig: each level lowers the
+    effective VCR by 1 for Reaction and Initiative while rigging, and the Control Pool by 1 (Monkeywrench, p.18).
+  - **Combat Pool on Gunnery through a rig** can't exceed the Gunnery Rating: none when defaulting (p.16).
+  - **Defaulting by the rig** costs +1 per Skill Web dot instead of +2, from Reaction or a vehicle skill to a vehicle
+    skill (p.12); a Reaction default with no web route is +2 instead of +4. Driving by datajack or manually never halves.
+  - **A rigger decking** takes +1 to every TN in the Matrix and loses Hacking Pool dice equal to the VCR level (p.16),
+    unless they have a **decker datajack** (Vehicles tab) or a **reflex-triggered VCR** switched off. The reflex trigger
+    is a VCR option (+13,000¥, +0.2 Essence, set before installing — never retrofitted); a VCR switched off is no VCR.
+  - **Encephalon** (p.17): a vehicle activesoft runs without skillwires, but only while controlling the vehicle by
+    its rig (a brain icon on the skillsoft). Chipped vehicle skills now count on vehicle tests generally.
+- **Edges and Flaws with effects** (p.14–16; any ruleset — the quality on the sheet is the opt-in). A quality's
+  automated rule is a new field the content packs set (a rule selector on the quality sheet); copies already on
+  characters are recognised by their compendium source.
+  - **Vehicle Empathy** (new in the Rigger 2 module): −1 Handling in physical contact (manual controls, or jacked into
+    the vehicle itself; never a drone rigged remotely). The Driving Test dialog has a checkbox.
+  - **Simsense Vertigo**: +1 to all TNs and −1 Initiative while rigging, decking, attacking through a smartlink, or with
+    "Using simsense" ticked (Vehicles tab) for anything else.
+  - **Sensitive Neural Structure / Spike Resistance**: Willpower −1/−2 (never below 1) / +1 per 2 points when resisting
+    black IC (VR2.0), psychotropic IC and shaking off core dump shock.
+  - **Computer Illiterate**: +1 TN on Computer and Electronics tests (B/R included), Matrix tests, and Driving Tests by
+    datajack or rig.
+  - **Gremlins**: a GM check on the quality (dice icon): 2D6, and on a 2 the card states what the Flaw's tier does.
+  - **Bio-Rejection** with a VCR: a warning.
+- **Multi-skill Build/Repair tests** (p.14, both rulesets): when an installation needs several B/R tests, a passed test
+  is kept and only the failed skill is rolled again, at +1 TN for each recorded failure of that skill by that worker
+  (raising the skill clears it). A failure counts only when another required test passed; if every test fails, it's an
+  ordinary failure. Any required test of all 1s is a disastrous failure. Each round is committed by the GM.
+
+### Changed
+- The Rigger 2 module's Edges and Flaws notes say what the book says (the old Gremlins note had an impossible 2D6
+  result of 1).
+
 ## 0.147.1 — 2026-11-12
 
 ### Fixed

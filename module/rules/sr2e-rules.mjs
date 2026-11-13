@@ -2098,9 +2098,11 @@ export function findBestPath(web, fromId, toId) {
  * @param {object} web  the route graph (CONFIG.SR2E.skillWeb)
  * @param {string} target  desired skill entity id
  * @param {string[]} [owned]  skill entity ids the character has at rating > 0
+ * @param {object} [opts]  perCircle(source, kind) → TN per circle (default 2; a rigger's VCR halves vehicle
+ *   defaulting, Rigger 2 p.12). The cheapest PENALTY wins; with the default it's the fewest circles.
  * @returns {{penalty:number, source:string, kind:"skill"|"attribute"}|null}
  */
-export function webDefaultingTN(web, target, owned = []) {
+export function webDefaultingTN(web, target, owned = [], { perCircle = () => 2 } = {}) {
   let best = null;
   // Selection order (SR2E p.68–69 + house policy): fewest circles wins; on an
   // equal-circle tie a related skill beats an attribute (RAW intent), and among
@@ -2108,11 +2110,12 @@ export function webDefaultingTN(web, target, owned = []) {
   // participates in the skill-vs-skill tie-break.
   const consider = (circles, source, kind, rating = 0) => {
     if (circles == null) return;
+    const penalty = circles * perCircle(source, kind);
     if (best == null
-        || circles < best.circles
-        || (circles === best.circles && kind === "skill" && best.kind === "attribute")
-        || (circles === best.circles && kind === "skill" && best.kind === "skill" && rating > best.rating)) {
-      best = { circles, source, kind, rating };
+        || penalty < best.penalty
+        || (penalty === best.penalty && kind === "skill" && best.kind === "attribute")
+        || (penalty === best.penalty && kind === "skill" && best.kind === "skill" && rating > best.rating)) {
+      best = { circles, penalty, source, kind, rating };
     }
   };
 
@@ -2138,7 +2141,7 @@ export function webDefaultingTN(web, target, owned = []) {
     if (p) consider(p.circles, node, "skill", rating);
   }
 
-  return best ? { penalty: best.circles * 2, source: best.source, kind: best.kind } : null;
+  return best ? { penalty: best.penalty, source: best.source, kind: best.kind } : null;
 }
 
 /**

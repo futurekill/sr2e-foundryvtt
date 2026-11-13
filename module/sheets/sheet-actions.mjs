@@ -1,3 +1,4 @@
+import { gremlinsOutcome } from "../rules/quality-rules.mjs";
 import { shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss } from "../shapeshift.mjs";
 import { adeptPowersWork, weaponUsable, characterForm, shapeshifterOf } from "../rules/shapeshift-rules.mjs";
 import { parseDrainCode } from "../data/item-data.mjs";
@@ -3867,6 +3868,21 @@ async function amountDialog(title, balance, unit) {
 }
 
 const SHARED_ACTIONS = {
+  // Gremlins (Rigger 2 p.15): the GM's check when the character handles a piece of equipment. Never automatic.
+  gremlinsCheck: async function(event, target) {
+    event.preventDefault();
+    if (!game.user.isGM) return ui.notifications.warn("The gamemaster makes the Gremlins check.");
+    const item = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (!item) return;
+    const value = Math.abs(item.system.pointValue ?? 1) || 1;
+    const roll = await new Roll("2d6").evaluate();
+    const tier = gremlinsOutcome(roll.total, value);
+    const esc = foundry.utils.escapeHTML;
+    await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this.document }), rolls: [roll], whisper: ChatMessage.getWhisperRecipients("GM"),
+      content: `<div class="sr2e-damage-result"><strong>${esc(this.document.name)}: Gremlins check (${value}-point Flaw)</strong> — 2D6 = ${roll.total}.
+        <br>${tier ? `<strong>It breaks down.</strong> ${game.i18n.localize(`SR2E.Gremlins.${tier}`)}<br><em>${game.i18n.localize("SR2E.Gremlins.Vehicle")}</em>` : "The equipment works."}
+        <br><em>${game.i18n.localize("SR2E.Gremlins.Immune")}</em></div>` });
+  },
   // Shapeshifters (Companion pp.36–38; docs/PLAN-shapeshifters.md)
   shiftForm: async function(event, target) {
     event.preventDefault();

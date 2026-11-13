@@ -698,6 +698,13 @@
     <input type="checkbox" name="system.isVcr" {{checked system.isVcr}} />
     <span class="hint">(when installed, this item's Rating sets the character's VCR level)</span>
   </div>
+  {{#if (and system.isVcr rigger2)}}
+  <div class="form-group">
+    <label title="Rigger 2 p.17: switch the rig on or off with a Simple Action. +13,000¥ and +0.2 Essence; built in at the factory only — it can't be retrofitted to an installed VCR.">Reflex Trigger:</label>
+    <input type="checkbox" name="system.reflexTrigger" {{checked system.reflexTrigger}} {{#if system.installed}}disabled{{/if}} />
+    <span class="hint">(+13,000¥, +0.2 Essence; set before installing)</span>
+  </div>
+  {{/if}}
   <div class="form-group">
     <label>Tactical Computer:</label>
     <input type="checkbox" name="system.isTacticalComputer" {{checked system.isTacticalComputer}} />
@@ -1447,6 +1454,12 @@
   <div class="form-group">
     <label title="Exceptional Attribute (Companion, Edge value 2): raises the Attribute's racial MAXIMUM by this much. It does NOT raise the rating — take Bonus Attribute Points for that.">Racial Maximum Bonus:</label>
     <input type="number" name="system.maximumBonus" value="{{system.maximumBonus}}" min="0" />
+  </div>
+  <div class="form-group">
+    <label title="The automated effect this quality has (Rigger 2 p.14–16). The content packs set it; a copy without it is recognised by its compendium source and shows that here.">Rule:</label>
+    <select name="system.rule">
+      {{#each qualityRules as |label key|}}<option value="{{key}}" {{selected (ifThen ../system.rule ../system.rule ../system.qualityRule) key}}>{{localize label}}</option>{{/each}}
+    </select>
   </div>
   <div class="form-group">
     <label>Source:</label>

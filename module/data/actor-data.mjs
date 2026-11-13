@@ -1,4 +1,5 @@
-import { permanentStress } from "../rules/vehicle-r2-rules.mjs";
+import { permanentStress, rigBonuses, isVehicleSkillName } from "../rules/vehicle-r2-rules.mjs";
+import { isRigger2 } from "../vehicle-mode.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral } from "../rules/shapeshift-rules.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
@@ -326,6 +327,13 @@ export class CharacterData extends SR2EDataModel {
       // VCR's Reaction (+2/level) and Initiative (+1d6/level) bonuses — no
       // other Reaction/Initiative enhancers apply, except injury modifiers.
       rigging: new fields.BooleanField({ initial: false }),
+      // Rigger 2 p.16–17: a VCR with a reflex trigger switched off (a Simple Action) is no VCR
+      // at all; a second, decker datajack exempts the rigger from the decking penalties.
+      vcrOff: new fields.BooleanField({ initial: false }),
+      deckerJack: new fields.BooleanField({ initial: false }),
+      // Simsense Vertigo (p.15): operating a simsense device the system can't see (display link,
+      // simrig, a smartlinked weapon held ready).
+      usingSimsense: new fields.BooleanField({ initial: false }),
 
       // Astral state (SR2E p.145–147): "none", "perceiving" (dual-natured,
       // still in the body) or "projecting" (astral form acts separately, body
@@ -445,6 +453,12 @@ export class CharacterData extends SR2EDataModel {
     this.vehicleControlRig = mods.vcrLevel > 0
       ? mods.vcrLevel
       : (this.parent?._source?.system?.vehicleControlRig ?? 0);
+    // Rigger 2 p.17: a reflex-triggered VCR switched off is no VCR at all (rigging, pool, Reaction).
+    const rigger2 = isRigger2();
+    this.vcrSwitchable = rigger2 && !!mods.vcrTrigger;
+    if (this.vcrSwitchable && this.vcrOff) this.vehicleControlRig = 0;
+    // Move-by-wire works against the rig (p.18): a working implant's level, else 0.
+    this.rigMbw = rigger2 && this.mbw.working ? this.mbw.level : 0;
     this.tacticalComputer = mods.tacComputer;
     this.activeSkillDice = mods.activeSkillDice;
 
@@ -469,9 +483,21 @@ export class CharacterData extends SR2EDataModel {
     this.reaction.base = this.limbs.anyCyber
       ? reactionBase(this.limbs.avgQuicknessReaction, this.intelligence.value, 0)
       : reactionBase(this.quickness.value, this.intelligence.value, mods.reactionExemptQuickness ?? 0);
+    // Rigger 2 (p.16): the rigger's Reaction counts NATURAL Quickness only (no ware Quickness, move-by-wire's
+    // included), Intelligence with its enhancers; full cyberlimbs average as above.
+    this.rigReactionBase = rigger2
+      ? reactionBase(this.limbs.anyCyber ? this.limbs.avgQuicknessReaction : this._naturalAttribute("quickness", mods), this.intelligence.value, 0)
+      : null;
     if (this.rigging && this.vehicleControlRig > 0) {
-      this.reaction.mod = 2 * this.vehicleControlRig;
-      this.initiative.dice = 1 + this.vehicleControlRig;
+      if (rigger2) {
+        const rig = rigBonuses({ vcr: this.vehicleControlRig, mbw: this.rigMbw });
+        this.reaction.base = this.rigReactionBase;
+        this.reaction.mod = rig.reaction;
+        this.initiative.dice = rig.initiativeDice;
+      } else {
+        this.reaction.mod = 2 * this.vehicleControlRig;
+        this.initiative.dice = 1 + this.vehicleControlRig;
+      }
     } else {
       this.reaction.mod = (this.reaction.mod ?? 0) + mods.reaction;
       // initiative.mod is the Active-Effect hook for EXTRA INITIATIVE DICE
@@ -755,6 +781,9 @@ export class CharacterData extends SR2EDataModel {
    */
   _applySkillsofts() {
     this.chippedSkills = [];
+    // Vehicle activesofts run by an encephalon without skillwires (Rigger 2 p.17): ONLY while rigging, so they're
+    // kept apart and read by _vehicleSkill in rigged mode, never applied as skills.
+    this.encephalonChips = [];
     const items = this.parent?.items;
 
     // Clear LAST pass's chip markers first. prepareDerivedData mutates the
@@ -788,7 +817,7 @@ export class CharacterData extends SR2EDataModel {
     // Capacity from installed cyberware: Skillwires rating is the TOTAL-rating
     // budget for all running ActiveSofts (SR2E p.243); each chipjack accesses one
     // Know/LinguaSoft at a time; headware memory (parsed from its name) stores Mp.
-    let chipjacks = 0, datajacks = 0, skillwires = 0, memCapacity = 0;
+    let chipjacks = 0, datajacks = 0, skillwires = 0, memCapacity = 0, encephalon = false;
     if (items) {
       for (const i of items) {
         if (i.type !== "cyberware" || !workingImplant(this.parent, i)) continue;
@@ -800,6 +829,7 @@ export class CharacterData extends SR2EDataModel {
         if (declared > 0) chipjacks += declared;
         else if (n.includes("chipjack")) chipjacks++;
         if (n.includes("datajack")) datajacks++;
+        if (i.system.wareRule === "encephalon") encephalon = true;
         if (n.includes("skillwire")) skillwires = Math.max(skillwires, skillwireCapacity(i.name, i.system.rating || 0, i.system.skillwirePlus));
         const m = /(\d[\d,]*)\s*mp/i.exec(i.name);
         if (m) memCapacity += parseInt(m[1].replace(/,/g, ""), 10);
@@ -816,7 +846,7 @@ export class CharacterData extends SR2EDataModel {
     // over-budget chip otherwise left its warning badge showing.
     if (items) {
       for (const i of items) {
-        if (i.type === "gear" && i.system.category === "skillsoft") i.system._overBudget = false;
+        if (i.type === "gear" && i.system.category === "skillsoft") { i.system._overBudget = false; i.system._viaEncephalon = false; }
       }
     }
 
@@ -830,6 +860,11 @@ export class CharacterData extends SR2EDataModel {
       const fits = cat === "active"
         ? (skillwires > 0 && activeUsed + rating <= skillwires)
         : knowAccess;
+      if (!fits && cat === "active" && encephalon && rating > 0 && isRigger2() && isVehicleSkillName(name)) {
+        soft.system._viaEncephalon = true;
+        this.encephalonChips.push({ name, rating, softId: soft.id, softName: soft.name });
+        continue;
+      }
       if (!fits) { soft.system._overBudget = true; continue; }
       if (cat === "active") activeUsed += rating;
       memUsed += skillsoftMemory(cat, rating);
@@ -1099,6 +1134,7 @@ export class CharacterData extends SR2EDataModel {
         // Installed VCR cyberware sets the character's rig level (its rating)
         if (item.system.isVcr) {
           mods.vcrLevel = Math.max(mods.vcrLevel, item.system.rating || 1);
+          if (item.system.reflexTrigger) mods.vcrTrigger = true;
         }
         if (item.system.isTacticalComputer) {
           mods.tacComputer = Math.max(mods.tacComputer, item.system.rating || 1);
@@ -1535,10 +1571,13 @@ export class CharacterData extends SR2EDataModel {
     // (SR2E p.84: "Reaction bonuses from other sources are of no help") —
     // natural (Q+I)/2 plus 2 per rig level, regardless of other enhancers
     // or whether the rigger is currently jacked in.
-    if (this.vehicleControlRig > 0) {
+    // Rigger 2 (p.16–18): Reaction from natural Quickness, less 1 per move-by-wire level.
+    if (this.vehicleControlRig > 0 && this.rigReactionBase != null) {
+      applyPool(this.dicePools.control, rigBonuses({ vcr: this.vehicleControlRig, mbw: this.rigMbw, reaction: this.rigReactionBase }).controlPool);
+    } else if (this.vehicleControlRig > 0) {
       const naturalReaction = Math.floor((this.quickness.value + this.intelligence.value) / 2);
       applyPool(this.dicePools.control, naturalReaction + 2 * this.vehicleControlRig);
-    }
+    } else applyPool(this.dicePools.control, 0);
 
   }
 
@@ -1551,9 +1590,11 @@ export class CharacterData extends SR2EDataModel {
   _calculateHackingPool() {
     const mpcp = this.cyberdeck?.mpcp ?? 0;
     if (!(mpcp > 0)) return applyPoolMax(this.dicePools.hacking, 0);
-    if (isVR2()) return applyPoolMax(this.dicePools.hacking, vr2HackingPool(this.intelligence.value, mpcp));
+    // Rigger 2 p.16: a rigger decking loses dice equal to the VCR level, unless a decker datajack or the VCR is off.
+    const rigCut = isRigger2() && !this.deckerJack ? (this.vehicleControlRig ?? 0) : 0;
+    if (isVR2()) return applyPoolMax(this.dicePools.hacking, Math.max(0, vr2HackingPool(this.intelligence.value, mpcp) - rigCut));
     const computerSkill = this.parent?.items?.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system.rating ?? 0;
-    applyPoolMax(this.dicePools.hacking, computerSkill + this.reaction.value);
+    applyPoolMax(this.dicePools.hacking, Math.max(0, computerSkill + this.reaction.value - rigCut));
   }
 
   /**

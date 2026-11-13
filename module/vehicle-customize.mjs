@@ -11,8 +11,8 @@
  * Removing a bought item writes `custDelivery.<id> = "removed"` first; recovery never recreates it and finishes the
  * deletion. Every step re-reads the live documents, so a replay changes nothing.
  */
-import { isEngineCustomization, engineCheckForInstall } from "./vehicle-play.mjs";
-import { customizationQuote, vehicleTraits, installTime, installSkills, familyOf } from "./rules/vehicle-custom.mjs";
+import { isEngineCustomization, engineCheckForInstall, installRound } from "./vehicle-play.mjs";
+import { customizationQuote, vehicleTraits, installSkills, familyOf, brPenalty } from "./rules/vehicle-custom.mjs";
 import { applyModEffects, modProblems, vehicleCapacity, modCounts, modBaked } from "./rules/vehicle-design.mjs";
 import { moneyQueue, adjustNuyen } from "./money.mjs";
 import { streetPrice } from "./rules/sr2e-rules.mjs";
@@ -357,20 +357,36 @@ export async function installationTest(vehicle, item, worker) {
   }
   if (q.tn == null || q.baseTime == null) return ui.notifications.warn(`${item.name}: its Target Number or base time can't be worked out (${q.problems.join("; ")}).`);
   const skills = installSkills(q.skills.length ? q.skills : ["vehicleBR"], customizeContext(vehicle).traits);
-  const results = [];
-  for (const name of skills) {
-    const r = await worker.rollNamedSkill(name, q.tn, { label: `${name}: installing ${item.name}` });
+  // Rigger 2 p.14: passed tests of the attempt in progress are kept (same spec); only the rest are rolled, each at +1
+  // per recorded failure of that skill by this worker.
+  const prevId = c.partialId ?? "";
+  const prev = prevId ? c.partial?.[prevId] : null;
+  const fresh = !prev || JSON.stringify(prev.spec ?? {}) !== JSON.stringify(spec);
+  const passed = fresh ? {} : (prev.passed ?? {});
+  const rolls = [];
+  for (const name of skills.filter(sk => !(passed[sk] > 0))) {
+    const rating = worker.items.find(i => i.type === "skill" && i.name.toLowerCase() === name.toLowerCase())?.system?.rating ?? 0;
+    const penalty = brPenalty(c.brFails, worker.uuid, name, rating);
+    const r = await worker.rollNamedSkill(name, q.tn + penalty, { label: `${name}: installing ${item.name}${penalty ? ` (+${penalty} repeat, R2 p.14)` : ""}` });
     if (!r) return;   // cancelled
-    results.push({ skill: name, successes: num(r.successes) });
+    const dice = r.dice ?? [];
+    rolls.push({ skill: name, successes: num(r.successes), rating, key: r.testMessageId || foundry.utils.randomID(16),
+      allOnes: dice.length > 0 && dice.every(d => (d.total ?? d.result ?? d) === 1) });
   }
-  const hours = installTime(q.baseTime, results, q.combine);
-  const ok = hours != null;
-  await item.update({ "system.custom.state": ok ? "tested" : "parts",
-    "system.custom.attempt": ok ? { id: foundry.utils.randomID(), by: worker.uuid, results, ok, hours, unit: q.baseUnit, spec } : {} });
-  const line = results.map(r => `${r.skill} ${r.successes}`).join(", ");
-  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: worker }), content: ok
-    ? `<p><strong>${item.name}</strong> installed on ${vehicle.name} in <strong>${hours} ${q.baseUnit}</strong> (base ${q.baseTime} ÷ ${q.combine === "sum" ? "all" : "the lowest"} successes: ${line}). Click Finish on the vehicle when the time has passed.</p>`
-    : `<p><strong>${item.name}</strong>: the Installation Test failed (${line}; every test needs a success, TN ${q.tn}). The parts stay; try again.</p>` });
+  let out;
+  try {
+    out = await installRound(vehicle, item, { prevId, fresh, spec, worker: worker.uuid, skills, rolls, combine: q.combine, unit: q.baseUnit });
+  } catch (err) { return ui.notifications.warn(`${item.name}: ${err.message}`); }
+  const line = rolls.map(r => `${r.skill} ${r.successes}`).join(", ");
+  const kept = Object.keys(passed).filter(k => !rolls.some(r => r.skill === k)).map(k => `${k} ${passed[k]} (kept)`);
+  const all = [...kept, line].filter(Boolean).join(", ");
+  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: worker }), content: out.disaster
+    ? `<p><strong>${item.name}</strong>: <strong>disastrous failure</strong> — a required test came up all 1s (${all}; R2 p.14). The attempt ends; the GM rules on the damage (the parts stay unless the GM removes them).</p>`
+    : out.complete
+    ? `<p><strong>${item.name}</strong> installed on ${vehicle.name} in <strong>${out.hours} ${q.baseUnit}</strong> (base ${q.baseTime} ÷ ${q.combine === "sum" ? "all" : "the lowest"} successes: ${all}). Click Finish on the vehicle when the time has passed.</p>`
+    : out.failed
+    ? `<p><strong>${item.name}</strong>: the Installation Test failed (${all}; every test needs a success, TN ${q.tn}). The parts stay; try again.</p>`
+    : `<p><strong>${item.name}</strong>: ${all}. Passed tests are kept; roll the failed one again (+1 TN for each repeat, until the skill rises — R2 p.14).</p>` });
 }
 
 /**

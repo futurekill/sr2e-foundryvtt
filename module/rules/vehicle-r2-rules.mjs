@@ -31,6 +31,7 @@ export function drivingTN(o = {}) {
   if (o.mode === "datajack") parts.push(["Datajack", DRIVING_MODS.datajack]);
   const vcr = Math.max(0, Number(o.vcr) || 0);
   if (o.mode === "rigged" && vcr) parts.push([`Rigger in control (VCR ${vcr})`, -2 * vcr]);
+  if (o.empathy) parts.push(["Vehicle Empathy", -1]);   // Handling −1 in physical contact (p.16)
   if (o.damageMod) parts.push(["Vehicle damage", Number(o.damageMod)]);
   if (o.otherMod) parts.push(["Other", Number(o.otherMod)]);
   const raw = parts.reduce((s, [, m]) => s + m, 0);
@@ -105,4 +106,32 @@ export const engineFailureStress = (d6) => Math.ceil((Number(d6) || 0) / 2);
 /** Permanent Stress = the sum of the engine records (only factory replacement removes one). */
 export function permanentStress(records = {}) {
   return Object.values(records ?? {}).reduce((t, r) => t + Math.max(0, Number(r?.points) || 0), 0);
+}
+
+/**
+ * The rig's bonuses under Rigger 2 (p.16–18). Move-by-wire lowers the EFFECTIVE VCR level by 1 per level for Reaction
+ * (+2/level) and Initiative (+1D6/level), and the Control Pool by 1 per level: pool = Reaction + 2 × VCR − MBW
+ * (Monkeywrench: VCR 3 → 10; MBW 1 → 9; MBW 3 → 7; MBW 4 → 6).
+ */
+export function rigBonuses({ vcr = 0, mbw = 0, reaction = 0 } = {}) {
+  const eff = Math.max(0, vcr - mbw);
+  return { reaction: 2 * eff, initiativeDice: 1 + eff, controlPool: vcr > 0 ? Math.max(0, reaction + 2 * vcr - mbw) : 0 };
+}
+
+/** The vehicle skills on the Skill Web (SR2E p.68–69), by node: the Rigger 2 p.12 half-cost defaulting set. */
+export const VEHICLE_WEB_NODES = new Set(["car", "bike", "hovercraft", "motorboat", "sailboat", "winged", "rotor", "vectorThrust"]);
+const VEHICLE_SKILL_KEYS = new Set(["car", "bike", "hovercraft", "motorboat", "sailboat", "winged_aircraft", "rotor_aircraft",
+  "vector_thrust_aircraft", "pilot"]);
+/** A skill name → is it a vehicle (driving) skill? Names are normalised as vehicle tests do. */
+export const isVehicleSkillName = (name) =>
+  VEHICLE_SKILL_KEYS.has(String(name ?? "").toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, ""));
+
+/**
+ * Rigger 2 p.12: a rigger defaulting while controlling the vehicle by VCR takes +1 per web dot instead of +2 — only
+ * from Reaction or a vehicle skill TO a vehicle skill (the source and destination; the path between doesn't matter).
+ * Returns the Skill Web perCircle cost function for a target node, or undefined (normal costs).
+ */
+export function vcrPerCircle(target) {
+  if (!VEHICLE_WEB_NODES.has(target)) return undefined;
+  return (source, kind) => (kind === "attribute" ? source === "reaction" : VEHICLE_WEB_NODES.has(source)) ? 1 : 2;
 }

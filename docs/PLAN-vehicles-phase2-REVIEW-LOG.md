@@ -248,3 +248,16 @@ resolution. Edit applied; round rerun.
 
 ## Part 2b plan, round 11 — Codex (draft 10, fresh session): APPROVED
 No new material findings against the pages, the code, or settled rounds 1–9. Part 2b plan approved at draft 10.
+
+## Part 2b-1 code, round 1 — Codex (fresh session): REVISE, 4 findings
+1. Partial installation rounds reused the attempt id, so two clients retrying the same failed skill both committed
+(the second at the pre-retry TN). 2. The reflex-trigger surcharge applied under the core ruleset. 3. A Skill Web default
+from Reaction ignored the vehicle's damage Initiative modifier. 4. A VCR switched off left `rigging` true, so Simsense
+Vertigo still applied.
+
+### Claude's response
+All taken: every committed round writes a new attempt revision (stale clients refused); surcharge and its control gated
+by `isRigger2()`; `_webDefaultForNode` returns its source and a Reaction source rolls the adjusted Reaction; rigging
+counts for Vertigo only with an effective VCR.
+
+## Part 2b-1 code, round 2 — Codex (fresh session, the four fixes only): APPROVED

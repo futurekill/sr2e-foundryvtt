@@ -1,3 +1,4 @@
+import { isRigger2 } from "../vehicle-mode.mjs";
 import { shiftView } from "../shapeshift.mjs";
 import { skInitDice } from "../rules/vr2-frames.mjs";
 import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES, weaponUsable, activeFormOf } from "../rules/shapeshift-rules.mjs";
@@ -1590,6 +1591,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.vcrFromCyberware = actor.items.some(
       i => i.type === "cyberware" && i.system.installed && i.system.isVcr
     );
+    // Bio-Rejection rejects the rig too (Rigger 2 p.14): warned, never blocked.
+    context.bioRejectionVcr = context.vcrFromCyberware && !!actor.qualityValues()["bio-rejection"];
+    context.hasVertigo = !!actor.qualityValues()["simsense-vertigo"];
+    context.rigger2 = isRigger2();
     context.isMagical = system.isMagical;
     context.isDecker = system.isDecker;
     // The deck block and persona are DERIVED in place (active deck, loaded programs, VR2.0

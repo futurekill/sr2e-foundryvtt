@@ -1685,7 +1685,8 @@ async function resistOnLog(defender, message, st, liveAtk) {
     if (!has("meat")) {
       const willpower = hit.kind !== "lethal";
       const tn = Math.max(2, hit.rating - (hit.hardening ?? 0));
-      const dice = willpower ? (defender.system.willpower?.value ?? 0) : (defender.system.body?.value ?? 0);
+      // Sensitive Neural Structure / Spike Resistance (Rigger 2 p.15) on the Willpower resistance.
+      const dice = willpower ? defender.neuralWillpower() : (defender.system.body?.value ?? 0);
       // Karma Pool yes, Hacking Pool no (p.48): an ordinary resistance test, no pools offered.
       const r = await defender.rollSuccessTest(Math.max(0, dice), tn, {
         label: RL("ResistBlackMeat", { attr: AL(willpower ? "willpower" : "body"), tn }), isResistance: true, tnContext: { kind: "other" } });

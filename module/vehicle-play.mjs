@@ -10,6 +10,7 @@ import { crashTrigger, woundLevelOf, impactDamage, reservedControl, levelBelow }
 import { resolveBarrier } from "./rules/sr2e-rules.mjs";
 import { r2Speed, engineFailureStress, permanentStress, repairQuote, repairHours, drivingTN, stressDice, ruleOfOne, drivingStressOutcome, overhaul } from "./rules/vehicle-r2-rules.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
+import { brRound, installTime } from "./rules/vehicle-custom.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
 import { RL } from "./util/roll-label.mjs";
@@ -535,6 +536,43 @@ GM_OPS.drivingResolve = async ({ messageId }, user) => {
   });
 };
 
+/* Multi-skill Installation Tests (R2 p.14): one round committed by the GM in the vehicle queue. */
+
+/** Commit one round of an Installation Test; throws when the attempt changed since it was read. */
+export function installRound(vehicle, item, args) {
+  return gmCall("installRound", { vehicleUuid: vehicle.uuid, itemId: item.id, ...args });
+}
+GM_OPS.installRound = async ({ vehicleUuid, itemId, prevId = "", fresh, spec, worker, skills, rolls, combine, unit }, user) => {
+  const vehicle = fromUuidSync(vehicleUuid);
+  if (vehicle?.type !== "vehicle" || !vehicle.items.get(itemId)) throw new Error("no such customization");
+  if (!mayCommit(user, vehicle)) throw new Error(`${user?.name} may not work on ${vehicle.name}`);
+  return enqueueAttack(`vdmg:${vehicleUuid}`, async () => {
+    const item = vehicle.items.get(itemId), c = item?.system.custom ?? {};
+    if (!item || c.state !== "parts") throw new Error("it is no longer waiting to be installed");
+    if ((c.partialId ?? "") !== prevId) throw new Error("another Installation Test changed this attempt; roll again");
+    const passed = fresh ? {} : (c.partial?.[prevId]?.passed ?? {});
+    const out = brRound({ skills, passed, rolls, worker });
+    const upd = {};
+    for (const [k, r] of Object.entries(out.records)) if (!c.brFails?.[k]) upd[`system.custom.brFails.${k}`] = r;
+    // Every committed round gets a NEW attempt revision: a client that read the old one is refused (no stale retry).
+    if (prevId) upd[`system.custom.partial.-=${prevId}`] = null;
+    if (out.complete) {
+      const hours = installTime(spec.baseTime, out.results, combine);
+      Object.assign(upd, { "system.custom.state": "tested", "system.custom.partialId": "",
+        "system.custom.attempt": { id: foundry.utils.randomID(), by: worker, results: out.results, ok: true, hours, unit, spec } });
+      await item.update(upd);
+      return { ...out, hours };
+    }
+    if (out.disaster || out.failed) upd["system.custom.partialId"] = "";
+    else {
+      const id = foundry.utils.randomID(16);
+      Object.assign(upd, { "system.custom.partialId": id, [`system.custom.partial.${id}`]: { spec, passed: out.passed } });
+    }
+    await item.update(upd);
+    return out;
+  });
+};
+
 /* Engine customization (R2 p.120): the secret test, recorded with its Stress in ONE actor update. */
 
 /**
@@ -760,6 +798,7 @@ export async function promptDrivingTest(driver, vehicle) {
       <label style="font-size:12px;"><input type="checkbox" name="combat"> During combat (+2)</label>
       ${ground ? `<label style="font-size:12px;"><input type="checkbox" name="offRoad"> Off-road</label>
         ${offRoadRating == null ? `<div class="form-group"><label>Off-road Handling:</label><input type="number" name="offRoadHandling" placeholder="GM" style="width:52px;"></div>` : "<span></span>"}` : ""}
+      ${driver?.qualityValues()["vehicle-empathy"] ? `<label style="font-size:12px;" title="Vehicle Empathy (Rigger 2 p.16): Handling −1 in physical contact — manual controls, or jacked into this vehicle itself; never rigging a drone remotely"><input type="checkbox" name="contact" checked> In physical contact (Empathy)</label>` : ""}
       ${poolMax ? `<div class="form-group"><label>Control Pool (rigged, max ${poolMax}):</label><input type="number" name="control" value="0" min="0" max="${poolMax}" style="width:52px;"></div>` : ""}
       ${maxStressDice ? `<div class="form-group"><label>Push it: +dice (2 Stress each, max ${maxStressDice}):</label><input type="number" name="stressDice" value="0" min="0" max="${maxStressDice}" style="width:52px;"></div>` : ""}
       <p style="grid-column:1/-1;font-size:10px;color:#aaa1c0;margin:4px 0 0;">Rigger 2 p.20–21: Handling + the Driving Test Modifiers Table; the vehicle's Autonav adds dice.
@@ -769,6 +808,7 @@ export async function promptDrivingTest(driver, vehicle) {
       return { mode: e.mode.value, terrain: e.terrain.value, situation: e.situation.value, weather: e.weather.value, size: e.size.value,
         otherMod: parseInt(e.otherMod.value) || 0, unfamiliar: e.unfamiliar.checked, combat: e.combat.checked, offRoad: !!e.offRoad?.checked,
         offRoadHandling: e.offRoadHandling?.value === "" || e.offRoadHandling == null ? null : parseInt(e.offRoadHandling.value),
+        contact: e.contact ? e.contact.checked : true,
         control: parseInt(e.control?.value) || 0, stressDice: parseInt(e.stressDice?.value) || 0 };
     } }
   });
@@ -779,13 +819,16 @@ export async function rollDrivingTest(driver, vehicle, o) {
   if (!o) return null;
   const sys = vehicle.system;
   const drone = !driver;
-  const sk = drone ? { key: null, dice: sys.effective?.pilot ?? sys.pilot ?? 0, penalty: 0, cap: 0, note: " (Pilot)" } : driver._vehicleSkill(vehicle);
+  const sk = drone ? { key: null, dice: sys.effective?.pilot ?? sys.pilot ?? 0, penalty: 0, cap: 0, note: " (Pilot)" } : driver._vehicleSkill(vehicle, { mode: o.mode });
+  // Vehicle Empathy (p.16): physical contact = manual controls or jacked into this vehicle; rigging a drone never is.
+  const empathy = !drone && !!driver.qualityValues()["vehicle-empathy"] && o.contact !== false
+    && (o.mode !== "rigged" || sys.vehicleType !== "drone");
   if (drone && !(sk.dice > 0)) return ui.notifications.warn(`${vehicle.name} has no Pilot rating to drive itself.`);
   if (drone && controllerOf(vehicle)) return ui.notifications.warn(`${vehicle.name} is under ${controllerOf(vehicle).name}'s control: the rigger drives it.`);
   const handling = o.offRoad ? (sys.effectiveHandlingOffRoad ?? o.offRoadHandling) : sys.effectiveHandling;
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);
   const { tn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
-    terrain: o.terrain, combat: o.combat, mode: o.mode, vcr: driver?.system.vehicleControlRig ?? 0, damageMod: sys.damageTnMod ?? 0,
+    terrain: o.terrain, combat: o.combat, mode: o.mode, vcr: driver?.system.vehicleControlRig ?? 0, damageMod: sys.damageTnMod ?? 0, empathy,
     otherMod: (o.otherMod ?? 0) + sk.penalty });
   const autonav = Math.max(0, sys.effective?.autonav ?? sys.autonav ?? 0);
   const paid = o.mode === "rigged" && driver ? await driver._payControl(o.control, sk.cap) : 0;
@@ -794,7 +837,9 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const roller = driver ?? vehicle;
   const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;
+  // A simsense interface (datajack, rig) is an electronic device: Computer Illiterate (p.15).
   const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice, tn, { label, paidPoolDice: paid ? { control: paid } : undefined,
+    tnContext: { kind: "skill", key: sk.key ?? "", skillCategory: "active", electronic: o.mode === "rigged" || o.mode === "datajack" },
   });
   if (!res) return null;
   const st = { vehicleUuid: vehicle.uuid, driverUuid: driver?.uuid ?? "", testMessageId: res.testMessageId ?? "", skill: sk.dice, defaulted: !drone && !!sk.defaulted, body: sys.body ?? 0, resolved: false };

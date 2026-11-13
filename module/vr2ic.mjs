@@ -1443,7 +1443,7 @@ export async function psyTest(actor, icKey) {
   const hit = f.live?.hits.find(h => h.icKey === icKey);
   if (!hit || f.live.steps.find(x => x.step === "psychotropic" && x.ref === icKey)?.res) return;
   const tn = Math.max(2, hit.rating - (hit.cool ? 2 : 0));
-  const r = await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, tn, { label: RL("Psychotropic", { tn }), tnContext: { kind: "other" } });
+  const r = await actor.rollSuccessTest(actor.neuralWillpower(), tn, { label: RL("Psychotropic", { tn }), tnContext: { kind: "other" } });   // Rigger 2 p.15
   if (r) await request(actor, "psy", { icKey, successes: r.successes, conn: f.liveN });
 }
 Object.assign(HANDLERS, {

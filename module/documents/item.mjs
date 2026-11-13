@@ -984,6 +984,7 @@ export class SR2EItem extends Item {
           cyberwareMod = -1;
         }
       }
+      tnContext.smartlink = cyberwareMod < 0;   // Simsense Vertigo (Rigger 2 p.15)
 
       // Laser sight (p.90, p.240): −1 only out to 50 m, never on top of a
       // smartlink/goggles bonus. Unknown distance is left to the shooter.

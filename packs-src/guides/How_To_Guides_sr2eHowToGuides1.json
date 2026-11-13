@@ -145,6 +145,31 @@
       }
     },
     {
+      "_id": "cea7482c9dfe283b",
+      "name": "Play a rigger by the Rigger 2 rules",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 600000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a rigger whose Control Pool, defaulting, decking and Edges and Flaws follow <em>Rigger 2</em> (pp.12–19).</p>\n<p><img src=\"systems/sr2e/assets/guides/rigger-r2-vehicles-tab.png\" alt=\"A rigger's Vehicles tab under Rigger 2: VCR 3 with move-by-wire 1 gives Control Pool 9, with the VCR switch, decker datajack and Vertigo toggles\"></p>\n<p><strong>Set up the character</strong></p>\n<ol>\n<li>Install the <strong>Vehicle Control Rig</strong> cyberware. Want to switch it off for decking? Tick <strong>Reflex Trigger</strong> on the\nVCR item <em>before</em> installing it (+13,000¥, +0.2 Essence).</li>\n<li>A second, decker datajack? Tick <strong>Decker datajack</strong> on the Vehicles tab.</li>\n<li>Drag the rigger&#39;s Edges and Flaws from the Rigger 2 module (Vehicle Empathy, Simsense Vertigo…) onto the sheet.</li>\n</ol>\n<p><strong>In play</strong></p>\n<ul>\n<li><strong>Vehicles tab:</strong> the Control Pool already counts natural Quickness and any move-by-wire.</li>\n<li><strong>Drive</strong> in <em>Rigged</em> mode: a missing vehicle skill defaults at half cost; Vehicle Empathy has its own checkbox.</li>\n<li><strong>Decking:</strong> jack into the Matrix with the rig on and every test shows &quot;+1 rigger decking&quot;; tick <strong>VCR switched\noff</strong> to avoid it (no rig until you switch it back).</li>\n<li><strong>Simsense Vertigo:</strong> tick <strong>Using simsense</strong> for a display link or simrig; rigging, decking and smartlinked shots\ncount by themselves.</li>\n<li><strong>Gremlins:</strong> the GM clicks the dice icon on the Flaw when the character picks up a gadget.</li>\n</ul>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>An encephalon runs a vehicle activesoft without skillwires, but only for rigged tests.</li>\n<li>Installations needing two Build/Repair skills keep the test that passed; roll again for the other at +1.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "2ee6f48dadf6f3ab",
       "name": "Set up a Matrix jackpoint",
       "type": "text",
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },

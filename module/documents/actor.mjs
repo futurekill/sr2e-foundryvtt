@@ -1,3 +1,6 @@
+import { isRigger2 } from "../vehicle-mode.mjs";
+import { vcrPerCircle } from "../rules/vehicle-r2-rules.mjs";
+import { neuralWillpower } from "../rules/quality-rules.mjs";
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
@@ -439,14 +442,51 @@ export class SR2EActor extends Actor {
       || ctx.kind === "matrix" || ctx.kind === "attack" && String(ctx.key ?? "").toLowerCase() === "computer";
     const cdsTN = this.system.cym?.cds && !equipment ? 3 : 0;
     const phobiaTN = computing && !equipment ? phobia : 0;
+    // Rigger 2 p.15–16: a rigger decking (+1 while in the Matrix, unless a decker datajack or the VCR is off),
+    // Simsense Vertigo (+1 operating simsense), Computer Illiterate (+1 on anything electronic).
+    const riggerParts = equipment ? [] : this.riggerTnParts(ctx);
+    const riggerTN = riggerParts.reduce((t, [, n]) => t + n, 0);
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = inAnimalForm(this.type, this.system) ? 0 : Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN);
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN);
     const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
-      + coordinationTN + socialTN + cdsTN + phobiaTN - centeringReduction;
+      + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN - centeringReduction;
     return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-             coordinationTN, socialTN, cdsTN, phobiaTN, centeringReduction, total };
+             coordinationTN, socialTN, cdsTN, phobiaTN, riggerParts, centeringReduction, total };
+  }
+
+  /** Willpower when resisting neural damage: Sensitive Neural Structure / Spike Resistance (Rigger 2 p.15). */
+  neuralWillpower() {
+    return neuralWillpower(this.system.willpower?.value ?? 0, this.qualityValues());
+  }
+
+  /** {rule: |value|} of this actor's Edges and Flaws with an automated effect (Rigger 2 p.14–16). */
+  qualityValues() {
+    const out = {};
+    for (const i of this.items ?? []) {
+      const r = i.type === "quality" ? i.system.qualityRule : null;
+      if (r) out[r] = Math.max(out[r] ?? 0, Math.abs(i.system.pointValue ?? 0) || 1);
+    }
+    return out;
+  }
+
+  /**
+   * The rigger TN modifiers as [label, n] (Rigger 2 p.15–16; docs/PLAN-vehicles-phase2.md 2b.2–2b.3). `ctx` is the
+   * test's tnContext: kind "matrix", key (skill), smartlink (an attack through one), electronic (a Driving Test by
+   * datajack or rig).
+   */
+  riggerTnParts(ctx = {}) {
+    const sys = this.system ?? {};
+    const q = this.qualityValues();
+    const key = String(ctx.key ?? "").toLowerCase();
+    const decking = !!sys.matrixMode || ctx.kind === "matrix";
+    const parts = [];
+    if (isRigger2() && this.type === "character" && decking && (sys.vehicleControlRig ?? 0) > 0 && !sys.deckerJack) parts.push(["rigger decking", 1]);
+    const rigged = !!sys.rigging && (sys.vehicleControlRig ?? 0) > 0;   // a VCR switched off isn't rigging
+    if (q["simsense-vertigo"] && (rigged || sys.matrixMode || sys.usingSimsense || ctx.smartlink)) parts.push(["Simsense Vertigo", 1]);
+    if (q["computer-illiterate"] && (ctx.electronic || ctx.kind === "matrix" || /^(computer|electronics)/.test(key))) parts.push(["Computer Illiterate", 1]);
+    return parts;
   }
 
   /**
@@ -472,7 +512,7 @@ export class SR2EActor extends Actor {
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
     const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-            coordinationTN, socialTN, cdsTN, phobiaTN, centeringReduction, total } = this.testTnModifiers(options);
+            coordinationTN, socialTN, cdsTN, phobiaTN, riggerParts, centeringReduction, total } = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
 
@@ -549,6 +589,7 @@ export class SR2EActor extends Actor {
     if (socialTN > 0)       tnParts.push(`+${socialTN} ${game.i18n.localize("SR2E.Social.TnLabel")}`);
     if (cdsTN > 0)          tnParts.push(`+${cdsTN} CDS`);
     if (phobiaTN > 0)       tnParts.push(`+${phobiaTN} cyberphobia`);
+    for (const [name, n] of riggerParts) tnParts.push(`+${n} ${name}`);
     if (centeringReduction > 0) tnParts.push(`−${centeringReduction} ${i18n.localize("SR2E.Roll.Centering")}`);
     const tnNote = tnParts.length
       ? i18n.format("SR2E.Roll.TnBreakdown", { tn: effectiveTN, base: targetNumber, parts: tnParts.join(", ") })
@@ -973,6 +1014,18 @@ export class SR2EActor extends Actor {
    * @private
    */
   _getInitiativeParts() {
+    const p = this._initiativePartsRaw();
+    // Simsense Vertigo (Rigger 2 p.15): −1 Initiative while operating a simsense device.
+    const s = this.system;
+    if (p.base != null && this.qualityValues()["simsense-vertigo"] && ((s.rigging && (s.vehicleControlRig ?? 0) > 0) || s.matrixMode || s.usingSimsense)) {
+      p.base = Math.max(0, p.base - 1);
+      p.notes?.push("Simsense Vertigo −1");
+    }
+    return p;
+  }
+
+  /** @private */
+  _initiativePartsRaw() {
     const system = this.system;
     const woundPenalty = system.woundPenalty ?? 0;
     const notes = [];
@@ -1183,15 +1236,18 @@ export class SR2EActor extends Actor {
    * rather than a skill item — used by weapon/vehicle attack defaulting where the
    * skill comes from the weapon, not an owned item (SR2E p.69).
    */
-  _webDefaultByKey(skillKey) {
+  _webDefaultByKey(skillKey, { vcr = false } = {}) {
     const web = CONFIG.SR2E.skillWeb;
     if (!web?.nodes || !skillKey) return null;
-    const target = Object.keys(web.nodes).find((k) => web.nodes[k].skillKey === skillKey) ?? null;
-    return this._webDefaultForNode(target, null);
+    // By rollable key, else by the node's label as vehicle skills are keyed ("Motorboat" → "motorboat").
+    const norm = (s) => String(s).toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+    const target = Object.keys(web.nodes).find((k) => web.nodes[k].skillKey === skillKey)
+      ?? Object.keys(web.nodes).find((k) => web.nodes[k].type === "skill" && norm(web.nodes[k].label) === skillKey) ?? null;
+    return this._webDefaultForNode(target, null, { perCircle: vcr ? vcrPerCircle(target) : undefined });
   }
 
   /** Shared Skill Web defaulting core: cheapest legal source for a target node. */
-  _webDefaultForNode(target, excludeItemId) {
+  _webDefaultForNode(target, excludeItemId, { perCircle } = {}) {
     const web = CONFIG.SR2E.skillWeb;
     if (!web?.nodes || !target) return null;
 
@@ -1206,7 +1262,7 @@ export class SR2EActor extends Actor {
       }
     }
     const best = webDefaultingTN(web, target,
-      [...ownedByNode].map(([node, rating]) => ({ node, rating })));
+      [...ownedByNode].map(([node, rating]) => ({ node, rating })), perCircle ? { perCircle } : undefined);
     if (!best) return null;
 
     // Dice: the SOURCE's rating — an attribute value, or the owned related
@@ -1224,6 +1280,7 @@ export class SR2EActor extends Actor {
     return {
       dice: Math.max(1, dice),
       penalty: best.penalty,
+      kind: best.kind, source: best.source,
       label: RL("DefaultVia", { source: srcLabel, penalty: best.penalty })
     };
   }
@@ -1243,7 +1300,8 @@ export class SR2EActor extends Actor {
     if (rating > 0) return { skillCap: rating, baseDice: rating, defaultingPenalty: 0 };
     const web = this._webDefaultByKey?.("gunnery");
     return {
-      skillCap: Infinity,
+      // Rigger 2 p.16: Combat Pool on Gunnery through a rig can't exceed the Gunnery Rating — none when defaulting.
+      skillCap: isRigger2() && this.system?.rigging ? 0 : Infinity,
       baseDice: web?.dice ?? Math.max(1, this.system.intelligence?.value ?? 1),
       defaultingPenalty: web?.penalty ?? CONFIG.SR2E.defaultingPenalty,
     };
@@ -1974,16 +2032,28 @@ export class SR2EActor extends Actor {
    * Skill Web default, else Reaction +4 TN. Reaction defaults take the controlled vehicle's damage Initiative
    * modifier, which "reduces the effective Reaction of the character controlling the vehicle" (p.109).
    */
-  _vehicleSkill(vehicle) {
+  _vehicleSkill(vehicle, { mode } = {}) {
     const key = vehicle.system.drivingSkill;
     const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
-    const rating = this.items.find(i => i.type === "skill" && normalize(i.name) === key)?.system?.rating ?? 0;
+    // The test's control mode; core tests without one count "rigged into it" as rigged.
+    const rigged = mode ? mode === "rigged" : riggedInto(this, vehicle);
+    const r2rig = isRigger2() && rigged && (this.system.vehicleControlRig ?? 0) > 0;
+    // A chipped vehicle skill counts as skill tests count it (skillwires); an encephalon's chip only when rigged
+    // (Rigger 2 p.17).
+    const chips = [...(this.system.chippedSkills ?? []).filter(c => c.system?.category === "active").map(c => [c.name, c.system.rating]),
+      ...(r2rig ? (this.system.encephalonChips ?? []).map(c => [c.name, c.rating]) : [])];
+    const rating = Math.max(this.items.find(i => i.type === "skill" && normalize(i.name) === key)?.system?.rating ?? 0,
+      ...chips.filter(([n]) => normalize(n) === key).map(([, r]) => r || 0));
     // The worst damage modifier among the vehicles under this character's control (as initiative uses, p.106);
     // a vehicle driven without taking control counts its own.
     const controls = (this.system.controlledVehicles ?? []).includes(vehicle.uuid);
     const reaction = (this.system.reaction?.value ?? 1) + Math.min(worstControlledInitMod(this), controls ? 0 : (vehicle.system.damageInitMod ?? 0));
-    const r = vehicleSkillDice({ rating, web: rating > 0 ? null : this._webDefaultByKey(key), reaction,
-      defaultingPenalty: CONFIG.SR2E.defaultingPenalty });
+    // Rigger 2 p.12: defaulting by the rig costs +1 per dot from Reaction or a vehicle skill (half the attribute penalty).
+    const web = rating > 0 ? null : this._webDefaultByKey(key, { vcr: r2rig });
+    // A web default from Reaction rolls the damage-adjusted Reaction too.
+    if (web?.kind === "attribute" && web.source === "reaction") web.dice = Math.max(1, reaction);
+    const r = vehicleSkillDice({ rating, web, reaction,
+      defaultingPenalty: CONFIG.SR2E.defaultingPenalty / (r2rig ? 2 : 1) });
     const note = r.defaulted === "reaction" ? RL("DefaultingToTag", { attr: AL("reaction"), penalty: r.penalty })
       : r.defaulted ? `, ${r.defaulted}` : "";
     return { key, ...r, note };
@@ -2020,15 +2090,17 @@ export class SR2EActor extends Actor {
       ? vehicleOperationMod({ ...(options.operation ?? {}), vcr: this.system.vehicleControlRig ?? 0, riggedIn: riggedInto(this, vehicle) })
       : null;
     const sitMod = op ? op.mod : (CONFIG.SR2E.vehicleTerrainMods[testType]?.[terrain] ?? 0);
-    const tn = Math.max(2, (vehicle.system.effectiveHandling ?? 0) + sitMod + damageMod + (options.otherMod ?? 0) + sk.penalty);
+    // Vehicle Empathy (Rigger 2 p.16): Handling −1 in physical contact — at the controls or rigged into it; a drone never.
+    const empathy = this.qualityValues()["vehicle-empathy"] && vehicle.system.vehicleType !== "drone" ? -1 : 0;
+    const tn = Math.max(2, (vehicle.system.effectiveHandling ?? 0) + sitMod + damageMod + (options.otherMod ?? 0) + sk.penalty + empathy);
 
     const typeLabel = RL({ handling: "HandlingTest", position: "PositionTest", crash: "CrashTest" }[testType] ?? "VehicleTest");
     const where = op ? (op.parts.map(([n, m]) => `${n} ${m > 0 ? "+" : ""}${m}`).join(", ") || "no modifiers") : terrain;
-    const label = RL("VehicleTest2", { name: vehicle.name, test: typeLabel, terrain: where, notes: sk.note, tn });
+    const label = RL("VehicleTest2", { name: vehicle.name, test: typeLabel, terrain: where, notes: sk.note + (empathy ? ", Vehicle Empathy −1" : ""), tn });
     const paid = await this._payControl(options.poolDice?.control, sk.cap, { position: testType === "position" });
 
     const result = await this.rollSuccessTest(sk.dice, tn, {
-      label, tnContext: skillTnContext(sk.key),
+      label, tnContext: { ...skillTnContext(sk.key), electronic: riggedInto(this, vehicle) },
       paidPoolDice: paid ? { control: paid } : undefined,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
@@ -3053,7 +3125,7 @@ export class SR2EActor extends Actor {
    */
   async recoverDumpShock() {
     if (!this.system.dumpShock) return;
-    const will = this.system.willpower?.value ?? 1;
+    const will = this.neuralWillpower() || 1;
     const result = await this.rollSuccessTest(will, 4, {
       label: RL("DumpShock"), isResistance: true
     });

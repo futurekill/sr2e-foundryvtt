@@ -149,4 +149,32 @@ export function installSkills(tokens = [], traits = new Set()) {
   return tokens.map(t => map[t] ?? t);
 }
 
+/**
+ * The retry penalty for a worker's skill on this item (Rigger 2 p.14): +1 per recorded failure of that skill by that
+ * worker at a rating ≥ the current one — raising the skill clears it. `records` = custom.brFails.
+ */
+export function brPenalty(records = {}, worker, skill, rating = 0) {
+  return Object.values(records ?? {}).filter(r => r?.worker === worker && r?.skill === skill && num0(r.rating) >= num0(rating)).length;
+}
+
+/**
+ * One round of a multi-skill Installation Test (Rigger 2 p.14): every required test must succeed; passed ones are kept
+ * and only the failed skills are rolled again. `passed` = {skill: successes} from earlier rounds; `rolls` = this round's
+ * [{skill, successes, allOnes, key, rating}]. Returns:
+ *   disaster — a test of all 1s: the attempt ends (no records);
+ *   failed   — nothing has passed in the attempt: an ordinary failure, the attempt ends, no records, no penalty;
+ *   records  — {key: {worker, skill, rating}} for each failure while another required test has passed;
+ *   passed   — the kept passes; complete + results (in skill order) once every skill has passed.
+ */
+export function brRound({ skills = [], passed = {}, rolls = [], worker = "" }) {
+  if (rolls.some(r => r.allOnes)) return { disaster: true, records: {}, passed: {} };
+  const kept = { ...passed };
+  for (const r of rolls) if (num0(r.successes) > 0) kept[r.skill] = num0(r.successes);
+  if (!Object.keys(kept).length) return { failed: true, records: {}, passed: {} };
+  const records = Object.fromEntries(rolls.filter(r => !(num0(r.successes) > 0))
+    .map(r => [r.key, { worker, skill: r.skill, rating: num0(r.rating) }]));
+  const complete = skills.every(s => kept[s] > 0);
+  return { records, passed: kept, complete, results: complete ? skills.map(s => ({ skill: s, successes: kept[s] })) : null };
+}
+
 export { modCounts, modBaked, TRAIT_ORDER, specFormula };

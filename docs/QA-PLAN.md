@@ -38,7 +38,7 @@ and any **red console errors**. File them wherever the group tracks issues
 - [ ] Condition monitors show **10 boxes** each (Physical & Stun); wound thresholds at 1/3/6/10.
 - [ ] Set a metatype (e.g. Troll) — racial modifiers and maximums apply.
 - [ ] Add skills from the **Skills** compendium; ratings editable, save on blur.
-- [ ] Dice pools (Combat / Magic / Hacking / Control / Karma) display and compute. Hacking under VR2.0 = ⌊(Int + MPCP) ÷ 3⌋ (Int 4, MPCP 8 → 4); no deck → 0.
+- [ ] Dice pools (Combat / Magic / Hacking / Control / Karma) display and compute. Hacking under VR2.0 = ⌊(Int + MPCP) ÷ 3⌋ (Int 4, MPCP 8 → 4); no deck → 0; under Rigger 2 a rigger's VCR level comes off it (Otto, VCR 2: 2).
 - [ ] Edit name/bio/notes — prose-mirror notes save on blur, no data loss on re-open.
 
 ## 1a. Character creation — priority table
@@ -529,6 +529,22 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
 - [ ] Finish an engine customization → a GM-whispered secret check; failure adds permanent Stress; Factory engine
       clears it. Workshop: add an engine customization level and save → one check; save again → none.
 - [ ] Back to Core Rulebook: no Rigger 2 panel, the Handling Test is back; Stress values kept.
+
+### The rigger under Rigger 2 (Part 2b-1; Quench `sr2e.vehicle-r2` → "The rigger")
+- [ ] VCR 3 + Move-by-Wire Level 1, Quickness 4, Intelligence 4: Control Pool 9 (core: 10); jacked in: Reaction 8, 3D6.
+- [ ] Jacked in, no Gunnery, fire a vehicle weapon: no Combat Pool offered (defaulting); Gunnery 3: at most 3.
+- [ ] Rigged Driving Test with no vehicle skill: the default is half the manual one (Reaction → Motorboat +2, not +4).
+- [ ] A rigger with a deck in the Matrix: +1 on every test ("rigger decking"), Hacking Pool − VCR level; tick Decker
+      datajack → both gone. VCR item with Reflex Trigger (set before installing; the box locks once installed):
+      +13,000¥ / +0.2 Essence; "VCR switched off" → no rig, no pool, no penalty.
+- [ ] Encephalon + a slotted Motorboat activesoft, no skillwires: brain icon; rigged Driving Test rolls the chip, manual defaults.
+- [ ] Qualities: the quality sheet shows its Rule (a Rigger 2 copy already on a character shows it from its source);
+      Vehicle Empathy checkbox on the Driving Test (−1 Handling; never a remote drone); Simsense Vertigo +1 TN and −1
+      Initiative while rigging/decking/"Using simsense"; Computer Illiterate +1 on Computer/Electronics and rigged or
+      datajack driving; Spike Resistance 4 → +2 Willpower on black IC / psychotropic / dump shock; Gremlins dice icon
+      (GM only) → 2D6, a 2 states the tier; Bio-Rejection + VCR → warning on the Bio tab.
+- [ ] Customization needing two B/R skills: pass one, fail the other → the card keeps the pass; the retry rolls only
+      the failed skill at +1; fail both → an ordinary failure, no +1; raise the skill → the +1 is gone.
 - [ ] **Gunnery:** fire a weapon mounted on a linked vehicle (Gunnery skill).
 - [ ] **Rigging (VCR):** jacked-in initiative uses VCR bonuses only; Control Pool = natural Reaction + 2/level; installed VCR cyberware is authoritative.
 

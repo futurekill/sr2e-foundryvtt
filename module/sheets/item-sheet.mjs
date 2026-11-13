@@ -1,3 +1,4 @@
+import { isRigger2 } from "../vehicle-mode.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
@@ -230,6 +231,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         context.spellDurations = CONFIG.SR2E.spellDurations;
         break;
       case "cyberware":
+        context.rigger2 = isRigger2();
         context.cyberwareGrades = CONFIG.SR2E.cyberwareGrades;
         context.cyberwareLocations = CONFIG.SR2E.cyberwareLocations;
         context.hasRatingTable = (item.system.ratingStats?.length ?? 0) > 0;
@@ -287,6 +289,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         context.qualityKinds = CONFIG.SR2E.qualityKinds;
         context.qualityCategories = CONFIG.SR2E.qualityCategories;
         context.qualityAttributes = CONFIG.SR2E.qualityAttributes;
+        context.qualityRules = this.item.system.schema.fields.rule.choices;
         break;
     }
 
