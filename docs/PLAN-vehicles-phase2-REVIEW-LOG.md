@@ -380,3 +380,14 @@ All taken. (1) Lock order chase → vdmg; damage to a vehicle in an active chase
 (2) Action spends carry `byTest[aid]` receipts and use the same acked void protocol. (3) One entry per uuid across all
 active chases, one vehicle per aboard character, `chaseTransfer` for moves. (4) `startCombat` refreshes every combatant
 (unless "off") plus the chase union; the mode subset is for later rounds only.
+
+## Part 3 plan, round 7 — Codex (draft 7, fresh session): REVISE, 2 findings
+1. Cross-chase uniqueness raced: two combats' queues could both add the same vehicle; transfer had an unprotected
+gap. 2. Putting ordinary action spends in `positionReserve.byTest` would turn them into turn-long reservations that
+`_refreshDicePools` holds back (p.44: they refresh).
+
+### Claude's response (draft 8)
+Both taken. (1) One world-wide `chase-membership` queue for adds, aboard changes, removals and transfers; transfers
+write `pendingIn` on the target first (counts as membership) and are finished by the ready pass; lock order
+membership → chase → vdmg. (2) Action spends use a separate `flags.sr2e.chaseSpend.<aid>` receipt ledger; only DP
+allocations stay in `positionReserve`.

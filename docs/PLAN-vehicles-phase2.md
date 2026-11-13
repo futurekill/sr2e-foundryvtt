@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 7 (2026-11-13, after Codex Part 3 rounds 1–6)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 8 (2026-11-13, after Codex Part 3 rounds 1–7)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -476,10 +476,14 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
     of the character OR NPC driving it, token actors allowed; B1 #5), rigged (bool, derived at action time from the
     driver's `rigging` + VCR), speed, terrain, autonav (bool), group (gid|null), aboard: [uuids], rev }`.
     **One entry per document** (B6 #3): a vehicle or pedestrian uuid appears in at most ONE entry of ONE active chase
-    in the world, and a character is aboard at most one vehicle; `chaseAddEntry` (GM op) refuses a uuid already
-    present in any active combat's chase. Moving a vehicle to another chase is `chaseTransfer`, which removes it
-    from the old chase (refused while it has a non-terminal action or DP slot) and adds it to the new one in that
-    order. So `driverOf`, the damage-speed lookup and every receipt keyed by entry are unambiguous.
+    in the world, and a character is aboard at most one vehicle. Membership changes are serialized by ONE
+    world-wide queue, `chase-membership` (B7 #1; every chase GM op runs on the active GM, so one queue there orders
+    them all): `chaseAddEntry`, aboard changes, entry removal and `chaseTransfer` all run inside it, check every
+    active combat's chase (including pending transfers) and refuse a uuid already present. `chaseTransfer` is
+    recoverable: it first writes `pendingIn.<vehicleUuid> = {from, eid}` on the TARGET chase (which counts as
+    membership), then removes the entry from the source (refused while it has a non-terminal action or DP slot),
+    then adds it to the target and clears `pendingIn`; the GM's ready pass finishes any transfer it finds part-way.
+    Lock order: `chase-membership` → `chase:<combatId>` → `vdmg:<vehicleUuid>`. So `driverOf`, the damage-speed lookup and every receipt keyed by entry are unambiguous.
   - `pairs.<pid>` = `{ pursuer: eid, quarry: eid, distance, contact: true | { hiddenBy, successes, round, npcTurns } }`.
   - `turns.<round>.<eid>` = `{ vp, tp, sp, dp: null | { value, messageId }, dpSlot, positionBonus, escapeBonus, ms,
     over (the vehicle was above its Speed Rating this turn) }`.
@@ -505,7 +509,10 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   Acceleration, Speed Rating, Autonav, Body, Armor, Signature — B3 #4): `actions.<aid> = {eid, round, kind, actor,
   inputs, revs, stamps, state: "rolling"}`; returns them, so the dialog shows exactly what will be rolled;
   (2) the acting client spends any Control Pool (3a.2) through its pool writer with a spend receipt keyed by the
-  action id (`byTest[aid]`, idempotent; the same mechanism as DP slots, B6 #2), then arms and rolls at those inputs,
+  action id in a SEPARATE ledger, `flags.sr2e.chaseSpend.<aid>` (B7 #2) — not `positionReserve.byTest`, whose
+  entries are turn-long reservations that `_refreshDicePools` holds back. Ordinary action dice are spent like any
+  pool dice and come back at the next refresh (p.44); only DP allocations are held for the turn. The receipt is
+  idempotent and supports the same acked void protocol as DP slots (B6 #2); then the client arms and rolls at those inputs,
   the message carrying
   `flags.sr2e.chaseAction = {combatId, aid}`;
   (3) the GM op `chaseResolve {combatId, aid, messageId}` reads the roll FROM the message; refuses if the action's
@@ -520,7 +527,7 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   no message can be cancelled by their actor or the GM. Publication is serialized with cancellation exactly like a
   DP slot (3a.2, B4 #4): before posting, the acting client calls `chaseArm {aid}` (rolling → "publishing" in the chase
   queue); cancel is accepted only in "rolling" (never while publishing) and becomes terminal only after the acting
-  actor's pool writer acknowledges it inside its spend queue — `byTest[aid] = "void"` if nothing was spent yet (a
+  actor's pool writer acknowledges it inside its spend queue — `chaseSpend.<aid> = "void"` if nothing was spent yet (a
   late spend under that id is then refused), else the amount spent, which stays spent (B6 #2; identical to the DP
   protocol in 3a.2). A publishing action whose client vanished can be force-cancelled by the GM (acking as the
   pool writer), which writes a tombstone `state: "cancelled"`, and any card that later arrives for
