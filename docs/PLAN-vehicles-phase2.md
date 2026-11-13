@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 10 (2026-11-13, after Codex Part 3 rounds 1–9)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 11 (2026-11-13, after Codex Part 3 rounds 1–10)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -632,8 +632,9 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   natural Reaction (the 2b natural-Quickness Reaction) + 1D6 — no wired/boosted reflexes, adept powers or magic; a
   jacked-in rigger keeps the VCR's (2b); passengers and pedestrians unchanged; the vehicle damage Initiative penalty
   (3b.1) as today. In `_getInitiativeParts`.
-- **Step 7, close of turn** (`chaseCloseTurn`): for each pair in contact, distance −= pursuer speed − quarry speed (not
-  below 0; the GM can edit and change terrain afterwards); NPC relocation counters advance.
+- **Step 7, close of turn** (`chaseCloseTurn`): for EVERY pair, in contact or not (p.44 step 7 has no exception; B10
+  #1), distance −= pursuer speed − quarry speed (not below 0). A pair out of contact (hidden) keeps changing
+  distance, shown only on the GM panel, so relocation (3a.5) starts from the true distance; the GM can edit and change terrain afterwards); NPC relocation counters advance.
 - **Speeding Stress** (R3-2, B2 #6): `turns.<r>.<eid>.over` is set when the turn opens with the vehicle above its
   damage-reduced Speed Rating, or when any resolution leaves it above; the Stress has ONE receipt for every path,
   eventId `chase-over-<combatId>-<round>-<eid>`, applied as a resolving effect when `over` is first set and replayed at
@@ -750,6 +751,20 @@ B2 #11) — so an old core card resolves by core after the switch. The Driving T
 - **Speed source** (B1 #6): every damage event and Crash Test card snapshots the vehicle's CURRENT speed (the chase
   entry's speed; outside a chase, the GM enters it on the card, default 0 = parked) and the chase/event ids; the crash
   resolution uses that snapshot. Core defaults are unchanged.
+- **Driving Success Tests keep today's context** (B10 #2): every new Driving Success Test in Part 3 (acceleration,
+  positioning, hiding, relocating, ramming, the Crash Test, walls) builds its TN on `rollVehicleTest`'s existing
+  base — Handling + damage modifier + the defaulting penalty `_vehicleSkill(...).penalty` + Vehicle Empathy (Handling
+  −1 in physical contact, R2 p.16) + the electronic/skill note — and adds only its own table's modifiers. R3-1's
+  no-penalty default applies to the Driver Points Open Test alone.
+- **Crash resolution is one recoverable transaction** (B10 #3), keyed by the follow-up id `fid` (=
+  `<eventId>.crash`), stored on the vehicle (`flags.sr2e.crashes.<randomID>` holding `fid`, written in `vdmg:<uuid>`):
+  `claimed` (who rolls; the card's button) → `rolled {messageId}` (the Crash Test card carries `fid`) → `resolving`
+  {the immutable outcome + pending effects: speed 0, vehicle damage, each occupant's damage, each with an event id
+  DERIVED from `fid` — `<fid>:speed`, `<fid>:vehicle`, `<fid>:occupant:<uuid>`} → `done`. Effects apply by those ids
+  (idempotent: `commitVehicleDamage` takes the derived id instead of minting a fresh one; occupant damage uses the
+  existing resist-once receipts). The GM's pass reconciles each state: a `claimed` record with no card after its
+  claimer left is reopened (the button returns); a `rolled` record resolves from its card; `resolving` replays its
+  effects. Today's `crashTestFromCard` / `resolveCrash` are reshaped into these steps, for core and Rigger 2 alike.
 - **Crash Test** = Driving Test vs Handling + the **Crash Test Modifiers Table**: vehicle damaged + its damage modifier;
   terrain −1/0/+2/+4; speed vs the driver's Reaction: < ×20 0, < ×30 +1, < ×40 +2, more +4 ("driver wounded + Damage
   Modifier" is the wound penalty `rollSuccessTest` adds — not doubled). Autonav dice (= Rating) and Control Pool (≤

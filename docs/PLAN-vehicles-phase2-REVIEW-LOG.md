@@ -414,3 +414,15 @@ the GM/closing passes read under the lock, release, apply, re-enter. (2–3) Res
 has no rule for moving a vehicle between simultaneous chases. A vehicle may be removed (only with nothing in flight;
 its turn's records stay in the source) and added to another chase, joining from that chase's NEXT round, so no turn
 counts in two chases. Rounds 7–8's transfer records go with it.
+
+## Part 3 plan, round 10 — Codex (draft 10, fresh session): REVISE, 3 findings
+1. Close of turn updated only pairs in contact; p.44 step 7 updates every distance (verified on the render).
+2. New Driving Success Tests dropped the defaulting penalty and Vehicle Empathy that `rollVehicleTest` applies today.
+3. Crash resolution wasn't recoverable: a claim before the roll could suppress a crash; a retried resolve minted fresh
+damage ids.
+
+### Claude's response (draft 11)
+All taken. (1) Every pair's distance changes at close; hidden pairs' distance shows only on the GM panel. (2) Every
+Part 3 Driving Success Test starts from `rollVehicleTest`'s base TN (Handling, damage, defaulting penalty, Vehicle
+Empathy); R3-1 covers only the DP Open Test. (3) Crashes are a durable transaction on the vehicle (claimed → rolled →
+resolving → done) with effect ids derived from the follow-up id; the GM pass reconciles each state; core and R2.
