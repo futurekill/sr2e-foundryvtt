@@ -93,3 +93,58 @@ describe("Passengers and groups (p.49)", () => {
     expect(fastestMember([{ id: "a", speedRating: 200 }, { id: "b", speedRating: 240 }]).id).toBe("b");
   });
 });
+
+import { r2Impact, stageDown, ramTN, ramDamage, impactResist, occupantImpact, crashTestTN, wallCollision, pedestrianImpact,
+         r2VehicleHit, terrainControlCap, passengerShotPower } from "../module/rules/vehicle-combat-rules.mjs";
+
+describe("Damage (R2 p.49–53)", () => {
+  it("impact rounds the Power UP: 148 m → 15S; 300 → 30D; parked → nothing", () => {
+    expect(r2Impact(148)).toEqual({ power: 15, level: "S" });
+    expect(r2Impact(300)).toEqual({ power: 30, level: "D" });
+    expect(r2Impact(20)).toEqual({ power: 2, level: "L" });
+    expect(r2Impact(0)).toBeNull();
+  });
+  it("the ram: 15S both; Mach 6's Body 3 × 5 successes → TN 2, 8 dice stage it away; the cruiser rolls 3 + 2 PR", () => {
+    const d = ramDamage({ rammerSpeed: 152, targetSpeed: 300, rammerBody: 3, successes: 5 });
+    expect(d.target).toEqual({ power: 15, level: "S" });
+    expect(impactResist({ body: 3, control: 5, power: d.rammer.power })).toEqual({ dice: 8, tn: 2 });
+    expect(stageDown("S", 6)).toBeNull();
+    expect(impactResist({ body: 3, pr: 2, power: 15 })).toEqual({ dice: 5, tn: 15 });
+    expect(stageDown("S", 0)).toBe("S");
+  });
+  it("Ramming modifiers: autonav adds Rating + 2; tight terrain +2", () => {
+    expect(ramTN({ handling: 3, autonav: 3, terrain: "tight" }).tn).toBe(3 + 5 + 2);
+  });
+  it("the cops: 15S, seat belt → 15M, APPS → 8M, armour vest 3 → 5M", () => {
+    expect(occupantImpact({ power: 15, level: "S", restrained: true, apps: true, impactArmor: 3 })).toEqual({ power: 5, level: "M", extraDice: 0 });
+    expect(occupantImpact({ power: 4, level: "L", restrained: true })).toBeNull();
+  });
+  it("Crash Test: Cruiser #2, Handling 4, Serious +3, 300 m vs Reaction 4 → +4 = 11 (+2 wound by the roll = 13)", () => {
+    expect(crashTestTN({ handling: 4, damageTn: 3, speed: 300, reaction: 4 }).tn).toBe(11);
+    expect(crashTestTN({ handling: 4, speed: 79, reaction: 4 }).tn).toBe(4);
+    expect(crashTestTN({ handling: 4, speed: 80, reaction: 4 }).tn).toBe(5);
+    expect(crashTestTN({ handling: 4, speed: 160, reaction: 4 }).tn).toBe(8);
+  });
+  it("walls: Cruiser #2 at 300 vs Barrier 16 stops (320 ≥ 300); through a 4 at 300: loses 80, 4M", () => {
+    expect(wallCollision({ speed: 300, barrier: 16 })).toMatchObject({ halts: true, speed: 0, damage: { power: 30, level: "D" } });
+    expect(wallCollision({ speed: 300, barrier: 4 })).toEqual({ halts: false, speed: 220, damage: { power: 4, level: "S" } });
+  });
+  it("pedestrians: Rex Karz at 60 → 6S for the pedestrian, Light for the car; hardened armour: no step", () => {
+    expect(pedestrianImpact({ speed: 60 })).toEqual({ pedestrian: { power: 6, level: "S" }, vehicle: { power: 6, level: "L" } });
+    expect(pedestrianImpact({ speed: 15 }).vehicle).toBeNull();
+    expect(pedestrianImpact({ speed: 60, hardened: true }).pedestrian.level).toBe("M");
+    expect(pedestrianImpact({ speed: 250 }).pedestrian).toEqual({ power: 37, level: "D" });
+  });
+  it("weapons: −1 level, armour cuts Power, Body dice vs the rest; Light needs special ammo; AV halves armour", () => {
+    expect(r2VehicleHit({ body: 4, armor: 6, power: 10, level: "S" })).toMatchObject({ level: "M", dice: 4, tn: 4 });
+    expect(r2VehicleHit({ body: 4, armor: 6, power: 6, level: "D" }).none).toBe("barrier");
+    expect(r2VehicleHit({ body: 4, armor: 0, power: 6, level: "L" }).none).toBe("light");
+    expect(r2VehicleHit({ body: 4, armor: 0, power: 6, level: "L", apds: true }).level).toBe("L");
+    expect(r2VehicleHit({ body: 4, armor: 8, power: 6, level: "D", antiVehicle: true })).toMatchObject({ level: "D", tn: 2 });
+    expect(r2VehicleHit({ body: 4, armor: 0, power: 6, level: "S", damageType: "stun" }).none).toBe("stun");
+  });
+  it("terrain Control Pool caps and shots at passengers", () => {
+    expect([terrainControlCap(5, "normal"), terrainControlCap(5, "restricted"), terrainControlCap(5, "tight")]).toEqual([5, 3, 2]);
+    expect(passengerShotPower({ power: 9, armor: 3, body: 4 })).toBe(5);
+  });
+});

@@ -72,6 +72,11 @@ export class SR2ECombat extends Combat {
    */
   async nextTurn() {
     const current = this.combatant;
+    // Rigger 2 chase: the departing driver's ram entitlements from earlier phases end with this action (p.45).
+    if (current?.actor && hasChase(this)) {
+      gmCall("chaseExpireRam", { combatId: this.id, actorUuid: current.actor.uuid, seq: Number(this.getFlag("sr2e", "phaseSeq")) || 0 })
+        .catch(err => console.error("SR2E | ram entitlement", err));
+    }
     if (current) {
       // Remember the actor for a one-step previousTurn undo
       await this.setFlag("sr2e", "lastActorId", current.id);

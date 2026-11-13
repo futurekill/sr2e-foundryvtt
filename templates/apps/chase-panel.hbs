@@ -71,7 +71,8 @@
         <td>{{pursuer}}</td><td>{{quarry}}</td>
         <td>{{#if ../gm}}<input type="number" data-field="distance" value="{{distance}}" min="0" style="width:5em">{{else}}{{#if hidden}}?{{else}}{{distance}}{{/if}}{{/if}} m</td>
         <td>{{contact}}</td>
-        <td>{{#each spotters}}<button type="button" data-action="relocate" data-actor="{{uuid}}" title="Perception Test (Rigger 2 p.49)">Relocate ({{name}})</button>{{/each}}
+        <td>{{#each rams}}<button type="button" data-action="ram" data-eid="{{eid}}" data-target="{{target}}" title="Ramming Test (Rigger 2 p.47)">{{label}}</button>{{/each}}
+          {{#each spotters}}<button type="button" data-action="relocate" data-actor="{{uuid}}" title="Perception Test (Rigger 2 p.49)">Relocate ({{name}})</button>{{/each}}
           {{#if ../gm}}<button type="button" data-action="removePair"><i class="fas fa-trash"></i></button>{{/if}}</td>
       </tr>
     {{/each}}

@@ -100,6 +100,7 @@ import { activeOptions } from "./rules/vr2-options.mjs";
 import { onVehicleSocket, bindVehicleCardButtons, mayResistFor } from "./vehicle-play.mjs";
 import { registerChase, onChaseSocket, bindChaseCard } from "./chase.mjs";
 import { registerChasePanel } from "./apps/chase-panel.mjs";
+import { registerVehicleDamage, bindVehicleDamageCard } from "./vehicle-damage.mjs";
 
 /**
  * Delete every world document a Quench run leaves behind. Quench doesn't clean
@@ -523,6 +524,7 @@ async function consolidateAmmoNow(actor, { dryRun, quiet, itemId }) {
 Hooks.once("init", async () => {
   registerChase();
   registerChasePanel();
+  registerVehicleDamage();
 
   // Register in-Foundry integration tests (no-op unless the Quench module is on).
   registerSR2EQuenchTests();
@@ -3008,6 +3010,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   // Vehicles in play (docs/PLAN-vehicles-phase2.md): ram, Crash Test due, occupants.
   bindVehicleCardButtons(message, html);
   bindChaseCard(message, html);
+  bindVehicleDamageCard(message, html);
 
   // Opposed melee: Defend rolls the defender's Combat Skill test and
   // resolves the exchange; Undefended concedes (0 defense successes).

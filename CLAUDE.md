@@ -267,6 +267,14 @@ cancelled / stale); pool spends carry receipts (`positionReserve.byTest.<aid>` f
 `advanceRound` (`flags.sr2e.roundTransition`, queue `round:<combatId>`): refreshes go through the pool writer with the
 receipt `flags.sr2e.poolRefresh = "<combatId>:<round>"`; Initiative is stamped `flags.sr2e.initRound`. Weapon/spell
 rolls call `passengerLimit` synchronously first (macros capture targets before their first await).
+Vehicle damage (Part 3b, `module/vehicle-damage.mjs`): GM_OPS.damage records follow-ups (`flags.sr2e.vfollow.<fid>`:
+rigger feedback, crash) IN THE SAME update as the damage; the GM's delivery posts each card once (`vfollowId` reconcile).
+A crash/impact is one record `flags.sr2e.crashes.<cid>` (open → testing → crashed → resisting → resolving → done) whose
+rolls are exclusive attempts (GM op `crash`); occupant/feedback resistance is a step on the occupant's writer with
+`flags.sr2e.dmgReceipts`; R2 weapon resistance has one durable attempt per event (`flags.sr2e.vresist`, GM op
+`vresist`) and commitVehicleDamage(`attempt`) refuses a replaced one (`stale`). Every SR2E card is stamped
+`flags.sr2e.vehicleRuleset` at creation. NEVER read keys back from an object after `await doc.update(obj)` (Foundry
+mutates it).
 Upgrading (p.107, docs/archive/plans/PLAN-vr2-upgrading.md) is a `progStart` with `upgrade: true`, `from` (the current design) and
 `design` (the TARGET): the program stays usable meanwhile; a completed upgrade is `pendingUpgrade` until the
 sequencer's `progApply` writes it (the ONE write the design lock lets through, tagged `sr2eUpgradeApply`, with the

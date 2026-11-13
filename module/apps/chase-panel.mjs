@@ -23,7 +23,7 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
     actions: {
       setup: ChasePanel.#setup, addEntry: ChasePanel.#addEntry, remove: ChasePanel.#remove, addPair: ChasePanel.#addPair,
       removePair: ChasePanel.#removePair, dp: ChasePanel.#dp, act: ChasePanel.#act, autonav: ChasePanel.#autonav,
-      relocate: ChasePanel.#relocate, unboard: ChasePanel.#unboard, cancel: ChasePanel.#cancel, resume: ChasePanel.#resume, applyNow: ChasePanel.#applyNow
+      relocate: ChasePanel.#relocate, unboard: ChasePanel.#unboard, ram: ChasePanel.#ram, cancel: ChasePanel.#cancel, resume: ChasePanel.#resume, applyNow: ChasePanel.#applyNow
     }
   };
   static PARTS = { body: { template: "systems/sr2e/templates/apps/chase-panel.hbs", scrollable: [".chase-body"] } };
@@ -87,7 +87,12 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
       const hidden = p.contact && p.contact !== true;
       const P = ch.entries[p.pursuer];
       const spotters = P ? [P.driver, ...(P.aboard ?? [])].filter(u => u && owns(u)).map(u => ({ uuid: u, name: nameOf(u) })) : [];
-      return { pid, pursuer: nameOf(P?.uuid), quarry: nameOf(ch.entries[p.quarry]?.uuid), distance: p.distance,
+      const Q = ch.entries[p.quarry], t = ch.turns?.[c.round] ?? {};
+      // Ram (p.47–48): either side of the pursuit may ram the other; the GM op checks distance or entitlement.
+      const rams = c.started ? [[p.pursuer, p.quarry], [p.quarry, p.pursuer]]
+        .filter(([me]) => ch.entries[me]?.kind === "vehicle" && owns(ch.entries[me].driver) && t[me]?.ms != null)
+        .map(([me, them]) => ({ eid: me, target: them, label: `${nameOf(ch.entries[me].uuid)} rams` })) : [];
+      return { pid, rams, pursuer: nameOf(P?.uuid), quarry: nameOf(Q?.uuid), distance: p.distance,
                contact: hidden ? `hidden (${p.contact.successes} successes${p.contact.npcTurns ? `, NPC search ${p.contact.npcTurns}/5` : ""})` : "in contact",
                hidden, spotters: hidden && c.started ? spotters : [] };
     });
@@ -181,6 +186,10 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const pid = target.closest("[data-pid]").dataset.pid;
     const p = chaseOf(this.combat).pairs[pid];
     await chaseAction(this.combat, p.pursuer, "relocate", { target: pid, actorUuid: target.dataset.actor });
+  }
+
+  static async #ram(ev, target) {
+    await chaseAction(this.combat, target.dataset.eid, "ram", { target: target.dataset.target });
   }
 
   static async #unboard(ev, target) {

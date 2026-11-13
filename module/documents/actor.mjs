@@ -55,8 +55,12 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
-import { poolsLocked, drivenEntry } from "../chase-state.mjs";
-import { controllerOf, riggedInto, commitVehicleDamage, resolveCrash, spendPool, spendPosition, positionReserved, renderVehicleRamCard, worstControlledInitMod, isPoolClient } from "../vehicle-play.mjs";
+import { poolsLocked, drivenEntry, findEntry, findAboard } from "../chase-state.mjs";
+import { r2VehicleHit, terrainControlCap, passengerShotPower } from "../rules/vehicle-combat-rules.mjs";
+import { spendStep } from "../vehicle-damage.mjs";
+const eventKey = (id) => String(id).replace(/[^\w-]/g, "_");
+const stages0 = ["L", "M", "S", "D"];
+import { gmCall, controllerOf, riggedInto, commitVehicleDamage, resolveCrash, spendPool, spendPosition, positionReserved, renderVehicleRamCard, worstControlledInitMod, isPoolClient } from "../vehicle-play.mjs";
 import { vehicleOperationMod, vehicleSkillDice, positionOutcomes, manipulationVsVehicle } from "../rules/vehicle-play-rules.mjs";
 /** An attribute's display name ("Quickness"); Reaction isn't in the attribute list. */
 const attrName = (k) => (CONFIG.SR2E.attributes?.[k] ? game.i18n.localize(CONFIG.SR2E.attributes[k]) : "") || (k.charAt(0).toUpperCase() + k.slice(1));
@@ -348,6 +352,14 @@ export function cleanSpellDefinition(src) {
  * A core vehicle-combat path called under Rigger 2 without an explicit ruleset (a sheet button, a macro): refused,
  * naming the Rigger 2 action that replaces it (docs/PLAN-vehicles-phase2.md 3a.8). A core card passes "core".
  */
+/** The vehicle ruleset of the card a resistance resolves: its stamp, else core for an old card, else the setting. */
+function cardRuleset(options) {
+  if (options?.ruleset) return options.ruleset;
+  const m = options?.resolvesMessageId ? game.messages.get(options.resolvesMessageId) : null;
+  if (m) return m.flags?.sr2e?.vehicleRuleset ?? "core";
+  return isRigger2() ? "rigger2" : "core";
+}
+
 function r2Refuses(options, r2Action) {
   if (!isRigger2() || (options?.ruleset ?? "rigger2") === "core") return false;
   ui.notifications.warn(`SR2E | Under the Rigger 2 vehicle rules this is the ${r2Action} action on the chase panel (combat tracker).`);
@@ -2162,13 +2174,13 @@ export class SR2EActor extends Actor {
           successes, combatId: c?.id ?? "", round: c?.round ?? 0 } } }
       });
     }
-    if (testType === "crash" && successes === 0) await resolveCrash(vehicle);
+    if (testType === "crash" && successes === 0) await resolveCrash(vehicle, { ruleset: options.ruleset ?? null });
     return result;
   }
 
   /** Resolve a vehicle crash (SR2E p.107); see vehicle-play.mjs resolveCrash. */
-  async _resolveVehicleCrash(vehicle) {
-    return resolveCrash(vehicle);
+  async _resolveVehicleCrash(vehicle, { ruleset = null } = {}) {
+    return resolveCrash(vehicle, { ruleset });
   }
 
   /**
@@ -2284,9 +2296,56 @@ export class SR2EActor extends Actor {
     // damage), so any client can tell the card is done.
     const resolves = outcomeMarks(options);
 
-    // p.108 (and APDS, Sourcebook Updates p.277) — see vehicleHit.
+    // p.108 (and APDS, Sourcebook Updates p.277) — see vehicleHit. Under Rigger 2 (p.53) r2VehicleHit: Body dice vs the
+    // armour-cut Power. The card's ruleset decides (cards made before 0.150.0 carry none: core).
     const netStaging = Number.isFinite(options.stageVs);
-    const hit = options.manipulation ? { none: null, armorUsed: armor, ...manipulationVsVehicle({ body, armor, power, level }) } : vehicleHit({
+    const r2 = cardRuleset(options) === "rigger2" && !options.manipulation;
+    // The damage event this resolves (a card row, else the card).
+    const eventId = options.resolvesRow ? `row-${options.resolvesRow.replace(/[^\w]/g, "_")}`
+      : options.resolvesMessageId ? `card-${options.resolvesMessageId}` : null;
+    // Rigger 2 (plan 3.0 rolled steps): a resistance card for this event without its damage (a dropped client) is
+    // applied from the card, never re-rolled.
+    // Only the event's ONE recorded attempt counts (vehicle-damage.mjs `vresist` op).
+    if (r2 && eventId) {
+      const att = this.getFlag("sr2e", "vresist")?.[eventKey(eventId)];
+      const prior = att ? game.messages.find(m => m.flags?.sr2e?.vresist?.attempt === att.id) : null;
+      if (prior) {
+        const v = prior.flags.sr2e.vresist, got = testTotalSuccesses(prior.flags.sr2e.test);
+        const idx = Number.isFinite(v.stageVs) ? stageByNet(v.startIdx, v.stageVs, got).idx : v.startIdx - netToSteps(got);
+        const toVehicle = !v.component?.own || v.component.alsoVehicle;
+        // Idempotent by the event's receipt: when the damage already landed this only posts the missing outcome card.
+        const done = idx >= 0 && toVehicle ? await commitVehicleDamage(this, [1, 3, 6, 10][idx], { source: options.source ?? "weapon", eventId, woundLevel: stages0[idx], ruleset: "rigger2", attempt: att.id }) : null;
+        // A takeover replaced it in the vehicle queue: the card stays open for the current attempt.
+        if (done?.stale) return ui.notifications.warn("SR2E | That roll was taken over: it doesn't count.");
+        const comp = v.component && idx >= 0 ? ` The ${foundry.utils.escapeHTML(v.component.name)}: ${idx >= stages0.indexOf(v.component.at) ? "destroyed" : "still working"}.` : "";
+        return ChatMessage.create({ ...resolves, speaker: ChatMessage.getSpeaker({ actor: this }),
+          content: `<div class="sr2e-damage-result">${idx >= 0 ? `<strong>${toVehicle ? `Vehicle takes ${stages0[idx]} damage` : `${stages0[idx]} damage`}</strong> (the recorded roll)` : "<strong>Damage fully resisted</strong> (the recorded roll)"}.${comp}</div>` });
+      }
+    }
+    // Rigger 2 p.53, called shots at external components (a tire, an antenna, a weapon): resolved as vehicle damage
+    // unless the GM gives the component its own Body/Armor (then those decide penetration too); it's destroyed at
+    // Moderate or worse (the GM may say Light or Serious); with its own ratings the vehicle's monitor is marked only if
+    // the GM says so.
+    let component = null;
+    if (r2 && options.calledShot) {
+      component = await foundry.applications.api.DialogV2.prompt({ window: { title: "Called shot at a vehicle (Rigger 2 p.53)" }, rejectClose: false,
+        content: `<div><p>At an external component? Leave the name blank for the vehicle itself.</p>
+          <div class="form-group"><label>Component</label><input type="text" name="name" placeholder="tire, antenna, weapon…"></div>
+          <div class="form-group"><label>Own Body / Armor (GM, optional)</label><input type="number" name="body" min="0" style="width:4em"> <input type="number" name="armor" min="0" style="width:4em"></div>
+          <div class="form-group"><label>Destroyed at</label><select name="at"><option value="L">Light (fragile)</option><option value="M" selected>Moderate</option><option value="S">Serious (reinforced)</option></select></div>
+          <label><input type="checkbox" name="vehicle"> Also damage the vehicle (when it has its own ratings)</label></div>`,
+        ok: { label: "Continue", callback: (ev, b) => { const e = b.form.elements; const name = e.name.value.trim();
+          return name ? { name, body: e.body.value === "" ? null : Number(e.body.value), armor: e.armor.value === "" ? null : Number(e.armor.value),
+                          at: e.at.value, alsoVehicle: e.vehicle.checked } : { name: "" }; } } });
+      if (component === null) return null;
+      if (!component.name) component = null;
+      else component.own = component.body != null || component.armor != null;
+    }
+    const hBody = component?.body ?? body, hArmor = component?.armor ?? armor;
+    const hit = options.manipulation ? { none: null, armorUsed: armor, ...manipulationVsVehicle({ body, armor, power, level }) } : r2 ? r2VehicleHit({
+      body: hBody, armor: hArmor, power, basePower, level, damageType: options.damageType ?? "physical",
+      ratedLevel: netStaging ? (options.ratedLevel ?? level) : level, apds: !!options.apds, antiVehicle: !!options.antiVehicle
+    }) : vehicleHit({
       body, armor, power, basePower, level, damageType: options.damageType ?? "physical",
       // On a net-staging card `level` is pre-staging, and immunity is judged on
       // the printed rating (a Light burst is still Light-rated) unless called.
@@ -2295,7 +2354,8 @@ export class SR2EActor extends Actor {
     });
     const noEffect = {
       stun: "<strong>No effect:</strong> vehicles are unaffected by Stun damage.",
-      light: "<strong>No effect:</strong> Light damage cannot affect vehicles (SR2E p.108).",
+      light: r2 ? "<strong>No effect:</strong> a Light weapon can't affect a vehicle without special ammunition (Rigger 2 p.53)."
+        : "<strong>No effect:</strong> Light damage cannot affect vehicles (SR2E p.108).",
       barrier: `<strong>No penetration:</strong> base Power ${basePower} does not exceed vehicle armor ${hit.armorUsed}${options.apds ? ` (${armor}, halved for APDS)` : ""} (SR2E p.108).`
     };
     if (hit.none) {
@@ -2307,11 +2367,25 @@ export class SR2EActor extends Actor {
         content: `<div class="sr2e-damage-result">${noEffect[hit.none]}</div>`
       });
     }
-    const { dice, tn } = hit;
+    // Rigger 2 p.53: Body 0 (a very small drone) — any attacker success destroys it.
+    if (r2 && hBody === 0 && (options.stageVs ?? options.attackerSuccesses ?? 1) > 0) {
+      if (options.beforeRoll && !(await options.beforeRoll())) return null;
+      // A Body-0 COMPONENT is destroyed; the vehicle only takes damage if the GM said so.
+      const toVehicle = !component?.own || component.alsoVehicle;
+      if (toVehicle) await commitVehicleDamage(this, 10, { source: options.source ?? "weapon", eventId, woundLevel: "D", ruleset: "rigger2" });
+      return ChatMessage.create({ ...resolves, speaker: ChatMessage.getSpeaker({ actor: this }),
+        content: `<div class="sr2e-damage-result"><strong>Destroyed:</strong> ${component ? `the ${foundry.utils.escapeHTML(component.name)}` : "the vehicle"} — Body 0, any success destroys it (Rigger 2 p.53).</div>` });
+    }
+    // An NPC driver adds its Professional Rating (Rigger 2 p.50, the cruiser's 3 + 2 dice).
+    const npcDriver = r2 && !component?.own && controllerOf(this)?.type === "npc" ? controllerOf(this) : null;
+    const pr = npcDriver?.system?.professionalRating ?? 0;
+    const dice = hit.dice + pr, tn = hit.tn;
     const startLevel = hit.level;
     const stages = ["L", "M", "S", "D"];
     const startIdx = stages.indexOf(startLevel);
-    const levelNote = options.manipulation
+    const levelNote = r2
+      ? `Rigger 2 p.53: ${options.antiVehicle ? "anti-vehicle: level kept, armour counts half" : `level reduced one step${options.apds ? "; APDS: armour counts half" : ""}`}; Body${pr ? ` + ${pr} Professional Rating` : ""} dice against the Power less armour${hit.armorUsed ? ` (${hit.armorUsed})` : ""}.`
+      : options.manipulation
       ? "Damaging manipulation: no vehicle reduction of Power or Damage Level; Body + ½ armour against the full Power (SR2E p.109)."
       : options.antiVehicle
       ? "Anti-vehicle warhead: Damage Level not reduced; armour still cuts Power (SR2E p.108)."
@@ -2321,7 +2395,10 @@ export class SR2EActor extends Actor {
     // up to the test's base dice (p.85).
     const ctl = controllerOf(this);
     const rigger = isPoolClient(ctl) && (ctl.system.dicePools?.control?.value ?? 0) > 0 ? ctl : null;
-    const controlAvail = Math.min(rigger?.system.dicePools.control.value ?? 0, dice);
+    // Rigger 2 p.53: at most the driving skill (optionally less by terrain); core p.85: the test's base dice.
+    const r2Cap = r2 && rigger ? terrainControlCap(rigger._vehicleSkill(this).dice,
+      game.settings.get("sr2e", "r2ControlPoolTerrain") ? (findEntry(this.uuid)?.entry?.terrain ?? "normal") : "normal") : dice;
+    const controlAvail = Math.min(rigger?.system.dicePools.control.value ?? 0, r2 ? r2Cap : dice);
 
     const poolHTML = controlAvail > 0 ? `
       <hr style="margin:8px 0 6px;">
@@ -2368,39 +2445,69 @@ export class SR2EActor extends Actor {
     // the attack while the dialog was open).
     if (options.beforeRoll && !(await options.beforeRoll())) return null;
 
-    const paid = allocated > 0 && rigger ? await spendPool(rigger, "control", allocated) : 0;
+    // Rigger 2: ONE durable attempt per event (reserve → spend with its receipt → arm → roll; the card carries it).
+    let attempt = null;
+    if (r2 && eventId) {
+      let res = await gmCall("vresist", { vehicleUuid: this.uuid, eventId, op: "reserve" }).catch(err => ({ refused: err.message }));
+      if (res.live && game.user.isGM && await foundry.applications.api.DialogV2.confirm({ window: { title: "Take over the roll?" },
+        content: `<p>${foundry.utils.escapeHTML(res.refused)}. Take it over (only if that roll is stuck)?</p>`, rejectClose: false }))
+        res = await gmCall("vresist", { vehicleUuid: this.uuid, eventId, op: "reserve", force: true }).catch(err => ({ refused: err.message }));
+      if (res.refused) { ui.notifications.warn(`SR2E | ${res.refused}`); return null; }
+      attempt = res.attempt;
+    }
+    const paid = allocated > 0 && rigger ? (attempt ? await spendStep(rigger, allocated, `wr-${attempt}`) : await spendPool(rigger, "control", allocated)) : 0;
+    if (attempt) {
+      const armed = await gmCall("vresist", { vehicleUuid: this.uuid, eventId, op: "arm", attempt });
+      if (armed?.refused) { ui.notifications.warn(`SR2E | ${armed.refused}`); return null; }
+    }
 
     const resist = await this.rollSuccessTest(dice, tn, {
       paidPoolDice: paid ? { control: paid } : undefined,
+      ...(attempt ? { flags: { sr2e: { vresist: { eventId, attempt, startIdx, stageVs: netStaging ? options.stageVs : null,
+        component: component ? { name: component.name, own: !!component.own, alsoVehicle: !!component.alsoVehicle, at: component.at } : null } } } } : {}),
       label: RL("VehicleResist", { name: this.name, power, level: startLevel, pool: paid ? RL("ControlPoolTag", { n: paid }) : "" }),
       isResistance: true
     });
 
+    // A GM took the roll over meanwhile: this one no longer counts.
+    if (attempt && this.getFlag("sr2e", "vresist")?.[eventKey(eventId)]?.id !== attempt) {
+      ui.notifications.warn("SR2E | That roll was taken over: it doesn't count.");
+      return null;
+    }
     // "Otherwise, resolving weapon damage is the same" (p.108): net staging on
     // a new-format card, down 1 level per 2 successes on an older one.
     const finalIdx = netStaging
       ? stageByNet(startIdx, options.stageVs, resist?.successes ?? 0).idx
       : startIdx - netToSteps(resist?.successes ?? 0);
     if (finalIdx < 0) {
+      // Rigger 2 p.53: no damage AND more Control Pool dice than the attacker's successes → a complete miss.
+      const miss = r2 && netStaging && paid > options.stageVs;
       return ChatMessage.create({
         ...resolves,
         speaker: ChatMessage.getSpeaker({ actor: this }),
-        content: `<div class="sr2e-damage-result"><strong>Damage fully resisted.</strong></div>`
+        content: `<div class="sr2e-damage-result"><strong>Damage fully resisted.</strong>${miss ? " The attack is a complete miss (Rigger 2 p.53)." : ""}</div>`
       });
     }
 
     const boxes = [1, 3, 6, 10][finalIdx];
+    let componentNote = "";
+    if (component) {
+      const destroyed = finalIdx >= stages.indexOf(component.at);
+      componentNote = `<br>The ${foundry.utils.escapeHTML(component.name)} takes ${stages[finalIdx]} damage: ${destroyed ? "<strong>destroyed</strong>" : "still working"} (Rigger 2 p.53).`;
+      if (component.own && !component.alsoVehicle) {
+        return ChatMessage.create({ ...resolves, speaker: ChatMessage.getSpeaker({ actor: this }), content: `<div class="sr2e-damage-result">${componentNote.slice(4)}</div>` });
+      }
+    }
     // One commit (the GM's per-vehicle queue); it fires the crash triggers (p.107). Its event id is the card row, so
     // a replay never damages twice.
-    const eventId = options.resolvesRow ? `row-${options.resolvesRow.replace(/[^\w]/g, "_")}`
-      : options.resolvesMessageId ? `card-${options.resolvesMessageId}` : null;
-    await commitVehicleDamage(this, boxes, { source: options.source ?? "weapon", eventId, woundLevel: stages[finalIdx] });
+    const landed = await commitVehicleDamage(this, boxes, { source: options.source ?? "weapon", eventId, woundLevel: stages[finalIdx], ruleset: r2 ? "rigger2" : "core", attempt });
+    if (landed?.stale) { ui.notifications.warn("SR2E | That roll was taken over: it doesn't count."); return null; }
     return ChatMessage.create({
       ...resolves,
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
         <strong>Vehicle takes ${stages[finalIdx]} damage (${boxes} box${boxes === 1 ? "" : "es"})</strong>
-        — now ${this.system.damageLevel}.
+        — now ${this.system.damageLevel}.${componentNote}
       </div>`
     });
   }
@@ -2438,6 +2545,17 @@ export class SR2EActor extends Actor {
         resolvesRow: options.resolvesRow,
         apds: options.armorCalc === "half_ballistic", antiVehicle: !!options.antiVehicle
       });
+    }
+    // Rigger 2 p.53, attacks against passengers: shot at inside a chase vehicle, the Power drops by the higher of the
+    // vehicle's Armor and Body (no level change), no Combat Pool, a jacked-in rigger targeted +3 TN; a Deadly hit also
+    // gives the vehicle Light damage, unresisted.
+    const shotCard = options.resolvesMessageId ? game.messages.get(options.resolvesMessageId) : null;
+    const aboard = shotCard?.flags?.sr2e?.rangedDamage && shotCard.flags.sr2e.vehicleRuleset === "rigger2" ? findAboard(this.uuid) : null;
+    const cover = aboard ? fromUuidSync(aboard.entry.uuid) : null;
+    if (cover) {
+      const rigged = aboard.entry.driver === this.uuid && riggedInto(this, cover);
+      power = passengerShotPower({ power, armor: cover.system.effectiveArmor ?? 0, body: cover.system.body ?? 0 }) + (rigged ? 3 : 0);
+      options = { ...options, noCombatPool: true, passengerOf: cover };
     }
     const system    = this.system;
     const armorCalc = options.armorCalc || "standard";
@@ -2595,7 +2713,9 @@ export class SR2EActor extends Actor {
       miscDice: rollResult.miscDice,
       miscLabel: rollResult.miscLabel,
       isResistance: true,  // Injury Modifier does not apply to resistance (p.112)
-      ...(env && env.attr !== "body" ? {} : this._bodyTestOpts())   // a Body test: overstress applies
+      ...(env && env.attr !== "body" ? {} : this._bodyTestOpts()),   // a Body test: overstress applies
+      // A rolled step's card carries its attempt id (vehicle-damage.mjs resist steps).
+      ...(options.testFlags ? { flags: options.testFlags } : {})
     });
 
     // ── Complete miss (SR2E p.91) ────────────────────────────────────────────
@@ -2650,7 +2770,9 @@ export class SR2EActor extends Actor {
     const finalLevel  = stages[finalIdx];
     const damageBoxes = boxesForLevel(finalLevel);   // L=1, M=3, S=6, D=10 (SR2E p.113)
     // Knockdown and the card use what LANDED (Kamikaze may absorb some, p.99).
-    const dealt = await this.applyDamage(damageType, damageBoxes, { report: false, source: rollResult.bane ? "bane" : null })
+    // A receipted caller (vehicle-damage.mjs) writes its receipt in the SAME update and skips a duplicate.
+    const dealt = await this.applyDamage(damageType, damageBoxes, { report: false, source: rollResult.bane ? "bane" : null,
+      ...(options.damageExtra ? { extra: options.damageExtra } : {}), ...(options.damageSkipIf ? { skipIf: options.damageSkipIf } : {}) })
       ?? { landedBoxes: damageBoxes, absorbed: 0, overloadStun: 0 };
     const landed = dealt.landedBoxes;
     const drugNote = drugDamageNote(dealt);
@@ -2688,15 +2810,19 @@ export class SR2EActor extends Actor {
         : "Already down — no Knockdown Test."}</em>`;
     }
 
-    await ChatMessage.create({
+    // A Deadly hit on a passenger (Rigger 2 p.53): the outcome card records it, and the GM gives the vehicle its Light
+    // damage from that card (a passenger's player doesn't own the vehicle; never blocks this damage).
+    const deadlyAboard = options.passengerOf && finalLevel === "D";
+    const outcome = await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-damage-result">
         <strong>Damage Taken: ${finalLevel} ${damageType}</strong>
         <em>(${landed} box${landed !== 1 ? "es" : ""} applied to ${damageType} monitor)</em>${netNote}${drugNote ? `<br>💊 ${drugNote}.` : ""}
         ${knockBtn}
       </div>`,
-      ...resolves
+      ...foundry.utils.mergeObject(resolves, deadlyAboard ? { flags: { sr2e: { passengerDeadly: { vehicleUuid: options.passengerOf.uuid, actorUuid: this.uuid } } } } : {}, { inplace: false })
     });
+    if (deadlyAboard && outcome) gmCall("passengerCollateral", { outcomeId: outcome.id }).catch(err => console.error("SR2E | passenger collateral", err));
 
     return resistResult;
   }

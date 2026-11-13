@@ -488,3 +488,60 @@ GM force). (2) With a chase driver, `riggedInto` is true only for that driver; `
 "No material problems found in the round-2 fixes. Published unclosed cards have the GM's Apply now path; vanished
 rollers without cards have forced cancellation. Existing `riggedInto` callers remain compatible with chase-driver
 precedence and the fallback."
+
+## Part 3b code, round 1 — Codex (working tree, fresh session): REVISE, 13 findings
+1. Impact records' resistance used the speed, not the stored code (ram, wall breakthrough). 2. A passenger's Deadly
+collateral was committed from the passenger's client (refused; blocked their own damage). 3. A core ram's loser Crash
+Test could be refused for the resolving player. 4. Crash attempts weren't exclusive (own replacement; any player could
+force). 5. Occupant attempts could overwrite an in-flight roll. 6. R2 weapon resistance had no recovery link/pool
+receipt. 7. Legacy core crashes switched ruleset mid-resolution. 8. Vehicle armour returned before a component could be
+chosen. 9. The optional terrain cap wasn't applied to impact resistance. 10. Ram entitlement expiry missed same-index
+phases and round ends. 11. Ramming ignored lost contact. 12. Crashes outside a chase used speed 0. 13. Crash occupants
+were found at posting time, not snapshotted.
+
+### Claude's response
+All taken. (1) `kind:"impact"` uses its stored code. (2) GM op `passengerCollateral` (validates ownership + aboard),
+fire-and-forget. (3) `vfollowCrash` accepts a resolved core ram card (`cardId`), fid `vram-<id>`. (4) Live attempts
+refused for everyone; only the GM may force (confirm). (5) Per-client in-flight set + the current attempt re-validated
+in the damage queue (`damageSkipIf`) and by `applyFromCard`. (6) R2 resistance cards carry `vresist {eventId, startIdx,
+stageVs}`; a card without its `vdmg` receipt is applied from the card; Control Pool via `spendStep` keyed `wr-<event>`.
+(7) `postCrashTestDue`/`resolveCrash`/`rollVehicleTest` carry the card's ruleset (unstamped = core). (8) Component
+prompt first; its Body/Armor decide penetration. (9) Terrain cap on resist steps when the setting is on. (10) Expiry in
+`SR2ECombat.nextTurn` via GM op `chaseExpireRam` with the departing actor and ending phaseSeq. (11) Refused until
+relocated. (12) Outside a chase the speed is null and entered on the first roll (persisted at reserve). (13) Occupants
+snapshotted when the crash record opens.
+
+## Part 3b code, round 2 — Codex (round-1 fixes only, fresh session): REVISE, 7 findings
+1. A defending player's resolution didn't mark the ram card, so the loser's Crash Test was still refused. 2. `vfollowCrash`
+turned a null speed into 0. 3. R2 weapon resistance had no exclusive durable attempt. 4. Recovery ignored a component-only
+hit. 5. A Body-0 component destroyed the whole vehicle. 6. Recovery after the damage landed only warned (no outcome
+card). 7. Passenger collateral accepted any message id.
+
+### Claude's response
+All taken. (1) The resolution message carries `vramLoser`; `vfollowCrash` authorizes from it. (2) Null kept under R2.
+(3) GM op `vresist` (vehicle queue): one attempt per event, reserve → spend `wr-<attempt>` → arm → card tagged with the
+attempt; a live attempt is refused except the same player's unspent reserved one or a GM takeover; recovery accepts
+only the recorded attempt's card. (4) The card records the component decision; recovery replays it. (5) Body 0 destroys
+the component; the vehicle only if ticked. (6) Recovery always posts the outcome; the damage commit is idempotent.
+(7) Collateral only from the passenger's own Deadly outcome card (`passengerDeadly`) resolving an R2 `rangedDamage`
+card, once per attack.
+
+## Part 3b code, round 3 — Codex (round-2 fixes only, fresh session): REVISE, 2 findings
+1. Recovery ran after the component prompt and the immunity return, so a retry could discard the recorded result.
+2. A replaced attempt could still commit damage first (only the event receipt was checked).
+
+### Claude's response
+Both taken. (1) The recorded-attempt recovery runs right after the ruleset is known, before any prompt or immunity
+check. (2) `commitVehicleDamage(…, { attempt })`: GM_OPS.damage skips unless it is still the event's current `vresist`
+attempt (checked in the vehicle queue); a replaced attempt's fully-resisted / component-only outcome is dropped too.
+
+## Part 3b code, round 4 — Codex (round-3 fix only, fresh session): REVISE, 1 finding
+1. A commit refused as a stale attempt still let the caller post a resolving outcome, closing the attack unapplied.
+
+### Claude's response
+Taken: GM_OPS.damage returns `stale: true`; both callers (the recorded-attempt recovery and the normal path) warn and
+post no outcome, leaving the card open for the current attempt.
+
+## Part 3b code, round 5 — Codex (round-4 fix only, fresh session): APPROVED
+"No material problems found in the round-4 fix. The stale flag reaches both callers, which stop before posting an
+outcome card."

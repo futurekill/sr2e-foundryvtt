@@ -530,6 +530,27 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
       clears it. Workshop: add an engine customization level and save → one check; save again → none.
 - [ ] Back to Core Rulebook: no Rigger 2 panel, the Handling Test is back; Stress values kept.
 
+### Vehicle damage (Part 3b; Quench `sr2e.vehicle-chase` → "Damage"; unit `test/vehicle-combat-rules.test.mjs`)
+- [ ] Rigger 2 on: shoot a Body 4 / Armor 6 car with a 10S rifle: the resist dialog says M, Body dice vs TN 4; an NPC
+      driver's Professional Rating adds dice; a rigger's Control Pool is capped at their driving skill.
+- [ ] A Light pistol does nothing; with APDS it does Light; an anti-vehicle rocket keeps its level against half armour.
+- [ ] Called shot at a tire: the component prompt; with its own Body/Armor the vehicle is spared unless ticked; the card
+      says destroyed at Moderate.
+- [ ] Serious from one shot: a Crash Test card per hit (two hits in one phase → two cards); a jacked-in rigger also gets
+      "Rigger feedback 6M"; destroying the vehicle with a shot → "crashes automatically" → Resist (vehicle).
+- [ ] Crash Test → Apply the result → on a failure the card asks the vehicle to resist (300 m/CT → 30D); then the
+      occupants card: each passenger resists once (seat belt question; APPS / crash cage noted); clicking twice warns.
+      Reload the GM mid-way: the GM's pass finishes what was recorded.
+- [ ] Ram (chase window, pursuit row) when within the rammer's Acceleration: the target resists the speed difference,
+      the rammer less its Body × successes; both crews resist; each damaged vehicle gets a Crash Test. Out of range:
+      refused with the reason; accelerate by twice the distance, then ram on the next action.
+- [ ] Hit → a wall of 16 at 300 m/CT: stops and crashes (30D); a wall of 4: breaks through at 220 m/CT, 4S, restrained
+      occupants unhurt. Mana barrier: passes through; an exposed rider resists as a wall. A pedestrian at 60: 6S for
+      them (hardened armour: 6M), the car L.
+- [ ] Shoot a passenger in a chase car: Power − max(Armor, Body), no Combat Pool; a Deadly result gives the car Light.
+- [ ] Core ruleset: a Serious wound in combat still asks for ONE Crash Test per phase; a failed Crash Test now asks for
+      the vehicle's resistance and then the occupants, each once.
+
 ### The chase (Part 3a; Quench `sr2e.vehicle-chase`; unit `test/vehicle-combat-rules.test.mjs`)
 - [ ] Rigger 2 on, GM: combat tracker → **Chase** → Set up a chase. Add two vehicles with drivers and a pursuit
       (pursuer, quarry, distance). A vehicle sheet shows **Class** (Vehicle Points, p.42), derived when blank.

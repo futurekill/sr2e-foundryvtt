@@ -12735,7 +12735,7 @@ export function registerSR2EQuenchTests() {
           await commitVehicleDamage(v, 1, { source: "weapon", woundLevel: "S" });
           await commitVehicleDamage(v, 2, { source: "crash", woundLevel: "S" });
           track(t0);
-          const due = since(t0).filter(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid);
+          const due = since(t0).filter(m => (m.flags?.sr2e?.crashDue?.vehicleUuid === v.uuid && m.flags.sr2e.crashDue.step === "test"));
           assert.equal(due.length, 1, "one Crash Test per vehicle per Combat Phase");
           assert.equal(v.system.conditionMonitor.value, 9);
         });
@@ -12754,9 +12754,9 @@ export function registerSR2EQuenchTests() {
           const r = await commitVehicleDamage(v, 10, { source: "weapon" });
           track(t0);
           assert.equal(r.trigger, "autoCrash");
-          const card = since(t0).find(m => /automatic crash/i.test(m.content ?? ""));
-          assert.ok(card, "the crash resolved");
-          assert.match(card.content, /at 80 m\/CT|fully resisted/, "speed 80 (8S), not the destroyed vehicle's 0");
+          const card = since(t0).find(m => m.flags?.sr2e?.crashDue?.vehicleUuid === v.uuid && m.flags.sr2e.crashDue.step === "resist");
+          assert.ok(card, "the automatic crash asks for the vehicle's resistance");
+          assert.equal(Object.values(v.getFlag("sr2e", "crashes"))[0].speed, 80, "speed 80 (8S), not the destroyed vehicle's 0");
         });
       });
 
@@ -12816,7 +12816,7 @@ export function registerSR2EQuenchTests() {
           try { await resistVehicleRam(card); } finally { foundry.applications.api.DialogV2.prompt = prompt; }
           track(t0);
           assert.equal(theirs.system.conditionMonitor.value, 0, "no automatic crash damage");
-          assert.ok(since(t0).some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === theirs.uuid), "the loser is asked for a Crash Test");
+          assert.ok(since(t0).some(m => (m.flags?.sr2e?.crashDue?.vehicleUuid === theirs.uuid && m.flags.sr2e.crashDue.step === "test")), "the loser is asked for a Crash Test");
           let again = 0; const w = ui.notifications.warn; ui.notifications.warn = () => again++;
           try { await resistVehicleRam(game.messages.get(card.id)); } finally { ui.notifications.warn = w; }
           assert.equal(again, 1, "resolved once");
@@ -12858,19 +12858,23 @@ export function registerSR2EQuenchTests() {
             foundry.applications.api.DialogV2.prompt = async () => ({ speed: 70, kind: "wall", rating: 2, exposed: false, aware: false });
             await hitObjectFlow(null, v);
           } finally { foundry.applications.api.DialogV2.prompt = prompt; track(t0); }
-          assert.ok(since(t0).some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid), "broke through: Crash Test due");
+          assert.ok(since(t0).some(m => (m.flags?.sr2e?.crashDue?.vehicleUuid === v.uuid && m.flags.sr2e.crashDue.step === "test")), "broke through: Crash Test due");
           assert.isAbove(v.system.conditionMonitor.value, 0, "the vehicle took the impact (Body 2 vs TN 7)");
         });
         it("the GM makes an NPC-driven vehicle's Crash Test; a failure crashes it", async () => {
-          const { crashTestFromCard, postCrashTestDue } = await vp();
+          const { postCrashTestDue } = await vp();
           const v = await mk({ name: "Quench VP NPC", type: "vehicle", system: { body: 3, handling: 5, speed: 40 } });
           const t0 = Date.now();
-          const due = await postCrashTestDue(v, "test");
+          await postCrashTestDue(v, "test");
+          const due = since(t0).find(m => m.flags?.sr2e?.crashDue?.vehicleUuid === v.uuid);
+          const { crashStepClick, crashApply } = await import("../vehicle-damage.mjs");
           const prompt = foundry.applications.api.DialogV2.prompt;
-          foundry.applications.api.DialogV2.prompt = async () => ({ skill: 2, terrain: "tight" });   // TN 5 + 2 = 7: no success
-          try { await crashTestFromCard(due); } finally { foundry.applications.api.DialogV2.prompt = prompt; track(t0); }
-          assert.ok(since(t0).some(m => /Crash: [LMSD] damage|fully resisted/.test(m.content ?? "")), "crashed");
-          assert.ok(game.messages.some(m => m.flags?.sr2e?.resolves === due.id), "a public receipt closes the card");
+          foundry.applications.api.DialogV2.prompt = async () => ({ skill: 2, terrain: "tight", control: 0 });   // TN 5 + 2 = 7: no success
+          try { await crashStepClick(due); } finally { foundry.applications.api.DialogV2.prompt = prompt; }
+          const test = game.messages.contents.findLast(m => m.flags?.sr2e?.crashStep?.vehicleUuid === v.uuid);
+          await crashApply(test);
+          track(t0);
+          assert.equal(Object.values(v.getFlag("sr2e", "crashes"))[0].state, "crashed", "no success: it crashes");
         });
         it("a damaging manipulation hits a vehicle without the vehicle reductions (p.109)", async () => {
           const v = await mk({ name: "Quench VP Manip", type: "vehicle", system: { body: 2, armor: 2 } });
@@ -12942,7 +12946,7 @@ export function registerSR2EQuenchTests() {
           // (2 ones ≥ Car 1) → +1D6 = 1 → 3 < 2 × Body 3.
           const card = await driveAndResolve(d, v, { stressDice: 1 });
           assert.equal(v.system.stressRating, 3);
-          assert.notOk(since().some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid), "no system failure");
+          assert.notOk(since().some(m => (m.flags?.sr2e?.crashDue?.vehicleUuid === v.uuid && m.flags.sr2e.crashDue.step === "test")), "no system failure");
           const w = ui.notifications.warn; let again = 0; ui.notifications.warn = () => again++;
           try { await (await vp()).resolveDrivingTest(game.messages.get(card.id)); } finally { ui.notifications.warn = w; }
           assert.equal(again, 1, "resolved once");
@@ -12954,7 +12958,7 @@ export function registerSR2EQuenchTests() {
           await v.update({ "system.skill": "bike" });
           await driveAndResolve(d, v, { stressDice: 1 });   // Body 1: 2 Stress for 1 die; then +1 → 3 ≥ 2
           assert.equal(v.system.stressRating, 3);
-          assert.ok(since().some(m => m.flags?.sr2e?.crashTestDue?.vehicleUuid === v.uuid));
+          assert.ok(since().some(m => (m.flags?.sr2e?.crashDue?.vehicleUuid === v.uuid && m.flags.sr2e.crashDue.step === "test")));
         });
         it("a defaulting driver's Rule of One counts the dice rolled, not the default's rating (ruling)", async () => {
           const v = await mk({ name: "Quench R2 Default", type: "vehicle", system: { body: 3, handling: 4, speed: 60, autonav: 2 } });
@@ -12992,9 +12996,11 @@ export function registerSR2EQuenchTests() {
           await w.createEmbeddedDocuments("Item", [{ name: "Ground Vehicles (B/R)", type: "skill", system: { rating: 3 } }]);
           const v = await mk({ name: "Quench R2 Hotrod", type: "vehicle", system: { body: 3, speed: 90 } });
           const attempt = (id) => ({ id, ok: true, by: w.uuid, results: [{ skill: "Ground Vehicles (B/R)", successes: 2 }], spec: { tn: 4 } });
-          const [bad] = await v.createEmbeddedDocuments("Item", [
+          await v.createEmbeddedDocuments("Item", [
             { name: "Engine Customization (Speed)", type: "vehicle_mod", system: { modKey: "engine-custom-speed", rating: 1, custom: { state: "tested", attempt: attempt("att0") } } },
             { name: "Engine Customization (Speed)", type: "vehicle_mod", system: { modKey: "engine-custom-speed", rating: 1, custom: { state: "done", attempt: attempt("att1") } } }]);
+          // createEmbeddedDocuments returns items in no fixed order: find the tested one by its state.
+          const bad = v.items.find(i => i.system.custom?.state === "tested");
           // Finishing re-checks in the GM's queue: not a purchase delivered through Customize → refused, nothing rolled.
           let refused = false;
           try { await engineCheckForInstall(v, bad); } catch (e) { refused = true; }
@@ -13330,6 +13336,85 @@ export function registerSR2EQuenchTests() {
           try { await spendPool(a, "combat", 1); } catch (e) { threw = /changing/.test(e.message); }
           await combat.unsetFlag("sr2e", "roundTransition");
           assert.isTrue(threw);
+        });
+      });
+
+      describe("Damage (R2 p.49–53)", () => {
+        const stub = async (fns, fn) => {
+          const api = foundry.applications.api.DialogV2, saved = {};
+          for (const [k, f] of Object.entries(fns)) { saved[k] = api[k]; api[k] = f; }
+          try { return await fn(); } finally { Object.assign(api, saved); }
+        };
+        const dmg = async () => import("../vehicle-damage.mjs");
+        const lastCard = (pred) => game.messages.contents.findLast(pred);
+
+        it("a weapon: level −1, armour cuts the Power, Body dice vs the rest; no Serious, no Crash Test", async () => {
+          const v = await car("Quench R2 Armoured", { body: 4, armor: 6 });
+          await stub({ wait: async () => "roll" }, () => faces(0.99, () => v.rollVehicleDamageResistance(10, "S", { ruleset: "rigger2" })));
+          assert.equal(v.system.conditionMonitor.value, 3, "10S → M, TN 4, all ones: Moderate");
+          assert.notOk(game.messages.contents.some(m => m.flags?.sr2e?.crashDue?.vehicleUuid === v.uuid));
+        });
+        it("Serious from one attack: a Crash Test per EVENT; a jacked-in rigger takes 6M feedback", async () => {
+          const { gmCall, commitVehicleDamage } = await mods();
+          const { combat, A, va } = await chase();
+          const rig = await mk({ name: "Quench R2 Feedback Rigger", type: "character", system: { vehicleControlRig: 2, rigging: true } });
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { driver: rig.uuid } });
+          await commitVehicleDamage(va, 6, { source: "weapon", woundLevel: "S", ruleset: "rigger2", eventId: "q-ev1" });
+          await commitVehicleDamage(va, 1, { source: "weapon", woundLevel: "S", ruleset: "rigger2", eventId: "q-ev2" });
+          const tests = game.messages.contents.filter(m => m.flags?.sr2e?.crashDue?.vehicleUuid === va.uuid);
+          assert.equal(tests.length, 2, "no per-phase dedupe under Rigger 2");
+          const fb = game.messages.contents.filter(m => m.flags?.sr2e?.vsteps?.fb?.actor === rig.uuid);
+          assert.equal(fb.length, 2);
+          assert.equal(fb[0].flags.sr2e.vsteps.fb.level, "M");
+        });
+        it("a crash, end to end: Crash Test fails → 30D at 300 m → the vehicle and each occupant once (APPS, seat belt)", async () => {
+          const { crashStepClick, crashApply, stepClick, requestCrash } = await dmg();
+          const { gmCall } = await mods();
+          const { combat, A, va, da } = await chase({ speedA: 300 });
+          const cop = await driver("Quench R2 Passenger");
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { aboard: [cop.uuid] } });
+          await va.createEmbeddedDocuments("Item", [{ name: "Advanced Passenger Protection System (APPS)", type: "vehicle_mod", system: {} }]);
+          await requestCrash(va, { kind: "test", why: "loses control", ruleset: "rigger2" });
+          const due = lastCard(m => m.flags?.sr2e?.crashDue?.vehicleUuid === va.uuid);
+          await stub({ prompt: async () => ({ terrain: "normal", control: 0, autonav: false }) }, () => faces(0.99, () => crashStepClick(due)));
+          await crashApply(lastCard(m => m.flags?.sr2e?.crashStep?.step === "test" && m.flags.sr2e.crashStep.vehicleUuid === va.uuid));
+          const [cid, c1] = Object.entries(va.getFlag("sr2e", "crashes"))[0];
+          assert.equal(c1.state, "crashed");
+          await stub({ prompt: async () => ({ control: 0 }) }, () => faces(0.99, () => crashStepClick(due)));
+          await crashApply(lastCard(m => m.flags?.sr2e?.crashStep?.step === "resist" && m.flags.sr2e.crashStep.vehicleUuid === va.uuid));
+          const c2 = va.getFlag("sr2e", "crashes")[cid];
+          assert.equal(c2.state, "done");
+          assert.deepEqual([c2.outcome.power, c2.outcome.level], [30, "D"]);
+          assert.equal(va.system.conditionMonitor.value, 10, "30D unresisted");
+          assert.equal(ch(combat).entries[A].speed, 0, "it stops");
+          const occ = lastCard(m => m.flags?.sr2e?.vsteps && m.flags.sr2e.vfollowId?.endsWith(":occupants"));
+          const key = Object.keys(occ.flags.sr2e.vsteps).find(k => occ.flags.sr2e.vsteps[k].actor === cop.uuid);
+          assert.isTrue(occ.flags.sr2e.vsteps[key].apps, "APPS found by name");
+          const before = cop.system.conditionMonitor.physical.value;
+          const rollBtn = async (cfg) => { cfg.buttons?.[0]?.callback?.(null, { form: { elements: {} } }); return "roll"; };
+          await stub({ confirm: async () => true, wait: rollBtn }, () => faces(0.99, () => stepClick(occ, key)));
+          const after = cop.system.conditionMonitor.physical.value;
+          assert.isAbove(after, before, "30D → seat belt 30S → APPS 15S, all ones: damage");
+          await stub({ confirm: async () => true, wait: rollBtn }, () => faces(0.99, () => stepClick(occ, key)));
+          assert.equal(cop.system.conditionMonitor.physical.value, after, "once");
+          assert.isOk(da);
+        });
+        it("a ram within the Acceleration: both vehicles get an impact record at the speed difference", async () => {
+          const { combat, A, B, va, vb } = await chase({ speedA: 100, speedB: 150, distance: 5 });
+          await rollDp(combat, A); await rollDp(combat, B);
+          const r = await act(combat, B, "ram", { target: A });
+          assert.isAbove(r.successes, 0);
+          const ca = Object.values(va.getFlag("sr2e", "crashes") ?? {}), cb = Object.values(vb.getFlag("sr2e", "crashes") ?? {});
+          assert.equal(ca.length, 1); assert.equal(cb.length, 1);
+          assert.deepEqual([ca[0].power, ca[0].level, ca[0].source], [5, "M", "ram"], "50 m/CT difference → 5M for the target");
+          assert.equal(cb[0].power, Math.max(0, 5 - 3 * r.successes), "the rammer's Power − Body × successes");
+        });
+        it("a wall at Barrier Rating × 20 or more stops the vehicle (Cruiser #2: 300 vs 16)", async () => {
+          const { r2HitObject } = await dmg();
+          const v = await car("Quench R2 Wall");
+          await stub({ prompt: async () => ({ speed: 300, kind: "wall", rating: 16, exposed: false }) }, () => r2HitObject(null, v));
+          const c = Object.values(v.getFlag("sr2e", "crashes"))[0];
+          assert.deepEqual([c.kind, c.power, c.level, c.stop], ["impact", 30, "D", true]);
         });
       });
 

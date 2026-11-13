@@ -17,16 +17,16 @@ import { isRigger2 } from "./vehicle-mode.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { VEHICLE_POINTS, TERRAIN_POINTS, r2ClassFor, speedPoints, maneuverScore, accelerateTN, positioningTN, hidingTN,
          relocatingTN, applySpeedChange, ramEntitled, stopAtPoint, closeDistance, NPC_RELOCATE_TURNS,
-         fastestMember, passengerMayAttack } from "./rules/vehicle-combat-rules.mjs";
+         fastestMember, passengerMayAttack, ramTN, ramDamage, pedestrianImpact, r2Impact } from "./rules/vehicle-combat-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const cq = (combatId, fn) => enqueueAttack(`chase:${combatId}`, fn);
 const mq = (fn) => enqueueAttack("chase-membership", fn);
 const TERMINAL = new Set(["done", "cancelled", "stale"]);
 const LIVE = new Set(["rolling", "publishing", "resolving", "cancelRequested"]);
-export const ACTION_KINDS = ["accelerate", "brake", "position", "hide", "relocate"];
+export const ACTION_KINDS = ["accelerate", "brake", "position", "hide", "relocate", "ram"];
 const KIND_LABEL = { dp: "Driver Points", accelerate: "Accelerate", brake: "Brake", position: "Positioning",
-                     hide: "Hiding", relocate: "Relocating" };
+                     hide: "Hiding", relocate: "Relocating", ram: "Ramming" };
 
 /** Does this combat run a chase (Rigger 2 only)? */
 export const hasChase = (combat) => isRigger2() && !!chaseOf(combat)?.entries;
@@ -248,6 +248,18 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
     if (kind === "hide") {
       opponents = [...new Set(pairs.filter(([, p]) => members.includes(p.quarry) && p.contact === true).map(([, p]) => p.pursuer))];
       if (!opponents.length) throw new Error("no pursuer is in contact");
+    } else if (kind === "ram") {
+      const pair = pairs.find(([, p]) => (p.pursuer === eid && p.quarry === target) || (p.quarry === eid && p.pursuer === target));
+      if (!pair) throw new Error("pick a vehicle or pedestrian you're in a pursuit with");
+      // A quarry that hid from this pursuer must be relocated first (p.48–49).
+      if (pair[1].pursuer === eid && pair[1].contact !== true) throw new Error("you've lost contact with it: relocate it first (Rigger 2 p.49)");
+      targetEid = target;
+      opponents = [target];
+      const ent = ch.turns?.[round]?.[eid]?.ram?.[target] ?? ch.turns?.[round - 1]?.[eid]?.ram?.[target];
+      const seq = Number(combat.getFlag("sr2e", "phaseSeq")) || 0;
+      const accel = vehicleStats(fromUuidSync(e.uuid)).acceleration;
+      if (!(pair[1].distance < accel || (ent && seq > ent.seq)))
+        throw new Error(`to ram, be closer than your Acceleration (${accel} m), or change speed by twice the distance first and ram on your next action (Rigger 2 p.45)`);
     } else if (kind === "relocate") {
       const pair = ch.pairs?.[target];
       if (!pair || !members.includes(pair.pursuer) || pair.contact === true) throw new Error("pick a vehicle that has hidden from you");
@@ -282,7 +294,8 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
       const oppMs = opponents.length ? highestMs(ch, round, opponents) : t.ms;
       const fleeing = pairs.filter(([, p]) => members.includes(p.quarry)).length;
       const common = { handling: stats.handling, over, autonav, terrain: e.terrain, vcr, damageTn: stats.damageTn, groupExtra: g };
-      tn = kind === "position" ? positioningTN(common)
+      tn = kind === "ram" ? ramTN({ ...common, ms: t.ms, oppMs: highestMs(ch, round, [targetEid]) })
+        : kind === "position" ? positioningTN(common)
         : kind === "hide" ? hidingTN({ ...common, ms: t.ms, oppMs, extraOpponents: opponents.length - 1 })
         : accelerateTN({ ...common, ms: t.ms, oppMs, extraPursuers: Math.max(0, fleeing - 1) });
       // Defaulting and Vehicle Empathy (R2 p.14: −1, never a remote drone) join before the minimum of 2.
@@ -387,7 +400,8 @@ async function resolve({ combatId, aid, messageId }, user) {
         patch[`entries.${m}.speed`] = speed; bump(m);
         for (const [pid, p] of Object.entries(ch.pairs ?? {})) {
           const other = p.pursuer === m ? p.quarry : p.quarry === m ? p.pursuer : null;
-          if (other && ramEntitled(change, p.distance)) patch[`turns.${r}.${m}.ram.${other}`] = pid;
+          // Good for the driver's NEXT action (p.45, B2 #9): a later phase than this one; dropped once that action passes.
+          if (other && ramEntitled(change, p.distance)) patch[`turns.${r}.${m}.ram.${other}`] = { pid, seq: Number(combat.getFlag("sr2e", "phaseSeq")) || 0 };
         }
         if (speed > st.speedRating && !ch.turns?.[r]?.[m]?.over) { patch[`turns.${r}.${m}.over`] = true; effects.push({ type: "over", eid: m }); }
       }
@@ -402,6 +416,17 @@ async function resolve({ combatId, aid, messageId }, user) {
         if (!members.includes(p.quarry) || p.contact !== true) continue;
         patch[`pairs.${pid}.contact`] = { hiddenBy: aid, successes: read.successes, round: r, npcTurns: 0 };
         patch[`pairs.${pid}.rev`] = (p.rev ?? 0) + 1;
+      }
+    } else if (a.kind === "ram") {
+      // The entitlement is used whether the ram lands or not (B2 #9).
+      patch[`turns.${r}.${a.eid}.ram.-=${a.targetEid}`] = null;
+      if (ch.turns?.[r - 1]?.[a.eid]?.ram?.[a.targetEid]) patch[`turns.${r - 1}.${a.eid}.ram.-=${a.targetEid}`] = null;
+      if (read.successes > 0) {
+        const R = ch.entries[a.eid], T = ch.entries[a.targetEid];
+        const crew = (x) => (x?.kind === "vehicle" ? [...new Set([x.driver, ...(x.aboard ?? [])].filter(Boolean))] : []);
+        effects.push({ type: "ram", aid, successes: read.successes, rammer: a.eid, target: a.targetEid,
+          snap: { rammerUuid: R.uuid, targetUuid: T.uuid, targetKind: T.kind, rammerSpeed: R.speed ?? 0, targetSpeed: T.kind === "vehicle" ? (T.speed ?? 0) : 0,
+                  rammerBody: a.stamps[a.eid].body, occupants: { rammer: crew(R), target: crew(T) } } });
       }
     } else if (a.kind === "relocate" && read.successes > 0) {
       const p = ch.pairs?.[a.target];
@@ -424,10 +449,45 @@ async function resolve({ combatId, aid, messageId }, user) {
 async function applyEffects(combat, aid) {
   const a = chaseOf(combat)?.actions?.[aid];
   if (a?.state !== "resolving") return;
-  for (const fx of a.effects ?? []) if (fx.type === "over") await chargeOver(combat, a.round, fx.eid);
+  for (const fx of a.effects ?? []) {
+    if (fx.type === "over") await chargeOver(combat, a.round, fx.eid);
+    if (fx.type === "ram") await applyRam(fx);
+  }
   await cq(combat.id, async () => {
     if (chaseOf(combat).actions?.[aid]?.state === "resolving") await write(combat, { [`actions.${aid}.state`]: "done" });
   });
+}
+
+/**
+ * A landed ram (p.47–48, p.50, p.52): each vehicle resists the impact at the difference in speed (the rammer's Power
+ * cut by its Body × successes) through its own impact record; a pedestrian resists one level higher and the vehicle one
+ * lower. Deterministic follow-up ids (`vcol-<aid>-…`) make a replay a no-op.
+ */
+async function applyRam(fx) {
+  const s = fx.snap, rammer = fromUuidSync(s.rammerUuid), target = fromUuidSync(s.targetUuid);
+  const base = { speed: null, ruleset: "rigger2" };
+  if (s.targetKind === "pedestrian") {
+    const p = pedestrianImpact({ speed: s.rammerSpeed });
+    if (!p) return;
+    const tag = `vcol-${fx.aid}-ped`;
+    if (!game.messages.some(m => m.getFlag("sr2e", "vfollowId") === tag)) {
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: rammer }), flags: { sr2e: { vfollowId: tag, vsteps: {
+        ped: { effectId: `${tag}:pedestrian`, actor: s.targetUuid, power: p.pedestrian.power, level: p.pedestrian.level, armor: "impact",
+               combatPool: true, title: "Hit by a vehicle", hardenedAlt: r2Impact(s.rammerSpeed) } } } },
+        content: `<div class="sr2e-damage-result"><strong>${esc(rammer?.name)} hits ${esc(target?.name)} at ${s.rammerSpeed} m/CT:
+          ${p.pedestrian.power}${p.pedestrian.level}</strong> — one level up (hardened or military-grade armour: no step), impact armour,
+          Combat Pool allowed (Rigger 2 p.52). <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-vstep-btn" data-key="ped">🛡 Resist: ${esc(target?.name)}</button></div></div>` });
+    }
+    if (p.vehicle && rammer) await gmCall("vfollowCrash", { vehicleUuid: rammer.uuid, kind: "impact", why: `hits ${target?.name ?? "a pedestrian"}`,
+      fid: `vcol-${fx.aid}-rammer`, ...base, impact: { power: p.vehicle.power, level: p.vehicle.level, source: "collision", stop: false, occupants: s.occupants.rammer } });
+    return;
+  }
+  const d = ramDamage({ rammerSpeed: s.rammerSpeed, targetSpeed: s.targetSpeed, rammerBody: s.rammerBody, successes: fx.successes });
+  if (!d) return;
+  if (target) await gmCall("vfollowCrash", { vehicleUuid: target.uuid, kind: "impact", why: `is rammed by ${rammer?.name ?? "a vehicle"}`,
+    fid: `vcol-${fx.aid}-target`, ...base, impact: { ...d.target, source: "ram", stop: false, occupants: s.occupants.target } });
+  if (rammer) await gmCall("vfollowCrash", { vehicleUuid: rammer.uuid, kind: "impact", why: `rams ${target?.name ?? "a vehicle"} (Power −${s.rammerBody} × ${fx.successes})`,
+    fid: `vcol-${fx.aid}-rammer`, ...base, impact: { ...d.rammer, source: "ram", stop: false, occupants: s.occupants.rammer } });
 }
 
 /**
@@ -717,6 +777,36 @@ async function setPair({ combatId, pid = null, pursuer, quarry, distance = 0, re
   });
 }
 
+/**
+ * A ram entitlement lasts for the driver's NEXT action (p.45, B2 #9): when an action of that driver ends (`seq` = the
+ * phase that ended), every entitlement granted in an EARLIER phase is dropped. Called by SR2ECombat.nextTurn.
+ */
+async function expireRam({ combatId, actorUuid, seq }) {
+  const combat = game.combats.get(combatId);
+  if (!hasChase(combat) || !actorUuid) return false;
+  return cq(combatId, async () => {
+    const ch = chaseOf(combat), patch = {};
+    for (const [r, turn] of Object.entries(ch.turns ?? {})) for (const [eid, t] of Object.entries(turn ?? {})) {
+      if (ch.entries[eid]?.driver !== actorUuid) continue;
+      for (const [other, ent] of Object.entries(t?.ram ?? {})) if ((ent?.seq ?? 0) < seq) patch[`turns.${r}.${eid}.ram.-=${other}`] = null;
+    }
+    if (Object.keys(patch).length) await write(combat, patch);
+    return true;
+  });
+}
+
+/** A crash stops the vehicle (GM, R2 p.51): speed 0, rev bumped so in-flight actions go stale. */
+async function setSpeed({ combatId, eid, speed }, user) {
+  if (!user.isGM) throw new Error("GM only");
+  const combat = combatOf(combatId);
+  return mq(() => cq(combatId, async () => {
+    const e = chaseOf(combat)?.entries?.[eid];
+    if (!e) return false;
+    await write(combat, { [`entries.${eid}.speed`]: Math.max(0, Number(speed) || 0), [`entries.${eid}.rev`]: (e.rev ?? 0) + 1 });
+    return true;
+  }));
+}
+
 /** Autonav on/off (p.45): a Simple Action, a Free Action for a rigger jacked in. */
 async function autonav({ combatId, eid, on }, user) {
   const combat = combatOf(combatId);
@@ -798,6 +888,8 @@ export function registerChase() {
   gmOp("chaseRemoveEntry", removeEntry);
   gmOp("chasePair", setPair);
   gmOp("chaseAutonav", autonav);
+  gmOp("chaseSetSpeed", setSpeed);
+  gmOp("chaseExpireRam", expireRam);
   gmOp("chaseDPStart", dpStart);
   gmOp("chaseBegin", begin);
   gmOp("chaseArm", arm);
@@ -912,7 +1004,7 @@ export async function chaseAction(combat, eid, kind, { target = null, actorUuid 
     const paid = control ? await spendChase(actor, control, combat.id, aid) : 0;
     await gmCall("chaseArm", { combatId: combat.id, aid });
     await actor.rollSuccessTest(inputs.dice, inputs.tn, {
-      label: `${KIND_LABEL[kind]} (R2 p.${{ accelerate: 45, brake: 45, position: 47, hide: 48, relocate: 49 }[kind]})`,
+      label: `${KIND_LABEL[kind]} (R2 p.${{ accelerate: 45, brake: 45, position: 47, hide: 48, relocate: 49, ram: 47 }[kind]})`,
       sourceLabel: kind === "relocate" ? "Intelligence" : "Driving",
       ...(paid ? { paidPoolDice: { control: paid } } : {}),
       flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } });

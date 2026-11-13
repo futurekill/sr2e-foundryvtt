@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.151.0 — 2026-11-13
+
+### Added
+- **Rigger 2 vehicle damage** (R2 p.49–53; docs/PLAN-vehicles-phase2.md Part 3b), under the Rigger 2 vehicle ruleset:
+  - **Weapons against vehicles** (p.53): the weapon's level drops one step (anti-vehicle munitions keep it), armour cuts
+    the Power (anti-vehicle and APDS: half), a weapon whose standard Power doesn't beat the armour does nothing, and a
+    Light weapon needs special ammunition. The vehicle rolls Body dice (an NPC driver adds their Professional Rating)
+    plus Control Pool dice up to the driving skill against what's left. A complete miss is noted; a Body 0 drone dies
+    to any success. Optional setting: terrain limits the Control Pool (restricted ½, tight ⅓).
+  - **Called shots at external components** (tires, antennas, weapons): the GM may give the component its own Body and
+    Armor; the card says whether it's destroyed (Moderate by default).
+  - **Rigger feedback** (p.49): Serious damage → the jacked-in rigger resists 6M; destroyed → 6S (Body, no armour,
+    Combat Pool allowed).
+  - **Crashes** (p.51): Serious damage from one attack or any ram damage asks for a Crash Test (every event, not once a
+    phase); a vehicle destroyed by an attack crashes automatically. The Crash Test uses the Crash Test Modifiers Table
+    (speed against the driver's Reaction); a failure stops the vehicle and it resists impact at its speed (Power rounded
+    up, 300 m/CT → 30D) with Body + Control Pool, no armour. Every occupant then resists the crash's code once, even if
+    the vehicle staged it away: seat belt −1 level, APPS halves the Power, crash cage +6 dice, impact armour only, plus
+    the rigger's Crash Test Control Pool dice.
+  - **Ramming** (p.47–48): a Ram button on the chase window's pursuit rows, when closer than the rammer's Acceleration or
+    on the action after a speed change of twice the distance. Both vehicles resist impact at the difference in speed,
+    the rammer's Power cut by its Body × the ramming successes; both crews resist; each damaged vehicle makes a Crash
+    Test. A pedestrian takes it one level up (hardened armour: no step), the vehicle one level down.
+  - **Walls and barriers** (p.52, p.54): the vehicle's **Hit** stops it at a wall of Barrier Rating × 20 or more (a crash
+    at its speed); a weaker wall is broken through, costing Barrier Rating × 20 speed (restrained occupants unhurt). A
+    mana barrier spell lets the vehicle through but stops an exposed rider like a wall.
+  - **Shooting at passengers** (p.53): the Power drops by the higher of the vehicle's Armor and Body; no Combat Pool; a
+    targeted rigger who is jacked in +3 TN; a Deadly hit also gives the vehicle Light damage.
+
+### Changed
+- **Crashes are now one recoverable sequence on both rulesets**: the Crash Test card, then (on a crash) the vehicle's
+  resistance, then a card where each occupant resists once. A dropped connection or a reload resumes where it stopped
+  and never applies anything twice. Each roll's card has **Apply the result** (use Karma first).
+- Every chat card records the vehicle ruleset it was made under, so switching rulesets never changes an old card.
+
 ## 0.150.0 — 2026-11-13
 
 ### Added

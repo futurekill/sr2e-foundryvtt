@@ -198,3 +198,129 @@ export function passengerMayAttack({ phase, dp = null, isRigger = false }) {
 /** The NPC group's representative (p.49): the fastest member's statistics. Members are {speedRating, …}. */
 export const fastestMember = (members) =>
   members.reduce((best, m) => (best === null || (m.speedRating ?? 0) > (best.speedRating ?? 0) ? m : best), null);
+
+/* ── Part 3b: damage (R2 p.49–53) ────────────────────────────────────────────────────────────────────────────── */
+
+export const STAGES = ["L", "M", "S", "D"];
+
+/** Impact Damage Levels Table (p.50): 1–20 L, 21–60 M, 61–200 S, 201+ D; nothing at 0. */
+export function r2ImpactLevel(speed) {
+  const s = Number(speed) || 0;
+  if (s <= 0) return null;
+  return s >= 201 ? "D" : s >= 61 ? "S" : s >= 21 ? "M" : "L";
+}
+
+/** Impact damage (p.50): Power = speed ÷ 10 rounded UP (148 → 15); level by the table. Null when not moving. */
+export function r2Impact(speed) {
+  const level = r2ImpactLevel(speed);
+  return level ? { power: Math.ceil((Number(speed) || 0) / 10), level } : null;
+}
+
+/** Stage a level down one per 2 successes (p.50); null = staged away. */
+export function stageDown(level, successes) {
+  const i = STAGES.indexOf(level) - Math.floor(Math.max(0, Number(successes) || 0) / 2);
+  return i >= 0 ? STAGES[i] : null;
+}
+
+/** Ramming Target Modifiers (p.48), on Handling; unclamped like the others. */
+export function ramTN({ handling = 0, ms = 0, oppMs = 0, over = false, autonav = 0, terrain = "normal", vcr = 0, damageTn = 0, groupExtra = 0 }) {
+  const { parts, total } = sum([
+    ["Maneuver Scores", msMod(ms, oppMs, [-2, -4, 2, 4])],
+    ["Above its Speed Rating", over ? 1 : 0],
+    ["Autonav active", autonav ? autonav + 2 : 0],
+    ["Terrain", { open: -1, normal: 0, restricted: 1, tight: 2 }[terrain] ?? 0],
+    ["VCR", -vcr],
+    ["Vehicle damage", damageTn],
+    ["Vehicle group", groupExtra]
+  ]);
+  return { tn: handling + total, base: handling, parts };
+}
+
+/**
+ * A ram's damage (p.47–48, p.50): both vehicles resist impact at the DIFFERENCE in speed; the rammer's Power is cut
+ * by its Body × the Ramming Test successes. Mach 6 (152) rams Cruiser #2 (300): 15S each; Body 3 × 5 → the rammer's
+ * Power 0, so TN 2.
+ */
+export function ramDamage({ rammerSpeed, targetSpeed, rammerBody = 0, successes = 0 }) {
+  const hit = r2Impact(Math.abs((Number(rammerSpeed) || 0) - (Number(targetSpeed) || 0)));
+  if (!hit) return null;
+  return { target: hit, rammer: { power: Math.max(0, hit.power - rammerBody * Math.max(0, successes)), level: hit.level } };
+}
+
+/** A vehicle's impact Damage Resistance Test (p.50): Body + Control Pool (+ an NPC's Professional Rating) vs Power, min 2. */
+export const impactResist = ({ body = 0, control = 0, pr = 0, power }) => ({ dice: body + control + pr, tn: Math.max(2, power) });
+
+/**
+ * An occupant's collision damage (p.50, R3-4): the collision's code, one level down for a seat belt, Power halved
+ * (round up) by APPS, less impact armour; a crash cage adds 6 dice. 15S → 15M → 8M → 5M.
+ */
+export function occupantImpact({ power, level, restrained = false, apps = false, impactArmor = 0, crashCage = false }) {
+  let lvl = level;
+  if (restrained) lvl = STAGES[STAGES.indexOf(level) - 1] ?? null;
+  if (!lvl) return null;
+  let p = apps ? Math.ceil(power / 2) : power;
+  p = Math.max(0, p - Math.max(0, impactArmor));
+  return { power: p, level: lvl, extraDice: crashCage ? 6 : 0 };
+}
+
+/**
+ * Crash Test Modifiers (p.51) on Handling: the vehicle's damage modifier, terrain, and speed against the driver's
+ * Reaction (the driver's wound modifier is added by the roll itself). Cruiser #2: 4 + 3 + 4 (+2 wounded) = 13.
+ */
+export function crashTestTN({ handling = 0, damageTn = 0, terrain = "normal", speed = 0, reaction = 1 }) {
+  const r = Math.max(1, Number(reaction) || 1), s = Number(speed) || 0;
+  const speedMod = s < r * 20 ? 0 : s < r * 30 ? 1 : s < r * 40 ? 2 : 4;
+  const { parts, total } = sum([
+    ["Vehicle damaged", damageTn],
+    ["Terrain", { open: -1, normal: 0, restricted: 2, tight: 4 }[terrain] ?? 0],
+    ["Speed vs Reaction", speedMod]
+  ]);
+  return { tn: handling + total, base: handling, parts };
+}
+
+/**
+ * Walls and barriers (p.52): speed ≤ Barrier Rating × 20 → the vehicle halts, impact damage at its speed. Faster →
+ * it breaks through, losing Barrier Rating × 20 speed; damage Power = the Barrier Rating, level from the speed lost.
+ */
+export function wallCollision({ speed, barrier }) {
+  const s = Math.max(0, Number(speed) || 0), stop = Math.max(0, Number(barrier) || 0) * 20;
+  if (s <= stop) return { halts: true, speed: 0, damage: r2Impact(s) };
+  return { halts: false, speed: s - stop, damage: { power: Number(barrier) || 0, level: r2ImpactLevel(stop) } };
+}
+
+/**
+ * A vehicle hits a pedestrian (p.52–53): the pedestrian resists Power = speed ÷ 10 one level ABOVE the table (past
+ * Deadly: Power + half, rounded down), unless their armour is hardened/military-grade; the vehicle resists one level
+ * BELOW (nothing at 1–20). Rex Karz at 60 m/turn: 6S.
+ */
+export function pedestrianImpact({ speed, hardened = false }) {
+  const hit = r2Impact(speed);
+  if (!hit) return null;
+  const i = STAGES.indexOf(hit.level);
+  const pedestrian = hardened ? { ...hit } : i === 3 ? { power: hit.power + Math.floor(hit.power / 2), level: "D" } : { power: hit.power, level: STAGES[i + 1] };
+  return { pedestrian, vehicle: i > 0 ? { power: hit.power, level: STAGES[i - 1] } : null };
+}
+
+/**
+ * A weapon against a vehicle under Rigger 2 (p.53). Level −1 (D→S…) unless anti-vehicle; a Light-RATED weapon does
+ * nothing without special ammunition (a called shot doesn't help, B2 #12). Armour cuts the Power fully (AV: half,
+ * rounded down; APDS keeps its own half-armour rule, Sourcebook Updates p.277); a weapon whose standard Power doesn't
+ * exceed the armour does nothing (AV excepted). Resisted with Body dice vs TN = the modified Power (min 2).
+ */
+export function r2VehicleHit({ body = 0, armor = 0, power, basePower = power, level, ratedLevel = level, damageType = "physical",
+                               apds = false, antiVehicle = false }) {
+  if (damageType === "stun") return { none: "stun" };
+  if (ratedLevel === "L" && !apds && !antiVehicle) return { none: "light" };
+  let idx = STAGES.indexOf(level) - (antiVehicle ? 0 : 1);
+  if (idx < 0) idx = 0;   // only special ammunition reaches here
+  const armorUsed = antiVehicle || apds ? Math.floor(armor / 2) : armor;
+  if (!antiVehicle && armor > 0 && basePower <= armorUsed) return { none: "barrier", armorUsed };
+  return { none: null, level: STAGES[idx], dice: body, tn: Math.max(2, power - armorUsed), armorUsed };
+}
+
+/** Optional Control Pool limits on vehicle Damage Resistance Tests by terrain (p.53): skill, ⌈skill ÷ 2⌉, ⌈skill ÷ 3⌉. */
+export const terrainControlCap = (skill, terrain = "normal") =>
+  terrain === "restricted" ? Math.ceil(skill / 2) : terrain === "tight" ? Math.ceil(skill / 3) : skill;
+
+/** Attacks against passengers (p.53): Power − the higher of the vehicle's Armor and Body; no level change. */
+export const passengerShotPower = ({ power, armor = 0, body = 0 }) => Math.max(0, power - Math.max(armor, body));

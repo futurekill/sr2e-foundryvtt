@@ -10,12 +10,11 @@ import { crashTrigger, woundLevelOf, impactDamage, reservedControl, levelBelow }
 import { resolveBarrier } from "./rules/sr2e-rules.mjs";
 import { r2Speed, engineFailureStress, permanentStress, repairQuote, repairHours, drivingTN, stressDice, ruleOfOne, drivingStressOutcome, overhaul } from "./rules/vehicle-r2-rules.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
-import { poolsLocked, actionOf, chaseDriverUuid } from "./chase-state.mjs";
+import { poolsLocked, actionOf, chaseDriverUuid, findEntry } from "./chase-state.mjs";
 import { brRound, installTime } from "./rules/vehicle-custom.mjs";
 import { stressPatch, mechanicLabour } from "./rules/vehicle-overhead-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { isCardResolved } from "./astral-combat.mjs";
-import { RL } from "./util/roll-label.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const isActiveGM = () => !!game.users.activeGM?.isSelf;
@@ -147,38 +146,70 @@ function phaseKeyFor(vehicle) {
  * @param {string} [o.woundLevel]  - the staged level of this application (else from the boxes)
  * @returns {Promise<{landedBoxes:number, skipped?:boolean, trigger?:string|null}>}
  */
-export function commitVehicleDamage(vehicle, boxes, { source = "weapon", eventId = null, receipt = null, woundLevel = null } = {}) {
-  return gmCall("damage", { vehicleUuid: vehicle.uuid, boxes, source, eventId: eventId ?? foundry.utils.randomID(16), receipt, woundLevel });
+export function commitVehicleDamage(vehicle, boxes, { source = "weapon", eventId = null, receipt = null, woundLevel = null, ruleset = null, speed = null, attempt = null } = {}) {
+  return gmCall("damage", { vehicleUuid: vehicle.uuid, boxes, source, eventId: eventId ?? foundry.utils.randomID(16), receipt, woundLevel,
+    ruleset: ruleset ?? (isRigger2() ? "rigger2" : "core"), speed, attempt });
 }
 
 /** chase.mjs's damage route (lock order chase-membership → chase:<combatId> → vdmg:<uuid>); null = direct. */
 let chaseRoute = null;
 export function setChaseRoute(fn) { chaseRoute = fn; }
+/** vehicle-damage.mjs's follow-up delivery (posts each pending follow-up card once). */
+let deliverFollowups = null;
+export function setFollowupDelivery(fn) { deliverFollowups = fn; }
+/** A follow-up id: the event id with only key-safe characters. */
+export const followId = (eventId) => String(eventId).replace(/[^\w-]/g, "_");
 
-GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLevel }, user) => {
+GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLevel, ruleset = "core", speed = null, attempt = null }, user) => {
   const vehicle = fromUuidSync(vehicleUuid);
   if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
   const path = receipt?.path ?? `flags.sr2e.vdmg.${eventId}`;
   if (!path.startsWith("flags.sr2e.")) throw new Error("bad receipt path");
+  const r2 = ruleset === "rigger2";
   const commit = () => enqueueAttack(`vdmg:${vehicleUuid}`, async () => {
     // Validated at commit time (control may have changed while this waited; code review #8).
     if (!mayCommit(user, vehicle)) throw new Error(`${user?.name} may not damage ${vehicle.name}`);
     if (foundry.utils.getProperty(vehicle, path) != null) return { landedBoxes: 0, skipped: true };
+    // A Rigger 2 resistance attempt that was replaced (a GM takeover) can't land its damage (vehicle-damage.mjs vresist).
+    if (attempt && vehicle.getFlag("sr2e", "vresist")?.[followId(eventId)]?.id !== attempt) return { landedBoxes: 0, skipped: true, stale: true };
     const phase = phaseKeyFor(vehicle);
     const cm = vehicle.system.conditionMonitor;
     const before = cm.value ?? 0, max = cm.max ?? 10;
     const preSpeed = vehicle.system.effectiveSpeed ?? vehicle.system.speed ?? 0;   // 0 once destroyed: snapshot first
     const value = Math.min(before + Math.max(0, boxes), max);
-    await vehicle.update({ [path]: receipt?.value ?? boxes, "system.conditionMonitor.value": value });
-    const trigger = crashTrigger({ source, woundLevel: woundLevel ?? woundLevelOf(boxes), destroyedNow: before < max && value >= max,
-      inCombat: !!phase });
-    return { landedBoxes: value - before, trigger, preSpeed, phase };
+    const staged = woundLevel ?? woundLevelOf(boxes), destroyedNow = before < max && value >= max;
+    const upd = { [path]: receipt?.value ?? boxes, "system.conditionMonitor.value": value };
+    // Follow-ups are recorded in the SAME update as the damage, then posted once by the GM's delivery
+    // (docs/PLAN-vehicles-phase2.md 3b.1, 3b.3).
+    const follow = {};
+    if (r2) {
+      // Rigger 2: the speed is the chase entry's (else the caller's; else parked); each qualifying EVENT is its own.
+      const snap = speed ?? findEntry(vehicleUuid)?.entry?.speed ?? null;   // null: not in a chase, entered on the roll
+      const drv = controllerOf(vehicle);
+      if (drv && riggedInto(drv, vehicle) && (destroyedNow || staged === "S"))
+        follow.feedback = { rigger: drv.uuid, power: 6, level: destroyedNow ? "S" : "M", state: "pending" };   // p.49
+      if (source !== "crash") {
+        const attack = source === "weapon" || source === "spell";
+        if (destroyedNow) follow.crash = { kind: attack ? "auto" : "test", speed: snap, ruleset, state: "pending" };   // p.53 / p.51
+        else if (source === "ram" || (attack && staged === "S")) follow.crash = { kind: "test", speed: snap, ruleset, state: "pending" };
+      }
+    } else {
+      // Core p.107: one Crash Test per vehicle per Combat Phase (deduplicated here, in the vehicle queue).
+      const t = crashTrigger({ source, woundLevel: staged, destroyedNow, inCombat: !!phase });
+      if (t === "autoCrash") follow.crash = { kind: "auto", speed: speed ?? preSpeed, ruleset, state: "pending" };
+      else if (t === "crashTest" && vehicle.getFlag("sr2e", "crashPhase") !== phase) {
+        follow.crash = { kind: "test", speed: speed ?? preSpeed, ruleset, state: "pending" };
+        upd["flags.sr2e.crashPhase"] = phase;
+      }
+    }
+    if (Object.keys(follow).length) upd[`flags.sr2e.vfollow.${followId(eventId ?? path)}`] = follow;
+    await vehicle.update(upd);
+    return { landedBoxes: value - before, follow: Object.keys(follow), crash: follow.crash?.kind ?? null };
   });
   const r = chaseRoute ? await chaseRoute(vehicle, commit) : await commit();
-  // Triggers run after the queued step (the crash commits through this same queue), on what the step captured.
-  if (r.trigger === "autoCrash") await resolveCrash(vehicle, { speed: r.preSpeed, auto: true });
-  else if (r.trigger === "crashTest" && await once(vehicle, `crashTestDue:${r.phase}`)) await postCrashTestDue(vehicle);
-  return { landedBoxes: r.landedBoxes, skipped: !!r.skipped, trigger: r.trigger ?? null };
+  // Posted after the queued step, never inside it (a crash commits through this same queue).
+  if (r.follow?.length && deliverFollowups) await deliverFollowups(vehicle);
+  return { landedBoxes: r.landedBoxes, skipped: !!r.skipped, stale: !!r.stale, trigger: r.crash === "auto" ? "autoCrash" : r.crash === "test" ? "crashTest" : null };
 };
 
 /**
@@ -200,43 +231,21 @@ GM_OPS.claim = async ({ vehicleUuid, key, driverUuid = "" }, user) => {
 
 /* ── Crashes (p.107) ─────────────────────────────────────────────────────────────────────────────────────────── */
 
-/** "Crash Test required": the controller's owner (or the GM) clicks to make it. */
-export async function postCrashTestDue(vehicle, why = "took Serious damage") {
-  const who = controllerOf(vehicle);
-  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }),
-    content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)} ${esc(why)}: Crash Test required</strong>
-      (SR2E p.107)${who ? ` — ${esc(who.name)} drives.` : "."}
-      <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-crash-test-btn" data-vehicle-uuid="${vehicle.uuid}">
-        <i class="fas fa-car-burst"></i> Crash Test</button></div></div>`,
-    flags: { sr2e: { crashTestDue: { vehicleUuid: vehicle.uuid } } } });
+/**
+ * "Crash Test required" (core p.107 / Rigger 2 p.51): one crash follow-up, posted by the GM's delivery and resolved as a
+ * recoverable crash transaction (vehicle-damage.mjs).
+ */
+export function postCrashTestDue(vehicle, why = "took Serious damage", { ruleset = null, cardId = null, speed = null } = {}) {
+  return gmCall("vfollowCrash", { vehicleUuid: vehicle.uuid, kind: "test", why, speed, cardId, ruleset: ruleset ?? (isRigger2() ? "rigger2" : "core") });
 }
 
 /**
- * A crash (p.107): Power and level from the speed (default: effective cruising speed), resisted with Body + ½ armour
- * vs Power − armour, no Control Pool. Passengers then resist the staged-down level at the same Power.
+ * The vehicle crashes (a failed Crash Test; destroyed by an attack): a crash follow-up straight at the vehicle's
+ * Damage Resistance Test, then its occupants (vehicle-damage.mjs). `speed` defaults to the chase speed / cruising.
  */
-export async function resolveCrash(vehicle, { speed = null, auto = false } = {}) {
-  const v = speed ?? vehicle.system.effectiveSpeed ?? vehicle.system.speed ?? 0;
-  const { power, level } = impactDamage(v);
-  const armor = vehicle.system.effectiveArmor ?? 0, body = vehicle.system.body ?? 1;
-  const resist = await vehicle.rollSuccessTest(body + Math.floor(armor / 2), Math.max(2, power - armor), {
-    label: RL("Crash", { name: vehicle.name, power, level }), isResistance: true });
-  const stages = ["L", "M", "S", "D"];
-  const idx = stages.indexOf(level) - Math.floor((resist?.successes ?? 0) / 2);
-  const why = auto ? "Destroyed by weapons: automatic crash" : "Crash";
-  if (idx < 0) {
-    return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }),
-      content: `<div class="sr2e-damage-result"><strong>${why}: damage fully resisted.</strong>
-        <em>Passengers are unhurt; the vehicle stops for the rest of the Combat Turn (SR2E p.107).</em></div>` });
-  }
-  const final = stages[idx], boxes = [1, 3, 6, 10][idx];
-  await commitVehicleDamage(vehicle, boxes, { source: "crash", woundLevel: final });
-  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }),
-    content: `<div class="sr2e-damage-result"><strong>${why}: ${final} damage (${boxes} box${boxes === 1 ? "" : "es"})</strong>
-      at ${v} m/CT. <em>The vehicle stops for the rest of the Combat Turn.</em>
-      <br>Passengers face <strong>${power}${final}</strong>, resisted as melee damage: Impact armour only, no Combat Pool (SR2E p.107).
-      ${passengerButton({ power, level: final, key: foundry.utils.randomID(12), mode: "impact" })}</div>`,
-    flags: { sr2e: { crashPassengers: { power, level: final } } } });
+export function resolveCrash(vehicle, { speed = null, auto = false, ruleset = null } = {}) {
+  return gmCall("vfollowCrash", { vehicleUuid: vehicle.uuid, kind: "auto", why: auto ? "" : "failed its Crash Test", speed,
+    ruleset: ruleset ?? (isRigger2() ? "rigger2" : "core") });
 }
 
 /** A per-actor "Resist" button for occupants (each actor resolves once). */
@@ -361,9 +370,10 @@ export async function resistVehicleRam(message) {
   const resolution = `<br><strong>${esc(st.rammerVehicleName)} ${mine} vs ${esc(st.oppName)} ${theirs}: ${esc(verdict)}</strong>
     ${mine !== theirs && !loser ? "<br><em>The losing vehicle isn't an actor: run its Crash Test by hand.</em>" : ""}`;
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: claimant }), content: `<div class="sr2e-damage-result">${resolution}</div>`,
-    flags: { sr2e: { resolves: message.id, closesTests: [st.testMessageId].filter(Boolean) } } });
+    flags: { sr2e: { resolves: message.id, closesTests: [st.testMessageId].filter(Boolean), ...(loser ? { vramLoser: loser.uuid } : {}) } } });
   if (message.isOwner) await message.update({ content: renderVehicleRamCard({ ...st, resolved: true, resolution }), "flags.sr2e.vehicleRam.resolved": true });
-  if (loser) await postCrashTestDue(loser, "lost the ram");
+  // The core ram card authorizes the loser's Crash Test on the GM, whoever resolved it; it stays core.
+  if (loser) await postCrashTestDue(loser, "lost the ram", { ruleset: message.flags?.sr2e?.vehicleRuleset ?? "core", cardId: message.id });
 }
 
 /* ── Crash Test button, occupants ─────────────────────────────────────────────────────────────────────────────── */
@@ -396,10 +406,11 @@ export async function crashTestFromCard(message) {
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: driver ?? vehicle }),
     content: `<div class="sr2e-damage-result"><em>${esc(driver?.name ?? "The NPC driver")} makes ${esc(vehicle.name)}'s Crash Test.</em></div>`,
     flags: { sr2e: { resolves: message.id } } });
-  if (driver) return driver.rollVehicleTest(vehicle, opts);
+  const ruleset = message.flags?.sr2e?.vehicleRuleset ?? "core";   // an old card resolves by its own rules
+  if (driver) return driver.rollVehicleTest(vehicle, { ...opts, ruleset });
   const tn = Math.max(2, (vehicle.system.effectiveHandling ?? 0) + (CONFIG.SR2E.vehicleTerrainMods.crash[npc.terrain] ?? 0) + (vehicle.system.damageTnMod ?? 0));
   const res = await vehicle.rollSuccessTest(Math.max(1, npc.skill), tn, { label: `${vehicle.name}: Crash Test (TN ${tn})` });
-  if ((res?.successes ?? 0) === 0) await resolveCrash(vehicle);
+  if ((res?.successes ?? 0) === 0) await resolveCrash(vehicle, { ruleset });
   return res;
 }
 
@@ -431,6 +442,8 @@ export async function occupantResist(btn, who = null) {
  * (no armour; Combat Pool only if aware).
  */
 export async function hitObjectFlow(driver, vehicle) {
+  // Rigger 2 replaces this with its own walls, barriers and pedestrians (p.52–54).
+  if (isRigger2()) return (await import("./vehicle-damage.mjs")).r2HitObject(driver, vehicle);
   const speed0 = vehicle.system.effectiveSpeed ?? 0;
   const f = await foundry.applications.api.DialogV2.prompt({
     window: { title: `${vehicle.name} hits an object` }, rejectClose: false,
@@ -476,7 +489,7 @@ export async function hitObjectFlow(driver, vehicle) {
       + (occ ? passengerButton({ power, level: occ, key, mode: "impact" }) : ""));
   }
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result">${lines.join("<br>")}</div>` });
-  if (broken) await postCrashTestDue(vehicle, "broke through a barrier");
+  if (broken) await postCrashTestDue(vehicle, "broke through a barrier", { ruleset: "core" });
 }
 
 /* ── Chat card buttons ────────────────────────────────────────────────────────────────────────────────────────── */
@@ -897,7 +910,7 @@ export async function resolveDrivingTest(message) {
   if (out.failure) lines.push("The GM picks the major system (brakes, steering, transmission…).");
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}: Driving Test resolved</strong><br>${lines.join("<br>")}</div>`,
     flags: { sr2e: { resolves: message.id, closesTests: [st.testMessageId].filter(Boolean) } } });
-  if (out.failure) await postCrashTestDue(vehicle, "suffered a system failure");
+  if (out.failure) await postCrashTestDue(vehicle, "suffered a system failure", { ruleset: "rigger2" });
   return out;
 }
 
@@ -909,7 +922,7 @@ export async function gmStressTest(vehicle) {
   const fails = roll < stress;
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}: Stress Test</strong>
     2D6 = ${roll} against Stress ${stress}: ${fails ? "<strong>a major system fails</strong> (GM's pick)" : "no failure"} (R2 p.26).</div>` });
-  if (fails) await postCrashTestDue(vehicle, "suffered a system failure");
+  if (fails) await postCrashTestDue(vehicle, "suffered a system failure", { ruleset: "rigger2" });
   return { roll, fails };
 }
 
