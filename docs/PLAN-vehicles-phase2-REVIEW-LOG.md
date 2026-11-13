@@ -276,3 +276,23 @@ the assessment settles charged reservations first; the GM pass frees released re
 Release for a released or unpaid attempt.
 
 ## Part 2b-2 code, round 2 — Codex (fresh session, the six fixes only): APPROVED
+
+## Part 3 plan, round 1 — Codex (draft 1, fresh session): REVISE, 19 findings
+1. Turn sequence vs SR2ECombat (initiative at round start, nextRound; End turn could run twice). 2. Driver Points
+claimed after paying/rolling; spendPosition reads game.combat. 3. uuids as flag keys (dots). 4. Speed/Stress/damage as
+separate transactions, no stale checks or resume. 5. NPC drivers excluded by controllerOf. 6. Crash speed came from
+effectiveSpeed. 7. Crash triggers per phase and lost on interruption. 8. canRam lifetime. 9. Positioning stop's speed
+effect / bonus exclusivity. 10. Passenger exemption = rigger only. 11. Passengers vs the vehicle's final damage. 12. Rigger
+feedback per event, not monitor crossing. 13. Rated-Light weapons vs reduced-to-Light. 14. Component Body/Armor.
+15. Groups synchronizing speed. 16. Action costs; Autonav Simple/Free. 17. Magic resolution contract. 18. Magic
+exceptions dropped. 19. Core methods/cards under Rigger 2.
+
+### Claude's response (draft 2)
+All taken. User rulings asked and answered (R3-1 default's dice; R3-2 once per turn; R3-3 Body, no armour; R3-4
+passengers resist the collision's code). Opaque entry ids; action transactions (begin → roll → resolve from the message,
+deterministic effect ids, resume pass); turn open/close bound to the combat's round change, idempotent; DP slots reserved
+first, spendPosition takes the combat/round; explicit drivers (NPC/token); per-event crash and feedback follow-ups in
+the damage commit; speed snapshots; ram entitlement consumed by the next action; stop = speed 0 when reached (ruling),
+successes always add DP; only the jacked-in rigger exempt; components; groups keep speeds; action costs + Autonav toggle;
+a full magic contract incl. ties and the LOS/domain/astral exceptions; core methods refuse under Rigger 2 and cards keep
+their ruleset.
