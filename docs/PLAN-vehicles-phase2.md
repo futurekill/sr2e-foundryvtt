@@ -447,6 +447,223 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 1 (2026-11-12)
+_Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
+system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
+Part 1's vehicle combat is untouched. The hybrid labels ("core rules until Part 3") go away. Three releases: **3a** (the
+chase: Maneuver Score, the turn, accelerate/brake, positioning, hiding, relocating, passengers' phases), **3b** (damage:
+impact, ramming, crashes, walls, pedestrians, weapons, passengers, rigger damage), **3c** (vehicles and magic). Gunnery,
+sensors and the moving-target modifier stay as they are until Part 4; drones driving themselves are Part 5._
+
+### 3.0 The chase record (state model)
+- **A chase belongs to a Foundry Combat** (the vehicle combat is run in Combat Turns, p.42): `flags.sr2e.chase` on the
+  Combat document, written ONLY by the active GM through GM ops (`gmCall`), in one queue per combat
+  (`chase:<combatId>`). Players' clients only read it and ask.
+  - `vehicles.<key>` = `{ uuid, speed (m/turn, current), terrain (open|normal|restricted|tight), autonav (bool: active),
+    group: [uuids] (3a.7), pedestrian: bool }` — a pedestrian entry is a character (MS = Quickness, p.41).
+  - `pairs.<a|b>` = `{ pursuer, quarry, distance (m), contact: true | {hiddenBy, successes, round, npcTurns} }`.
+  - `turns.<round>.<key>` = `{ vp, tp, sp, dpMessage, dp, positionBonus, escapeBonus, ms, canRam: [keys], stressed }`.
+  Keys are the vehicle uuids (pedestrians: the character uuid). `round` = the Combat's round.
+- **GM panel** ("Chase", from the combat tracker header, GM only): add/remove vehicles and pedestrians (dragged from the
+  Actors sidebar or a token), set starting speeds and distances (step 1, p.42: stopped/parked vehicles start at 0;
+  players declare their own starting speed, the GM sets NPCs'), pursuer → quarry pairs, terrain per vehicle, group NPC
+  vehicles (3a.7). It shows each vehicle's Maneuver Score parts, Driver Points, speed, Speed Rating / max, distances,
+  contact and who still owes Driver Points.
+- **Who drives** = `controllerOf(vehicle)` (Part 1). An unpiloted vehicle with no controller can't act (drones driving
+  themselves: Part 5).
+
+### 3a.1 Maneuver Score (p.41–42)
+- **Vehicle Points** (Vehicle Points Table, p.42): a new `VehicleData.r2Class` StringField (`blank: true`, choices = the
+  table's 20 rows + "", the StringField blank trap) with the GM's choice on the vehicle sheet; blank = derived default
+  `r2ClassOf(vehicle)`: a Workshop/Vehicle List vehicle by its chassis (bike → motorcycle, sports chassis → sports car,
+  van/limousine/light truck chassis → limousine/light truck/van, heavy truck, tractor-trailer, tracked, helicopter, small
+  / large airplane, LTA, hovercraft → ACV, motorboat, racing boat, yacht…, mapped in a reviewed table in
+  `module/rules/vehicle-combat-rules.mjs`), else by `vehicleType` (ground → car, rotor → helicopter, aircraft → small
+  airplane, vectored thrust → small airplane, boat → small motorboat, hovercraft → ACV); a drone with no class → 0 and
+  a GM warning on the panel (drone combat is Part 5).
+- **Terrain Points** (Terrain Points Table): open 0, normal −2, restricted −4, tight −10, from the vehicle's chase terrain.
+- **Speed Points** = ⌊current speed ÷ 10⌋.
+- **Driver Points** = an **Open Test** (p.42): the driver rolls dice = the vehicle skill used for driving it
+  (`_vehicleSkill(vehicle, { mode })` with the driver's control mode, so the Rigger 2 VCR rules apply), plus Control Pool
+  dice the driver ALLOCATES (step 3), and keeps the highest single die; Rule of Six applies (re-roll 6s and add).
+  Defaulting: the default's dice, the TN penalty has nothing to apply to (an Open Test has no TN) — **ruling R3-1**.
+  An NPC driver adds its Professional Rating dice instead of Control Pool (p.44: `professionalRating`, NPCData).
+  A pedestrian has no Driver Points; MS = Quickness.
+  Plus last turn's **Positioning** successes (3a.4) and any **Escape Bonus** (3a.5). Pure `openTest(dice)` in
+  `module/rules/vehicle-combat-rules.mjs` (tested with Rich's 6,6,4,3,1 → 16, p.42).
+- **MS** = VP + TP + SP + DP, fixed for the turn (p.42). Rigger X's example (p.44–45: 26 + 11 = 37, 25 + 8 = 33,
+  25 + 15 = 40) is a test.
+
+### 3a.2 The Combat Turn (p.42–44)
+- **Step 1** (first turn only) is the GM panel. **Step 2** (VP/TP/SP) is derived on the panel from the chase record.
+- **Step 3, Control Pool**: the driver's **Driver Points** dialog (Vehicles tab → Driver Points, or the panel for NPCs)
+  takes the Control Pool dice to allocate; they're spent through Part 1's `spendPosition` reservation (out of the pool
+  until the turn ends, p.44) — the same mechanism as the core Position Test's held dice.
+- **Step 4**: the Open Test posts a card; the GM op `chaseDP` records the FIRST card per (round, vehicle) as that turn's
+  Driver Points (a second roll is refused; Karma rerolls on the card are not offered — an Open Test's result isn't
+  successes). The MS shows on the panel and the vehicle sheet.
+- **Step 5, Initiative** (p.44): under Rigger 2, a character CONTROLLING a vehicle in the chase who isn't jacked in
+  rolls with no Initiative-dice or Reaction bonuses from wired/boosted reflexes, adept powers or magic: natural Reaction
+  (the 2b natural-Quickness Reaction) + 1D6; a jacked-in rigger keeps the VCR's (2b); everyone else is unchanged. In
+  `_getInitiativeParts`, with the vehicle damage Initiative penalty (3b.1) as today.
+- **Step 6** (actions) = 3a.3–3a.6 and ordinary actions.
+- **Step 7** (end of turn): the GM panel's **End turn** applies distances from the speeds (for each pair, distance −=
+  pursuer speed − quarry speed, clamped at 0; the GM can edit afterwards and change terrain), releases the held Control
+  Pool dice (`positionReserved` already keys by round), clears per-turn values; NPC relocation counters advance (3a.5).
+  **Step 8**: the next round opens the next `turns.<round>`.
+- **Speed above the Speed Rating** (p.45): a vehicle whose speed ends up above its (damage-reduced, 3b.1) Speed Rating
+  gets 1 Stress — **ruling R3-2: once per Combat Turn per vehicle** (Stress op, eventId `chase-over-<combat>-<round>`),
+  applied when an action leaves it above, or at End turn if it started the turn above (Mach 6, p.46).
+
+### 3a.3 Accelerating / braking (p.45–46)
+Complex Action: a **Driving Test** (skill, no Autonav dice in combat maneuvers — the p.46 cruiser rolls skill +
+Professional Rating only) against the vehicle's Handling + the **Accelerate/Brake Target Modifiers Table**: MS vs the
+highest-MS opponent (exceeds by ≤10: −2; by ≥11: −4; opponent exceeds by ≤10: +2; by ≥11: +4), fleeing from more than
+one pursuer +1 per additional, above its Speed Rating +1, autonav active + Autonav Rating, terrain −1/0/+1/+3, driver
+with a VCR jacked into this vehicle −VCR, plus the vehicle damage TN modifier (3b.1, "all tests that involve the
+vehicle"); the driver's own wound penalty comes from `rollSuccessTest`. Control Pool dice not allocated to Driver Points
+may be added (p.44). Success → speed ± Acceleration × successes (p.45), never above max = damage-reduced Speed Rating ×
+1.5, never below 0; the GM op `chaseSpeed` writes it (claim per test message). A pursuer whose speed increase ≥ 2 ×
+the distance to its quarry may ram it on its next action (`canRam`, p.45). Examples p.46 (TN 5, +36 → 286; cruiser TN 6,
++42 → 317, 31 m closed) are tests.
+
+### 3a.4 Positioning (p.47)
+Driving Test vs Handling + the **Positioning Target Modifiers Table** (above Speed Rating +1, autonav + Rating, terrain
+−1/0/+1/+3, VCR −rating) + the damage modifier. Two uses, chosen in the dialog: **tactical** — the successes add to the
+driver's Driver Points next turn (`turns.<round+1>.positionBonus`); **stop at a point** — the GM enters the distance;
+successes × Acceleration ≥ distance = there, else short by the rest (Josie, p.47: 4 × 14 = 56 of 140). Cruiser #1
+(TN 5, 1 success → +1 next turn) is a test.
+
+### 3a.5 Hiding and relocating (p.48–49)
+- **Hiding**: Driving Test vs Handling + the **Hiding Target Modifiers Table** (MS: −2/−4/+3/+6, above Speed Rating +2,
+  autonav + Rating, escaping more than one +1 per additional, terrain +4/+2/0/−2, VCR −rating) + damage. Success →
+  contact broken with every pursuer it hid from (`pairs.contact = {hiddenBy, successes}`): an **Escape Bonus** = the
+  successes added to its Driver Points every turn until relocated or the pursuer gives up (Mach 6: TN 4, 4 successes).
+- **Relocating** (a broken pair's pursuer): a **Perception Test** (Intelligence; sensors are Part 4) by the pursuing
+  vehicle's character vs the hiding vehicle's **Signature** + the **Relocating Target Modifiers Table** (relocating
+  MS exceeds ≤10 −2, ≥11 −4; hiding MS exceeds ≤10 +2, ≥11 +4; vehicle above its Speed Rating +4; autonav active
+  −Rating (as printed); + the hiding test's successes; the HIDING vehicle's terrain −3/−1/0/+3). Success → contact
+  restored; the pursuers may act against it on their next action. NPC pursuers try for 5 Combat Turns, then give up
+  (`npcTurns`, End turn); a player's pursuer may give up on the panel.
+
+### 3a.6 Passengers (p.49)
+- A character is **aboard** a vehicle in the chase by the panel (`vehicles.<key>.aboard: [uuids]`; the driver is the
+  controller). A passenger whose Combat Phase is higher than the vehicle's Driver Points can take no offensive action
+  (shooting, casting spells) in it, and can't hold actions to get round it; the rigger (the controller) is exempt.
+- Enforcement: the combat tracker marks those phases; the weapon-attack and spellcasting entry points refuse an
+  offensive roll by a passenger whose current combatant initiative > DP (a GM override with a confirm). Blade (17 vs
+  11, p.49) is a Quench test.
+
+### 3a.7 NPC groups (p.49)
+The GM may group NPC vehicles with one goal: one roll for the group, using the FASTEST vehicle's statistics for the
+Maneuver Score, and +1 TN per additional vehicle on every test the group makes. The group's tests are rolled from the
+panel; its members share the group's MS and speed changes.
+
+### 3a.8 Removing the hybrid
+Under Rigger 2 the Vehicles tab's "Combat (core)" button opens the R2 actions (Driver Points, Accelerate/Brake,
+Position, Hide, Relocate; Ram and collisions in 3b); the core Position Test, Escape and core Ram are hidden. The Driving
+Test (2a) stays for non-combat maneuvers.
+
+### 3b.1 Vehicle damage levels (p.49–50)
+- **Vehicle Damage Modifiers Table** replaces core p.109 under Rigger 2: Light +1 TN / −1 Initiative / no Speed
+  Rating reduction; Moderate +2 / −2 / 25%; Serious +3 / −3 / 50% (Destroyed: crashes). `damageTnMod`, `damageInitMod`
+  and the Speed Rating read the ruleset's table; max speed = reduced Speed Rating × 1.5. The TN modifier applies to all
+  tests that involve the vehicle; the Initiative penalty to its driver's Initiative.
+- **Rigger damage** (p.49): whenever a vehicle takes Serious or Destroyed damage, the rigger jacked in controlling it
+  resists 6M (Serious) or 6S (destroyed) Physical: a Damage Resistance Test with **Body, no armour** (feedback through
+  the rig) — **ruling R3-3** — Combat Pool allowed (an ordinary Damage Resistance Test), once per crossing (receipt on
+  the damage event). Only a rigger jacked in; a manual driver takes none.
+
+### 3b.2 Impact (p.50) and ramming (p.47–48)
+- **Impact damage**: Power = speed ÷ 10 rounded UP (148/10 → 15, p.50); Damage Level by the **Impact Damage Levels
+  Table** (1–20 L, 21–60 M, 61–200 S, 201+ D); for a ram, both by the DIFFERENCE in speed. Resisted with Body dice +
+  Control Pool (≤ the driver's driving skill), TN = Power, NO armour or any other reduction; every 2 successes stage
+  down one level (p.50) — not the attacker-relative staging. Pure `impactDamage` (Part 1 has a core one; a new R2
+  function).
+- **Ramming**: the target must be closer than the vehicle's Acceleration Rating, or the driver has `canRam` from an
+  acceleration (p.47); a **Ramming Test** vs Handling + the **Ramming Target Modifiers Table** (MS −2/−4/+2/+4, above
+  Speed Rating +1, autonav + (Rating + 2), terrain −1/0/+1/+2, VCR −rating) + damage. Success → a collision: BOTH resist
+  the impact (Power by speed difference); the attacker's Power is reduced by its Body × the ramming successes (min TN 2;
+  Mach 6: 15 − 15 → 2S, 5 successes stage it away; Cruiser #2: 15S, 0 successes → Serious + Crash Test, p.50). A
+  vehicle that takes damage from the ram makes a Crash Test. A pedestrian target: 3b.5. Drivers may ram walls (3b.4).
+- **Passengers** (p.50): each occupant (aboard, 3a.6) resists the damage the VEHICLE ended with (after the vehicle's
+  Damage Resistance), with: seat belt or other restraint −1 level (a per-occupant checkbox, default on for the
+  driver/crew? — default OFF; the player ticks it); an **APPS** crash-protection system on the vehicle halves the Power
+  (round up); a **crash cage** +6 dice; only IMPACT armour reduces the Power; Body dice; no Combat Pool; the Control
+  Pool dice the rigger used on the Crash Test add to the passengers' tests. Example (15S → 15M → 8M → 5M, Body 4, p.51)
+  is a test. APPS and crash cage are found by `modKey` on the vehicle (keys checked in the R2 catalog at build).
+
+### 3b.3 Crashing (p.51–52)
+- A **Crash Test** is required when the vehicle takes damage from a ram, takes Serious damage in a single attack
+  (weapons and spells included), or its Condition Monitor reaches Destroyed (then it crashes automatically, p.53).
+- Crash Test = Driving Test vs Handling + the **Crash Test Modifiers Table**: vehicle damaged + its damage modifier;
+  terrain −1/0/+2/+4; speed vs the driver's Reaction: < ×20 0, < ×30 +1, < ×40 +2, more +4. "Driver wounded + Damage
+  Modifier" is the driver's wound penalty, which `rollSuccessTest` already adds (not doubled). Autonav dice (= Rating)
+  and Control Pool (≤ driving skill) may be added. Cruiser #2: 4 + 3 + 4 + 2 = 13 (p.51). Failure → the vehicle stops
+  (speed 0) and resists impact damage at the speed it was going (Cruiser: 300 → 30D, p.52, armour doesn't help).
+- Replaces Part 1's core Crash Test under Rigger 2 (`postCrashTestDue`/`crashTestFromCard`/`resolveCrash` branch on the
+  ruleset; the triggers in `commitVehicleDamage` stay one place).
+
+### 3b.4 Walls and barriers (p.52)
+Barrier Rating (core p.98) × 20 vs speed: ≤ → the vehicle halts; the standard crash damage (impact at its speed)
+applies to it and its passengers. > → it breaks through and keeps going, LOSING speed = Barrier Rating × 20; the
+collision damage is Power = the Barrier Rating, Damage Level from that speed loss (Impact table); restrained
+passengers take no damage. Replaces Part 1's "Hit" under Rigger 2 (the mana-barrier rule for exposed riders stays,
+3c). Cruiser #2 vs Heavy Structural 16: 320 ≥ 300 → stops (p.52).
+
+### 3b.5 Pedestrians (p.52–53)
+A person or critter hit by a vehicle resists Power = speed ÷ 10 at ONE level higher than the Impact table (Destroyed
+→ Power + half, rounded down); impact armour reduces the Power; Combat Pool allowed; hardened or military-grade armour
+(GM tick) → no level step-up. The vehicle resists collision damage one level LOWER than the table (1–20 none, 21–60 L).
+Rex Karz (60 m/turn → 6S, p.53) is a test. Pedestrians in the chase (MS = Quickness) can be rammed.
+
+### 3b.6 Weapons against vehicles (p.53)
+Replaces core p.108 (`vehicleHit`) under Rigger 2, as `r2VehicleHit`:
+- Damage Level −1 (D→S, S→M, M→L); a Light result doesn't affect the vehicle unless special ammunition is used; grenades
+  and explosives too; anti-vehicle munitions (missiles, rockets, mortars, AV warheads) keep their level.
+- Armour reduces the Power fully (AV: by half, rounded down). If the weapon's standard Power (unaugmented by burst or
+  full-auto) doesn't exceed the armour → no damage (AV excepted).
+- Resistance: Body dice + Control Pool (≤ the driver's driving skill) vs TN = the modified Power; standard staging
+  against the attacker's successes; no damage and Control Pool dice > the attacker's successes → a complete miss.
+- Serious from one attack → Crash Test; Condition Monitor full → crashes; a Body 0 vehicle is destroyed by any success.
+- **Called shots at external components** (tires, antennas, weapons): no change to the Damage Code (the called-shot
+  step-up is cancelled by the vehicle's level reduction); Moderate or worse destroys the component (GM may say Light for
+  fragile, Serious for reinforced): a card note and the GM's call.
+- **Optional terrain-based Control Pool limits** (p.53): a world setting `r2ControlPoolTerrain` (off by default): on
+  vehicle Damage Resistance Tests, Control Pool max = driving skill (open/normal), ÷2 up (restricted), ÷3 up (tight).
+- **Attacks against passengers** (p.53): Power − the vehicle's Armor or Body, whichever is higher; no level change; no
+  Combat Pool; a targeted rigger jacked in takes +3 TN on the resistance; a Deadly hit on a passenger also gives the
+  vehicle Light damage, unresisted (through `commitVehicleDamage`).
+
+### 3c Vehicles and magic (p.53–55)
+- Only physical spells affect vehicles; mana spells don't, nor riggers jacked in unless the caster can see the rigger.
+- Spells against vehicles: TN 8 (object resistance, p.53); the vehicle resists with Body; Spell Defense may protect it.
+  **Damaging manipulations**: Damage Level −1 and Force/Power − Armor (like ordinary weapons; may do nothing). **Combat
+  spells** (physical): no level reduction, Force − ½ Armor (round down), always damage: TN at least 2 (Armor 4 vs
+  Force 2 → TN 2, p.54). A spell affects the whole vehicle; area spells its passengers and cargo too. Replaces Part 1's
+  "damaging manipulations skip the reductions" (core p.109) under Rigger 2.
+- Spells against characters in vehicles: line of sight; enclosed occupants can't be targeted; +4 partial cover through
+  small windows; blown-out windows open the view — a GM checklist on the spell dialog when the target is aboard.
+- Natural domains: a vehicle and its passengers are in the domain they travel through: a note.
+- **Casting from a moving vehicle** (Moving Vehicle Spell Modifiers Table): restricted +2, tight +4, combat +2 (open/
+  normal 0) — added automatically for a caster aboard a vehicle in a chase whose speed > 0.
+- **Astral projection from a moving vehicle**: returning to a moving body needs an Intelligence (8) Test; failure
+  misses the body (try again). Offered when a projecting character's body is aboard a moving vehicle.
+
+### Checks
+Vitest: open tests (Rich 16); MS (Rigger X 37 / 33 / 40); every modifier table row; accelerate (Mach 6 TN 5 → 286;
+cruiser TN 6 → 317, 31 m); positioning (stop: 56 of 140); hiding (TN 4) and relocating (+4); impact Power/level (148
+→ 15S; 300 → 30D); ram (2S → staged away; 15S Serious); passengers (5M); crash TN 13; walls (320 vs 300 stops; break
+through loses BR×20); pedestrians (6S; D → Power + half; vehicle one lower); weapons (−1 level, armour, AV, complete
+miss); spells (combat Force 2 vs Armor 4 → TN 2); casting modifiers. Quench: a chase with two vehicles and a pedestrian
+through two turns (DP once per turn, held Control Pool released at End turn, distances updated, Stress once for
+speeding); passenger refused at phase > DP; ram → both resist → Crash Test → crash damage → passengers; rigger 6M on
+crossing Serious, once; weapons vs vehicle; the core path unchanged with the ruleset off.
+
+### Rulings to confirm
+R3-1 defaulting in an Open Test (dice only); R3-2 speeding Stress once per turn; R3-3 rigger damage resisted with Body,
+no armour, Combat Pool allowed; seat-belt default off.
+
 ## Key decisions & tradeoffs
 - Ruleset switch = a world setting with reload (VR2.0 pattern), added in Part 2 when the first R2 rule exists, so
   Part 1 never ships a setting that does nothing.
