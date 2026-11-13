@@ -1349,7 +1349,7 @@ drones in one op; a stale card "not counted". Everything under core stays as Par
 
 ## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 1 (2026-11-13)
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
-the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 is a lost number).
+the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's printed copy).
 Every option here is OPTIONAL (p.81: "choose only those that will enhance their game") and gets its OWN world
 setting (the VR2.0 options pattern: boolean, `requiresReload`, read through one helper `r2Option(key)` that is false
 unless `isRigger2()`). Two releases: **6a** (fuel, optempo, quality factors, subsystem damage — the logistics and
@@ -1359,8 +1359,8 @@ damage options) and **6b** (advanced gunnery, remote control and electronic warf
 10+; the restated "× 200" is a misprint); R6-3 engine repair = 40 % of (the vehicle's original cost + engine
 customization spending; the ".6" is a misprint); R6-4 coasting extends by Acceleration per 2 successes (not the Gray
 Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (the Wu Pi example's .8 is the STOL row).
-**Pending:** R6-1 the Damage Severity Table's (p.86, Table 8) Light row ends "apply a +… target modifier" with the
-digit clipped by the scan (Moderate is +3); the user is checking a printed copy. Until then the card asks the GM.
+R6-1 the Damage Severity Table's (p.86, Table 8) Light row, clipped in the scan, reads "+1 target modifier" (user's
+photo of the printed book).
 
 ### 6a.1 Variable fuel consumption (setting `r2Fuel`; p.81–83)
 - **Fuel state**: `system.fuelLevel` (NumberField, blank = full = `fuelSize`), shown on the vehicle sheet beside the
@@ -1434,8 +1434,8 @@ digit clipped by the scan (Moderate is +3); the user is checking a printed copy.
   modification or roll again". Design options can't take damage.
 - One card per follow-up with every roll (immutable inputs) and one GM op `subsystem` that records
   `flags.sr2e.subsystems.<id> = { path, subsystem, itemId?, level, eventId, repaired: false }`.
-- **Effects** (derived each preparation, cleared first): accessories/mods — Light: bonuses or extra dice −1 (none → +R6-1
-  TN on tests with it); Moderate: halved (none → +3 TN); Serious: inoperable but repairable; Deadly: destroyed (item
+- **Effects** (derived each preparation, cleared first): accessories/mods — Light: bonuses or extra dice −1 (none → +1
+  TN on tests with it, R6-1); Moderate: halved (none → +3 TN); Serious: inoperable but repairable; Deadly: destroyed (item
   state "removed"-like `custom.state = "destroyed"`: must be replaced). Rigger Control Box: the rigger resists PHYSICAL
   damage, Power = the attack's Power after armor, level = Table 8 (Part 3b's occupant step). Handling: +1/+2/+3, Deadly
   → automatic crash (Part 3b crash record). Turret: weapons fired from it take the damage modifier, Deadly → inoperable
