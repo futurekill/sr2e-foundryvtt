@@ -332,3 +332,23 @@ GM enters separate ratings, monitor effect then the GM's call (offered on the ca
 ## Part 3 plan, round 4 — not run (2026-11-13 01:29)
 Codex refused at start: weekly usage limit, "try again at Nov 18th, 2026 10:29 AM". Draft 4 unchanged; round 4
 reruns with the same prompt once the limit resets.
+
+## Part 3 plan, round 4 — Codex (draft 4, fresh session, rerun 2026-11-13 01:33): REVISE, 6 findings
+1. `super.nextRound()` bypassed SR2ECombat's Initiative re-roll, elemental boundaries, phase counter and tracker
+pointing; calling the override instead wasn't resumable mid-way. 2. The Combat Turn refresh omitted passengers (p.42:
+drivers, passengers and pedestrians). 3. A turn could close with rolls still outstanding; `chaseResolve` lacked a
+closed-round check. 4. DP (and action) cancellation raced roll publication — two results for one slot. 5. Damage
+lowering the Speed Rating could leave a vehicle over it with no `over` / Stress. 6. Moving-vehicle spell modifiers
+applied to targets inside the caster's own vehicle (p.55: only outside).
+
+### Claude's response (draft 5)
+All taken. (1) `SR2ECombat.nextRound` becomes one staged, resumable round change for every combat: closing →
+advancing (boundary + round, seq stored first) → initiative (per-combatant `initRound` marker written with the total;
+one "Combat Turn" card via once()) → pointing → refreshing → opening; existing combat tests run against it plus
+interrupt-and-resume tests per stage. (2) The chase refresh is the deduped union of drivers, aboard actors and
+pedestrians. (3) Closing waits for every action/DP slot to be terminal (GM cancel offered); everything for a closed
+round is refused. (4) `chaseArm` moves a slot/action to "publishing" before any roll; cancel only while open; GM
+force-cancel writes a tombstone and late cards for tombstones are refused and marked. (5) A damage commit on a chase
+vehicle records a pending `overCheck` with the speed at that moment, applied in the chase queue with the same speeding
+receipt; replayed on ready and before closing. (6) The modifier applies only to targets outside the vehicle; same
+vehicle → none; unknown → the dialog asks.

@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 4 (2026-11-12, after Codex Part 3 rounds 1–3)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 5 (2026-11-13, after Codex Part 3 rounds 1–4)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -474,8 +474,8 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   - `actions.<aid>` = one record per vehicle action (below). `opened.<round>` / `closed.<round>` = that turn's open /
     close ran (B2 #2: a Positioning bonus may create `turns.<r+1>` early; it never counts as opened).
   - Every entry and pair has a `rev`, bumped by any change to its speed, terrain, autonav, distance, contact or driver.
-  - `transition` = `{ from, to, stage: "closing"|"advanced"|"refreshing"|"opening", refreshed: {eid: true} }` while a
-    round change is in progress (B3 #6).
+  - `transition` = `{ from, to, seq, stage: "closing"|"advancing"|"initiative"|"pointing"|"refreshing"|"opening",
+    refreshed: {actorUuid: true} }` while a round change is in progress (B3 #6, B4 #1).
 - **Driver identity** (B1 #5, B2 #7): `entry.driver` is set on the panel (default `controllerOf(vehicle)`; an NPC or a
   token actor may drive). ONE resolver, `driverOf(vehicle)` = the active chase entry's driver, else `controllerOf`, is
   used by every vehicle path under Rigger 2: `riggedInto`, `mayResistFor`, damage-resistance pool selection
@@ -494,23 +494,49 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   inputs, revs, stamps, state: "rolling"}`; returns them, so the dialog shows exactly what will be rolled;
   (2) the acting client spends any Control Pool (3a.2) and rolls at those inputs, the message carrying
   `flags.sr2e.chaseAction = {combatId, aid}`;
-  (3) the GM op `chaseResolve {combatId, aid, messageId}` reads the roll FROM the message; refuses (state "stale") if
+  (3) the GM op `chaseResolve {combatId, aid, messageId}` reads the roll FROM the message; refuses if the action's
+  round is closed or not the live round (B4 #3) or the action isn't in "rolling"; refuses (state "stale") if
   any rev it depended on changed since begin, or any vehicle's LIVE stamp differs from the stored one (weapon damage or
   a driver change made outside the chase queue shows up here); else in ONE Combat update writes the chase changes (speed, contact, bonuses,
   entitlements, `over`) together with `state: "resolving"` and the immutable result + its pending external effects
   (Stress, damage, follow-ups), each with a deterministic event id; (4) each external effect is applied idempotently by
   its id (`adjustStress`, `commitVehicleDamage`); (5) `state: "done"`. The GM's pass (ready, and before each turn
   boundary) replays the effects of every "resolving" action and resolves "rolling" ones whose message exists; ones with
-  no message can be cancelled by their actor or the GM.
-- **Turn lifecycle bound to `SR2ECombat`** (B1 #1, B2 #1): for a combat with a chase under Rigger 2, `SR2ECombat`
-  delegates a round change to ONE GM op, `chaseAdvance {combatId, from}`, in the chase queue, with durable stages in
-  `transition` (B3 #6): it is a no-op unless `combat.round === from` or a `transition` from `from` is in progress;
-  stage "closing" — the pass over round r's actions, then the close (distances, counters) → `closed.<r>`; "advanced" —
-  the combat's round becomes r+1 (super `nextRound`, only if still `from`); "refreshing" — EVERY chase driver's and
-  pedestrian's pools refreshed (whatever the pool-refresh mode; the Combat Turn refresh p.42), each marked in
-  `refreshed`; "opening" — the open → `opened.<r+1>`; then `transition` cleared. The GM's ready pass resumes an
-  unfinished transition from its stage. `startCombat` does refresh → open for round 1 the same way. The panel's "End
-  turn" calls `nextRound`.
+  no message can be cancelled by their actor or the GM. Publication is serialized with cancellation exactly like a
+  DP slot (3a.2, B4 #4): before posting, the acting client calls `chaseArm {aid}` (rolling → "publishing" in the chase
+  queue); cancel is accepted only in "rolling" (never while publishing); a publishing action whose client vanished
+  can be force-cancelled by the GM, which writes a tombstone `state: "cancelled"`, and any card that later arrives for
+  a cancelled id is refused by `chaseResolve` and marked on the card "cancelled — not counted". A retry is a new aid.
+- **Turn lifecycle bound to `SR2ECombat`** (B1 #1, B2 #1, B4 #1–#3): `SR2ECombat.nextRound` is refactored into ONE
+  staged, resumable round change used by EVERY combat (chase or not, so there is one path to test), each stage
+  idempotent and recorded in `transition` (on the combat's chase flag; a combat without a chase keeps the same
+  record under `flags.sr2e.roundTransition`). For a chase under Rigger 2 it runs as the GM op `chaseAdvance
+  {combatId, from}` in the chase queue; it is a no-op unless `combat.round === from` or a transition from `from` is
+  in progress. Stages:
+  1. **closing** (chase only) — the pass over round r: actions with a message resolve; actions in "rolling" without a
+     message, actions in "resolving", and DP slots that are open/publishing/cancelRequested must reach a terminal
+     state first. The stage does not complete until they do: the panel lists what it is waiting on, with the GM's
+     cancel for each (cancel = tombstone, 3a.2). Then the close (distances, counters) → `closed.<r>`. From the moment
+     `closed.<r>` is written, `chaseResolve`, `chaseDPDone` and `chaseBegin` for round r are refused (they also check
+     the live round and that no transition has passed "closing" for their round).
+  2. **advancing** — today's boundary step unchanged in substance: clear defeated Initiative, `processCombatBoundary`
+     with `seq` (stored in `transition.seq` before the call, so a resume reuses it; the elemental counters already
+     dedupe on seq), then ONE update `{round: r+1, turn: null, boundarySeq: seq, phaseSeq}` (skipped if the round is
+     already r+1), then any recovery cards.
+  3. **initiative** — every living combatant whose `flags.sr2e.initRound !== r+1` rolls (the combatant's own
+     Initiative formula, i.e. `_getInitiativeParts`, so Step 5's driver rules apply) and the total + `initRound` are
+     written in the same Combatant update; a resume rolls only the ones still missing. The "Combat Turn r+1" card is
+     posted once (`once()` claim keyed by combat + round).
+  4. **pointing** — `_pointAtFirstLiving`.
+  5. **refreshing** — the existing pool-refresh mode for combatants ("round": all; "action": the opening combatant);
+     PLUS, for a chase, the deduplicated union (by actor uuid, unlinked tokens kept distinct) of every driver, every
+     actor aboard a chase vehicle, and every pedestrian, whatever the mode (p.42: "the dice pools of all drivers,
+     passengers and pedestrians are refreshed"). Each refresh marks `refreshed.<uuid>` so a resume skips it.
+  6. **opening** (chase only) — the open → `opened.<r+1>`; then `transition` cleared.
+  The GM's ready pass resumes an unfinished transition from its stage. `startCombat` runs initiative → pointing →
+  refreshing → opening for round 1. The panel's "End turn" calls `nextRound`. Existing combat tests (elemental
+  boundaries, defeated combatants, pool modes, phase counter) run unchanged against the staged version, plus
+  interruption tests that stop after each stage and resume.
   **(ruling)** The system keeps Foundry's Initiative roll at the round's start; the book's order (Driver Points step 4
   before Initiative step 5) has no mechanical effect except that passengers' limits need the DP, so a passenger can't
   act offensively until their vehicle's DP is recorded (3a.6) and the DP dialog is offered at the round's start.
@@ -534,18 +560,22 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   add vehicles/pedestrians, drivers, aboard lists, groups, speeds (parked = 0; players declare their own starting speed,
   the GM sets NPCs' and any incapacitated driver's, p.42), distances, terrain.
 - **Driver Points** (B1 #2, B3 #7): (1) `chaseDPStart {combatId, round, eid}` reserves the slot (`turns.<r>.<eid>.dpSlot =
-  {id, driver, state: "open"}`; refused if a live slot or a DP exists); (2) the driver's pool client spends the allocated Control Pool
+  {id, driver, state: "open"}`; refused if a live slot or a DP exists); (2) **arm**: the driver's pool client spends the allocated Control Pool
   through `spendPosition(driver, n, slotId, { combatId, round })` — **extended** to take the combat and round explicitly
   (existing callers keep `game.combat`), to be IDEMPOTENT by test id (an existing `byTest[slotId]` returns that amount,
   no second debit, B2 #5), and to validate the slot with the GM record before debiting; `positionReserved` reads the
   reservation's OWN combat (`game.combats.get(combatId)?.round === round`), never `game.combat`. The dice are held out of
   the pool until the turn ends (p.44); the next round's refresh (B2 #1) returns them before DP opens;
-  (3) the Open Test card carries the slot id; (4) `chaseDPDone {slotId, messageId}` records the DP (`state: "done"`).
+  then calls `chaseArm {slotId}`, which moves the slot open → "publishing" in the chase queue (refused unless
+  "open"); only after that does the client roll; (3) the Open Test card carries the slot id; (4) `chaseDPDone {slotId, messageId}` records the DP (`state: "done"`).
   The GM's pass reconciles: a slot whose card exists (found by the slot id in its flags) is completed from the card.
-  **Cancel**: the driver or GM sets `state: "cancelRequested"`; the driver's POOL WRITER acknowledges inside its pool
-  queue (the same queue `spendPosition` debits in, which re-checks the slot state before any debit, so a cancel and a
-  debit can't interleave): no card yet → `cancelled` (any dice already held stay held until the turn ends: they were
-  committed), a card → completed instead. NPC drivers: the GM rolls from the panel. No Karma rerolls on an Open Test.
+  **Publication and cancel** (B4 #4): no roll is made before the slot is "publishing". Cancel (driver or GM) is
+  accepted only while "open" and turns the slot into a tombstone `cancelled`; a "publishing" slot completes from its
+  card, or, if its client vanished, the GM can force-cancel it → tombstone. Either way, dice already debited under that
+  slot id stay held until the turn ends (they were committed; `spendPosition` is idempotent by slot id, so a retry under
+  the same id never debits twice). `chaseDPDone` and the reconcile pass refuse any card whose
+  slot id is a tombstone (the card is marked "cancelled — not counted"), so a cancelled attempt can never produce a
+  second DP; a new attempt is a new slot id, allowed only when the vehicle's live slot is a tombstone. NPC drivers: the GM rolls from the panel. No Karma rerolls on an Open Test.
 - **Step 5, Initiative** (p.44): under Rigger 2, a character DRIVING a vehicle in the chase who isn't jacked in rolls
   natural Reaction (the 2b natural-Quickness Reaction) + 1D6 — no wired/boosted reflexes, adept powers or magic; a
   jacked-in rigger keeps the VCR's (2b); passengers and pedestrians unchanged; the vehicle damage Initiative penalty
@@ -555,7 +585,13 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
 - **Speeding Stress** (R3-2, B2 #6): `turns.<r>.<eid>.over` is set when the turn opens with the vehicle above its
   damage-reduced Speed Rating, or when any resolution leaves it above; the Stress has ONE receipt for every path,
   eventId `chase-over-<combatId>-<round>-<eid>`, applied as a resolving effect when `over` is first set and replayed at
-  close of turn if missing (braking or crashing later in the turn doesn't undo it).
+  close of turn if missing (braking or crashing later in the turn doesn't undo it). **Damage lowering the Speed
+  Rating** (B4 #5): when `commitVehicleDamage` changes the damage level of a vehicle that is an entry in an active
+  chase under Rigger 2, the same commit records a pending effect `overCheck {combatId, round, eid, speed}` (the
+  speed at the moment of the damage) with its own event id; it is applied in the chase queue as: if `speed` > the
+  new damage-reduced Speed Rating, set `over` and apply the speeding Stress with the SAME receipt id as above (so it
+  is charged at most once per turn whichever path finds it first). The GM's ready pass replays pending overChecks,
+  and the closing stage applies any still pending before closing, so later braking or a crash can't erase it.
 - **Action costs** (p.45, B1 #16): accelerating/braking, positioning, ramming, hiding and performing a non-driving
   action are Complex Actions — every action card says so. **Autonav on/off** is a Simple Action, a Free Action for a
   rigger jacked in: a per-entry toggle (vehicle sheet / Vehicles tab) that writes `entry.autonav` through the chase op
@@ -731,8 +767,12 @@ step-up. The vehicle resists one level LOWER than the table (1–20 none, 21–6
   leaves (except a great or toxic nature spirit); a shaman who leaves the domain forfeits the remaining services (the
   spirit finishes its last command). Actionable GM guidance on the spirit card, plus the existing spirit-services
   forfeiture as the GM's button.
-- **Casting from a moving vehicle**: restricted +2, tight +4, combat environment +2 (open/normal 0) — automatic for a
-  caster aboard a chase vehicle with speed > 0, and a manual choice in the spell dialog outside a chase (B1 #18).
+- **Casting from a moving vehicle** (p.55, B4 #6): restricted +2, tight +4, combat environment +2 (open/normal 0) —
+  only against characters or objects OUTSIDE the caster's vehicle. Automatic when the caster is aboard a chase vehicle
+  with speed > 0 and the target is known to be outside it (a token/actor not in that entry's aboard list and not the
+  vehicle itself); none when the target is aboard the same vehicle; when membership can't be told (an untracked
+  target, an area spell, no chase), the spell dialog asks "target outside the vehicle?" and applies the modifier only
+  on yes (B1 #18).
 - **Astral projection from a moving vehicle** (p.55): a magician returning to a body in a moving vehicle makes an
   Intelligence (8) Test; failure misses (try again); if the route isn't known, finding the body is the core search
   (p.146, the GM). Offered as a button when a projecting character's body is aboard a moving vehicle (or the GM
