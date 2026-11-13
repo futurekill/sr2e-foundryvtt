@@ -449,3 +449,10 @@ attempt in the parent's owning queue → pool spend with an attempt receipt → 
 with receipts; recovery promotes found cards and only re-reserves when the roller is gone or the GM forces) covers
 every roll in Part 3 — chase actions, DP, Crash Tests, every vehicle Damage Resistance Test, occupant/pedestrian and
 rigger-feedback resistance. A crash holds two rolled steps in order; a ram one per vehicle.
+
+## Part 3 plan, round 13 — Codex (draft 13, fresh session): APPROVED
+"No new material problems found in draft 13 against the supplied pages and named code paths, respecting the settled
+findings and user rulings. The shared rolled-step protocol addresses round 12's remaining recovery gaps."
+
+### Claude's response
+Plan locked at draft 13. Build order: 3a (the chase), 3b (damage), 3c (magic), each with a Codex code review.
