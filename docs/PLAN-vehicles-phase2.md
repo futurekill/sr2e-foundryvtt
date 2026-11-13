@@ -447,7 +447,7 @@ mechanic quote on a repair card.
 ### Out of scope (Part 2)
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
-## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 12 (2026-11-13, after Codex Part 3 rounds 1–11)
+## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 13 (2026-11-13, after Codex Part 3 rounds 1–12)
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the
 system described on pages 105–9" of the core book. Everything below applies only under `isRigger2()`; under core,
 Part 1's vehicle combat is untouched. Three releases: **3a** (the chase: Maneuver Score, the turn, accelerate/brake,
@@ -543,6 +543,27 @@ reductions" = seat belt / restraint, APPS, crash cage. Further rulings below are
   protocol in 3a.2). A publishing action whose client vanished can be force-cancelled by the GM (acking as the
   pool writer), which writes a tombstone `state: "cancelled"`, and any card that later arrives for
   a cancelled id is refused by `chaseResolve` and marked on the card "cancelled — not counted". A retry is a new aid.
+- **Rolled steps — one protocol for EVERY roll in Part 3** (B12 #1–#2; generalizes the DP slot and action protocol
+  above so no roll is handled ad hoc). A rolled step is any roll whose result another step depends on: chase actions,
+  DP Open Tests, Crash Tests, every vehicle Damage Resistance Test (crash, automatic crash, BOTH vehicles in a ram,
+  weapon/spell damage under Rigger 2), every occupant/pedestrian resistance, rigger feedback resistance. Each has a
+  parent record (the action, slot, crash or effect) and goes:
+  1. **reserve** — the parent's owning queue (chase queue, or `vdmg:<uuid>` for crash/vehicle records, or the
+     occupant actor's writer for occupant records) grants ONE exclusive attempt `{attemptId, roller (user), state:
+     "reserved"}`; a second request while an attempt is live is refused (the button shows "being rolled by …");
+  2. **spend** — any pool dice through the roller's pool writer with a receipt keyed by `attemptId` (idempotent;
+     voidable with the acked protocol above);
+  3. **arm** — the owning queue moves the attempt to "publishing" (refused unless "reserved"); only then is the
+     roll made; the card carries `attemptId`;
+  4. **record** — the owning queue records the result from the card (`rolled {messageId}`), refusing cards for
+     any other or cancelled attempt (marked "not counted");
+  5. **apply** — effects derived from the parent id, applied by their owning writers with receipts (above).
+  Recovery (the GM's pass): an attempt whose card exists is promoted to `rolled`; one with no card is cancelled
+  (acked void) and a NEW attempt may be reserved only when its roller is no longer active or the GM forces it; a
+  `rolled` parent proceeds to apply; nothing re-rolls once a card exists. The crash transaction (3b.3) therefore
+  holds two rolled steps in order — the Crash Test, then (on failure or an automatic crash) the vehicle's Damage
+  Resistance Test — and computes the vehicle-damage effect only from the second's recorded result; a ram holds one
+  resistance step per vehicle.
 - **Turn lifecycle bound to `SR2ECombat`** (B1 #1, B2 #1, B4 #1–#3): `SR2ECombat.nextRound` is refactored into ONE
   staged, resumable round change used by EVERY combat (chase or not, so there is one path to test), each stage
   idempotent and recorded in `transition` (on the combat's chase flag; a combat without a chase keeps the same
@@ -768,12 +789,12 @@ B2 #11) — so an old core card resolves by core after the switch. The Driving T
   active or the GM forces it; a `rolled` record resolves from its card; `resolving` replays its effects.
 - **Occupant damage is its own recoverable step** (B11 #3; replaces today's claim-then-roll `occupantResist` for
   every vehicle-occupant resistance, crash and impact alike): each occupant effect `<fid>:occupant:<uuid>` is a
-  record `pending` → `rolled {messageId, result}` (the resistance card carries the effect id) → `done`. The damage is
+  record `pending` → `rolled {messageId, result}` → `done`, whose roll is a **rolled step** (3.0: exclusive attempt
+  reserved on the occupant's writer before any pool spend; the card carries the attempt id). The damage is
   written by the occupant actor's writer in ONE actor update together with the receipt
   `flags.sr2e.dmgReceipts.<randomKey> = <effectId>` (checked first: a present receipt means already applied). The
-  pass reconciles `pending` against cards with the effect id (promote to `rolled`), applies `rolled` ones through
-  the receipt check, and reopens the resist button only when no card exists and the roller is gone. Nothing is
-  claimed before a result exists, and nothing is applied twice. Today's `crashTestFromCard` / `resolveCrash` are reshaped into these steps, for core and Rigger 2 alike.
+  pass reconciles per the rolled-step recovery and applies `rolled` ones through the receipt check, serialized on
+  the occupant's writer. One authoritative result per effect, never applied twice. Today's `crashTestFromCard` / `resolveCrash` are reshaped into these steps, for core and Rigger 2 alike.
 - **Crash Test** = Driving Test vs Handling + the **Crash Test Modifiers Table**: vehicle damaged + its damage modifier;
   terrain −1/0/+2/+4; speed vs the driver's Reaction: < ×20 0, < ×30 +1, < ×40 +2, more +4 ("driver wounded + Damage
   Modifier" is the wound penalty `rollSuccessTest` adds — not doubled). Autonav dice (= Rating) and Control Pool (≤

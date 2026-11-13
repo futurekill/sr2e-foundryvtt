@@ -437,3 +437,15 @@ All taken. (1) The base applies only to the book's Driving Tests; relocation and
 (2) `claimed` records reconcile against cards carrying the fid first; reopen only with no card and the claimer gone.
 (3) Occupant resistance becomes a recoverable record (pending → rolled → done) whose damage is written with a receipt
 in one actor update, for crash and impact occupants alike.
+
+## Part 3 plan, round 12 — Codex (draft 12, fresh session): REVISE, 2 findings
+1. Occupant resistance had no exclusive attempt: two people could roll the same effect and spend pools twice. 2. The
+crash transaction persisted the Crash Test but not the following vehicle Damage Resistance Test, which could be
+re-rolled on recovery (also automatic crashes and both vehicles in a ram).
+
+### Claude's response (draft 13)
+Both taken by generalizing instead of patching: a single **rolled-step protocol** in 3.0 (reserve an exclusive
+attempt in the parent's owning queue → pool spend with an attempt receipt → arm → record from the card → apply
+with receipts; recovery promotes found cards and only re-reserves when the roller is gone or the GM forces) covers
+every roll in Part 3 — chase actions, DP, Crash Tests, every vehicle Damage Resistance Test, occupant/pedestrian and
+rigger-feedback resistance. A crash holds two rolled steps in order; a ram one per vehicle.
