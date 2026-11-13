@@ -530,6 +530,16 @@ Setting **VR2.0 utility options** on (world, reload), Matrix ruleset VR2.0.
       clears it. Workshop: add an engine customization level and save → one check; save again → none.
 - [ ] Back to Core Rulebook: no Rigger 2 panel, the Handling Test is back; Stress values kept.
 
+### Vehicles and magic (Part 3c; Quench `sr2e.vehicle-chase` → "Vehicles and magic"; unit `test/vehicle-combat-rules.test.mjs`)
+- [ ] Rigger 2: a Force 6 combat spell (physical) at an Armor 5 car: the car resists with Body vs TN 4; a tie leaves it
+      unhurt. A damaging manipulation of Power 6 at Armor 6: "No penetration".
+- [ ] Target an occupant of a chase car with a mana bolt: the sight question; "Enclosed" refuses (nothing spent),
+      "Limited windows" +4 (not again if the cover box is ticked); a damaging manipulation skips the question.
+- [ ] Cast from a moving chase car (tight terrain, combat started) at someone outside: +6 on the TN breakdown; at a
+      fellow passenger: nothing. Outside a chase: the dialog's "From a moving vehicle" adds it.
+- [ ] Projecting from a moving chase car, switch back to physical: Intelligence (8); failing keeps you projecting.
+      Not in a chase: asked whether the body is moving.
+
 ### Vehicle damage (Part 3b; Quench `sr2e.vehicle-chase` → "Damage"; unit `test/vehicle-combat-rules.test.mjs`)
 - [ ] Rigger 2 on: shoot a Body 4 / Armor 6 car with a 10S rifle: the resist dialog says M, Body dice vs TN 4; an NPC
       driver's Professional Rating adds dice; a rigger's Control Pool is capped at their driving skill.

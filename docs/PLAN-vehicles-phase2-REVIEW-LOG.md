@@ -545,3 +545,25 @@ post no outcome, leaving the card open for the current attempt.
 ## Part 3b code, round 5 — Codex (round-4 fix only, fresh session): APPROVED
 "No material problems found in the round-4 fix. The stale flag reaches both callers, which stop before posting an
 outcome card."
+
+## Part 3c code, round 1 — Codex (working tree, fresh session): REVISE, 5 findings
+1. A damaging manipulation still damaged a vehicle on a tie (or when the vehicle rolled more). 2. The sight check used
+the selected token, not the actual spell target, and judged area spells. 3. Limited windows could stack with the
+dialog's own cover box (+8). 4. The new await came before target-dependent values were captured (macros). 5. No
+manual input for a moving vehicle outside a tracked chase (casting and astral return).
+
+### Claude's response
+All taken. (1) Under Rigger 2 a manipulation needs MORE caster successes (also in the recorded-attempt recovery: the
+card stores `manipulation`). (2) The sight target is the chosen combat row / the manipulation's target; area spells
+skip it. (3) `hasCover` from the row's situation: never twice. (4) `firstActor` captured before the await and reused
+for the healing and cybermancy subjects. (5) The spell dialog has "From a moving vehicle" (Rigger 2 only), used when
+the caster isn't in a tracked chase; the astral return asks whether the body is in a moving vehicle when untracked.
+
+## Part 3c code, round 2 — Codex (round-1 fixes only, fresh session): REVISE, 1 finding
+1. `singleCombat` was read before its `const` declaration: every cast reaching the block threw (both rulesets).
+
+### Claude's response
+Taken: the block now sits right after `singleCombat` is declared. Proven live: the spell batches (area, combat,
+manipulation, foci, effects, healing, restricted, metamagic, Spell Defense) pass.
+
+## Part 3c code, round 3 — Codex (round-2 fix only, fresh session): APPROVED

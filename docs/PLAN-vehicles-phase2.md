@@ -448,7 +448,7 @@ mechanic quote on a repair card.
 Acceleration/braking and current speed (Part 3, p.22/p.45); R2 combat, R2 crashes and impact (Part 3); sensors (Part 4).
 
 ## Part 3 — Rigger 2 vehicle combat (R2 p.41–55), draft 13 (2026-11-13, after Codex Part 3 rounds 1–12)
-**Status:** plan APPROVED at Codex round 13. **3a shipped in 0.150.0** (code approved at Codex code round 3). **3b shipped in 0.151.0** (code approved at round 5). 3a.8 as
+**Status:** plan APPROVED at Codex round 13. **3a shipped in 0.150.0** (code approved at Codex code round 3). **3b shipped in 0.151.0** (code approved at round 5). **3c shipped in 0.152.0**: Part 3 complete. 3a.8 as
 built gates only the Position and Escape Tests (what 3a replaces); ram/crash and the explicit-ruleset card plumbing
 ship with 3b.
 _Read from 100-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. R2 p.41: "replaces the

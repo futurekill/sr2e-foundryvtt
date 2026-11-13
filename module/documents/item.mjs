@@ -1,4 +1,4 @@
-import { passengerGate, passengerLimit } from "../chase.mjs";
+import { passengerGate, passengerLimit, vehicleSpellMods } from "../chase.mjs";
 import { adeptPowersWork, weaponUsable, inAnimalForm } from "../rules/shapeshift-rules.mjs";
 import { parseDrainCode } from "../data/item-data.mjs";
 import { moneyQueue, applyUpdate } from "../money.mjs";
@@ -1632,6 +1632,15 @@ export class SR2EItem extends Item {
     const moveTN = combatMode ? movementTN(options.combatTargets) : 0;
     const cardTargets = isAreaCombat ? (combatPlan ?? []).filter(r => r.eligible && r.tn != null) : [];
     const singleCombat = !isArea && combatPlan?.find(r => r.eligible);
+    // Everything target-dependent is captured BEFORE the first await (macros restore targets right after calling).
+    const firstActor = firstTarget()?.actor ?? null;
+    // Rigger 2 p.54–55: the ACTUAL target (the chosen combat row, the manipulation's target) needs a line of sight if
+    // it rides in a chase vehicle (an area spell reaches occupants anyway); a moving caster adds the Moving Vehicle
+    // Spell Modifiers against targets outside. Asked before anything is spent.
+    const sightTarget = isArea ? null : (singleCombat?.actor ?? manipTarget?.actor ?? firstActor);
+    const vehMod = await vehicleSpellMods(actor, sightTarget, { damagingManipulation: !!manipDmg, area: isArea,
+      hasCover: /cover \+4/.test(singleCombat?.situation ?? ""), manual: options.movingVehicle ?? null });
+    if (vehMod === null) return null;
     const targetNumber = cardTargets.length ? Math.min(...cardTargets.map(c => c.tn))
       : singleCombat?.tn ?? (options.targetNumber ?? 4);
 
@@ -1753,13 +1762,13 @@ export class SR2EItem extends Item {
     // combat-spell TNs.
     let healingTN = 0, healingLabel = "";
     if (this.system.healsDamage) {
-      const subject = firstTarget()?.actor ?? actor;
+      const subject = firstActor ?? actor;
       healingTN = biowareHealingTnMod(subject.system?.bodyIndex?.value ?? 0);
       if (healingTN > 0) healingLabel = `bioware interference (${subject.name})`;
     }
     // Cybermancy (Cybertechnology p.80–81): +2 × |Essence| to any magical test made against a
     // cybermantic subject, frozen now. Area spells carry it per target (baseTN).
-    const cymSubject = (isArea || combatPlan) ? null : this.system.healsDamage ? (firstTarget()?.actor ?? actor) : firstTarget()?.actor;
+    const cymSubject = (isArea || combatPlan) ? null : this.system.healsDamage ? (firstActor ?? actor) : firstActor;
     const cymTN = cymMagicTN(cymSubject);
 
     // ── Centering vs. Penalties (Grimoire p.44) ───────────────────────────────
@@ -1803,8 +1812,8 @@ export class SR2EItem extends Item {
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel, // extra dice bought with Karma Pool
       centeringReduction,           // Centering vs Penalties (Grimoire p.44)
       tnContext: SPELL_TN_CONTEXT,
-      extraTN: healingTN + cymTN + moveTN,
-      extraTNLabel: [healingLabel, cymTN ? `cybermancy (${cymSubject.name})` : "", moveTN ? "moving (p.83)" : ""].filter(Boolean).join(", ")
+      extraTN: healingTN + cymTN + moveTN + vehMod.tn,
+      extraTNLabel: [healingLabel, cymTN ? `cybermancy (${cymSubject.name})` : "", moveTN ? "moving (p.83)" : "", vehMod.label].filter(Boolean).join(", ")
     });
 
     // Rule of One (p.131): a misfire raises Drain's TN by 2 — unless Karma avoids the Oops.

@@ -19,12 +19,13 @@ export const LEVEL_NAMES = { L: "Light", M: "Moderate", S: "Serious", D: "Deadly
  *  - otherwise base + ⌊net / 2⌋, at most Deadly.
  * @returns {{affected:boolean, why:string, net:number, level:string|null, boxes:number, stagedUp:number}}
  */
-export function combatSpellOutcome({ casterSuccesses = 0, resistSuccesses = 0, baseLevel = "M" } = {}) {
+export function combatSpellOutcome({ casterSuccesses = 0, resistSuccesses = 0, baseLevel = "M", tieFails = false } = {}) {
   const c = Math.max(0, Math.trunc(Number(casterSuccesses) || 0));
   const r = Math.max(0, Math.trunc(Number(resistSuccesses) || 0));
   const base = DAMAGE_LEVELS.includes(baseLevel) ? baseLevel : "M";
   if (c <= 0) return { affected: false, why: "miscast", net: 0, level: null, boxes: 0, stagedUp: 0 };
-  if (r > c) return { affected: false, why: "resisted", net: c - r, level: null, boxes: 0, stagedUp: 0 };
+  // tieFails: a vehicle under Rigger 2 (p.53: the spell needs MORE successes).
+  if (r > c || (tieFails && r === c)) return { affected: false, why: "resisted", net: c - r, level: null, boxes: 0, stagedUp: 0 };
   const net = c - r;
   const stagedUp = Math.floor(net / 2);
   const idx = Math.min(DAMAGE_LEVELS.indexOf(base) + stagedUp, DAMAGE_LEVELS.length - 1);

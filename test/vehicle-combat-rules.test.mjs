@@ -148,3 +148,23 @@ describe("Damage (R2 p.49–53)", () => {
     expect(passengerShotPower({ power: 9, armor: 3, body: 4 })).toBe(5);
   });
 });
+
+import { r2CombatSpellTN, movingCastTN, occupantSpellSight } from "../module/rules/vehicle-combat-rules.mjs";
+import { combatSpellOutcome } from "../module/rules/spell-rules.mjs";
+
+describe("Vehicles and magic (R2 p.53–55)", () => {
+  it("a combat spell: Force − half armour, never below 2 (Armor 4, Force 2 → TN 2); a tie fails against a vehicle", () => {
+    expect(r2CombatSpellTN(2, 4)).toBe(2);
+    expect(r2CombatSpellTN(6, 5)).toBe(4);
+    expect(combatSpellOutcome({ casterSuccesses: 3, resistSuccesses: 3, baseLevel: "M", tieFails: true }).affected).toBe(false);
+    expect(combatSpellOutcome({ casterSuccesses: 3, resistSuccesses: 3, baseLevel: "M" }).affected).toBe(true);
+  });
+  it("casting from a moving vehicle: restricted +2, tight +4, combat +2", () => {
+    expect([movingCastTN({ terrain: "open" }), movingCastTN({ terrain: "restricted" }), movingCastTN({ terrain: "tight", combat: true })]).toEqual([0, 2, 6]);
+  });
+  it("occupants: enclosed → only damaging manipulations; blown windows clear; campers +4", () => {
+    expect(occupantSpellSight({ view: "enclosed" }).ok).toBe(false);
+    expect(occupantSpellSight({ view: "enclosed", damagingManipulation: true }).ok).toBe(true);
+    expect(occupantSpellSight({ view: "limited" }).tn).toBe(4);
+  });
+});

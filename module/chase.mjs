@@ -17,7 +17,8 @@ import { isRigger2 } from "./vehicle-mode.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { VEHICLE_POINTS, TERRAIN_POINTS, r2ClassFor, speedPoints, maneuverScore, accelerateTN, positioningTN, hidingTN,
          relocatingTN, applySpeedChange, ramEntitled, stopAtPoint, closeDistance, NPC_RELOCATE_TURNS,
-         fastestMember, passengerMayAttack, ramTN, ramDamage, pedestrianImpact, r2Impact } from "./rules/vehicle-combat-rules.mjs";
+         fastestMember, passengerMayAttack, ramTN, ramDamage, pedestrianImpact, r2Impact, movingCastTN,
+         occupantSpellSight } from "./rules/vehicle-combat-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const cq = (combatId, fn) => enqueueAttack(`chase:${combatId}`, fn);
@@ -876,6 +877,64 @@ export async function passengerGate(actor) {
   }
   return foundry.applications.api.DialogV2.confirm({ window: { title: "Passenger limit (Rigger 2 p.49)" },
     content: `<p>${esc(actor.name)} can't take an offensive action now: ${esc(why)}. Override?</p>` });
+}
+
+/* ── Vehicles and magic (p.54–55) ────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * The spell TN modifiers a chase adds (Rigger 2): occupant line of sight (p.54) and casting from a moving vehicle
+ * (p.55). Returns {tn, label}, or null when the cast is refused (nothing spent). Outside Rigger 2 chases: nothing.
+ */
+export async function vehicleSpellMods(caster, target, { damagingManipulation = false, area = false, hasCover = false, manual = null } = {}) {
+  const none = { tn: 0, label: "" };
+  if (!isRigger2()) return none;
+  const mine = findAboard(caster?.uuid), theirs = target ? findAboard(target.uuid) : null;
+  const sameVehicle = mine && theirs && mine.combat === theirs.combat && mine.eid === theirs.eid;
+  let tn = 0; const labels = [];
+  if (theirs && !sameVehicle && hasChase(theirs.combat)) {
+    const vname = fromUuidSync(theirs.entry.uuid)?.name ?? "the vehicle";
+    const view = damagingManipulation ? "open" : await foundry.applications.api.DialogV2.wait({
+      window: { title: `${target.name} is aboard ${vname}` }, rejectClose: false,
+      content: `<p>Can ${esc(caster.name)} see ${esc(target.name)}? (Rigger 2 p.54)</p>`,
+      buttons: [{ action: "open", label: "Open vehicle (bike, open top)" }, { action: "blown", label: "Enclosed, windows blown out" },
+                { action: "limited", label: "Limited windows (camper): +4" }, { action: "enclosed", label: "Enclosed" }] });
+    if (!view) return null;
+    const sight = occupantSpellSight({ view, damagingManipulation });
+    if (!sight.ok) { ui.notifications.warn(`SR2E | ${target.name}: ${sight.why}.`); return null; }
+    // The dialog's cover box already counts Partial Cover: never twice (p.54 limited windows ARE that cover).
+    if (sight.tn && !hasCover) { tn += sight.tn; labels.push("Partial Cover +4 (p.54)"); }
+  }
+  if (mine && hasChase(mine.combat) && (mine.entry.speed ?? 0) > 0 && !sameVehicle && target?.uuid !== mine.entry.uuid) {
+    // Known outside: a tracked target not aboard this vehicle. Unknown (no target, an area): ask.
+    const outside = target && !area ? true : await foundry.applications.api.DialogV2.confirm({ window: { title: "Casting from a moving vehicle" },
+      content: "<p>Is the target outside the vehicle? (Rigger 2 p.55: moving vehicle modifiers apply only then)</p>", rejectClose: false });
+    if (outside) {
+      const m = movingCastTN({ terrain: mine.entry.terrain, combat: !!mine.combat.started });
+      if (m) { tn += m; labels.push(`moving vehicle +${m} (p.55)`); }
+    }
+  }
+  // Not in a tracked chase: the caster's own declaration in the spell dialog (p.55, against a target outside).
+  if (!mine && manual?.terrain) {
+    const m = movingCastTN({ terrain: manual.terrain, combat: !!manual.combat });
+    if (m) { tn += m; labels.push(`moving vehicle +${m} (p.55)`); }
+  }
+  return { tn, label: labels.join(", ") };
+}
+
+/** Returning to a body aboard a moving chase vehicle (p.55). True = back in the body (or no test needed). */
+export async function returnToMovingBody(actor) {
+  if (!isRigger2()) return true;
+  const hit = findAboard(actor.uuid);
+  if (hit && hasChase(hit.combat) && !((hit.entry.speed ?? 0) > 0)) return true;
+  // Not tracked in a chase: the player (or GM) says whether the body is in a moving vehicle.
+  if (!hit && !await foundry.applications.api.DialogV2.confirm({ window: { title: `${actor.name} returns to the body` },
+    content: "<p>Is the body in a MOVING vehicle? (Rigger 2 p.55: an Intelligence (8) Test to get back in)</p>", rejectClose: false }))
+    return true;
+  const r = await actor.rollSuccessTest(actor.system.intelligence?.value ?? 1, 8,
+    { label: `${actor.name} returns to a body in a moving vehicle (Rigger 2 p.55)`, closed: true });
+  if ((r?.successes ?? 0) > 0) return true;
+  ui.notifications.info(`SR2E | ${actor.name} misses the moving body and stays projecting: try again.`);
+  return false;
 }
 
 /* ── Registration ─────────────────────────────────────────────────────────────────────────────────────────────── */

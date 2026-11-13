@@ -2299,7 +2299,8 @@ export class SR2EActor extends Actor {
     // p.108 (and APDS, Sourcebook Updates p.277) — see vehicleHit. Under Rigger 2 (p.53) r2VehicleHit: Body dice vs the
     // armour-cut Power. The card's ruleset decides (cards made before 0.150.0 carry none: core).
     const netStaging = Number.isFinite(options.stageVs);
-    const r2 = cardRuleset(options) === "rigger2" && !options.manipulation;
+    // Rigger 2 p.54: a damaging manipulation is an ordinary weapon against a vehicle (level −1, Power − Armor; ≤ 0 → none).
+    const r2 = cardRuleset(options) === "rigger2";
     // The damage event this resolves (a card row, else the card).
     const eventId = options.resolvesRow ? `row-${options.resolvesRow.replace(/[^\w]/g, "_")}`
       : options.resolvesMessageId ? `card-${options.resolvesMessageId}` : null;
@@ -2311,7 +2312,9 @@ export class SR2EActor extends Actor {
       const prior = att ? game.messages.find(m => m.flags?.sr2e?.vresist?.attempt === att.id) : null;
       if (prior) {
         const v = prior.flags.sr2e.vresist, got = testTotalSuccesses(prior.flags.sr2e.test);
-        const idx = Number.isFinite(v.stageVs) ? stageByNet(v.startIdx, v.stageVs, got).idx : v.startIdx - netToSteps(got);
+        // A damaging manipulation needs MORE caster successes than the vehicle's (Rigger 2 p.53).
+        const idx = v.manipulation && Number.isFinite(v.stageVs) && got >= v.stageVs ? -1
+          : Number.isFinite(v.stageVs) ? stageByNet(v.startIdx, v.stageVs, got).idx : v.startIdx - netToSteps(got);
         const toVehicle = !v.component?.own || v.component.alsoVehicle;
         // Idempotent by the event's receipt: when the damage already landed this only posts the missing outcome card.
         const done = idx >= 0 && toVehicle ? await commitVehicleDamage(this, [1, 3, 6, 10][idx], { source: options.source ?? "weapon", eventId, woundLevel: stages0[idx], ruleset: "rigger2", attempt: att.id }) : null;
@@ -2342,7 +2345,7 @@ export class SR2EActor extends Actor {
       else component.own = component.body != null || component.armor != null;
     }
     const hBody = component?.body ?? body, hArmor = component?.armor ?? armor;
-    const hit = options.manipulation ? { none: null, armorUsed: armor, ...manipulationVsVehicle({ body, armor, power, level }) } : r2 ? r2VehicleHit({
+    const hit = options.manipulation && !r2 ? { none: null, armorUsed: armor, ...manipulationVsVehicle({ body, armor, power, level }) } : r2 ? r2VehicleHit({
       body: hBody, armor: hArmor, power, basePower, level, damageType: options.damageType ?? "physical",
       ratedLevel: netStaging ? (options.ratedLevel ?? level) : level, apds: !!options.apds, antiVehicle: !!options.antiVehicle
     }) : vehicleHit({
@@ -2384,7 +2387,7 @@ export class SR2EActor extends Actor {
     const stages = ["L", "M", "S", "D"];
     const startIdx = stages.indexOf(startLevel);
     const levelNote = r2
-      ? `Rigger 2 p.53: ${options.antiVehicle ? "anti-vehicle: level kept, armour counts half" : `level reduced one step${options.apds ? "; APDS: armour counts half" : ""}`}; Body${pr ? ` + ${pr} Professional Rating` : ""} dice against the Power less armour${hit.armorUsed ? ` (${hit.armorUsed})` : ""}.`
+      ? `Rigger 2 ${options.manipulation ? "p.54 (a damaging manipulation is a normal weapon)" : "p.53"}: ${options.antiVehicle ? "anti-vehicle: level kept, armour counts half" : `level reduced one step${options.apds ? "; APDS: armour counts half" : ""}`}; Body${pr ? ` + ${pr} Professional Rating` : ""} dice against the Power less armour${hit.armorUsed ? ` (${hit.armorUsed})` : ""}.`
       : options.manipulation
       ? "Damaging manipulation: no vehicle reduction of Power or Damage Level; Body + ½ armour against the full Power (SR2E p.109)."
       : options.antiVehicle
@@ -2464,6 +2467,7 @@ export class SR2EActor extends Actor {
     const resist = await this.rollSuccessTest(dice, tn, {
       paidPoolDice: paid ? { control: paid } : undefined,
       ...(attempt ? { flags: { sr2e: { vresist: { eventId, attempt, startIdx, stageVs: netStaging ? options.stageVs : null,
+        manipulation: !!options.manipulation,
         component: component ? { name: component.name, own: !!component.own, alsoVehicle: !!component.alsoVehicle, at: component.at } : null } } } } : {}),
       label: RL("VehicleResist", { name: this.name, power, level: startLevel, pool: paid ? RL("ControlPoolTag", { n: paid }) : "" }),
       isResistance: true
@@ -2476,7 +2480,9 @@ export class SR2EActor extends Actor {
     }
     // "Otherwise, resolving weapon damage is the same" (p.108): net staging on
     // a new-format card, down 1 level per 2 successes on an older one.
-    const finalIdx = netStaging
+    // Rigger 2 p.53: a spell takes effect only with MORE caster successes (a tie fails).
+    const spellBeaten = r2 && options.manipulation && netStaging && (resist?.successes ?? 0) >= options.stageVs;
+    const finalIdx = spellBeaten ? -1 : netStaging
       ? stageByNet(startIdx, options.stageVs, resist?.successes ?? 0).idx
       : startIdx - netToSteps(resist?.successes ?? 0);
     if (finalIdx < 0) {
@@ -2907,11 +2913,17 @@ export class SR2EActor extends Actor {
     if (!this.isOwner) return ui.notifications.warn(`You do not own ${this.name}.`);
     if (this.getFlag("sr2e", "departed")) return ui.notifications.warn(`${this.name} has departed.`);
     const label = game.i18n.localize(CONFIG.SR2E.spiritPowers[powerKey] ?? powerKey);
+    // Rigger 2 p.55: a nature spirit's power against someone in a chase vehicle — GM guidance on the card.
+    const aboard = isRigger2() && this.system.spiritType !== "elemental"
+      && [...(game.user.targets ?? [])].some(t => t.actor && findAboard(t.actor.uuid));
+    const domainNote = aboard ? `<br><em>Rigger 2 p.55: a vehicle and its passengers are in the domain they travel through. The
+      shaman needs no line of sight if both are in this spirit's domain; once the vehicle leaves it, the spirit can't act
+      against it (great and toxic nature spirits excepted); a shaman who leaves forfeits the remaining services.</em>` : "";
     const card = (note) => ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<div class="sr2e-item-card">
         <strong>${foundry.utils.escapeHTML(this.name)}</strong> uses
-        <strong>${foundry.utils.escapeHTML(label)}</strong> <em>(${note})</em>
+        <strong>${foundry.utils.escapeHTML(label)}</strong> <em>(${note})</em>${domainNote}
       </div>`
     });
     // While fighting for its summoner, a combat power is part of the paid fight

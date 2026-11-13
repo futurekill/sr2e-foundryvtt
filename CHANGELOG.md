@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.152.0 — 2026-11-13
+
+### Added
+- **Rigger 2 vehicles and magic** (R2 p.53–55; docs/PLAN-vehicles-phase2.md Part 3c, which completes Part 3):
+  - **Spells against vehicles**: a damaging manipulation is an ordinary weapon (level −1, Power less armour; it can
+    bounce off); a physical combat spell is an "inside-out" anti-vehicle attack: Force less HALF the armour, never
+    below TN 2, resisted with Body. Either way the spell needs MORE successes than the vehicle (a tie fails).
+  - **Spells at people inside**: someone in a chase vehicle can only be targeted with a clear line of sight (open
+    vehicle, or windows blown out; limited windows +4); enclosed occupants are safe from everything but damaging
+    manipulations. Area spells catch the vehicle and everyone in it.
+  - **Casting from a moving vehicle** at targets outside it: restricted +2, tight +4, combat +2 (p.55) — automatic in a
+    chase, or "From a moving vehicle" in the spell dialog otherwise.
+  - **Returning to a body in a moving vehicle** takes an Intelligence (8) Test; a miss stays projecting.
+  - A nature spirit's power card reminds the GM how domains work for vehicles (p.55).
+
 ## 0.151.0 — 2026-11-13
 
 ### Added

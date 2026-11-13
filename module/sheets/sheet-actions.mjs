@@ -2089,6 +2089,10 @@ async function promptSpellOptions(actor, spell) {
             ${focusSection}
             ${karmaDiceSection(actor, magicAttr)}
             ${miscDiceHTML()}
+            ${game.settings.get("sr2e", "vehicleRuleset") === "rigger2" ? `<div class="form-group" title="Rigger 2 p.55: from a moving vehicle at a target outside it (a chase vehicle is detected by itself)">
+              <label>From a moving vehicle:</label><select name="moving_vehicle"><option value="">no</option><option value="open">open/normal terrain</option>
+              <option value="restricted">restricted (+2)</option><option value="tight">tight (+4)</option></select>
+              <label><input type="checkbox" name="moving_combat"> combat (+2)</label></div>` : ""}
           </section>
         </div>
       </div>
@@ -2153,6 +2157,7 @@ async function promptSpellOptions(actor, spell) {
               tokenUuid: r.tokenUuid, force: Number(el[`split_force_${i}`]?.value) || 0,
               pool: Number(el[`split_pool_${i}`]?.value) || 0, drainPool: Number(el[`split_drain_${i}`]?.value) || 0,
               karma: Number(el[`split_karma_${i}`]?.value) || 0 })) } : {}),
+            ...(el.moving_vehicle?.value ? { movingVehicle: { terrain: el.moving_vehicle.value, combat: !!el.moving_combat?.checked } } : {}),
             // Misc applies to the CASTING test only; the Drain roll never sees it.
             ...readMiscDice(button.form)
           };
@@ -2203,7 +2208,7 @@ async function onCastSpell(event, target) {
     resolvedDrainLevel: opts.resolvedDrainLevel,
     drainSubjectNote: opts.drainSubjectNote,
     miscDice: opts.miscDice, miscLabel: opts.miscLabel,
-    combatTargets: opts.combatTargets, ramRating: opts.ramRating, split: opts.split
+    combatTargets: opts.combatTargets, ramRating: opts.ramRating, split: opts.split, movingVehicle: opts.movingVehicle
   });
 }
 
@@ -4599,6 +4604,11 @@ const SHARED_ACTIONS = {
     const order = noProject ? ["none", "perceiving"] : ["none", "perceiving", "projecting"];
     const cur = this.document.system.astralState ?? "none";
     const next = order[(order.indexOf(cur) + 1) % order.length];
+    // Rigger 2 p.55: returning to a body in a MOVING chase vehicle takes an Intelligence (8) Test; a miss tries again.
+    if (cur === "projecting") {
+      const { returnToMovingBody } = await import("../chase.mjs");
+      if (!await returnToMovingBody(this.document)) return;
+    }
     await this.document.update({ "system.astralState": next });
     if (next !== "none") {
       ChatMessage.create({

@@ -11,6 +11,7 @@
 import { once } from "./claims.mjs";
 import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
 import { commitVehicleDamage } from "./vehicle-play.mjs";
+import { r2CombatSpellTN } from "./rules/vehicle-combat-rules.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { targetTokens } from "./targeting.mjs";
 import { normActorUuid, grantsFor, defenceBalance, defenceSplit, defenseQueue, attackResolved } from "./spell-defense.mjs";
@@ -370,6 +371,8 @@ export async function resistCombatSpell(actor, message) {
   const kind = state.kind || targetKindOf(actor.type);
   const vehicle = kind === "vehicle";
   if (vehicle && state.dmgType === "stun") return ui.notifications.warn("Stun combat spells don't affect vehicles (SR2E p.109).");
+  // Rigger 2 p.53–54 (the card's ruleset): Body dice against Force − ½ armour (min 2), and only MORE caster successes hurt.
+  const r2v = vehicle && message.flags?.sr2e?.vehicleRuleset === "rigger2";
   const attr = vehicle ? "vehicle" : state.resistAttr === "willpower" ? "willpower" : "body";
   // Any magician with a Magic Pool may add unused dice (p.129); a vehicle has none.
   const mpAvailNow = () => (!vehicle && ["character", "npc"].includes(actor.type)) ? Math.max(0, actor.system.dicePools?.magic?.value ?? 0) : 0;
@@ -432,7 +435,9 @@ export async function resistCombatSpell(actor, message) {
       ...(mp > 0 ? { "system.dicePools.magic.value": p.magic.value - mp } : {}),
       [`flags.sr2e.spellRes.${rid}`]: { key, castSuccesses, own, mp, grantIds: grants.map(g => g.id), at: game.time.serverTime }
     });
-    const base = vehicle ? (Number(actor.system.body) || 0) + Math.floor((Number(actor.system.effectiveArmor) || 0) / 2) : (actor.system[attr]?.value ?? 1);
+    const base = r2v ? (Number(actor.system.body) || 0)
+      : vehicle ? (Number(actor.system.body) || 0) + Math.floor((Number(actor.system.effectiveArmor) || 0) / 2) : (actor.system[attr]?.value ?? 1);
+    const resistTN = r2v ? r2CombatSpellTN(state.force, actor.system.effectiveArmor) : state.force;
     let dice = base + own + mp + granted;
     let notes = (own ? RL("SpellDefenseTag", { n: own }) : "") + (mp ? RL("MagicPoolTag", { n: mp }) : "")
       + grants.map(g => RL("SpellDefenseFromTag", { n: g.n, name: g.magicianName })).join("");
@@ -448,15 +453,16 @@ export async function resistCombatSpell(actor, message) {
     }
 
     // 4. The resistance test, closed to after-the-fact Karma (it would not re-stage).
-    const resist = await actor.rollSuccessTest(dice, state.force, {
-      label: RL("ResistSpell", { spell: state.spellName, attr: vehicle ? "Body + ½ armor" : AL(attr), notes, tn: state.force }),
+    const resist = await actor.rollSuccessTest(dice, resistTN, {
+      label: RL("ResistSpell", { spell: state.spellName, attr: r2v ? "Body" : vehicle ? "Body + ½ armor" : AL(attr), notes, tn: resistTN }),
       isResistance: true, closed: true, flags: { sr2e: { spellResTest: key } },
       ...(attr === "body" ? actor._bodyTestOpts() : {})
     });
     await actor.update({ [`flags.sr2e.spellRes.${rid}.resistTestId`]: resist?.testMessageId ?? "" });
 
     // 5. Damage with its receipt.
-    const out = combatSpellOutcome({ casterSuccesses: castSuccesses, resistSuccesses: resist?.successes ?? 0, baseLevel: state.baseLevel });
+    const out = combatSpellOutcome({ casterSuccesses: castSuccesses, resistSuccesses: resist?.successes ?? 0, baseLevel: state.baseLevel,
+      tieFails: r2v });
     const receipt = { [`flags.sr2e.spellRes.${rid}.damaged`]: out.affected ? out.boxes : 0 };
     const skipIf = () => recordOf(actor, rid)?.damaged != null;
     let landed = null;

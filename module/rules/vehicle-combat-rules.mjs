@@ -324,3 +324,24 @@ export const terrainControlCap = (skill, terrain = "normal") =>
 
 /** Attacks against passengers (p.53): Power − the higher of the vehicle's Armor and Body; no level change. */
 export const passengerShotPower = ({ power, armor = 0, body = 0 }) => Math.max(0, power - Math.max(armor, body));
+
+/* ── Part 3c: vehicles and magic (R2 p.53–55) ────────────────────────────────────────────────────────────────── */
+
+/** A physical combat spell against a vehicle (p.54): an "inside-out" AV attack, Force − ⌊Armor ÷ 2⌋, never below 2. */
+export const r2CombatSpellTN = (force, armor) => Math.max(2, (Number(force) || 0) - Math.floor((Number(armor) || 0) / 2));
+
+/** Moving Vehicle Spell Modifiers Table (p.55): casting from a moving vehicle at a target OUTSIDE it. */
+export function movingCastTN({ terrain = "normal", combat = false }) {
+  return ({ open: 0, normal: 0, restricted: 2, tight: 4 }[terrain] ?? 0) + (combat ? 2 : 0);
+}
+
+/**
+ * Spells at characters in vehicles (p.54–55): open vehicles are fair game; an enclosed occupant can only be hit by a
+ * damaging manipulation, unless the windows are blown out (clear view; limited windows +4 Partial Cover).
+ * view: "open" | "enclosed" | "blown" | "limited" → {ok, tn, why}
+ */
+export function occupantSpellSight({ view = "open", damagingManipulation = false }) {
+  if (damagingManipulation || view === "open" || view === "blown") return { ok: true, tn: 0, why: "" };
+  if (view === "limited") return { ok: true, tn: 4, why: "limited windows: Partial Cover +4" };
+  return { ok: false, tn: 0, why: "an enclosed occupant can't be seen: only a damaging manipulation reaches them (Rigger 2 p.54)" };
+}

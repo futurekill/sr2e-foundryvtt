@@ -13339,6 +13339,45 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Vehicles and magic (R2 p.53–55)", () => {
+        it("spells at occupants need a line of sight; a moving caster adds the terrain modifier against targets outside", async () => {
+          const { gmCall, vehicleSpellMods } = await mods();
+          const { combat, A, B, da } = await chase({ speedA: 100 });
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { terrain: "tight" } });
+          const mage = await driver("Quench R2 Mage"), victim = await driver("Quench R2 Victim");
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { aboard: [mage.uuid] } });
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: B, patch: { aboard: [victim.uuid] } });
+          const api = foundry.applications.api.DialogV2, w0 = api.wait;
+          try {
+            api.wait = async () => "enclosed";
+            assert.isNull(await vehicleSpellMods(mage, victim), "an enclosed occupant can't be targeted");
+            assert.isOk(await vehicleSpellMods(mage, victim, { damagingManipulation: true }), "a damaging manipulation can");
+            api.wait = async () => "limited";
+            const m = await vehicleSpellMods(mage, victim);
+            assert.equal(m.tn, 4 + 4 + 2, "limited windows +4; tight +4; combat environment +2");
+          } finally { api.wait = w0; }
+          const own = await vehicleSpellMods(da, mage);
+          assert.equal(own.tn, 0, "a target aboard the same vehicle: no modifier");
+        });
+        it("returning to a body in a moving vehicle: Intelligence (8); a miss stays projecting", async () => {
+          const { gmCall, returnToMovingBody } = await mods();
+          const { combat, A } = await chase({ speedA: 100 });
+          const mage = await driver("Quench R2 Projector");
+          await gmCall("chaseEditEntry", { combatId: combat.id, eid: A, patch: { aboard: [mage.uuid] } });
+          assert.isFalse(await faces(0.99, () => returnToMovingBody(mage)));
+          await gmCall("chaseSetSpeed", { combatId: combat.id, eid: A, speed: 0 });
+          assert.isTrue(await returnToMovingBody(mage), "parked: no test");
+        });
+        it("a damaging manipulation is a normal weapon: Power at or below the armour does nothing", async () => {
+          const v = await car("Quench R2 Manip Target", { armor: 6 });
+          const before = game.messages.size;
+          await v.rollVehicleDamageResistance(6, "S", { manipulation: true, ruleset: "rigger2" });
+          assert.match(game.messages.contents.at(-1).content, /No penetration/);
+          assert.isAbove(game.messages.size, before);
+          assert.equal(v.system.conditionMonitor.value, 0);
+        });
+      });
+
       describe("Damage (R2 p.49–53)", () => {
         const stub = async (fns, fn) => {
           const api = foundry.applications.api.DialogV2, saved = {};
