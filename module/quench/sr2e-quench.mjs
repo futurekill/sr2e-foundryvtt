@@ -18728,6 +18728,32 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Missiles with a blast warhead (every core missile)", function () {
+        it("the core Anti-Vehicle Missile launches from a vehicle and its Phase 0 test rolls", async function () {
+          this.timeout(30000);
+          const S = await mods(), M = await import("../vehicle-missiles.mjs");
+          const A = await mk("Quench Blast Launcher", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]), B = await mk("Quench Blast Target");
+          const scene = await sceneWith([A, 100], [B, 600]);
+          const pc = await Actor.create({ name: "Quench Blaster", type: "character" }); made.push(pc);
+          await pc.createEmbeddedDocuments("Item", [{ name: "Gunnery", type: "skill", system: { rating: 4, category: "active" } }]);
+          const src = (await game.packs.get("sr2e.weapons").getDocuments()).find(d => d.name === "Anti-Vehicle Missile").toObject();
+          assert.ok(src.system.blastType, "a blast weapon");
+          const [gun] = await A.createEmbeddedDocuments("Item", [src]);
+          const combat = await Combat.create({ scene: scene.id, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: A.id, tokenId: scene.tokens.find(t => t.actorId === A.id).id, sceneId: scene.id }]);
+          await combat.update({ round: 1 });
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          await gun._rollWeaponAttack({ gunner: pc, gunneryMode: "launch", launchMode: "fireAndForget", r2: {},
+            _engage: { key: "quench-blast", token: { uuid: scene.tokens.find(t => t.actorId === B.id).uuid } } });
+          const [l] = Object.values(M.launchesOf(A));
+          assert.equal(l?.payload?.guided?.intelligence, 4, "core p.255: Intelligence 4");
+          await combat.advanceRound(1);
+          await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
+          assert.equal(M.launchesOf(A)[l.id].state, "resolved");
+          assert.ok(M.launchesOf(A)[l.id].messageId, "the Missile Attack Test card");
+        });
+      });
+
       describe("Indirect fire (Part 4b.5, R2 p.60)", function () {
         const until = async (fn, n = 80) => { for (let i = 0; i < n && !fn(); i++) await new Promise(r => setTimeout(r, 100)); return fn(); };
         const setup = async (tag) => {

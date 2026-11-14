@@ -230,10 +230,14 @@ export async function rollPhase0({ holderUuid, launchId }, { pool: given = null 
     damageType: p.damageType, blastType: p.blastType, ammo: { max: 0, current: 0, type: p.ammoType, loadedName: p.ammoName,
       damageMod: p.damageMod, armorMod: p.armorMod, armorCalc: p.armorCalc, damageType: p.ammoDamageType, material: p.material, guided: p.guided } } },
   { parent: gunner });
+  // A blast warhead (every core missile) resolves through the core blast path, aimed at the target's token (p.96).
+  const tokDoc = l.targetTokenUuid ? fromUuidSync(l.targetTokenUuid) : null;
+  const center = tokDoc ? { x: tokDoc.x + (tokDoc.width * (tokDoc.parent?.grid?.size ?? 100)) / 2, y: tokDoc.y + (tokDoc.height * (tokDoc.parent?.grid?.size ?? 100)) / 2 } : null;
+  const aim = p.blastType && tokDoc ? { mode: "token", tokenUuid: tokDoc.uuid, sceneId: tokDoc.parent?.id ?? null, ...center } : null;
   const before = new Set(game.messages.map(m => m.id));
   await weapon._rollWeaponAttack({ gunner, gunneryMode: "missile", launch: l, firingVehicleUuid: l.sourceVehicleUuid,
-    poolDice: pool ? { combat: pool } : undefined, firingMode: "ss",
-    _engage: { key: `missile:${launchId}`, token: l.targetTokenUuid ? { uuid: l.targetTokenUuid } : null } });
+    poolDice: pool ? { combat: pool } : undefined, firingMode: "ss", range: "short", rangeExplicit: true,   // the TN is the Signature's, not a bracket
+    _engage: { key: `missile:${launchId}`, token: tokDoc ? { uuid: tokDoc.uuid, sceneId: tokDoc.parent?.id ?? null, ...center } : null, aim } });
   const msg = game.messages.contents.filter(m => !before.has(m.id)).find(m => m.getFlag("sr2e", "test"));
   await gmCall("missileDone", { holderUuid, launchId, messageId: msg?.id ?? "" });
   resume();
