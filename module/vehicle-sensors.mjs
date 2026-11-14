@@ -21,6 +21,7 @@ import { enqueueAttack } from "./engagement.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 import { activeChases, chaseOf } from "./chase-state.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
+import { critterSignature } from "./rules/vehicle-gunnery-rules.mjs";
 import { sensorComponents, sensorTestTN, sensorResult, baseFlux, modifiedFlux, fluxRange, boostProblems, deviceBoost,
   ecmEffect, edEffect, maxEffect } from "./rules/vehicle-sensor-rules.mjs";
 
@@ -373,7 +374,9 @@ export function baseSignature(target, gmValue = null) {
   if (Number.isFinite(gmValue)) return gmValue;
   if (target?.type === "vehicle") return target.system.effectiveSignature ?? target.system.signature ?? 0;
   if (target?.type === "character") return 6;
-  return null;   // critters and NPCs: the GM's value (4b.7)
+  // NPCs (4b.7, p.61): a critter on the Critter Signature Ratings Table by name; a metahuman 6; else the GM's value.
+  if (target?.type === "npc") return critterSignature(target.name) ?? (["human", "dwarf", "elf", "ork", "troll"].includes(target.system.race) ? 6 : null);
+  return null;
 }
 
 /** Bump generations (the caller holds the vehicle's queue). */
