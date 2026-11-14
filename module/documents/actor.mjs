@@ -1,4 +1,5 @@
 import { isRigger2 } from "../vehicle-mode.mjs";
+import { spottingTnMod } from "../vehicle-indirect.mjs";
 import { vcrPerCircle } from "../rules/vehicle-r2-rules.mjs";
 import { neuralWillpower } from "../rules/quality-rules.mjs";
 /**
@@ -509,6 +510,8 @@ export class SR2EActor extends Actor {
     const rigged = !!sys.rigging && (sys.vehicleControlRig ?? 0) > 0;   // a VCR switched off isn't rigging
     if (q["simsense-vertigo"] && (rigged || sys.matrixMode || sys.usingSimsense || ctx.smartlink)) parts.push(["Simsense Vertigo", 1]);
     if (q["computer-illiterate"] && (ctx.electronic || ctx.kind === "matrix" || /^(computer|electronics)/.test(key))) parts.push(["Computer Illiterate", 1]);
+    // A spotter keeping a target designated for a missile in flight: +2 to all OTHER Success Tests (R2 p.60).
+    if (isRigger2() && ctx.kind !== "indirectFire" && spottingTnMod(this)) parts.push(["spotting (R2 p.60)", 2]);
     return parts;
   }
 

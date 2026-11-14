@@ -220,6 +220,18 @@ export function lockOn(vehicle, target) {
   return lock;
 }
 
+/** A contact's dependency stamp (4b.5 guidance; same as a lock's): the device, the link to the target, the hide. */
+export function contactDeps(vehicle, deviceId, target) {
+  return { device: devGen(vehicle, deviceId), link: linkGen(vehicle, deviceId, target), hide: hideState(vehicle, target).gen };
+}
+/** Is a vehicle's recorded contact (deps from contactDeps) still unbroken (R4-2)? */
+export function contactOk(vehicle, deviceId, target, deps) {
+  if (!deps || !transmitterOf(vehicle, deviceId)) return false;
+  if (devGen(vehicle, deviceId) !== deps.device || linkGen(vehicle, deviceId, target) !== deps.link) return false;
+  const h = hideState(vehicle, target);
+  return h.inContact && h.gen === deps.hide;
+}
+
 /** The valid BASE ECM record of jammer J against observer O (the jam itself, without its ECCM layer), or null. */
 function jamBase(jammer, observer) {
   const ev = jammer.getFlag("sr2e", "jamEvent"), vs = jammer.getFlag("sr2e", "jamVs")?.[keyOf(observer)];
@@ -436,6 +448,7 @@ function brokenLinks(vehicle, positions = null) {
   const ev = vehicle.getFlag("sr2e", "jamEvent");
   for (const vs of Object.values(vehicle.getFlag("sr2e", "jamVs") ?? {})) if (ev) records.push({ deviceId: ev.deviceId, recipient: vs.observerUuid });
   for (const rec of Object.values(vehicle.getFlag("sr2e", "edVs") ?? {})) records.push({ deviceId: rec.deviceId, recipient: rec.observerUuid });
+  for (const g of Object.values(vehicle.getFlag("sr2e", "guidance") ?? {})) if (g.deviceId && !["ended", "lost"].includes(g.state)) records.push({ deviceId: g.deviceId, recipient: g.targetUuid });
   const broken = new Set();
   for (const { deviceId, recipient } of records) {
     const other = recipient && fromUuidSync(recipient);
@@ -458,7 +471,8 @@ function sweepAround(vehicle, positions = null) {
   for (const v of allVehicles()) {
     const f = v.flags?.sr2e ?? {};
     const involved = v.uuid === uuid || Object.values(f.locks ?? {}).some(l => l.targetUuid === uuid)
-      || Object.values(f.jamVs ?? {}).some(r => r.observerUuid === uuid) || Object.values(f.edVs ?? {}).some(r => r.observerUuid === uuid);
+      || Object.values(f.jamVs ?? {}).some(r => r.observerUuid === uuid) || Object.values(f.edVs ?? {}).some(r => r.observerUuid === uuid)
+      || Object.values(f.guidance ?? {}).some(g => g.targetUuid === uuid);
     if (!involved) continue;
     const seen = brokenLinks(v, positions);
     vq(v.uuid, () => sweepVehicle(v, positions, seen)).catch(err => console.error("SR2E | ew sweep", err));

@@ -1050,6 +1050,10 @@ export class SR2EItem extends Item {
       // Called shot +4 (p.92) and Take Aim −1 each (p.82). Barrier blind fire
       // REPLACES the visibility value rather than stacking with it (p.98).
       const calledShotMod_ = options.calledShot ? CALLED_SHOT_TN : 0;
+      // R2 p.60: a spotter holding a target designator on a missile's target who attacks with another weapon takes the
+      // Second Firearm modifier (core p.90, +2) — on top of the spotting +2 every other test takes (riggerTnParts).
+      const designatorMod_ = isRigger2() && (await import("../vehicle-indirect.mjs")).designatorBusy(actor) ? 2 : 0;
+      if (designatorMod_) modParts.push("second firearm: holding a designator (R2 p.60, core p.90) +2");
       const aimCut_ = aimTnReduction(options.aimActions ?? 0, skillRating);
       const barrierBlind_ = (options.barrierRating > 0 && options.barrierMode !== "break"
                              && !options.barrierTransparent) ? 8 : 0;
@@ -1059,7 +1063,7 @@ export class SR2EItem extends Item {
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + speedMod + meleeMod + otherMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
                 + effVis_ + spreadMod + defaultingPenalty
-                + calledShotMod_ - aimCut_ + eng.tnMod + (r2?.mode === "manual" ? r2.extra : 0)
+                + calledShotMod_ - aimCut_ + eng.tnMod + (r2?.mode === "manual" ? r2.extra : 0) + designatorMod_
       );
       if (r2?.mode === "manual") for (const p of r2.extraParts) modParts.push(`${p.label} ${p.value > 0 ? "+" : ""}${p.value} (R2 p.57)`);
       // Sensor-enhanced (p.58): the target's Signature + the EW term + the table; recoil as manual; min 2. The p.89
@@ -2385,8 +2389,9 @@ export class SR2EItem extends Item {
  * VALID lock on the target (4a.2; R4-2), and every number is read from live documents.
  */
 async function r2GunneryContext(weapon, actor, options, engage) {
-  if (!isRigger2() || !["manual", "sensor", "missile"].includes(options.gunneryMode)) return null;
+  if (!isRigger2() || !["manual", "sensor", "missile", "indirect"].includes(options.gunneryMode)) return null;
   if (options.gunneryMode === "missile") return missileContext(options.launch);
+  if (options.gunneryMode === "indirect") return indirectContext(options);
   const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent
     : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
   const vehicleDamage = vehicle?.system?.damageTnMod ?? 0;
@@ -2426,11 +2431,12 @@ async function missileContext(l) {
   if (signature == null) return { refused: `the GM must set ${target.name}'s Signature (R2 p.61)` };
   const intelligence = l.payload.guided?.intelligence ?? 0;
   const sensorHalf = l.mode === "continuous" ? Math.floor((S.sensorOf(source)?.rating ?? 0) / 2) : 0;
+  const spotter = l.mode === "indirect" ? (l.spotterSuccesses ?? 0) : 0;   // p.60: + the spotter's successes
   const exp = l.exposures ?? [];
   const ewTerm = exp.reduce((m, e) => Math.max(m, e.effect ?? 0), 0);
   return { mode: "missile", mount: "", vehicleDamage: source?.system?.damageTnMod ?? 0, signature, ewTerm,
-    urban: !!l.r2?.urban, los: l.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: intelligence + sensorHalf,
-    diceNote: `Intelligence ${intelligence}${sensorHalf ? `, ½ Sensor ${sensorHalf}` : ""}`,
+    urban: !!l.r2?.urban, los: l.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: intelligence + sensorHalf + spotter,
+    diceNote: `Intelligence ${intelligence}${sensorHalf ? `, ½ Sensor ${sensorHalf}` : ""}${spotter ? `, spotter ${spotter}` : ""}`,
     exposureNote: exp.length ? `ECM crossed: ${exp.map(e => `${e.jammer} +${e.effect ?? 0}${e.needsGm ? " (no missile Sensor: the GM's call)" : ""}`).join("; ")}` : "" };
 }
 
@@ -2450,9 +2456,10 @@ async function continuousCommitment(weapon, actor, options, engage) {
 async function launchMissile(weapon, actor, options, engage) {
   const warn = (m) => ui.notifications.warn(`${weapon.name}: ${m}`);
   const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
-  if (!vehicle) return warn("a missile launch needs the firing vehicle's sensors (Rigger 2 p.59)");
   if (weapon.system.ammo?.guided?.kind !== "missile") return warn("it isn't loaded with a guided missile");
-  const combat = game.combats.find(c => c.started && c.combatants.some(x => [actor.uuid, vehicle.uuid].includes(x.actor?.uuid))) ?? game.combat;
+  if (options.launchMode === "indirect") return launchIndirect(weapon, actor, options, vehicle);
+  if (!vehicle) return warn("a missile launch needs the firing vehicle's sensors (Rigger 2 p.59)");
+  const combat = launchCombat(actor, vehicle);
   if (!combat?.started || !(combat.round >= 1)) return warn("missiles strike at the end of the Combat Turn: start the combat first (Rigger 2 p.59)");
   const tokenUuid = engage?.token?.uuid ?? null, target = tokenUuid ? fromUuidSync(tokenUuid)?.actor : null;
   if (!target) return warn("target the token to launch at");
@@ -2467,3 +2474,49 @@ async function launchMissile(weapon, actor, options, engage) {
         ...(game.user.isGM && Number.isFinite(options.r2?.signature) ? { signature: options.r2.signature } : {}) } });
   } catch (err) { return warn(err.message); }
 }
+
+/** The launch combat for this shooter: the started combat holding it, else the viewed one. */
+const launchCombat = (actor, vehicle) => game.combats.find(c => c.started && c.combatants.some(x => [actor.uuid, vehicle?.uuid].includes(x.actor?.uuid))) ?? game.combat;
+
+/** An indirect missile launch (p.60): the weapon fires on a spotter's lock — no line of sight or lock of its own. */
+async function launchIndirect(weapon, actor, options, vehicle) {
+  const warn = (m) => ui.notifications.warn(`${weapon.name}: ${m}`);
+  const ref = options.guidanceRef, spotter = ref?.spotterUuid ? fromUuidSync(ref.spotterUuid) : null;
+  const { guidanceOf, indirectEquipment } = await import("../vehicle-indirect.mjs");
+  const g = guidanceOf(spotter)[ref?.id];
+  if (!g || !["acquired", "committed"].includes(g.state)) return warn("pick a spotter's target lock (the Indirect Fire Test, Rigger 2 p.60)");
+  if (g.route === "fddm") {
+    const eq = indirectEquipment({ spotter, weaponActor: weapon.parent, deckOwner: actor.type === "character" ? actor : null });
+    if (!eq.ok && !game.user.isGM) return warn(`indirect fire needs a BattleTac FDDM on ${eq.missing.join(", ")} (Rigger 2 p.60)`);
+  }
+  const combat = launchCombat(actor, vehicle);
+  if (!combat?.started || !(combat.round >= 1)) return warn("missiles strike at the end of the Combat Turn: start the combat first (Rigger 2 p.59)");
+  const holder = vehicle ?? weapon.parent ?? actor;
+  try {
+    await gmCall("missileLaunch", { combatId: combat.id, round: combat.round, launchId: foundry.utils.randomID(16), weaponUuid: weapon.uuid,
+      holderUuid: holder.uuid, gunnerUuid: actor.uuid, sourceVehicleUuid: vehicle?.uuid ?? holder.uuid, targetUuid: g.targetUuid,
+      targetTokenUuid: g.targetTokenUuid ?? "", mode: "indirect", guidance: { spotterUuid: spotter.uuid, id: g.id },
+      r2: { los: options.r2?.los ?? "interrupted", urban: !!options.r2?.urban } });
+  } catch (err) { return warn(err.message); }
+}
+
+/**
+ * Non-missile indirect fire (p.60, the plan's stated reading): the firer's Gunnery Test resolved WHEN FIRED with the
+ * Sensor-Enhanced Targeting modifiers + the spotter's successes, no Combat Pool; the missile-only terms are 0. The
+ * spotting then ends (no commitment).
+ */
+async function indirectContext(options) {
+  const ref = options.guidanceRef, spotter = ref?.spotterUuid ? fromUuidSync(ref.spotterUuid) : null;
+  const I = await import("../vehicle-indirect.mjs");
+  const g = I.guidanceOf(spotter)[ref?.id];
+  if (!g || !(await I.guidanceValid(g))) return { refused: "the spotter has no valid lock on the target (Rigger 2 p.60)" };
+  const S = await import("../vehicle-sensors.mjs");
+  const target = fromUuidSync(g.targetUuid);
+  const signature = S.baseSignature(target, game.user.isGM && Number.isFinite(options.r2?.signature) ? options.r2.signature : null);
+  if (signature == null) return { refused: `the GM must set ${target?.name}'s Signature (R2 p.61)` };
+  options.poolDice = undefined;   // p.60: no Combat Pool
+  gmCall("guidanceEnd", { spotterUuid: spotter.uuid, guidanceId: g.id }).catch(() => {});
+  return { mode: "missile", mount: "", vehicleDamage: 0, signature, ewTerm: 0, urban: !!options.r2?.urban,
+    los: options.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: g.successes, diceNote: `spotter ${g.successes}, indirect fire` };
+}
+

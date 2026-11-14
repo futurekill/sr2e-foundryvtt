@@ -25,7 +25,7 @@ export class SensorPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     window: { title: "Sensors", icon: "fas fa-satellite-dish", resizable: true },
     position: { width: 620, height: 640 },
     actions: { test: SensorPanel.#test, toggle: SensorPanel.#toggle, condition: SensorPanel.#condition, boosts: SensorPanel.#boosts,
-      clear: SensorPanel.#clear, upgrade: SensorPanel.#upgrade, port: SensorPanel.#port }
+      clear: SensorPanel.#clear, upgrade: SensorPanel.#upgrade, port: SensorPanel.#port, indirect: SensorPanel.#indirect }
   };
   static PARTS = { body: { template: "systems/sr2e/templates/apps/sensor-panel.hbs", scrollable: [".sensor-body"] } };
 
@@ -85,6 +85,7 @@ export class SensorPanel extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static #test() { return promptSensorTest(this.vehicle); }
+  static async #indirect() { return (await import("../vehicle-indirect.mjs")).promptIndirectFire(this.vehicle); }
   static #toggle(_e, el) { return toggleEw(this.vehicle, el.dataset.device, el.dataset.on === "1"); }
   static #condition(_e, el) {
     const id = el.dataset.device, row = this.element.querySelectorAll(`[data-cond-for="${id}"]`);

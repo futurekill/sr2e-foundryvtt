@@ -104,6 +104,7 @@ import { registerVehicleDamage, bindVehicleDamageCard } from "./vehicle-damage.m
 import { registerVehicleSensors } from "./vehicle-sensors.mjs";
 import { registerAmmoQueue } from "./vehicle-ammo.mjs";
 import { registerMissiles } from "./vehicle-missiles.mjs";
+import { registerIndirect } from "./vehicle-indirect.mjs";
 
 /**
  * Delete every world document a Quench run leaves behind. Quench doesn't clean
@@ -531,6 +532,7 @@ Hooks.once("init", async () => {
   registerVehicleSensors();
   registerAmmoQueue();
   registerMissiles();
+  registerIndirect();
 
   // Register in-Foundry integration tests (no-op unless the Quench module is on).
   registerSR2EQuenchTests();
