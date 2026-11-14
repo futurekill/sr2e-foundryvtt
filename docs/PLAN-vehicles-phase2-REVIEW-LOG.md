@@ -1034,3 +1034,10 @@ the rigger's Success Tests from the live primary connection, the channel counted
    loss) and the commit re-checks live reachability under the locks.
 2. Taken: `riggedInto` = primary AND live eligibility; eligibility loss (jack-out, VCR off/removed, deck unequipped) is an
    `rc-control` op that clears primary and bumps the deck rev; the sheet's toggle becomes its request.
+
+## Part 5 plan, round 15 — Codex (draft 15, fresh session): REVISE, 1 finding
+1. The round-13 resolution applies simsense jamming to resistance tests too; a damage modifier is exempt there.
+
+### Claude's response (draft 16)
+Taken: the damage-like simsense term is applied where the Injury Modifier is (`testTnModifiers`, beside `woundPenalty`),
+under the same exemptions, not through `riggerTnParts`.
