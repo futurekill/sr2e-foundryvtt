@@ -18923,6 +18923,22 @@ export function registerSR2EQuenchTests() {
           assert.equal(V.getFlag("sr2e", "fuelOut").state, "stopped");
           assert.equal(combat.getFlag("sr2e", "chase").entries.e1.speed, 0);
         });
+        it("an idle drone in combat burns 3 s of Idle Economy per Turn on its logical clock, once", async function () {
+          const D = await mk("Quench Idle Drone", { vehicleType: "drone", economy: 10, economyIdle: "1 hour/liter", fuelSize: 2 });
+          const M = await F();
+          await call("fuelMode", { vehicleUuid: D.uuid, mode: "idle" });
+          const combat = await Combat.create({ active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: D.id }]);
+          await M.fuelChaseStage(combat, 1);
+          await M.fuelChaseStage(combat, 1);   // a resumed round change: nothing twice
+          await M.fuelChaseStage(combat, 2);
+          assert.closeTo(M.fuelLeft(D), 2 - 6 / 3600, 1e-3, "two Turns = 6 s at 1 hour per litre");
+          assert.equal(D.getFlag("sr2e", "fuelClock").combatId, combat.id);
+          const L = D.getFlag("sr2e", "fuelClock").L;
+          await combat.delete(); combats.pop();
+          await new Promise(r => setTimeout(r, 300));
+          assert.closeTo(M.logicalNow(D), L, 1e-6, "leaving the combat, the logical clock continues from where it left");
+        });
         it("fuel grades change Acceleration and Economy (derived)", async function () {
           const V = await mk("Quench Premium", { economy: 10, acceleration: 8, fuelSize: 50 });
           await V.update({ "flags.sr2e.fuelGrade": { grade: "premium", custom: 0 } });
