@@ -10,7 +10,7 @@
  *     ONE actor update with its receipt `flags.sr2e.dmgReceipts.<key> = <effectId>`; a card found without its receipt
  *     is applied from the card, never re-rolled.
  */
-import { gmCall, gmOp, controllerOf, isPoolClient, commitVehicleDamage, setFollowupDelivery, followId, mayResistFor } from "./vehicle-play.mjs";
+import { gmCall, gmOp, controllerOf, isPoolClient, commitVehicleDamage, setFollowupDelivery, followId, mayResistFor, adjustStress } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -60,7 +60,7 @@ async function openCrash(vehicle, fid, x) {
   // Who is aboard is snapshotted NOW (Codex 3b R1 #13); a speed of null = not in a chase, entered on the card.
   await vehicle.update({ [`flags.sr2e.crashes.${foundry.utils.randomID(16)}`]: { fid, kind: x.kind, ruleset: x.ruleset ?? "core",
     speed: x.speed == null ? null : Number(x.speed) || 0, why: x.why ?? "", state: x.kind === "test" ? "open" : "crashed",
-    occupants: aboardOf(vehicle), ...extra } });
+    occupants: aboardOf(vehicle), ...(x.cause ? { cause: x.cause } : {}), ...extra } });
 }
 
 function postFollowup(vehicle, fid, kind, x, tag) {
@@ -160,13 +160,18 @@ async function crashOp({ vehicleUuid, cid, step, op, attemptId = null, messageId
       if (step === "test") {
         // A Crash Test with no success crashes the vehicle (core p.107, Rigger 2 p.51).
         upd[`${base}.state`] = read > 0 ? "done" : "crashed";
+        // An aircraft out of fuel (R2 p.82, optional r2Fuel): success = an emergency landing at the end of its
+        // deceleration — the vehicle resists 6L and takes 1D6 Stress; "no damage occurs to passengers or cargo".
+        if (read > 0 && c.cause === "fuel") Object.assign(upd, { [`${base}.state`]: "crashed", [`${base}.kind`]: "impact",
+          [`${base}.power`]: 6, [`${base}.level`]: "L", [`${base}.stop`]: true, [`${base}.noOccupants`]: true,
+          [`${base}.why`]: "makes an emergency landing (Rigger 2 p.82)", [`${base}.emergency`]: true });
       } else {
         const r2 = c.ruleset === "rigger2";
         const hit = c.kind === "impact" ? { power: c.power, level: c.level } : r2 ? r2Impact(c.speed) : impactDamage(c.speed);
         const level = !hit ? null : r2 ? stageDown(hit.level, read) : (STAGES[STAGES.indexOf(hit.level) - Math.floor(read / 2)] ?? null);
         const occ = !hit ? null : r2 ? { power: hit.power, level: hit.level } : level ? { power: hit.power, level } : null;
         upd[`${base}.state`] = "resolving";
-        upd[`${base}.outcome`] = { power: hit?.power ?? 0, level: hit?.level ?? null, vehicleLevel: level, occupants: occ,
+        upd[`${base}.outcome`] = { power: hit?.power ?? 0, level: hit?.level ?? null, vehicleLevel: level, occupants: c.noOccupants ? null : occ,
                                   control: c.test?.control ?? 0 };
       }
       const next = upd[`${base}.state`];   // read before update(): Foundry mutates the change object
@@ -190,6 +195,8 @@ async function applyCrash(vehicle, cid) {
   if (hit && to != null && hit.entry.speed !== to) await gmCall("chaseSetSpeed", { combatId: hit.combat.id, eid: hit.eid, speed: to });
   if (o.vehicleLevel) await commitVehicleDamage(vehicle, BOXES[o.vehicleLevel], { source: c.kind === "impact" ? c.source : "crash", eventId: `${fid}:vehicle`,
     woundLevel: o.vehicleLevel, ruleset: c.ruleset });
+  // An emergency landing out of fuel (R2 p.82): 1D6 Stress, once (the Stress op's receipt).
+  if (c.emergency) await adjustStress(vehicle, (await new Roll("1d6").evaluate()).total, { eventId: `${fid}:emergency-stress`, reason: "emergency landing (Rigger 2 p.82)" });
   const tag = `${fid}:occupants`;
   if (!cardWith("vfollowId", tag)) await postOccupants(vehicle, c, tag);
   await vq(vehicle.uuid, async () => {
@@ -542,7 +549,7 @@ export function bindVehicleDamageCard(message, html) {
 /** Register the GM ops, the delivery, the ruleset stamp and the optional setting (sr2e.mjs init). */
 export function registerVehicleDamage() {
   gmOp("crash", crashOp);
-  gmOp("vfollowCrash", async ({ vehicleUuid, kind, why, speed, ruleset, fid = null, impact = null, cardId = null }, user) => {
+  gmOp("vfollowCrash", async ({ vehicleUuid, kind, why, speed, ruleset, fid = null, impact = null, cardId = null, cause = null }, user) => {
     const vehicle = fromUuidSync(vehicleUuid);
     if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
     // A resolved core ram card authorizes the LOSER's Crash Test whoever resolved it (its id is the follow-up id).
@@ -555,7 +562,7 @@ export function registerVehicleDamage() {
     const snap = speed ?? findEntry(vehicleUuid)?.entry?.speed ?? (ruleset === "rigger2" ? null : vehicle.system.effectiveSpeed ?? 0);
     await vq(vehicleUuid, async () => {
       if (vehicle.getFlag("sr2e", "vfollow")?.[fid]) return;
-      await vehicle.update({ [`flags.sr2e.vfollow.${fid}`]: { crash: { kind, why, speed: snap, ruleset, state: "pending", ...(impact ?? {}) } } });
+      await vehicle.update({ [`flags.sr2e.vfollow.${fid}`]: { crash: { kind, why, speed: snap, ruleset, state: "pending", ...(impact ?? {}), ...(cause ? { cause } : {}) } } });
     });
     await deliver(vehicle);
     return fid;

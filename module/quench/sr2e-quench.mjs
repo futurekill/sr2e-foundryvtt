@@ -18939,6 +18939,18 @@ export function registerSR2EQuenchTests() {
           await new Promise(r => setTimeout(r, 300));
           assert.closeTo(M.logicalNow(D), L, 1e-6, "leaving the combat, the logical clock continues from where it left");
         });
+        it("an aircraft out of fuel gets ONE Crash Test (cause fuel) when it reaches its Stall Speed", async function () {
+          this.timeout(20000);
+          const V = await mk("Quench Ghost Air", { vehicleType: "aircraft", economy: 1, fuelSize: 1, speed: 1000, acceleration: 100, stallSpeed: 600 });
+          await call("fuel", { vehicleUuid: V.uuid, origin: "travel", km: 5, band: "below", speed: 1000 });
+          const combat = await Combat.create({ active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: V.id }]);
+          const M = await F();
+          for (let r = 1; r <= 4; r++) await M.fuelAdvanceStage(combat, r);
+          const crashes = Object.values(V.getFlag("sr2e", "crashes") ?? {}).filter(c => c.cause === "fuel");
+          assert.equal(crashes.length, 1, "one Crash Test");
+          assert.equal(crashes[0].speed, 600, "at the Stall Speed");
+        });
         it("fuel grades change Acceleration and Economy (derived)", async function () {
           const V = await mk("Quench Premium", { economy: 10, acceleration: 8, fuelSize: 50 });
           await V.update({ "flags.sr2e.fuelGrade": { grade: "premium", custom: 0 } });

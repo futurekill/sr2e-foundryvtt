@@ -239,8 +239,8 @@ GM_OPS.claim = async ({ vehicleUuid, key, driverUuid = "" }, user) => {
  * "Crash Test required" (core p.107 / Rigger 2 p.51): one crash follow-up, posted by the GM's delivery and resolved as a
  * recoverable crash transaction (vehicle-damage.mjs).
  */
-export function postCrashTestDue(vehicle, why = "took Serious damage", { ruleset = null, cardId = null, speed = null } = {}) {
-  return gmCall("vfollowCrash", { vehicleUuid: vehicle.uuid, kind: "test", why, speed, cardId, ruleset: ruleset ?? (isRigger2() ? "rigger2" : "core") });
+export function postCrashTestDue(vehicle, why = "took Serious damage", { ruleset = null, cardId = null, speed = null, cause = null, fid = null } = {}) {
+  return gmCall("vfollowCrash", { vehicleUuid: vehicle.uuid, kind: "test", why, speed, cardId, cause, fid, ruleset: ruleset ?? (isRigger2() ? "rigger2" : "core") });
 }
 
 /**
