@@ -82,10 +82,27 @@ export function registerMissiles() {
             distance: S.distanceBetween(fromUuidSync(l.guidance?.spotterUuid) ?? source ?? holder, target) ?? null } } });
         return { ...l, state: "lost" };
       }
-      const exposures = await S.missileExposures(source ?? holder, target, l.payload.guided?.sensor ?? 0);
+      // The GM's prepared list (added/struck on the card) stands; otherwise the exposures are found and rolled now.
+      const exposures = l.exposures ?? await S.missileExposures(source ?? holder, target, l.payload.guided?.sensor ?? 0);
       const upd = { state: "rolling", armedBy: user.id, exposures, ...(spotter ? { spotterSuccesses: spotter.successes } : {}) };
       await holder.update(Object.fromEntries(Object.entries(upd).map(([k, v]) => [`flags.sr2e.launches.${launchId}.${k}`, v])));
       return { ...l, ...upd };
+    });
+  });
+
+  // The GM's exposure list (4b.4: "the GM may add or strike an exposure", recorded): found and rolled once, then edited.
+  gmOp("missileExposures", async ({ holderUuid, launchId, strike = [], add = null }, user) => {
+    if (!user.isGM) throw new Error("GM only");
+    const holder = fromUuidSync(holderUuid);
+    return hq(holderUuid, async () => {
+      const l = launchesOf(holder)[launchId];
+      if (l?.state !== "launched") throw new Error("only before the Missile Attack Test");
+      const S = await import("./vehicle-sensors.mjs");
+      let list = l.exposures ?? await S.missileExposures(fromUuidSync(l.sourceVehicleUuid) ?? holder, fromUuidSync(l.targetUuid), l.payload.guided?.sensor ?? 0);
+      list = list.filter(e => !strike.includes(e.key));
+      if (add) list.push({ key: `gm:${foundry.utils.randomID(8)}`, jammer: String(add.jammer ?? "GM"), effect: Math.max(0, Number(add.effect) || 0), gm: true });
+      await holder.update({ [`flags.sr2e.launches.${launchId}.exposures`]: list });
+      return list;
     });
   });
 
@@ -116,6 +133,7 @@ export function registerMissiles() {
     const m = message.getFlag("sr2e", "missilePhase0");
     if (!m) return;
     html.querySelectorAll?.(".sr2e-missile-roll").forEach(b => b.addEventListener("click", (ev) => { ev.preventDefault(); rollPhase0(m).catch(err => ui.notifications.warn(`SR2E | ${err.message}`)); }));
+    html.querySelectorAll?.(".sr2e-missile-ecm").forEach(b => b.addEventListener("click", (ev) => { ev.preventDefault(); editExposures(m).catch(err => ui.notifications.warn(`SR2E | ${err.message}`)); }));
     html.querySelectorAll?.(".sr2e-missile-cancel").forEach(b => b.addEventListener("click", (ev) => { ev.preventDefault(); gmCall("missileCancel", m).catch(err => ui.notifications.warn(`SR2E | ${err.message}`)); }));
   });
 }
@@ -187,6 +205,7 @@ export async function missileCloseStage(combat, r) {
         The gunner rolls the Missile Attack Test: Gunnery + Intelligence ${l.payload.guided?.intelligence ?? 0}${l.mode === "continuous" ? " + ½ Sensor (continuous lock)" : ""}.
         The Combat Turn ends when every missile has struck.
         <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-missile-roll">🎯 Missile Attack Test</button>
+        <button type="button" class="sr2e-resist-btn sr2e-missile-ecm" title="GM: the ECM fields crossed in flight — add or strike (p.59)">📡</button>
         <button type="button" class="sr2e-resist-btn sr2e-missile-cancel" title="GM: cancel this launch (the missile is spent)">✖</button></div>`,
         { sr2e: { missilePhase0: { key, holderUuid: holder.uuid, launchId: id } } });
     }
@@ -218,6 +237,21 @@ export async function rollPhase0({ holderUuid, launchId }, { pool: given = null 
   const msg = game.messages.contents.filter(m => !before.has(m.id)).find(m => m.getFlag("sr2e", "test"));
   await gmCall("missileDone", { holderUuid, launchId, messageId: msg?.id ?? "" });
   resume();
+}
+
+/** GM: review the ECM fields a missile crossed (found and rolled once), strike any, add one by hand. */
+async function editExposures(m) {
+  if (!game.user.isGM) throw new Error("GM only");
+  const list = await gmCall("missileExposures", m);
+  const res = await foundry.applications.api.DialogV2.prompt({ window: { title: "ECM fields crossed in flight (Rigger 2 p.59)" },
+    content: `${list.length ? list.map(e => `<div><label><input type="checkbox" name="strike.${e.key}"> strike</label> ${esc(e.jammer)}: +${e.effect ?? 0}
+      ${e.needsGm ? "<em>(no missile Sensor Rating: your call)</em>" : e.gm ? "<em>(GM)</em>" : `<small>(jammer ${e.jam ?? "?"} vs missile ${e.opp ?? "?"})</small>`}</div>`).join("") : "<p>No ECM field on the flight path.</p>"}
+      <hr><div>Add: <input name="addJammer" placeholder="jammer" style="width:140px"> +<input type="number" name="addEffect" value="0" style="width:50px"></div>`,
+    ok: { label: "Save", callback: (_e, b) => new foundry.applications.ux.FormDataExtended(b.form).object } }).catch(() => null);
+  if (!res) return;
+  const strike = Object.entries(res).filter(([k, v]) => k.startsWith("strike.") && v).map(([k]) => k.slice(7));
+  const add = Number(res.addEffect) > 0 || res.addJammer ? { jammer: res.addJammer || "GM", effect: Number(res.addEffect) || 0 } : null;
+  if (strike.length || add) await gmCall("missileExposures", { ...m, strike, add });
 }
 
 /** The continuous-lock flag a launch carries: the lock's own record (its generations), for the Phase 0 re-check. */
