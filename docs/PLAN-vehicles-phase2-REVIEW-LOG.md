@@ -907,3 +907,19 @@ one); ECM settled for every Sensor Test, ED only for vehicle targets; the test i
 observer-queue step, idempotent by `eventId` with `sensorReceipts`; `gmValue` only from a GM; a `portBind` GM op and a
 Ports section on the panel; the sensor transmitter is the WORKING Sensors item, else stock sensors. Quench: 4 new cases
 (sr2e.sensors 9/9); vehicle batches 93/93.
+
+## Part 5 plan, round 8 — Codex (draft 8, fresh session): REVISE, 1 finding
+Hardwired riggers lose the passenger-limit exemption (`passengerLimit` keys on `entry.driver`).
+
+### Claude's response (draft 9)
+Taken: the exemption is the live controller rigged into the vehicle (`controllerOf` + `riggedInto`), never
+`entry.driver`.
+
+## Part 6 plan, round 9 — Codex (draft 9, fresh session): REVISE, 2 findings
+1. Combat fuel intervals diverge from world time (ten rounds push later debits into the past). 2. Equal-distance
+coasting invents a movement rule.
+
+### Claude's response (draft 10)
+1: one per-vehicle logical fuel clock with combat entry/exit mapping; every submission translated onto it. 2: user
+ruling R6-9 — the printed total is split across Turns in proportion to each Turn's speed (Gray Ghost 2,500/2,000/1,500/
+1,000/500 m).
