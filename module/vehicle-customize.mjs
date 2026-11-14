@@ -111,7 +111,21 @@ export function customizeContext(vehicle, catalog = [], { skipRequest = null, sk
     engineCustomLevels: ecLevels, engineCustomCost: Math.round(ecCost), cost: num(sys.cost), plantCost,
     effective: sys.effective ?? {}, statWithout, build, installedOnly, items, synthetic, baked, installedEc, unresolved, tires: sys.tires, drone: traits.has("drone"),
     engine: r ? CONFIG.SR2E.vehicleDesignTables?.powerPlants?.[d.powerPlantKey]?.engine : (sys.fuelType || null),
-    cargoFree: num(sys.cargoFree) - resvCap.cfUsed, loadFree: num(sys.loadFree) - resvCap.loadUsed };
+    cargoFree: num(sys.cargoFree) - resvCap.cfUsed, loadFree: num(sys.loadFree) - resvCap.loadUsed,
+    sensorCost: sensorOriginalCost(vehicle, catalog) };
+}
+
+/**
+ * The sensors' original cost (R2 p.27, for component upgrades: × .10 per level): the installed Sensors item's printed
+ * cost at its rating, else the catalog Sensors table at the vehicle's Sensor Rating (stock sensors); null if unknown.
+ */
+export function sensorOriginalCost(vehicle, catalog = []) {
+  const item = vehicle.items.find(i => i.type === "vehicle_mod" && i.system.modKey === "sensors");
+  const rating = num(item?.system?.rating ?? vehicle.system.effective?.sensor ?? vehicle.system.sensor);
+  const market = (item?.system?.custom?.market?.length ? item.system.custom.market
+    : catalog.find(c => c.system?.modKey === "sensors")?.system?.custom?.market) ?? [];
+  const row = market[Math.max(0, rating - 1)];
+  return rating >= 1 && row?.cost != null ? num(row.cost) : null;
 }
 
 /**

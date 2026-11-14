@@ -310,6 +310,7 @@ export function modProblems(m = {}, build = {}, ctx = {}) {
     else if (tag === "notDrone" && ctx.drone) out.push("not on a drone");
     else if (tag === "minBody" && num0(ctx.body) < Number(arg)) out.push(`it needs Body ${arg} or more`);
     else if (tag === "needsEngineCustom" && !num0(ctx.engineCustomLevels)) out.push("it needs engine customization");
+    else if (tag === "needsSensors" && !(num0(ctx.sensor) >= 1 || keys.has("sensors"))) out.push("it needs a sensor system (Sensor 1 or more)");
     else if (tag === "needsRemote" && !ctx.drone && !keys.has("remote-control-interface")) out.push("it needs a Remote-Control Interface (or a drone)");
     else if (tag === "needsRiggerBase" && (!(ctx.drone || keys.has("datajack-port") || keys.has("remote-control-interface")) || !(num0(ctx.sensor) >= 1 || keys.has("sensors")))) out.push("it needs a datajack port or remote-control interface, and Sensor 1 or more");
     else if (tag === "notWith" && list.some(k => keys.has(k))) out.push(`it can't be combined with ${list.filter(k => keys.has(k)).join(", ")}`);

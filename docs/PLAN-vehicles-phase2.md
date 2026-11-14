@@ -942,6 +942,10 @@ the emitter's equipment is switched off or stops working, or the GM clears it �
   `flags.sr2e.sensorComponents` on the vehicle, written only by the customization delivery; parts cost = original sensor cost × 0.10
   × levels; installed through the existing customization request flow (installation rules unchanged). The base
   rating is untouched; components add only their own capability (Skyrie: 15,000 × 0.10 × 2 = 3,000¥).
+  **As built (4a):** each upgrade is its own "Sensor Upgrade: <component>" vehicle mod (modKey `sensor-upgrade`, its
+  `system.components` naming what it adds; magnification levels = its rating) bought and installed through the normal
+  Customize flow (parts cost formula `SC x 0.1 x R`, SC = the sensors' original cost); `componentsOf` sums the installed
+  ones, so a Sensors item and stock sensors work alike and removal/installation reuse the customization lifecycle.
 - **Footage** (p.28): rating 1+ systems transmit/record 2D audio/video only if the vehicle has storage (onboard memory
   or a computer), a video recorder for chips, or a remote-control link for transmission; onboard recorders/computers
   must be connected through an Electronics Port (R2 p.139 item). 2 Mp/min (1 for audio- or video-only); enlargement

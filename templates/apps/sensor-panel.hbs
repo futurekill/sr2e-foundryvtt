@@ -1,0 +1,48 @@
+<div class="sensor-body" style="padding:6px;">
+  <div class="flexrow" style="gap:6px;align-items:center;margin-bottom:6px;">
+    {{#if hasSensors}}<button type="button" data-action="test" title="Sensor Rating dice vs the target's Signature (Rigger 2 p.28–30); a Complex Action (p.58)"><i class="fas fa-crosshairs"></i> Sensor Test</button>{{/if}}
+    {{#if gm}}<button type="button" data-action="boosts" title="GM: engine and amplifier Flux boosts (p.30)"><i class="fas fa-bolt"></i> Flux boosts</button>{{/if}}
+    <button type="button" data-action="upgrade" title="Add or upgrade a sensor component (p.27)"><i class="fas fa-wrench"></i> Upgrade components</button>
+  </div>
+  {{#if boostIssues.length}}<p class="notification warning">Flux boosts ignored: {{#each boostIssues}}{{this}}; {{/each}}</p>{{/if}}
+
+  <h3>Transmitters (Flux and range, p.30–31)</h3>
+  {{#each rows}}
+  <fieldset style="margin-bottom:6px;">
+    <legend>{{name}} — {{kind}} {{rating}}{{#unless working}} <em>(not working)</em>{{/unless}}</legend>
+    <div class="flexrow" style="gap:8px;align-items:center;">
+      <span>Flux {{base}} → <strong>{{flux}}</strong> · range <strong>{{range}}</strong>{{#if used}} <small>({{used}})</small>{{/if}}</span>
+      {{#if ported}}<span title="Connected through an Electronics Port (p.30, p.139)"><i class="fas fa-plug"></i></span>{{/if}}
+      {{#if toggled}}
+        {{#if edOff}}<em>optional rule off</em>
+        {{else}}{{#if ../owner}}<button type="button" data-action="toggle" data-device="{{id}}" data-on="{{#if on}}0{{else}}1{{/if}}" title="A Simple Action (p.32)">{{#if on}}Switch off{{else}}Switch on{{/if}}</button>{{/if}}
+        <span>{{#if on}}<strong>ON</strong>{{else}}off{{/if}}</span>{{/if}}
+      {{/if}}
+    </div>
+    {{#if ../owner}}
+    <div class="flexrow" style="gap:6px;flex-wrap:wrap;font-size:12px;">
+      {{#each conditions}}<label style="white-space:nowrap"><input type="checkbox" data-cond="{{k}}" data-cond-for="{{../id}}" {{#if checked}}checked{{/if}}> {{label}}</label>{{/each}}
+      {{#if ../gm}}<label title="GM: a half-point Flux has no table row — the range to use (m)">Range at x.5 (m) <input type="number" data-gmrange-for="{{id}}" style="width:70px"></label>{{/if}}
+      <button type="button" data-action="condition" data-device="{{id}}">Apply</button>
+    </div>
+    {{/if}}
+  </fieldset>
+  {{else}}<p>No transmitters.</p>{{/each}}
+
+  {{#if hasSensors}}
+  <h3>Sensor system (p.27–28)</h3>
+  <p>Rating {{rating}}: {{#each components}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}; magnification {{magnification}}×.</p>
+  {{#if footage.possible}}<p><small>Footage (p.28): 2D audio/video only, stored on onboard memory or a computer, recorded to chips with a
+    video recorder, or transmitted over a remote-control link (recorders and computers through an Electronics Port).
+    2 Mp/min (1 for audio- or video-only); enlargement up to {{footage.enlarge}}×; footage in a Perception Test +1 TN.
+    {{#if footage.storage.length}}On board: {{#each footage.storage}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}.{{else}}No storage or link found on board.{{/if}}</small></p>{{/if}}
+  {{/if}}
+
+  <h3>Locks (until contact is lost)</h3>
+  {{#each locks}}<div class="flexrow" style="gap:6px;">{{name}} — {{successes}} success(es) · {{#if valid}}<strong>locked</strong>{{else}}<em>lost</em>{{/if}}
+    {{#if ../gm}}{{#if valid}}<button type="button" data-action="clear" data-device="{{deviceId}}" data-target="{{targetUuid}}">Clear</button>{{/if}}{{/if}}</div>
+  {{else}}<p>None.</p>{{/each}}
+
+  {{#if affecting.length}}<h3>Electronic warfare against these sensors</h3>
+  {{#each affecting}}<p>{{name}}: ECM +{{ecm}}{{#if ed}}, ED +{{ed}}{{/if}} to its Signature.</p>{{/each}}{{/if}}
+</div>

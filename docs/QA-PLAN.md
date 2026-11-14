@@ -1221,3 +1221,13 @@ If those five all work, the core loop is healthy.
       customization is never changed.
 - [ ] Import the Liebre RPV: it has the Vanquisher minigun with 1,000 rounds; the Halcón has no weapons.
 - [ ] Rigger 2 off: no button, imports keep their compendium stats.
+
+## Rigger 2 sensors and EW (`sr2e.sensors` batch; docs/PLAN-vehicles-phase2.md Part 4a)
+Automated (Quench): a lock dies out of range and stays dead back in range; a lock dies when the target hides in a chase,
+even after relocation; one jammer roll read at two observers' Sensor Ratings; switching ECM off ends its effect; ED hides
+the public TN; boosts refused without a port / over an amplifier's rating, a valid amplifier boost raises Flux.
+Manual (Rigger 2 ruleset): open Sensors on a vehicle — transmitters show Flux → modified Flux and range; tick Urban and
+Apply → range drops a band; Sensor Test with a token targeted; toggle ECM on a second vehicle within range and test again
+(an ECM card, then +N on the TN); buy a Sensor Upgrade: Magnification in Customize and finish it → magnification rises
+by 50× per level; turn the ED setting on and check the observer's card hides the TN.
+

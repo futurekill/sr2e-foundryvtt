@@ -18365,5 +18365,136 @@ export function registerSR2EQuenchTests() {
         assert.equal(a.system.conditionMonitor.physical.value, 0);
       });
     }, { displayName: "SR2E: shapeshifters" });
+
+    // Rigger 2 sensors and electronic warfare (docs/PLAN-vehicles-phase2.md Part 4a).
+    quench.registerBatch("sr2e.sensors", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [], scenes = [], combats = [], t0 = Date.now();
+      let g = null;
+      const faces = async (u, fn) => {
+        const r = CONFIG.Dice.randomUniform; let i = 0;
+        CONFIG.Dice.randomUniform = Array.isArray(u) ? () => u[i++ % u.length] : () => u;
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = r; }
+      };
+      const FIVES = 0.2, ONES = 0.99;
+      const mods = async () => ({ ...(await import("../vehicle-play.mjs")), ...(await import("../vehicle-sensors.mjs")) });
+      const catalog = async (name, rating) => {
+        const docs = await game.packs.get("sr2e-rigger-2.r2-vehicle-mods")?.getDocuments();
+        const d = docs?.find(x => x.name === name)?.toObject();
+        if (d) d.system.rating = rating;
+        return d;
+      };
+      const mk = async (name, sys, items) => { const a = await Actor.create({ name, type: "vehicle", system: { signature: 4, body: 4, ...sys } }); made.push(a);
+        if (items?.length) await a.createEmbeddedDocuments("Item", items.filter(Boolean)); return a; };
+      const sceneWith = async (...placed) => {
+        const scene = await Scene.create({ name: "Quench sensors", width: 12000, height: 1200, grid: { size: 100, distance: 100, units: "m" } });
+        scenes.push(scene);
+        await scene.createEmbeddedDocuments("Token", placed.map(([a, x]) => ({ actorId: a.id, actorLink: true, x, y: 100, name: a.name })));
+        return scene;
+      };
+      before(function () {
+        if (!game.modules.get("sr2e-rigger-2")?.active) this.skip();
+        g = game.settings.get;
+        game.settings.get = function (ns, k) {
+          if (ns === "sr2e" && k === "vehicleRuleset") return "rigger2";
+          if (ns === "sr2e" && k === "r2ElectronicDeception") return true;
+          return g.call(this, ns, k);
+        };
+      });
+      after(async function () {
+        this.timeout(30000);
+        if (g) game.settings.get = g;
+        for (const c of combats) { try { await c.delete(); } catch (e) {} }
+        for (const s of scenes) { try { await s.delete(); } catch (e) {} }
+        const ids = game.messages.filter(m => (m._stats?.createdTime ?? 0) >= t0).map(m => m.id);
+        if (ids.length) await ChatMessage.deleteDocuments(ids);
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+
+      describe("Sensor Tests and locks (R2 p.28–31, R4-2)", function () {
+        it("a lock dies when the target leaves sensor range and stays dead when it returns", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const A = await mk("Quench Sensor A", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]);
+          const B = await mk("Quench Sensor B");
+          const scene = await sceneWith([A, 100], [B, 600]);
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          assert.ok(S.lockOn(A, B), "locked");
+          const tok = scene.tokens.find(t => t.actorId === B.id);
+          await tok.update({ x: 700 }); await new Promise(r => setTimeout(r, 400));
+          assert.ok(S.lockOn(A, B), "still locked after a short move");
+          await tok.update({ x: 11500 });   // 114 cells × 100 m > Flux 5 = 9 km
+          for (let i = 0; i < 30 && S.lockOn(A, B); i++) await new Promise(r => setTimeout(r, 100));
+          assert.notOk(S.lockOn(A, B), "lost out of range");
+          await tok.update({ x: 700 }); await new Promise(r => setTimeout(r, 600));
+          assert.notOk(S.lockOn(A, B), "not revived back in range");
+        });
+        it("a lock dies when the target hides in a chase, even after contact is regained", async function () {
+          const S = await mods();
+          const A = await mk("Quench Sensor C", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]);
+          const B = await mk("Quench Sensor D");
+          const chase = { entries: { e1: { uuid: A.uuid }, e2: { uuid: B.uuid } }, pairs: { p1: { pursuer: "e1", quarry: "e2", distance: 300, contact: true, hideGen: 0 } } };
+          const combat = await Combat.create({ scene: null, active: false, flags: { sr2e: { chase } } }); combats.push(combat);
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          assert.ok(S.lockOn(A, B), "locked at the chase distance");
+          await combat.update({ "flags.sr2e.chase.pairs.p1.contact": { hiddenBy: "x", successes: 2 }, "flags.sr2e.chase.pairs.p1.hideGen": 1 });
+          assert.notOk(S.lockOn(A, B), "hidden");
+          await combat.update({ "flags.sr2e.chase.pairs.p1.contact": true });
+          assert.notOk(S.lockOn(A, B), "relocating doesn't revive it");
+        });
+      });
+
+      describe("ECM, ECCM, ED (R2 p.31–32)", function () {
+        it("one stored jammer roll is read at each observer's own Sensor Rating", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const J = await mk("Quench Jammer", {}, [await catalog("Electronic Countermeasures (ECM)", 3)]);
+          const O1 = await mk("Quench Obs 3", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]);
+          const O2 = await mk("Quench Obs 7", {}, [await catalog("Sensors (Vehicle Sensor System)", 7)]);
+          await sceneWith([J, 100], [O1, 300], [O2, 500]);
+          await S.gmCall("ewToggle", { vehicleUuid: J.uuid, deviceId: S.transmitters(J).find(t => t.kind === "ecm").id, on: true });
+          // Jammer 5 dice of 5 (successes at TN ≤ 5); observers roll ones.
+          await faces([FIVES, FIVES, FIVES, FIVES, FIVES, ONES, ONES, ONES, ONES, ONES, ONES, ONES, ONES, ONES, ONES, ONES], () =>
+            S.gmCall("sensorTest", { vehicleUuid: O1.uuid, targetUuid: J.uuid }));
+          const ev = J.getFlag("sr2e", "jamEvent");
+          await faces(ONES, () => S.gmCall("sensorTest", { vehicleUuid: O2.uuid, targetUuid: J.uuid }));
+          assert.equal(J.getFlag("sr2e", "jamEvent").id, ev.id, "one ECM Test");
+          assert.equal(S.ewTermOf(O1, J).ecm, 5, "5 successes at TN 3");
+          assert.equal(S.ewTermOf(O2, J).ecm, 0, "none at TN 7");
+          await S.gmCall("ewToggle", { vehicleUuid: J.uuid, deviceId: ev.deviceId, on: false });
+          assert.equal(S.ewTermOf(O1, J).ecm, 0, "switching ECM off ends it");
+        });
+        it("ED is secret: the public Sensor Test card hides the TN", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const A = await mk("Quench ED Obs", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]);
+          const B = await mk("Quench ED Ship", {}, [await catalog("Electronic Deception (ED)", 4)]);
+          await sceneWith([A, 100], [B, 300]);
+          await S.gmCall("ewToggle", { vehicleUuid: B.uuid, deviceId: S.transmitters(B).find(t => t.kind === "ed").id, on: true });
+          const r = await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid }));
+          assert.equal(S.ewTermOf(A, B).ed, 4, "4 ED successes");
+          const card = game.messages.get(r.messageId);
+          assert.include(card.content, "the GM's TN");
+          assert.notInclude(card.content, `TN ${r.tn}`);
+          assert.ok(game.messages.contents.some(m => m.whisper.length && m.content.includes("Secret TN")), "the GM sees the TN");
+        });
+      });
+
+      describe("Flux boosts (R2 p.30)", function () {
+        it("refuses an engine boost without an Electronics Port and amplifier use over its rating", async function () {
+          const S = await mods();
+          const A = await mk("Quench Boost", { body: 4 }, [await catalog("Sensors (Vehicle Sensor System)", 3), await catalog("Power Amplifier", 2)]);
+          const sid = S.sensorOf(A).id, amp = A.items.find(i => i.system.modKey === "power-amplifier").id;
+          let err = null;
+          try { await S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: { [sid]: { engine: 1 } } }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /Electronics Port/);
+          err = null;
+          try { await S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: { [sid]: { amplifiers: { [amp]: 3 } } } }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /over its rating/);
+          await S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: { [sid]: { amplifiers: { [amp]: 2 } } } });
+          assert.equal(S.txFlux(A, S.sensorOf(A)).flux, 7, "Flux 5 + 2");
+        });
+      });
+    }, { displayName: "SR2E: Rigger 2 sensors and EW" });
   });
 }

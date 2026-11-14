@@ -70,12 +70,13 @@ export function customizationQuote(m = {}, levels = 1, v = {}) {
     V: num0(v.cost), N: v.plantCost == null ? null : num0(v.plantCost),
     H: num0(eff.handling), HO: eff.handlingOffRoad == null ? num0(eff.handling) : num0(eff.handlingOffRoad),
     A0: num0(eff.armor), A1: num0(eff.armor) + (modEffect({ ...m, rating: R }, "armor")?.value ?? 0),
-    S0: speedBase(m, v, key, eff), S: num0(eff.speed) };
+    S0: speedBase(m, v, key, eff), S: num0(eff.speed), SC: v.sensorCost == null ? null : num0(v.sensorCost) };
   const ev = (k) => {
     const f = specFormula(m, k, traits);
     if (f == null) return { f: null, value: null };
     const value = evalExpr(f, vars);
-    if (value == null) problems.push(`its ${k} "${f}" can't be worked out${/\bN\b/.test(f) && vars.N == null ? " (the GM hasn't entered this vehicle's power plant cost)" : ""}`);
+    if (value == null) problems.push(`its ${k} "${f}" can't be worked out${/\bN\b/.test(f) && vars.N == null ? " (the GM hasn't entered this vehicle's power plant cost)"
+      : /\bSC\b/.test(f) && vars.SC == null ? " (the vehicle has no rated sensors to upgrade)" : ""}`);
     return { f, value };
   };
 

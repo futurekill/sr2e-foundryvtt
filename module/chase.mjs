@@ -417,6 +417,8 @@ async function resolve({ combatId, aid, messageId }, user) {
         if (!members.includes(p.quarry) || p.contact !== true) continue;
         patch[`pairs.${pid}.contact`] = { hiddenBy: aid, successes: read.successes, round: r, npcTurns: 0 };
         patch[`pairs.${pid}.rev`] = (p.rev ?? 0) + 1;
+        // Part 4 (R4-2): hiding ends the pursuer's sensor locks for good, even after a later relocation.
+        patch[`pairs.${pid}.hideGen`] = (p.hideGen ?? 0) + 1;
       }
     } else if (a.kind === "ram") {
       // The entitlement is used whether the ram lands or not (B2 #9).

@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Rigger 2 sensors and electronic warfare** (R2 p.27–32, p.58; docs/PLAN-vehicles-phase2.md Part 4a), under the Rigger 2
+  vehicle ruleset. A **Sensors** button on the vehicle sheet opens the Sensors panel:
+  - **Sensor Test** (p.28–30): Sensor Rating dice against the target's Signature (a (meta)human 6; critters: the GM's
+    value) with the Sensor Test Modifiers Table and the vehicle's damage; the card prints the Sensor Test Results Table.
+    A success **locks** on the target until contact is lost (user ruling R4-2): the target leaves the sensors' range
+    (checked on every token move, before AND after it, so out-and-back still breaks it), hides from the vehicle in a
+    chase, the sensors stop working, or the GM clears it.
+  - **Flux and range** (p.30–31) for every transmitter (sensors, ECM, ECCM, ED, ECD; stock sensors without an item
+    count too): the Flux Rating Table (sensors and EW gear rating × 1.5, rounded up; R4-1), the situational modifiers
+    per transmitter (high elevation, electrical storm, encryption for radios/decks only, humid air never with a storm,
+    urban), ECCM and ECD drawing on the transmitter, rounding down to the nearest half; the GM picks the range for a
+    half-point Flux. **Flux boosts** (GM): engine boosts only through an Electronics Port (≤ ½ Body each, ≤ Body in
+    all) and Power Amplifiers up to their rating, validated as a whole.
+  - **ECM / ECCM** (p.31–32): switching them on or off is a Simple Action. A jammer makes ONE ECM Test (its ECM Flux in
+    dice) read at each observer's own Sensor Rating; the observer's sensors roll back; ECCM cancels jammer successes one
+    for one. Any vehicle inside another's ECM field takes the effect against its sensors (p.58), the largest one only.
+    The GM's client rolls these equipment tests automatically and posts the cards.
+  - **ED / ECD** (p.32), optional (world setting "Rigger 2: electronic deception"): ED raises the deceiver's Signature
+    against each sensor, secretly — the observer's Sensor Test card hides its TN; ECD cancels ED successes.
+  - **Sensor components** (p.27–28): the panel lists what the rating includes and its magnification; new **Sensor
+    Upgrade** modifications (Rigger 2 module) add a component or magnification levels through the usual Customize
+    window: parts cost = the sensors' original cost × .10 × levels (Skyrie: 3,000¥), installed by the sensors' own rules.
+    Footage guidance (2D only, storage/recorder/link, 2 Mp per minute, enlargement, +1 TN in Perception) on the panel.
+
 ## 0.152.0 — 2026-11-13
 
 ### Added

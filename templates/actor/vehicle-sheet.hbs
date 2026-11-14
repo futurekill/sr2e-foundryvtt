@@ -129,6 +129,7 @@
         <a class="btn-small" data-action="r2StressAdjust" data-delta="1" title="+1">+</a></div>
       <div class="flexrow" style="gap:4px;flex-wrap:wrap;">
         {{#if r2.drone}}<button type="button" class="btn-small" data-action="r2Drive" title="The drone drives itself on its Pilot (p.20, p.23)"><i class="fas fa-robot"></i> Drive (Pilot)</button>{{/if}}
+        <button type="button" class="btn-small" data-action="r2Sensors" title="Sensors, Flux and range, ECM/ECCM, locks (Rigger 2 p.27–32)"><i class="fas fa-satellite-dish"></i> Sensors</button>
         <button type="button" class="btn-small" data-action="r2Exceed" title="Past the Speed Rating: +1 Stress (p.25)"><i class="fas fa-gauge-high"></i> Exceed speed</button>
         <button type="button" class="btn-small" data-action="r2Overhaul" title="Maintenance overhaul in a Vehicle Facility (p.26)"><i class="fas fa-wrench"></i> Overhaul</button>
         <button type="button" class="btn-small" data-action="r2Repair" title="Repair damage (p.26)"><i class="fas fa-screwdriver-wrench"></i> Repair{{#if r2.repair}}: {{r2.repair}}{{/if}}</button>

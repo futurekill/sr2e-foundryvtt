@@ -83,7 +83,7 @@ const item = (name) => {
 };
 describe.skipIf(!havePack)("the Rigger 2 mods' customization data (book p.120–146)", () => {
   it("every customizable mod with a price quotes on a plain car (no unworkable formula)", () => {
-    const v = car({ plantCost: 20000, engineCustomCost: 25000, cargoFree: 999, loadFree: 99999 });
+    const v = car({ plantCost: 20000, engineCustomCost: 25000, cargoFree: 999, loadFree: 99999, sensorCost: 15000 });
     const bad = [];
     for (const f of readdirSync(PACK).filter(f => f.endsWith(".json"))) {
       const d = JSON.parse(readFileSync(new URL(f, PACK), "utf8"));
@@ -92,6 +92,10 @@ describe.skipIf(!havePack)("the Rigger 2 mods' customization data (book p.120–
       if (q.problems.some(p => /worked out|no customization price/.test(p))) bad.push(`${d.name}: ${q.problems.join("; ")}`);
     }
     expect(bad).toEqual([]);
+  });
+  it("sensor upgrades: Skyrie's +100× magnification on 15,000¥ sensors = 3,000¥ (R2 p.27–28); none without rated sensors", () => {
+    expect(customizationQuote(item("Sensor Upgrade: Magnification"), 2, car({ sensorCost: 15000 })).price).toBe(3000);
+    expect(customizationQuote(item("Sensor Upgrade: Magnification"), 2, car()).problems.join(" ")).toMatch(/no rated sensors/);
   });
   it("examples: turbocharging 2 on a 50,000¥ car; Datajack port on a bike; ECM 8 = 7.5M¥ (ruling 11); rigger adaptation 2,800¥ (ruling 13)", () => {
     expect(customizationQuote(item("Turbocharging / Superconductive Drive"), 2, car()).price).toBe(110000);

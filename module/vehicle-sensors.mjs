@@ -16,9 +16,8 @@
 import { gmCall, gmOp, controllerOf, followId } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
-import { activeChases, findEntry } from "./chase-state.mjs";
+import { activeChases, chaseOf } from "./chase-state.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
-import { successesAtTN } from "./rules/sr2e-rules.mjs";
 import { sensorComponents, sensorTestTN, sensorResult, baseFlux, modifiedFlux, fluxRange, boostProblems, deviceBoost,
   ecmEffect, edEffect, maxEffect } from "./rules/vehicle-sensor-rules.mjs";
 
@@ -105,11 +104,22 @@ export function boostContext(vehicle) {
   return { body: vehicle?.system?.body ?? 0, devices, amplifiers };
 }
 
-/** Sensor components (p.27): the rating's plus upgrades stored on the Sensors item or, for stock sensors, the vehicle. */
+/**
+ * Sensor components (p.27): the rating's, plus every installed "Sensor Upgrade" mod (modKey `sensor-upgrade`, bought
+ * and installed through the customization flow; its `system.components` names what it adds, magnification levels =
+ * its rating). Works the same for a Sensors item and stock sensors.
+ */
 export function componentsOf(vehicle) {
   const t = sensorOf(vehicle);
   if (!t) return null;
-  const up = t.item ? t.item.system.components ?? {} : vehicle.getFlag("sr2e", "sensorComponents") ?? {};
+  const up = {};
+  for (const i of vehicle.items) {
+    if (i.type !== "vehicle_mod" || i.system.modKey !== "sensor-upgrade" || !itemWorking(i)) continue;
+    for (const [k, v] of Object.entries(i.system.components ?? {})) {
+      if (k === "magnification") up.magnification = { level: (up.magnification?.level ?? 0) + (Number(i.system.rating) || 0) };
+      else if (v?.added) up[k] = { added: true };
+    }
+  }
   return sensorComponents(t.rating, up);
 }
 
@@ -123,7 +133,7 @@ function tokenOf(actor, scene) {
 }
 /** Metres between two actors: their chase pair if they have one, else their tokens on a shared scene, else null. */
 export function distanceBetween(a, b, positions = null) {
-  for (const { chase } of activeChases()) {
+  for (const chase of activeChases().map(chaseOf)) {
     const ea = Object.entries(chase.entries ?? {}).find(([, e]) => e.uuid === a.uuid)?.[0];
     const eb = Object.entries(chase.entries ?? {}).find(([, e]) => e.uuid === b.uuid)?.[0];
     if (!ea || !eb) continue;
@@ -150,7 +160,7 @@ const linkKey = (deviceId, recipient) => `${deviceId}~${keyOf(recipient)}`;
 const linkGen = (vehicle, deviceId, recipient) => gens(vehicle).link?.[linkKey(deviceId, recipient)] ?? 0;
 /** The chase pair's hide generation between an observer and a target (chase.mjs bumps it when the target hides). */
 function hideState(observer, target) {
-  for (const { chase } of activeChases()) {
+  for (const chase of activeChases().map(chaseOf)) {
     const eo = Object.entries(chase.entries ?? {}).find(([, e]) => e.uuid === observer.uuid)?.[0];
     const et = Object.entries(chase.entries ?? {}).find(([, e]) => e.uuid === target.uuid)?.[0];
     if (!eo || !et) continue;
@@ -318,7 +328,7 @@ async function bump(vehicle, paths) {
 /** Re-check every recorded relationship from this vehicle and bump the links that broke (GM, in its queue). */
 async function sweepVehicle(vehicle, positions = null) {
   const records = [];
-  for (const [k, lock] of Object.entries(vehicle.getFlag("sr2e", "locks") ?? {})) records.push({ deviceId: lock.deviceId, recipient: lock.targetUuid });
+  for (const lock of Object.values(vehicle.getFlag("sr2e", "locks") ?? {})) records.push({ deviceId: lock.deviceId, recipient: lock.targetUuid });
   const ev = vehicle.getFlag("sr2e", "jamEvent");
   for (const vs of Object.values(vehicle.getFlag("sr2e", "jamVs") ?? {})) if (ev) records.push({ deviceId: ev.deviceId, recipient: vs.observerUuid });
   for (const rec of Object.values(vehicle.getFlag("sr2e", "edVs") ?? {})) records.push({ deviceId: rec.deviceId, recipient: rec.observerUuid });
@@ -367,10 +377,17 @@ export function registerVehicleSensors() {
           at: Date.now() };
       }
       if (Object.keys(patch).length) await vehicle.update(patch);
-      const parts2 = parts.map(p => `${p.label} ${p.value >= 0 && p.label !== "Signature" ? "+" : ""}${p.value}`).join(", ");
+      const LABEL = { Signature: "Signature", directLos: "direct LOS", urban: "urban", weather: "weather", restricted: "restricted terrain",
+        tight: "tight terrain", spirit: "concealing spirit", damage: "vehicle damage", ew: "ECM" };
+      // ED is secret (p.32: "the gamemaster keeps that a secret"): with ED in play the public card hides the TN.
+      const secret = ew.ed > 0;
+      const shown = parts.map(p => p.label === "ew" ? { ...p, value: ew.ecm } : p).filter(p => p.label !== "ew" || p.value);
+      const parts2 = shown.map(p => `${LABEL[p.label] ?? p.label} ${p.value >= 0 && p.label !== "Signature" ? "+" : ""}${p.value}`).join(", ");
+      if (secret) await ChatMessage.create({ whisper: gmWhisper(), speaker: ChatMessage.getSpeaker({ actor: vehicle }),
+        content: `<div class="sr2e-damage-result"><strong>Secret TN:</strong> ${esc(vehicle.name)}'s Sensor Test: TN ${tn} (ED +${ew.ed}, ECM +${ew.ecm}).</div>` });
       const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }),
         content: `<div class="sr2e-damage-result"><strong>Sensor Test: ${esc(vehicle.name)}${target ? ` → ${esc(target.name)}` : ""}</strong>${label ? ` (${esc(label)})` : ""}
-          (Rigger 2 p.28–30; a Complex Action, p.58)<br>${sensor.rating} dice vs TN ${tn} (${esc(parts2)}): <strong>${r.successes} success${r.successes === 1 ? "" : "es"}</strong>
+          (Rigger 2 p.28–30; a Complex Action, p.58)<br>${sensor.rating} dice vs ${secret ? "the GM's TN" : `TN ${tn} (${esc(parts2)})`}: <strong>${r.successes} success${r.successes === 1 ? "" : "es"}</strong>
           — ${game.i18n.localize(`SR2E.Sensors.Result.${result}`)}${target && r.successes > 0 ? `<br>🔒 Locked on ${esc(target.name)} until contact is lost.` : ""}
           <br><small>Dice: ${r.results.join(", ")}</small></div>`, flags: { sr2e: { sensorTest: { vehicleUuid, targetUuid, successes: r.successes, tn } } } });
       return { successes: r.successes, tn, messageId: msg.id };

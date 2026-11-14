@@ -2091,6 +2091,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       addItem: onAddItem,
       // Rigger 2 standard operations (docs/PLAN-vehicles-phase2.md Part 2a).
       r2Drive: async function () { const vp = await import("../vehicle-play.mjs"); return vp.rollDrivingTest(null, this.document, await vp.promptDrivingTest(null, this.document)); },
+      r2Sensors: async function () { (await import("../apps/sensor-panel.mjs")).SensorPanel.open(this.document); },
       r2Exceed: async function () { (await import("../vehicle-play.mjs")).exceedSpeed(this.document); },
       r2StressTest: async function () { (await import("../vehicle-play.mjs")).gmStressTest(this.document); },
       r2StressAdjust: async function (event, target) {

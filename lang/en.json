@@ -623,5 +623,10 @@
   "SR2E.EyeRow.Weapon": "weapon",
   "SR2E.EyeRow.ToolLaser": "tool laser",
   "SR2E.EyeRow.Camera": "camera",
-  "SR2E.EyeRow.Both": "both"
+  "SR2E.EyeRow.Both": "both",
+  "SR2E.Sensors.Result.none": "no contact (Sensor Test Results Table, R2 p.30)",
+  "SR2E.Sensors.Result.basic": "basic contact: distance, direction, speed and general type (building, aircraft, ground vehicle, life form…)",
+  "SR2E.Sensors.Result.general": "general contact: the target's general subtype (radar dish, helicopter, hovertank, dragon…)",
+  "SR2E.Sensors.Result.positive": "positive contact: the specific type (an XQ-137 Air Search Radar, a Hughes WQ-2 Stallion…)",
+  "SR2E.Sensors.Result.features": "features that distinguish the target from others of its type"
 }
