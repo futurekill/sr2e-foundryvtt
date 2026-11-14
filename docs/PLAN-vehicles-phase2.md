@@ -22,7 +22,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature.
 - **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 3 below, in Codex review.
-- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 2 below, in Codex review.
+- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 3 below, in Codex review.
 Each part gets its own plan section + Codex review before code, and its own release.
 
 ## Part 1 — core rules audit (SR2 core p.84–85, p.104–109, p.183)
@@ -893,7 +893,7 @@ pending survives a reload → crash → occupants (one receipt each, vehicle sta
 feedback per event (two Serious hits → two); weapons; spells; an old core card resolves by core after the switch; core
 path unchanged with the ruleset off.
 
-## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 6 (2026-11-13, after Codex Part 4 rounds 1–5)
+## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 7 (2026-11-13, after Codex Part 4 rounds 1–6)
 _Read from 110-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. Everything below applies
 only under `isRigger2()`; the core attack flow (incl. the p.108 Moving Target Table) is untouched under core. Two
 releases: **4a** (sensors, Flux and range, ECM/ECCM/ED/ECD, locks), **4b** (gunnery modes, missiles, indirect fire,
@@ -1063,37 +1063,35 @@ nothing is invented.
   type, Intelligence, Sensor and properties, the gunner's skill choice; Phase 0 resolves from the payload and never
   rereads the launcher or spends ammunition. reserve → spend the missile once → `launched`. Nothing is rolled at
   launch.
-- **One ammunition writer per weapon** (round 2 #7): EVERY ammunition change — ordinary attacks, missile spends,
-  reloads — runs on the weapon's ammo writer (its owner's active client, else the active GM) inside the queue
-  `ammo:<weaponUuid>`, with a receipt `flags.sr2e.ammoReceipts.<eventId>` in the same update. A launch spends there
-  first (receipt = the launch id), then the GM op records the launch citing the receipt. A reload that buys ammunition
-  charges in the payer's `moneyQueue` and then writes in `ammo:` (lock order money → ammo, never the reverse). EVERY
-  reload that changes reserve items keeps today's `reloadWeapon()` contract — it runs under the reserve OWNER's
-  `moneyQueue` (round 3 #4: different weapons, sales and consolidation share reserves) and acquires the weapon's
-  `ammo:` queue inside it.
-- **Atomic launch spend** (round 3 #5): in ONE update inside `ammo:` the writer validates the loaded round is a
-  missile, debits it, and writes the receipt WITH the payload snapshot (`ammoReceipts.<launchId> = { payload }`); the
-  launch record copies the payload from the receipt, never from a separate read, so a reload can't swap it.
+- **One authoritative ammunition queue** (round 2 #7, round 6 #1): EVERY mutation of a weapon's loaded ammunition —
+  ordinary attacks, missile launches, cancellations, reloads — is a GM op `ammo` run by the ACTIVE GM in the queue
+  `ammo:<weaponUuid>`, committing the change and its receipt `flags.sr2e.ammoReceipts.<eventId>` in ONE weapon update
+  (a GM is always present). Ordinary attacks await it before rolling (one socket round trip). Reserve items keep
+  today's `reloadWeapon()` contract: the reserve owner's money writer, inside that owner's `moneyQueue`, debits the
+  reserve with `reserveReceipts.<reloadId>` and then calls `ammo` reload with the same id; the GM op loads idempotently
+  (a repeated id is a no-op), and a reserve receipt with no matching load is re-sent by the writer's reconcile (or
+  restored by the GM after a timeout, recorded). Nothing else writes loaded ammunition.
+- **Atomic launch spend** (round 3 #5): in ONE `ammo` update the GM validates the loaded round is a missile, debits it
+  and writes the receipt WITH the payload snapshot (`ammoReceipts.<launchId> = { payload }`); the launch record copies
+  the payload from that receipt, never from a separate read.
 - **Admission fence** (round 3 #3): launches are admitted under the combat's `round:<combatId>` queue (the one the
   staged round change uses): a launch reserves `flags.sr2e.launchAdmit.<round>.<launchId>` on the Combat there and
   is refused once the closing stage of that round has begun; the closing stage drains every admitted reservation
-  (spent → launched, or released) before it can complete. **Release** (round 4 #4) is a request to the weapon's ammo
-  writer: under `ammo:` it writes a terminal `ammoReceipts.<launchId> = { cancelled: true }` (or reports the spend
-  already made, which then completes the launch); only that durable acknowledgement releases the admission, and the
-  writer refuses any later spend for a cancelled id. A writer that is offline is handled by the GM taking over as
-  writer (the ammo-writer rule: owner active, else the active GM). **Server-serialized outcome** (round 5 #2): spend and
-  cancel race only through ONE claim — `once(weapon, "launch:<launchId>")` (the server rejects the second embedded
-  create, `module/claims.mjs`), whose payload is `spent` (with the payload snapshot) or `cancelled`. Whoever claims
-  first decides; the ammunition debit for a `spent` claim is then applied idempotently by whichever client is the
-  writer (the receipt `ammoReceipts.<launchId>` is checked first), so a superseded writer's late update can neither
-  overwrite a cancellation nor debit twice.
-- **ECM exposure history** (round 4 #5, round 5 #1; p.59: a field crossed "during any part of flight"): each launch
-  keeps `exposures.<followId(emitterVehicleUuid)>:<deviceId>:<ecmEventId>` = an IMMUTABLE copy of everything 4a.4 needs —
-  the emitter's ECM rating and Flux, the jammer roll (dice and results) of that ECM event, the missile's resisting
-  value (Intelligence, p.32), and any ECCM cancellation applied (its roll and successes) — appended by the sweep
-  whenever the missile's path (shooter → target, GM-adjusted) enters an ECM field during the Turn. Phase 0 computes the
-  effect from these copies (the non-cumulative highest, 4a.4), regardless of whether the field, the ECM event or the
-  cancellation is still live; the GM may add or strike an exposure on the launch panel (recorded).
+  (spent → launched, or released) before it can complete. **Release** (round 4 #4) is the GM `ammo` op `cancel`: in
+  `ammo:<weaponUuid>` it writes a terminal `ammoReceipts.<launchId> = { cancelled: true }` (or finds the spend already
+  made, which then completes the launch); only that receipt releases the admission, and a later spend for a cancelled
+  id is refused. Spend and cancel for one launch run in the same GM queue (round 6 #1), so whichever arrives first
+  writes the terminal receipt and the other sees it.
+- **ECM exposure history** (round 4 #5, round 5 #1, round 6 #2; p.59: a field crossed "during any part of flight"):
+  when the missile's path (shooter → target, GM-adjusted) enters an ECM field during the Turn, the missile is that
+  field's observer under 4a.4 with ITS OWN Sensor Rating (the guided ammo's Sensor field, 4b.3; Flux = Sensor × 1.5
+  rounded up per the Flux Rating Table) — the TN for the jammer's stored dice and the dice of the missile's opposed roll,
+  rolled then by the GM; ED's Intelligence substitution (p.32) is NOT used for ECM. Each exposure is stored on the launch
+  keyed `<followId(emitterVehicleUuid)>:<deviceId>:<jamEventId>` with immutable copies of BOTH sides — the jammer's ECM
+  rating, Flux and stored dice; the missile's Sensor, Flux and opposed roll; and any ECCM cancellation (its rolls and
+  net successes). Phase 0 computes each exposure's effect from these copies (the non-cumulative highest, 4a.4), however
+  the live records have changed; the GM may add or strike an exposure on the launch panel (recorded). A missile with no
+  Sensor Rating can't be an ECM observer: the panel says so and the GM decides (not invented).
 - **Phase 0** (p.59): every launch strikes at the end of its Combat Turn. The staged round change (Part 3a 3.0) gets a
   **closing stage for every combat** (not only chases) that is blocked while any launch of that round is not
   terminal: each launch's Missile Attack Test (Gunnery + Intelligence, + ⌊Sensor ÷ 2⌋ in continuous lock; Combat Pool
@@ -1118,15 +1116,20 @@ nothing is invented.
   Sensor ÷ 2⌋ + missile Intelligence; TN = target Signature (+ the Visibility Table, GM); no Combat Pool; a Complex
   Action. Success: the spotter's **commitment** until Phase 0: +2 to the spotter's other Success Tests; a designator
   user attacking with another weapon also takes the Second Firearm modifier (core p.90).
-- **Guidance record** (round 5 #3): the spotting is a durable record owned by the SPOTTER (a character or a vehicle;
-  token actors allowed), `flags.sr2e.guidance.<id> = { spotterUuid, route: fddm|designator, endpoints: { spotter,
-  weapon, deck } | designatorItemId, target, test: { messageId, successes }, generations, launches: [launchId], state:
-  active|lost|ended }`, created by the Indirect Fire Test's rolled step. It drives the spotter's commitment (+2 and
-  the Second Firearm modifier read from active records), is linked by each launch it guides, carries its own contact
-  generations (4.0: the spotter's sensor or designator device, the link to the target, hide), and is checked at Phase
-  0: still valid → the Missile Attack Test with the recorded successes; lost after a successful test → the area-effect
-  branch (4b.6: the radar-designator TN, spotting successes not used), recorded on the launch; ended when its launches
-  resolve. A character with a laser designator has no sensing vehicle: the record's device is the designator item.
+- **Guidance record** (round 5 #3, round 6 #3): the spotting is a durable record owned by the SPOTTER (a character or
+  a vehicle; token actors allowed), `flags.sr2e.guidance.<id> = { spotterUuid, route: fddm|designator, endpoints: {
+  spotter, weapon, deck } | designatorItemId, target, test: { messageId, successes }, generations, launches: [launchId],
+  state: acquired|committed|lost|ended }`, created `acquired` by a successful Indirect Fire Test's rolled step.
+  **Acquired** carries no penalty. A missile launch citing it moves it to **committed** (p.60: "after the missile is
+  launched, the spotter must keep the sensor or target designator locked on … During the turn, the spotter receives a
+  +2 modifier to all other Success Tests"): the +2 and, for a designator user attacking with another weapon, the
+  Second Firearm modifier apply only while committed. It carries its own contact generations (4.0: the spotter's
+  sensor or designator device, the link to the target, hide) and is checked at Phase 0: still valid → the Missile
+  Attack Test with the recorded successes; lost after launch → the area-effect branch (4b.6: the radar-designator TN,
+  spotting successes not used), recorded on the launch. **Cleanup:** committed → ended when every linked launch is
+  terminal; acquired and never used → ended by the closing stage of its Combat Turn; a cancelled launch unlinks itself
+  (back to acquired if none remain); a non-missile indirect attack (below) resolves at once and ends the record with
+  no commitment. A character with a laser designator has no sensing vehicle: the record's device is the designator.
 - **Missile Attack Test** (the firer, at Phase 0): Gunnery + Intelligence + the spotter's successes; no Combat Pool; TN
   4b.3 (Moly: 5 + 1 = 6 dice vs 3; Tubbs: 6 + 4 + 3 = 13 vs 6).
 - **Non-missile indirect fire** (round 3 #8; p.60: "drones, mortars and Ballista missile launchers, and other general
@@ -1496,7 +1499,7 @@ with no pools while a primary uses the rigger's; an NPC operator; a disconnect k
 step once; a frequency switch voids other intruders' intercepts; a contest takeover transfers the operator only; a
 lost carrier stays lost after regeneration until reconnected; MIJI refused against a CCSS; stale cards "not counted".
 
-## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 2 (2026-11-13, after Codex Part 6 round 1)
+## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 3 (2026-11-13, after Codex Part 6 rounds 1–2)
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
 the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's
 printed copy). Every rule here is OPTIONAL (p.81) and has its OWN world setting (round 1 #1) — one per independently
@@ -1526,15 +1529,20 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
 ### 6a.1 Variable fuel consumption (setting `r2Fuel`; p.81–83)
 - **Fuel state**: `system.fuelLevel` (blank = full = `fuelSize`). EVERY change — owner edits and refuelling included —
   goes through the GM op `fuel` in the vehicle queue with a receipt `flags.sr2e.vfuel.<eventId>` (round 1 #2); the
-  sheet field is a request, not a direct write.
+  sheet field is a request, not a direct write. The `fuel` writer is SHARED infrastructure (round 2 #4), not gated by
+  any one option: each debit names its origin (`travel`, `chase`, `idle`, `flight`, `leak`, `refuel`, `edit`) and the
+  op authorizes it by THAT origin's option (`r2Fuel` for travel/chase/idle/exhaustion, `r2FlightFuel` for maneuvers,
+  `r2Subsystems` for leaks); edits and refuelling are always allowed.
 - **Economy Rating Table** (p.82): below Speed Rating → base Economy; 1–1.5 × Speed Rating → base ÷ 2; vehicle combat
   → (base ÷ 2) + .5. Fuel used = km ÷ economy. "Travel" (sheet: km + speed band) debits once. In a Part 3a chase each
   round's debit is persisted INSIDE the chase transition as an input record `chaseFuel.<round>.<vKey> = { metres,
   economy, eventId }` (round 1 #2) before the chase lock is released; the GM then applies each through `fuel` and the
   transition stays open until every receipt exists (replayed after a reload).
 - **Drones** (p.83): the whole time they operate; a stationary operating drone uses its Idle Economy (`economyIdle`,
-  e.g. "1 hour/liter"; unparseable → GM entry). An operating drone keeps `operatingSince` (game time); the GM's
-  "Operating time" op debits elapsed time idempotently (cursor = last debited time) and on each chase round.
+  e.g. "1 hour/liter"; unparseable → GM entry). Accounting is by mutually exclusive intervals (round 2 #6):
+  `flags.sr2e.fuelCursor = { at: gameTime, mode: moving|idle|off }`; every distance debit (travel, chase round) and
+  every idle debit advances the cursor ATOMICALLY with its receipt (same `fuel` update) and covers only the interval
+  since the cursor in its own mode, so a span is billed once — moving spans by distance, idle spans by time.
 - **Running out of gas** (p.81–82; round 1 #3): reaching 0 fuel opens ONE exhaustion episode `flags.sr2e.fuelOut = {
   id, startSpeed, accel, turnsProcessed, coastExtra, state: coasting|landing|crashed|stopped, receipts }`: no powered
   actions (accelerate, boosts) while it lasts; speed falls 2 × Acceleration per Turn (applied once per processed Turn,
@@ -1547,7 +1555,10 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   passengers or cargo"). Failure = crashes immediately; crash damage per standard rules using the Stall Speed, and the
   crash record carries the distance already travelled along the deceleration (`distance`) so the chase position
   resolves there.
-- **Aircraft maneuvers** (setting `r2FlightFuel`, separate; p.82): fuel after = fuel × the Flight Maneuvers multiplier —
+- **Aircraft maneuvers** (setting `r2FlightFuel`, separate; p.82; round 2 #5): p.82 multiplies the craft's INITIAL
+  FUEL CAPACITY (`fuelSize`) by the multiplier to get what remains, so a maneuver consumes `fuelSize × (1 −
+  multiplier)` — identical to the printed result from a full tank, and for a partly full tank the same quantity is
+  subtracted (a stated reading: the book only shows a full tank). Multipliers —
   STOL takeoff .8 (over Load .7), STOL landing .9, VSTOL takeoff .7 (over Load .55; R6-5), VSTOL landing .85, VTOL
   takeoff .6 (over Load, tilt-wing .4), VTOL landing (tilt-wing) .8; not helicopters, zeppelins or LAVs. Offered from
   5c's takeoff/landing flow; one `fuel` receipt per maneuver.
@@ -1565,10 +1576,15 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   carried optempo. **split** — the month assessment charges half overhead; each adventure charges half-rate optempo.
   **frequent** — vehicles flagged "used every adventure" pay optempo, the others standard monthly overhead.
   **mileage** — optempo only above the GM's threshold (200 km vehicles / 50 km drones suggested); the rest standard.
-- **Reconciliation:** a month assessed before an adventure closes is not revisited: the adventure's charge stands on
-  its own (no double charge — in replace/frequent/mileage the month assessment for a vehicle reads the adventure
-  ledger and skips months already covered; an adventure closing after its month was assessed charges optempo for its
-  km and, in `replace`, credits that month's assessed overhead as a refund line in the same settlement).
+- **Reconciliation, once per vehicle-month** (round 2 #1): a month's settlement for a vehicle is ONE record
+  `flags.sr2e.overhead.months.<m>.optempo = { mode, adventures: [ids], rev, state }` decided in the vehicle queue. For
+  every mode that replaces monthly overhead for that vehicle (replace; frequent for flagged vehicles; mileage above the
+  threshold), the month's overhead LIABILITY is superseded: if still unpaid it is cancelled (no penalty, and
+  `assessMonth` skips a superseded bill); if paid, the actual payment allocation (cash, lifestyle credit, Karma) is
+  reversed by a durable refund receipt through the payer's money writer, only for what was actually paid and only
+  once (the record's `rev` and the receipt guard repeats). In `split`, the half overhead stands and half-rate optempo
+  is added. An adventure closing after its month was settled reopens that month's record once (new `rev`), applying
+  the same rule.
 - Charges reuse Part 2b-2's settlement: an immutable reservation `optempo.<adventureId>.<vKey> = { amount, payer, tx }`
   written by the GM in the vehicle queue, the payer's money writer charges in `moneyQueue` with
   `overheadReceipts.<tx>`, the GM settles on the receipt; reconnect recovery as in 2b-2 (`released` aborts a late
@@ -1586,10 +1602,15 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   parts cost and base time ×2 for modifications installed later (customization quote); Prototype Model/Used Vehicle
   −.60, 1D6 hidden Stress; Safety Certified +.15, passengers and driver −1 TN resisting collision damage (not the
   vehicle, not weapons); Passenger Trap −.15, +1. Consumers read one pure `qualityEffects(choices)`.
-- **Hidden Stress** (round 1 #7): rolled once at creation by the GM op `hiddenStress` into GM-only storage (a world
-  setting keyed by vehicle uuid, never an actor flag), with a creation receipt on the vehicle; each reveal is one GM op
-  that decrements the hidden balance AND applies that many Stress (`stress` with the reveal's event id) in one vehicle
-  queue step; revealed points add normally.
+- **Hidden Stress** (round 1 #7; round 2 #2–3): rolled once at creation by the GM op `hiddenStress` into GM-only
+  storage (a world setting keyed by vehicle uuid, never an actor flag), with a creation receipt on the vehicle. A
+  reveal is a recoverable transaction: (1) in the secret store, record `reveals.<revealId> = { n, state: pending }` and
+  decrement the available balance; (2) OUTSIDE any vehicle lock, apply n Stress through the `stress` op with
+  `eventId = revealId` (idempotent); (3) mark the reveal `done`. On reload the GM re-applies pending reveals (step 2 is
+  idempotent) and finalizes them. **When** (p.84): hidden points become revealable when the vehicle "comes into play" —
+  the character pushes the vehicle (Stress dice used on a test, Part 2a) or botches a Success Test under the Stress
+  Rule of One; those events post a GM prompt "reveal hidden Stress?" with the count (all or some, the GM's choice per
+  p.84); the GM may also reveal at any time.
 - **Setting off:** saved designs keep their stored price; the factors' play effects stop; reopening such a design in
   the Workshop shows the quality section read-only with a problem "quality factors need the optional rule" (no silent
   re-pricing).
@@ -1635,18 +1656,23 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   TNs against the vehicle's Signature (Part 4's Sensor Test and sensor-enhanced gunnery, in the per-observer EW term).
   Josie: (8 + 6) ÷ 10 = 1.4 → 1; Signature 4 → TN 3.
 - **Reducing** (Complex Action): Electronic Warfare Test — Electronics dice (+ Task Pool up to the skill) vs Footprint
-  + 4, +2 per attempt after the first; each success −1 total Flux, cumulative; all 1s doubles the total Flux. State:
-  `flags.sr2e.footprint = { rev, totalFlux, attempts, results: { <eventId>: { before, after } } }` — every attempt is a
-  rolled step bound to `rev` and applied to the CURRENT `totalFlux` (doubling and reductions interleave in order); a
-  stale roll is "not counted". **No automatic expiry** (none is printed; user ruling R6-6): it lasts until the GM
+  + 4, +2 per attempt after the first; each success −1 total Flux, cumulative; all 1s doubles the total Flux. State is
+  stored as an ordered list of OPERATIONS, never as a frozen total (round 2 #7): `flags.sr2e.footprint = { rev,
+  attempts, ops: [ { eventId, kind: cut|double, n } ] }`; the effective total Flux = the LIVE transmitter sum with the
+  ops applied in order (each cut subtracts n, each double doubles, floor 0), so radios switching on, destroyed or new
+  transmitters and Flux changes are reflected immediately while the earned reductions persist (R6-6). Each attempt is
+  a rolled step bound to `rev` and to the live-sum generation (Part 4's device generations); a transmitter change bumps
+  `rev`, so an attempt rolled before it is "not counted". **No automatic expiry** (none is printed; user ruling R6-6): it lasts until the GM
   clears it; the panel shows the reduced total beside the live sum.
 
 ### 6b.2 Breaking missile-target lock (setting `r2BreakLock`; p.88; round 1 #16)
 - The targeted vehicle's controller may make a Hide Action (Complex; Part 3a hide) before the missile strikes:
   successes ≥ the missile's Intelligence break the lock and the missile misses; fewer = no effect; each further attempt
-  that Turn needs +2. Attempts are admitted under the launch's authority — the combat's `round:<combatId>` queue that
-  admits and closes launches (Part 4b.4) — each reserving `launches.<id>.breaks.<n> = { required, state }` with its
-  required successes frozen at admission; Phase 0 waits for admitted attempts and checks a `lockBroken` receipt first.
+  needs +2 (p.88: "for each additional attempt" — counted per LAUNCH, across Turns for an extended missile; round 2 #9).
+  Attempts are admitted under the launch's authority — the combat's `round:<combatId>` queue that admits and closes
+  launches (Part 4b.4) — each reserving `launches.<id>.breaks.<n> = { required, state }` with its required successes
+  frozen at admission. ONE terminal resolver, shared by Phase 0 and the extended-missile chase (6b.3), waits for
+  admitted attempts and checks a `lockBroken` receipt before any hit.
 
 ### 6b.3 Extended-range missiles (setting `r2ExtendedMissiles`; p.89; round 1 #15)
 - Missiles with range > 2 km: a chase participant whose one goal is to close on its designated target (Accelerate)
@@ -1654,6 +1680,12 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   (anti-surface) / 5,000 m/turn (anti-air); its Intelligence is the Driving Test dice. **Damage on the collision**
   (user ruling R6-7): the missile's own warhead damage from the launch payload (Ram is how it reaches the target),
   resolved as a missile hit (Part 4b) — not Part 3b's ram damage.
+- **Chase adapter** (round 2 #8): the missile is a chase participant of kind `missile` with no driver: `actingActorOf`
+  returns the missile pseudo-vehicle itself; its Driving Tests use Intelligence dice (no pools, no Driver Points — the
+  Driver Points step is skipped for `missile` participants and they act on their own Initiative of Intelligence +
+  2D6); it has no Acceleration: its speed is FIXED at the printed value from launch (the Accelerate action for a
+  missile only declares intent to close; no speed change is computed), and each turn it moves its fixed speed toward
+  the target; its only actions are close and Ram. No other vehicle statistics are invented (Handling 4 is printed).
 - Lifecycle, owned by the launch record (Part 4b.4): the launch spawns ONE GM-created temporary vehicle actor
   (`flags.sr2e.missile = { launchId }`, keepId = a launch-derived id so a retry can't duplicate), joins it to the chase,
   and routes its resolution EXCLUSIVELY through the chase (Part 4's Phase-0 strike skips launches marked `extended`).
@@ -1673,8 +1705,12 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
 
 ### 6b.5 Back-up channels (setting `r2BackupChannels`; p.89)
 - `rcNet.backup = { from, to }` (at most one move: never all three on one frequency): every action on both channels
-  +2; an intruder locating the carrying channel −1; the moved channel's monitor is out of play while moved. Otto:
-  command on system → +2 to commands and indirect fire, the jammer −1.
+  +2; an intruder locating the carrying channel −1. **Routing** (round 2 #10): every LOGICAL channel maps to a
+  PHYSICAL carrier (`route(logical)` = `to` for the moved one, itself otherwise); interception, MIJI, degradation,
+  carrier loss and reconnection all act on the physical carrier — MIJI against the moved logical channel lands on the
+  carrier, and a lost carrier takes down both logical channels it carries; the displaced channel's own monitor and
+  carrier state are kept unchanged and come back into play when the move is undone. Otto: command on system → +2 to
+  commands and indirect fire, the jammer −1.
 
 ### 6b.6 Server system for CRDs (setting `r2CrdServer`; p.89–90)
 - A cranial remote deck as a super-subscriber of a conventional deck (the "server"): the server controls one drone
@@ -1683,11 +1719,16 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   the CRD's record, the CRD among the server's subscribers.
 
 ### 6b.7 Advanced electronic warfare (p.90; round 1 #1, #18)
-- **Partial MIJI** (setting `r2PartialMiji`): when the target deck is out of the intruder's device range but some
-  drones are in range, MIJI may target the network; only in-range drones are affected. Overlays keyed by attack and
-  drone: `rcNet.partial.<eventId>.<vKey> = { channel, boxes, attackerKey }`; a drone's effective boxes on a channel =
-  the network entries + its overlays (cap 10); the GM's range sweep (Part 4 transitions) retires an overlay when THAT
-  drone leaves THAT attacker's range. A rigger jumped into an affected drone can be dumped by jamming/interference.
+- **Partial MIJI** (setting `r2PartialMiji`; round 2 #11): when the target deck is out of the intruder's device range
+  but some drones are in range, MIJI may target the network; only in-range drones are affected. Each partial operation
+  is a SCOPED copy of the Part 5 operation: `rcNet.partial.<eventId> = { op, channel, attackerKey, drones: [vKey],
+  state }` holding everything that operation creates, limited to its drones — degradation boxes (a drone's effective
+  boxes on a channel = the network entries + its overlays, applied-box capped at 10), bogus objects (intrusion),
+  carrier loss for those drones (jamming at 10), and an interference contest whose takeover transfers only those
+  drones' control (their affiliation moves to a scoped control entry of the winner, Part 5's control truth reading it).
+  The GM's range sweep (Part 4 transitions) removes a drone from the operation when THAT drone leaves THAT attacker's
+  range — its boxes, bogus belief, carrier loss and scoped control end with it; the operation ends when no drones
+  remain. A rigger jumped into an affected drone can be dumped by jamming/interference.
 - **Multiple channels** (setting `r2MultiChannelMiji`): one MIJI type on 2 or 3 intercepted channels, +3 TN per extra
   channel (+3 / +6).
 - **Barrage jamming** (setting `r2BarrageJamming`): no Interception Test; all channels and radio at once; 1 box on

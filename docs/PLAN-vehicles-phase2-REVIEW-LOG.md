@@ -707,3 +707,37 @@ setting per selectable rule (fuel, flight fuel, fuel grades, optempo modes, qual
 break-lock, extended missiles, pre-programmed commands, back-up channels, CRD server, partial MIJI, multi-channel,
 barrage, hot mike), each re-checked in its handlers. User rulings R6-6 (a Footprint reduction lasts until the GM clears
 it) and R6-7 (an extended-range missile's collision does its warhead damage).
+
+## Part 4 plan, round 6 — Codex (draft 6, fresh session): REVISE, 3 findings
+1. The `once()` claim decides spend vs cancel, but the debit itself could still race across clients.
+2. The exposure snapshot used ED's Intelligence substitution for ECM and omitted the observer's opposed roll.
+3. Guidance penalties began at spotting (p.60: after launch) and had no cleanup for unused or cancelled guidance.
+
+### Claude's response (draft 7)
+All taken: every loaded-ammunition mutation is the GM op `ammo` in one `ammo:<weaponUuid>` queue on the active GM
+(reserves still debited under the owner's money queue with an idempotent load); the missile is an ECM observer with its
+own Sensor Rating and opposed roll (no ED substitution), both sides copied into the exposure; guidance is `acquired`
+(no penalty) until a launch commits it, with cleanup for unused, cancelled and non-missile cases.
+
+## Part 5 plan, round 3 — not run: Codex usage limit (resets 9:49 PM).
+
+## Part 6 plan, round 2 — Codex (draft 2, fresh session): REVISE, 11 findings
+1. Optempo double-charged in frequent/mileage and refunded assessed rather than paid overhead.
+2. Hidden-Stress reveal not atomic across the secret store and the actor; `stress` re-entered the vehicle queue.
+3. The book's reveal triggers (pushing, Stress Rule of One botch) missing.
+4. The fuel writer was gated by `r2Fuel`, blocking flight fuel and subsystem leaks.
+5. Flight maneuvers multiply initial fuel CAPACITY, not current fuel.
+6. Drone moving/idle fuel could be billed twice.
+7. A frozen Footprint total disconnects from live transmitters.
+8. No chase adapter for extended missiles (driver, Driver Points, Initiative, fixed speed).
+9. Break-lock didn't cover extended missiles or count attempts per launch.
+10. Back-up channels lacked routing for MIJI, degradation and carriers.
+11. Partial MIJI overlays covered only degradation.
+
+### Claude's response (draft 3)
+All taken: one vehicle-month optempo settlement superseding unpaid liabilities and refunding only actual payments; a
+recoverable three-step reveal with the book's triggers prompting the GM; shared `fuel` infrastructure authorized per
+origin; maneuvers consume capacity × (1 − multiplier) (reading stated for partial tanks); exclusive fuel intervals with
+an atomic cursor; Footprint as ordered operations over the live sum; a missile chase adapter (no Driver Points, own
+Initiative, fixed speed, Intelligence dice); one launch-wide break-lock resolver; logical→physical channel routing; scoped
+partial-MIJI operations covering every effect and its range-exit cleanup.
