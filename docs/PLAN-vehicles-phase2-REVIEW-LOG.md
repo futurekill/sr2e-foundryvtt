@@ -809,3 +809,23 @@ hidden-Stress store wasn't serialized.
 All taken: one movement budget per Turn shared with the closing stage; a launch-bound Hide using only the test
 calculation; credit within its month, whole-point Karma by largest remainder, cash last; receipt-backed reversal of
 missed-payment consequences; one `hidden-stress` GM queue.
+
+## Part 4 plan, round 9 — Codex (draft 9, fresh session): REVISE, 2 findings
+1. A cancellation after settlement could refund rounds already loaded. 2. Settling "exactly loaded" dropped the rounds a
+top-up retains.
+
+### Claude's response (draft 10)
+Both taken: cancellation only from `planned` (after settlement, recovery finishes the escrow release, no refund); plans
+record `retained` and settle `retained + loaded`.
+
+## Part 5 plan, round 5 — not run: Codex usage limit (resets 2:52 AM).
+
+## Part 6 plan, round 5 — Codex (draft 5, fresh session): REVISE, 4 findings
+1. Out-of-order fuel intervals could be dropped by the cursor. 2. Ram bypassed the missile's movement ledger. 3. Whole
+Karma points can't map to cash allocations (one point may cover two bills with no cash). 4. Reversal could remove Stress
+a completed restoration already removed.
+
+### Claude's response (draft 6)
+All taken: pending out-of-order intervals with contiguous cursor advance and deferred mode changes; Ram uses the same
+per-Turn ledger; Karma points' monetary coverage tracked across bills, cash allocations summing to the original debit,
+a point refunded only when none of its coverage is needed; reversal net of completed restorations.

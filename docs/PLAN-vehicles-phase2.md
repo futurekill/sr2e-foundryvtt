@@ -22,7 +22,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature.
 - **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 5 below, in Codex review.
-- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 5 below, in Codex review.
+- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 6 below, in Codex review.
 Each part gets its own plan section + Codex review before code, and its own release.
 
 ## Part 1 — core rules audit (SR2 core p.84–85, p.104–109, p.183)
@@ -893,7 +893,7 @@ pending survives a reload → crash → occupants (one receipt each, vehicle sta
 feedback per event (two Serious hits → two); weapons; spells; an old core card resolves by core after the switch; core
 path unchanged with the ruleset off.
 
-## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 9 (2026-11-13, after Codex Part 4 rounds 1–8)
+## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 10 (2026-11-14, after Codex Part 4 rounds 1–9)
 _Read from 110-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. Everything below applies
 only under `isRigger2()`; the core attack flow (incl. the p.108 Moving Target Table) is untouched under core. Two
 releases: **4a** (sensors, Flux and range, ECM/ECCM/ED/ECD, locks), **4b** (gunnery modes, missiles, indirect fire,
@@ -1072,16 +1072,18 @@ nothing is invented.
   loaded ammunition.
 - **Reloads as a journalled transaction** (round 7 #1–2, round 8 #1–2), replacing today's single-client
   `_reloadNow()` reads: (1) `ammo` **plan** — inside `ammo:<weaponUuid>` the GM reads the clip revision, the rounds the
-  clip can take (`need`) and the rounds it will eject, writes `reloadPlans.<reloadId> = { clipRev, need, eject,
-  ammoItemId, state: planned }` and FENCES the weapon (every other `ammo` op on it is refused while a plan is open).
+  clip can take (`need`), the rounds it will eject and the rounds it RETAINS (a top-up keeps the current load: 8 in a
+  10-round clip → retained 8, need 2; a change of ammunition type ejects → retained 0), writes `reloadPlans.<reloadId>
+  = { clipRev, need, eject, retained, ammoItemId, state: planned }` and FENCES the weapon (every other `ammo` op on it is refused while a plan is open).
   (2) **reserve step** — the reserve owner's money writer, inside that owner's `moneyQueue`, re-checks the plan is
   still `planned` (through the GM), computes the ACTUAL quantity `loaded = min(need, available reserve)` (partial
   reloads as today), debits it, and writes `reserveReceipts.<reloadId> = { loaded, ammo properties, ejected: n,
   ejectEscrow: pending }` — the ejected rounds are ESCROWED in the receipt, not yet credited to any reserve, so no other
-  reload can consume them. (3) `ammo` **settle** — loads exactly the receipt's `loaded` with its properties, marks the
-  plan `settled`. (4) **escrow release** — the money writer credits the escrowed ejected rounds and marks
-  `ejectEscrow: released`; the GM lifts the fence on that acknowledgement. **Cancellation:** the GM writes the terminal
-  `cancelled` in `ammo:` FIRST (a later settle for that id is refused); the money writer then applies an idempotent
+  reload can consume them. (3) `ammo` **settle** — sets the clip to `retained + receipt.loaded` (round 9 #2) with the receipt's properties,
+  marks the plan `settled`. (4) **escrow release** — the money writer credits the escrowed ejected rounds and marks
+  `ejectEscrow: released`; the GM lifts the fence on that acknowledgement. **Cancellation** is allowed ONLY from `planned` (round 9 #1): once `settled`, recovery completes the escrow release
+  and never refunds the debit. From `planned`, the GM writes the terminal `cancelled` in `ammo:` FIRST (a later settle
+  for that id is refused); the money writer then applies an idempotent
   cancellation acknowledgement in `moneyQueue` — refunds any debit, discards the escrow (the ejected rounds never left the
   unchanged clip) — receipted; only that acknowledgement lifts the fence. A reserve step that sees `cancelled` does
   nothing.
@@ -1562,7 +1564,7 @@ with no pools while a primary uses the rigger's; an NPC operator; a disconnect k
 step once; a frequency switch voids other intruders' intercepts; a contest takeover transfers the operator only; a
 lost carrier stays lost after regeneration until reconnected; MIJI refused against a CCSS; stale cards "not counted".
 
-## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 5 (2026-11-13, after Codex Part 6 rounds 1–4)
+## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 6 (2026-11-14, after Codex Part 6 rounds 1–5)
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
 the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's
 printed copy). Every rule here is OPTIONAL (p.81) and has its OWN world setting (round 1 #1) — one per independently
@@ -1609,7 +1611,10 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   submission carries its covered interval `{ from, to, mode }` (round 3 #3): the `fuel` op trims it to `[cursor, to]`
   (a submission whose `to` ≤ the cursor is a no-op, receipted; a distance submission is pro-rated to the uncovered
   part), and a mode change is its own op that first settles the open interval in the old mode, then switches —
-  so a late chase debit after an idle debit can't double-bill.
+  so a late chase debit after an idle debit can't double-bill. **Out-of-order arrival** (round 5 #1): intervals that
+  start beyond the cursor are persisted as PENDING (`fuelPending.<eventId>`) and the cursor advances only across
+  contiguous settled coverage, absorbing pending intervals as the gap fills; a mode change is deferred until the
+  previous mode's movement up to the change time has arrived (or the GM settles the gap explicitly).
 - **Running out of gas** (p.81–82; round 1 #3): reaching 0 fuel opens ONE exhaustion episode `flags.sr2e.fuelOut = {
   id, startSpeed, accel, turnsProcessed, coastExtra, state: coasting|landing|crashed|stopped, receipts }`: no powered
   actions (accelerate, boosts) while it lasts; speed falls 2 × Acceleration per Turn (applied once per processed Turn,
@@ -1652,8 +1657,9 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   once (the record's `rev` and the receipt guard repeats). In `split`, the half overhead stands and half-rate optempo
   is added. An adventure closing after its month was settled reopens that month's record once (new `rev`), applying
   the same rule. **Missed-payment consequences** (round 4 #4): when a superseded liability had already been assessed as
-  missed, its consequences are reversed by receipt — the Stress `assessMonth()` applied for it (a `stress` op with the
-  original event id's reversal, floor = permanent Stress), its contribution to the month's overhead Stress counter, and
+  missed, its consequences are reversed by receipt — the Stress `assessMonth()` applied for it MINUS whatever a completed
+  restoration (`overheadRestoreResult`, the bill marked `restored`) already removed, any open restoration reservation
+  settled first (round 5 #4) — only the remaining contribution reversed (a `stress` op keyed to the original event id), its contribution to the month's overhead Stress counter, and
   any restoration reservation released-or-settled through the payer protocol — each once, keyed to the original
   assessment's receipt.
 - **Outstanding payments first** (round 3 #1): before superseding a vehicle-month's liability, the GM resolves any open
@@ -1661,8 +1667,11 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   payer's receipt), so a `payOverhead` already admitted either completes (then it is refunded below) or aborts.
 - **Allocation** (round 3 #2, round 4 #3): a refund is computed from the ORIGINAL payment receipt by one deterministic
   function (legacy receipts included, recomputed the same way): lifestyle credit is allocated only within its own month
-  (to that month's bills, pro rata); Karma is allocated in WHOLE points by largest remainder (ties broken by vehicle
-  uuid order) over the bills still uncovered; cash covers the remainder — with a cumulative refund ledger keyed by that receipt
+  (to that month's bills, pro rata); then each Karma point's MONETARY coverage (the ¥ value `overheadPayment` gave it)
+  is spread over the bills it covered, tracked separately from the indivisible point itself; cash allocations are
+  assigned so they sum exactly to the original cash debit (round 5 #3). Refund order for a superseded bill: its cash
+  share first, then its credit share; a Karma point is refunded only when NONE of its coverage is still needed by a
+  bill that stands — with a cumulative refund ledger keyed by that receipt
   (`overheadRefunds.<tx> = { cash, credit, karma }`) capping every refund at what the receipt actually allocated to that
   vehicle-month, so reopening never refunds shared credit or Karma twice.
 - Charges reuse Part 2b-2's settlement: an immutable reservation `optempo.<adventureId>.<vKey> = { amount, payer, tx }`
@@ -1776,8 +1785,9 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   (round 4 #1): one movement budget per Turn (`launches.<id>.moved.<round>`) shared by its Accelerate (closing) action
   and the round's closing stage — a successful closing test spends the Turn's budget, and `chaseCloseStage()` advances
   the missile's pair distance only by whatever budget remains unspent (none after a success), never adding a second
-  move; it is entitled to Ram once its fixed speed covers the remaining distance (R6-8), which replaces the Part 3a ram
-  admission for `missile` participants.
+  move; it is entitled to Ram once its REMAINING budget for the Turn covers the remaining distance (R6-8; round 5 #2) —
+  the Ram consumes that distance from the same ledger, and a missile already at contact may Ram with no budget spent;
+  this replaces the Part 3a ram admission for `missile` participants.
 - Lifecycle, owned by the launch record (Part 4b.4): the launch spawns ONE GM-created temporary vehicle actor
   (`flags.sr2e.missile = { launchId }`, keepId = a launch-derived id so a retry can't duplicate), joins it to the chase,
   and routes its resolution EXCLUSIVELY through the chase (Part 4's Phase-0 strike skips launches marked `extended`).
