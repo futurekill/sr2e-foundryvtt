@@ -596,12 +596,16 @@ export class SR2EItem extends Item {
       return enqueueAttack(actor.uuid, () => this._rollWeaponAttack({ ...options, _engage }));
     }
     const engage = options._engage ?? null;
-    // Rigger 2 missiles (4b.4): a launch rolls nothing now — the missile strikes at Phase 0.
-    if (isRigger2() && options.gunneryMode === "launch") return launchMissile(this, actor, options, engage);
-    if (isRigger2() && options.gunneryMode !== "missile" && !["melee", "throwing"].includes(this.system.weaponType)) {
+    // A gunner guiding a missile in continuous lock attacks nothing else until it strikes (R2 p.59) — any weapon, any
+    // vehicle, a new launch included (code review 4b r1 #6); checked before any dispatch.
+    if (isRigger2() && options.gunneryMode !== "missile") {
       const committed = await continuousCommitment(this, actor, options, engage);
       if (committed) return ui.notifications.warn(`${this.name}: ${committed}`);
     }
+    // Rigger 2 missiles (4b.4): a launch rolls nothing now — the missile strikes at Phase 0.
+    if (isRigger2() && options.gunneryMode === "launch") return launchMissile(this, actor, options, engage);
+    // An area-effect attack (p.60–61; r1 #9): the round is spent through the ammunition queue, then the scatter flow.
+    if (isRigger2() && options.gunneryMode === "area") return areaFromDialog(this, actor, options);
 
     const RANGE_TN_MODS = CONFIG.SR2E.rangeTnMods;
     const BASE_TN = 4;
@@ -727,7 +731,8 @@ export class SR2EItem extends Item {
     // (SR2E p.105). Empty strings are filtered out.
     const typeFallback = WEAPON_TYPE_DEFAULT_SKILLS[this.system.weaponType] ?? "";
     const skillKeys = [
-      this.parent?.type === "vehicle" ? "gunnery" : "",
+      // Mounted weapons, and every Rigger 2 sensor/indirect/missile attack, roll Gunnery (R2 p.58–60; r1 #12).
+      this.parent?.type === "vehicle" || (isRigger2() && ["sensor", "indirect", "missile"].includes(options.gunneryMode)) ? "gunnery" : "",
       normalize(this.system.skill ?? ""),
       normalize(typeFallback)
     ].filter(k => k !== "");
@@ -1123,7 +1128,7 @@ export class SR2EItem extends Item {
     }
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
-      flags: sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null),
+      flags: options.testFlags ? foundry.utils.mergeObject(sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null) ?? {}, options.testFlags, { inplace: false }) : sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null),
       // Short caption for the dice-provenance groups. Without this the group
       // caption inherits `label`, i.e. the entire card title.
       sourceLabel: this.name, tnContext,
@@ -2391,7 +2396,7 @@ export class SR2EItem extends Item {
 async function r2GunneryContext(weapon, actor, options, engage) {
   if (!isRigger2() || !["manual", "sensor", "missile", "indirect"].includes(options.gunneryMode)) return null;
   if (options.gunneryMode === "missile") return missileContext(options.launch);
-  if (options.gunneryMode === "indirect") return indirectContext(options);
+  if (options.gunneryMode === "indirect") return indirectContext(options, weapon);
   const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent
     : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
   const vehicleDamage = vehicle?.system?.damageTnMod ?? 0;
@@ -2443,12 +2448,12 @@ async function missileContext(l) {
 /** A continuous-lock missile commits its gunner to the target until Phase 0 (R2 p.59): other targets are refused. */
 async function continuousCommitment(weapon, actor, options, engage) {
   if (game.user.isGM) return null;   // GM override
-  const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
-  if (!vehicle) return null;
   const { guidanceCommitment } = await import("../vehicle-missiles.mjs");
-  const c = guidanceCommitment(actor, vehicle);
+  const { allVehicles } = await import("../vehicle-sensors.mjs");
+  const c = allVehicles().map(v => guidanceCommitment(actor, v)).find(Boolean);
   const target = engage?.token?.uuid ? fromUuidSync(engage.token.uuid)?.actor : null;
-  if (!c || target?.uuid === c.targetUuid) return null;
+  const aimedAt = options.gunneryMode === "launch" && options.launchMode === "indirect" ? null : target?.uuid;
+  if (!c || aimedAt === c.targetUuid) return null;   // only attacks at OTHER targets are refused (p.59)
   return `${actor.name} is guiding a missile in continuous lock until it strikes (Rigger 2 p.59): no other targets this Turn`;
 }
 
@@ -2505,18 +2510,35 @@ async function launchIndirect(weapon, actor, options, vehicle) {
  * Sensor-Enhanced Targeting modifiers + the spotter's successes, no Combat Pool; the missile-only terms are 0. The
  * spotting then ends (no commitment).
  */
-async function indirectContext(options) {
+async function indirectContext(options, weapon) {
+  options.weaponUuid = weapon?.uuid;
   const ref = options.guidanceRef, spotter = ref?.spotterUuid ? fromUuidSync(ref.spotterUuid) : null;
   const I = await import("../vehicle-indirect.mjs");
   const g = I.guidanceOf(spotter)[ref?.id];
   if (!g || !(await I.guidanceValid(g))) return { refused: "the spotter has no valid lock on the target (Rigger 2 p.60)" };
+  // The attack must be at the spotter's target (r1 #7): the captured token is that target's.
+  const aimed = options._engage?.token?.uuid ? fromUuidSync(options._engage.token.uuid)?.actor : null;
+  if (aimed?.uuid !== g.targetUuid) return { refused: `target ${fromUuidSync(g.targetUuid)?.name ?? "the spotter's target"} — the spotter's lock is on it` };
   const S = await import("../vehicle-sensors.mjs");
   const target = fromUuidSync(g.targetUuid);
   const signature = S.baseSignature(target, game.user.isGM && Number.isFinite(options.r2?.signature) ? options.r2.signature : null);
   if (signature == null) return { refused: `the GM must set ${target?.name}'s Signature (R2 p.61)` };
   options.poolDice = undefined;   // p.60: no Combat Pool
-  gmCall("guidanceEnd", { spotterUuid: spotter.uuid, guidanceId: g.id }).catch(() => {});
+  let used;
+  try { used = await gmCall("guidanceUse", { spotterUuid: spotter.uuid, guidanceId: g.id, targetUuid: g.targetUuid, weaponUuid: options.weaponUuid ?? "" }); }
+  catch (err) { return { refused: err.message }; }
   return { mode: "missile", mount: "", vehicleDamage: 0, signature, ewTerm: 0, urban: !!options.r2?.urban,
-    los: options.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: g.successes, diceNote: `spotter ${g.successes}, indirect fire` };
+    los: options.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: used.successes, diceNote: `spotter ${used.successes}, indirect fire` };
+}
+
+/** An area-effect attack from the attack dialog (R2 p.60–61; r1 #9): spend the round, then the area-effect flow. */
+async function areaFromDialog(weapon, actor, options) {
+  const { ammoQueued, spendRounds } = await import("../vehicle-ammo.mjs");
+  if (ammoQueued(weapon)) {
+    try { await spendRounds(weapon, 1); } catch (err) { return ui.notifications.warn(`${weapon.name}: ${err.message}`); }
+  }
+  const des = (await import("../vehicle-indirect.mjs")).designatorOf(actor);
+  return (await import("../vehicle-indirect.mjs")).areaEffectAttack({ gunnerUuid: actor.uuid, name: weapon.name, device: des?.kind ?? "sensor",
+    distance: options.distance ?? null });
 }
 

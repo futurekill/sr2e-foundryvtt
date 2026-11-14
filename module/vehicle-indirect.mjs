@@ -60,6 +60,8 @@ export async function guidanceValid(g) {
   if (!spotter || !target || !["acquired", "committed"].includes(g.state)) return false;
   const S = await import("./vehicle-sensors.mjs");
   if (g.deviceId && spotter.type === "vehicle") return S.contactOk(spotter, g.deviceId, target, g.deps);
+  // A character on the FDDM route (code review 4b r1 #8): valid while the FDDM still works and the target is there.
+  if (g.route === "fddm" || g.route === "override") return hasFddm(spotter) || g.route === "override";
   const des = designatorOf(spotter);
   if (!des || des.item.id !== g.designatorItemId) return false;
   const d = S.distanceBetween(spotter, target);
@@ -79,7 +81,15 @@ export function registerIndirect() {
     return hq(spotter.uuid, async () => {
       const id = st.id;
       if (guidanceOf(spotter)[id]) return guidanceOf(spotter)[id];
-      if (!successes) return null;   // p.60: a failed test is no lock (an area-effect attack remains possible)
+      if (!successes) {
+        // p.60: a failed test is no lock, but the missile may still be used for an area-effect attack (r1 #9).
+        await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: spotter }), flags: { sr2e: { areaEffect: { gunnerUuid: "", name: "", device: "sensor",
+          distance: (await import("./vehicle-sensors.mjs")).distanceBetween(spotter, target) } } },
+          content: `<div class="sr2e-damage-result"><strong>No lock on ${esc(target.name)}</strong> — the Indirect Fire Test failed (Rigger 2 p.60). The firer may
+            still make an area-effect attack (p.60–61; select your character first).
+            <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-area-effect">💥 Area-effect attack</button></div></div>` });
+        return null;
+      }
       const S = await import("./vehicle-sensors.mjs");
       const sensor = spotter.type === "vehicle" && !st.designatorItemId ? S.sensorOf(spotter) : null;
       const rec = { id, spotterUuid: spotter.uuid, route: st.route, targetUuid: target.uuid, targetTokenUuid: st.targetTokenUuid ?? "",
@@ -91,7 +101,8 @@ export function registerIndirect() {
   });
 
   // A launch citing a spotting commits it (p.60), from the GM's missileLaunch; idempotent by launch id.
-  gmOp("guidanceCommit", async ({ spotterUuid, guidanceId, launchId, targetUuid }) => {
+  gmOp("guidanceCommit", async ({ spotterUuid, guidanceId, launchId, targetUuid }, user) => {
+    if (!user.isGM) throw new Error("GM only (a launch commits a spotting)");   // r1 #1
     const spotter = fromUuidSync(spotterUuid);
     return hq(spotterUuid, async () => {
       const g = guidanceOf(spotter)[guidanceId];
@@ -105,12 +116,28 @@ export function registerIndirect() {
   });
 
   // End a spotting (cleanup: every linked launch terminal, or its Turn closed unused) or mark it lost.
-  gmOp("guidanceEnd", async ({ spotterUuid, guidanceId, state = "ended" }) => {
+  gmOp("guidanceEnd", async ({ spotterUuid, guidanceId, state = "ended" }, user) => {
     const spotter = fromUuidSync(spotterUuid);
+    if (!user.isGM && !spotter?.testUserPermission(user, "OWNER")) throw new Error("the spotter's player or the GM ends a spotting");
     return hq(spotterUuid, async () => {
       const g = guidanceOf(spotter)[guidanceId];
       if (g && !["ended", "lost"].includes(g.state)) await spotter.update({ [`flags.sr2e.guidance.${guidanceId}.state`]: state });
       return true;
+    });
+  });
+
+  // Non-missile indirect fire uses a spotting (r1 #1, #7): the GM checks it's valid and aimed at THAT target, then ends
+  // it (no commitment for a shot resolved at once) and returns the successes the attack adds.
+  gmOp("guidanceUse", async ({ spotterUuid, guidanceId, targetUuid, weaponUuid }, user) => {
+    const spotter = fromUuidSync(spotterUuid), weapon = fromUuidSync(weaponUuid);
+    if (!user.isGM && !(weapon?.testUserPermission(user, "OWNER") || weapon?.parent?.testUserPermission(user, "OWNER")
+      || (weapon?.parent?.type === "vehicle" && controllerOf(weapon.parent)?.testUserPermission(user, "OWNER")))) throw new Error("not your weapon");
+    return hq(spotterUuid, async () => {
+      const g = guidanceOf(spotter)[guidanceId];
+      if (!g || g.state !== "acquired" || !(await guidanceValid(g))) throw new Error("the spotter has no valid lock (Rigger 2 p.60)");
+      if (g.targetUuid !== targetUuid) throw new Error("the spotter is locked on another target");
+      await spotter.update({ [`flags.sr2e.guidance.${guidanceId}.state`]: "ended" });
+      return { successes: g.successes };
     });
   });
 
@@ -180,8 +207,8 @@ export async function promptIndirectFire(spotter, { targetToken = null } = {}) {
  * lostAfterSpotting, name }.
  */
 export async function areaEffectAttack(ae) {
-  const gunner = fromUuidSync(ae.gunnerUuid);
-  if (!gunner) throw new Error("the gunner is gone");
+  const gunner = ae.gunnerUuid ? fromUuidSync(ae.gunnerUuid) : (canvas?.tokens?.controlled?.[0]?.actor ?? game.user.character);
+  if (!gunner) throw new Error(ae.gunnerUuid ? "the gunner is gone" : "select the firer's token (or assign a character)");
   if (!gunner.isOwner) throw new Error("the gunner's player or the GM rolls this");
   const res = await foundry.applications.api.DialogV2.prompt({ window: { title: `Area-effect attack — ${ae.name ?? ""}` },
     content: `<p>Rigger 2 p.60–61${ae.lostAfterSpotting ? ": the lock was lost after a successful Indirect Fire Test — the TN as for a radar designator; the spotting successes don't count" : ""}.</p>
@@ -207,6 +234,19 @@ export async function areaEffectAttack(ae) {
     <strong>Scatter (Remote Gunnery Scatter Table, R2 p.61):</strong> ${sc.dice}D6 × ${sc.mult} = ${roll.total * sc.mult} m − ${succ} × ${sc.cut} m
     → ${m ? `<strong>${m} m</strong>, Scatter Diagram ${d6} (core p.97)` : "<strong>on target</strong>"}. Damage by the standard rules (living targets) or
     Vehicle Damage from Weapons (p.53).</div>` });
+}
+
+/** A refused launch never existed: drop it from the spotting, back to acquired when nothing else is linked (r1 #4). GM. */
+export async function guidanceUnlink(spotterUuid, guidanceId, launchId) {
+  const spotter = fromUuidSync(spotterUuid);
+  if (!spotter) return;
+  return hq(spotterUuid, async () => {
+    const g = guidanceOf(spotter)[guidanceId];
+    if (!g?.launches?.includes(launchId)) return;
+    const rest = g.launches.filter(x => x !== launchId);
+    await spotter.update({ [`flags.sr2e.guidance.${guidanceId}.launches`]: rest,
+      ...(g.state === "committed" && !rest.length ? { [`flags.sr2e.guidance.${guidanceId}.state`]: "acquired" } : {}) });
+  });
 }
 
 /** Turn-end cleanup (4b.5): a spotting never used ends with its Turn; a committed one when every linked launch is terminal. */

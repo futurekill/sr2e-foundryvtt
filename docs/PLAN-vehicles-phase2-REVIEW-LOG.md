@@ -1048,3 +1048,31 @@ under the same exemptions, not through `riggerTnParts`.
 ### Claude's response (draft 17)
 Taken: rigging checks dispatch by affiliation — networked vehicles use the live eligible primary; unaffiliated vehicles
 keep the existing direct-rigging predicate, the chase's included.
+
+## Part 4b code, round 1 — Codex (fresh session): REVISE, 12 findings
+1. Launch ops escalate permissions (only the gunner checked; guidanceCommit/End unchecked).
+2. One missile can produce several attacks (double click, retry after reload).
+3. The round advances before the missile's damage resolves; refused attacks counted as resolved.
+4. A refused indirect launch leaves the spotting committed forever.
+5. Continuous guidance accepts a replacement lock.
+6. Continuous-lock restriction bypassed (launch dispatched first; melee/personal weapons; other vehicles).
+7. Non-missile indirect fire can use one target's spotting against another.
+8. A character FDDM spotter's guidance never validates.
+9. Area-effect entry paths missing (failed spotting; no lock/no Signature from the dialog).
+10. The ammo queue refuses a player controlling a GM-owned vehicle.
+11. A deleted reserve leaves a reload fence closed forever.
+12. Sensor-enhanced / indirect personal weapons roll the wrong skill.
+
+### Claude's response — all taken
+1: `missileLaunch` authorizes the requesting user (gunner, weapon/its vehicle/its controller, holder relationship) and
+checks the lock GM-side; `guidanceCommit` GM-only; `guidanceEnd` GM or the spotter's player; non-missile indirect goes
+through a new GM op `guidanceUse`. 2: one durable `attempt` per arm, written on the test card (`missileAttempt`); a retry
+finds the card and only records it; a client in-flight guard. 3: a rolled launch is `struck`, terminal (`resolved`) only
+when its damage card (blast/ranged/spread) is resolved or there is none; the round change waits; a GM hook resumes it
+when such a card resolves; no card for the attempt → back to `launched`. 4: `guidanceUnlink` on a refused launch
+(back to acquired). 5: Phase 0 requires the ORIGINAL lock (id). 6: the commitment is checked before any dispatch, any
+weapon, across every vehicle's launches. 7: the attack must be aimed at the spotter's target. 8: FDDM-route spottings
+validate on the spotter's working FDDM. 9: failed spotting posts an area-effect card; the dialog offers an area-effect
+mode (the round spent through the ammo queue). 10: the ammo queue admits the controller's player. 11: the GM closes a
+cancelled/settled plan whose reserve is gone. 12: Gunnery for sensor/indirect/missile modes.
+Quench `sr2e.sensors` 23/23 (+ a relock test); vehicle batches 93/93.

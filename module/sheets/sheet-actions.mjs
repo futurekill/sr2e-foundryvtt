@@ -668,6 +668,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             <option value="launch:fireAndForget">Launch missile — fire-and-forget (p.59)</option>
             ${spottings.length ? `<option value="launch:indirect">Launch missile — indirect, on a spotter's lock (p.60)</option>` : ""}`
             : spottings.length ? `<option value="indirect">Indirect fire on a spotter's lock (p.60)</option>` : ""}
+            <option value="area">Area-effect attack: no lock, a point (p.60–61)</option>
           </select></div>
         ${spottings.length ? `<div class="sr2e-attack__field r2-indirect"><label>Spotter's lock:</label>
           <select name="r2guidance">${spottings.map(o => `<option value="${o.value}">${foundry.utils.escapeHTML(o.label)}</option>`).join("")}</select></div>` : ""}
@@ -1083,7 +1084,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         if (r2RowEl) {
           r2RowEl.style.display = r2m === "core" ? "none" : "";
           root.querySelector("#sr2e-r2-label").textContent = r2m === "manual" ? "Rigger 2 manual rows (p.57):"
-            : r2m === "sensor" || r2m === "indirect" ? "TN = Signature + EW + p.58 rows, at the roll" : "Missile: rolled at Phase 0 (p.59)";
+            : r2m === "sensor" || r2m === "indirect" ? "TN = Signature + EW + p.58 rows, at the roll"
+            : r2m === "area" ? "Area-effect: TN by device and range (p.61)" : "Missile: rolled at Phase 0 (p.59)";
           root.querySelector("#sr2e-r2-val").textContent = r2m === "manual" ? fmt(r2Ex) : "";
         }
         // p.57 replaces the core attacker-movement rows and the p.108 speed table: hide them in manual mode.
@@ -1122,7 +1124,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                                       + woundPenalty + sustainPenalty + coordTN + defaultingPenalty);
       }
       const r2Now = isRanged ? r2Sync() : "core";
-      if (finalTnSpan) finalTnSpan.textContent = r2Now === "sensor" || r2Now === "indirect" ? "Sig." : r2Now.startsWith("launch") ? "Phase 0" : finalTN;
+      if (finalTnSpan) finalTnSpan.textContent = r2Now === "sensor" || r2Now === "indirect" ? "Sig." : r2Now.startsWith("launch") ? "Phase 0" : r2Now === "area" ? "table" : finalTN;
     }
 
     // Rigger 2 gunnery rows (4b.1): show the active mode's rows; the manual extras are summed with the same function

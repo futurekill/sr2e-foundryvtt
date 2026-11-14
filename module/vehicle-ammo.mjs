@@ -13,7 +13,7 @@
  * Every step is idempotent and re-run by `reconcileReloads` on ready and on every relevant update, so a reload or
  * a crash part-way resumes.
  */
-import { gmOp, gmCall } from "./vehicle-play.mjs";
+import { gmOp, gmCall, controllerOf } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { moneyQueue, applyUpdate } from "./money.mjs";
 import { moneyWriterFor } from "./vehicle-customize.mjs";
@@ -42,7 +42,11 @@ function payloadOf(weapon) {
 function weaponArg(uuid, user) {
   const w = fromUuidSync(uuid);
   if (w?.type !== "weapon") throw new Error("not a weapon");
-  if (!user.isGM && !w.testUserPermission(user, "OWNER") && !w.parent?.testUserPermission(user, "OWNER")) throw new Error("not allowed");
+  // The weapon's or its actor's owner — or, for a vehicle's mounted weapon, the player of its live controller (control
+  // doesn't imply vehicle ownership; code review 4b r1 #10).
+  const p = w.parent;
+  if (!user.isGM && !w.testUserPermission(user, "OWNER") && !p?.testUserPermission(user, "OWNER")
+    && !(p?.type === "vehicle" && controllerOf(p)?.testUserPermission(user, "OWNER"))) throw new Error("not allowed");
   return w;
 }
 
@@ -129,6 +133,12 @@ export function reconcileReloads(w) {
         }).catch(err => console.error("SR2E | reload", err));
       if (plan.state === "planned" && !reserve) aq(w.uuid, () => w.update({ [`flags.sr2e.reloadPlans.${plan.id}.state`]: "cancelled" }))
         .catch(err => console.error("SR2E | reload", err));
+      // The reserve is gone, so no acknowledgement can ever be written on it (r1 #11): nothing is left to refund — the
+      // GM closes the plan and lifts the fence (a settled plan's escrow, likewise, has nowhere left to wait).
+      if (!reserve && ["cancelled", "settled"].includes(plan.state)) aq(w.uuid, async () => {
+        const live = plansOf(w)[plan.id];
+        if (live && ["cancelled", "settled"].includes(live.state) && !owner.items.get(live.ammoItemId)) await w.update({ [`flags.sr2e.reloadPlans.${plan.id}.state`]: "closed" });
+      }).catch(err => console.error("SR2E | reload", err));
     }
   }
 }
