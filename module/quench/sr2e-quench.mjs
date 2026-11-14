@@ -18660,8 +18660,9 @@ export function registerSR2EQuenchTests() {
           this.timeout(20000);
           const A = await import("../vehicle-ammo.mjs");
           const pc = await Actor.create({ name: "Quench Ammo PC", type: "character" }); made.push(pc);
-          const [reg, ex] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Regular", type: "ammo", system: { quantity: 20 } },
+          const made2 = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Regular", type: "ammo", system: { quantity: 20 } },
             { name: "Quench EX", type: "ammo", system: { quantity: 5, ammoType: "ex" } }]);
+          const reg = made2.find(i => i.name === "Quench Regular"), ex = made2.find(i => i.name === "Quench EX");   // returned out of order
           const [w] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Rifle", type: "weapon", system: { weaponType: "firearm",
             damageCode: "8M", ammo: { max: 10, current: 8, sourceId: ex.id, loadedSourceId: reg.id, loadedName: "Quench Regular" } } }]);
           const id = await A.queuedReload(w);
@@ -18724,6 +18725,63 @@ export function registerSR2EQuenchTests() {
             assert.match(err ?? "", /resolved/, "it strikes once");
             assert.ok(await until(() => combat.round === 2), "the Turn ends once every missile has struck");
           } finally { pc.rollSuccessTest = orig; }
+        });
+      });
+
+      describe("Indirect fire (Part 4b.5, R2 p.60)", function () {
+        const until = async (fn, n = 80) => { for (let i = 0; i < n && !fn(); i++) await new Promise(r => setTimeout(r, 100)); return fn(); };
+        const setup = async (tag) => {
+          const M = await import("../vehicle-missiles.mjs"), I = await import("../vehicle-indirect.mjs");
+          const A = await mk(`Quench IF Launcher ${tag}`), B = await mk(`Quench IF Target ${tag}`);
+          const spot = await Actor.create({ name: `Quench Moly ${tag}`, type: "character" }); made.push(spot);
+          const des = (await spot.createEmbeddedDocuments("Item", [{ name: "Laser Designator", type: "gear", system: { equipped: true }, flags: { sr2e: { rule: "designator-laser" } } },
+            { name: "Gunnery", type: "skill", system: { rating: 5, category: "active" } }])).find(i => i.type === "gear");
+          const tubbs = await Actor.create({ name: `Quench Tubbs ${tag}`, type: "character" }); made.push(tubbs);
+          await tubbs.createEmbeddedDocuments("Item", [{ name: "Gunnery", type: "skill", system: { rating: 6, category: "active" } }]);
+          const scene = await sceneWith([A, 100], [B, 2600], [spot, 2300]);
+          const [gun] = await A.createEmbeddedDocuments("Item", [{ name: "Quench Ballista", type: "weapon", system: { weaponType: "heavy", skill: "gunnery",
+            damageCode: "16D", ammo: { max: 1, current: 1, type: "missile", guided: { kind: "missile", intelligence: 4, sensor: 0 } }, firingModes: { ss: true } } }]);
+          const combat = await Combat.create({ scene: scene.id, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: A.id, tokenId: scene.tokens.find(t => t.actorId === A.id).id, sceneId: scene.id }]);
+          await combat.update({ round: 1 });
+          // Moly's Indirect Fire Test card (p.60: 3 successes in the book's example; here all five dice succeed).
+          const r = await faces(FIVES, () => spot.rollSuccessTest(5, 3, { label: "Indirect Fire Test", flags: { sr2e: { indirectFire: { id: `qif${tag}`,
+            spotterUuid: spot.uuid, targetUuid: B.uuid, targetTokenUuid: scene.tokens.find(t => t.actorId === B.id).uuid, route: "designator",
+            designatorItemId: des.id, combatId: combat.id, round: 1 } } } }));
+          const g = await S().gmCall("guidanceRecord", { messageId: r.testMessageId });
+          return { M, I, A, B, spot, des, tubbs, gun, combat, g };
+        };
+        const S = () => ({ gmCall: (op, a) => import("../vehicle-play.mjs").then(m => m.gmCall(op, a)) });
+        it("a spotter's lock: the firer launches on it, the spotter takes +2, Phase 0 adds the spotting successes, no Combat Pool", async function () {
+          this.timeout(30000);
+          const { M, I, A, spot, tubbs, gun, combat, g } = await setup("a");
+          assert.equal(g?.state, "acquired");
+          await gun._rollWeaponAttack({ gunner: tubbs, gunneryMode: "launch", launchMode: "indirect", guidanceRef: { spotterUuid: spot.uuid, id: g.id }, r2: {} });
+          assert.equal(I.guidanceOf(spot)[g.id].state, "committed");
+          assert.equal(I.spottingTnMod(spot), 2, "+2 to the spotter's other tests");
+          assert.ok(spot.riggerTnParts({ kind: "skill" }).some(([l]) => /spotting/.test(l)));
+          assert.notOk(spot.riggerTnParts({ kind: "indirectFire" }).some(([l]) => /spotting/.test(l)), "not on the Indirect Fire Test itself");
+          const [l] = Object.values(M.launchesOf(A));
+          await combat.advanceRound(1);
+          const spy = []; const orig = tubbs.rollSuccessTest.bind(tubbs);
+          tubbs.rollSuccessTest = (d, tn, o) => { spy.push([d, tn, o.poolDice]); return orig(d, tn, o); };
+          try { await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 3 }); } finally { tubbs.rollSuccessTest = orig; }
+          assert.equal(spy[0][0], 6 + 4 + g.successes, "Gunnery 6 + Intelligence 4 + the spotting successes");
+          assert.notOk(spy[0][2]?.combat, "no Combat Pool on a targeted indirect missile attack");
+          assert.ok(await until(() => combat.round === 2), "the Turn ends");
+          assert.ok(await until(() => I.guidanceOf(spot)[g.id].state === "ended"), "the spotting ends with its launches");
+        });
+        it("a lock lost after launch: the missile doesn't strike directly — the area-effect branch", async function () {
+          this.timeout(30000);
+          const { M, A, spot, des, tubbs, gun, combat, g } = await setup("b");
+          await gun._rollWeaponAttack({ gunner: tubbs, gunneryMode: "launch", launchMode: "indirect", guidanceRef: { spotterUuid: spot.uuid, id: g.id }, r2: {} });
+          const [l] = Object.values(M.launchesOf(A));
+          await des.update({ "system.equipped": false });   // the designator comes off the target
+          await combat.advanceRound(1);
+          await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
+          assert.equal(M.launchesOf(A)[l.id].state, "lost");
+          assert.ok(game.messages.contents.some(m => m.getFlag("sr2e", "areaEffect")?.lostAfterSpotting), "the area-effect card (radar-designator TN)");
+          assert.ok(await until(() => combat.round === 2));
         });
       });
 

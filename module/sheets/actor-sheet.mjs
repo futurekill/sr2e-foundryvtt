@@ -225,6 +225,8 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     actions: {
       editImage: SHARED_ACTIONS.editImage,
       exportJson: SHARED_ACTIONS.exportJson,
+      // Rigger 2 indirect fire (docs/PLAN-vehicles-phase2.md 4b.5): the spotter's Indirect Fire Test.
+      r2IndirectFire: async function () { (await import("../vehicle-indirect.mjs")).promptIndirectFire(this.document); },
       healClock: SHARED_ACTIONS.healClock,
       permDamage: SHARED_ACTIONS.permDamage
     },

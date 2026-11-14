@@ -650,6 +650,12 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     yacht: "Luxury yacht −3", freighter: "Freighter/oil tanker −8", ultralight: "Ultralight glider 0", fixedWing: "Fixed-wing aircraft −2",
     airliner: "Commercial airliner −6", helicopter: "Helicopter −2", lta: "LTA aircraft (zeppelin) −6", lav: "LAV (t-bird) −3",
     military: "Security/military ground vehicle −3" };
+  // Spotters' locks for indirect fire (4b.5): every acquired/committed spotting this user can see.
+  const spottings = [];
+  if (r2On) for (const a of new Set([...game.actors, ...(game.scenes?.contents ?? []).flatMap(sc => sc.tokens.contents.map(t => t.actor).filter(Boolean))])) {
+    for (const g of Object.values(a.getFlag?.("sr2e", "guidance") ?? {})) if (["acquired", "committed"].includes(g.state) && a.testUserPermission(game.user, "OBSERVER"))
+      spottings.push({ value: `${a.uuid}|${g.id}`, label: `${a.name} → ${fromUuidSync(g.targetUuid)?.name ?? "?"} (${g.successes} success${g.successes === 1 ? "" : "es"})` });
+  }
   const r2Row = !r2On ? "" : `
       <fieldset class="sr2e-attack__r2" style="grid-column:1/-1;border:1px solid #556;padding:4px 6px;margin:4px 0;">
         <legend title="Rigger 2 p.56–59">Rigger 2 gunnery</legend>
@@ -659,8 +665,12 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             <option value="manual" ${r2Default === "manual" ? "selected" : ""}>Manual gunnery (p.56–58)</option>
             <option value="sensor">Sensor-enhanced (needs a lock, p.58)</option>
             ${weapon.system.ammo?.guided?.kind === "missile" ? `<option value="launch:continuous">Launch missile — continuous lock (p.59)</option>
-            <option value="launch:fireAndForget">Launch missile — fire-and-forget (p.59)</option>` : ""}
+            <option value="launch:fireAndForget">Launch missile — fire-and-forget (p.59)</option>
+            ${spottings.length ? `<option value="launch:indirect">Launch missile — indirect, on a spotter's lock (p.60)</option>` : ""}`
+            : spottings.length ? `<option value="indirect">Indirect fire on a spotter's lock (p.60)</option>` : ""}
           </select></div>
+        ${spottings.length ? `<div class="sr2e-attack__field r2-indirect"><label>Spotter's lock:</label>
+          <select name="r2guidance">${spottings.map(o => `<option value="${o.value}">${foundry.utils.escapeHTML(o.label)}</option>`).join("")}</select></div>` : ""}
         <div class="sr2e-attack__field"><label title="p.57, p.131: pintle −2 and ring −6 recoil compensation; fixed mounts and turrets halve recoil before accessories">Mount:</label>
           <select name="mount">${[["", "none / hand-held"], ["fixed", "fixed mount"], ["turret", "turret"], ["pintle", "pintle"], ["ring", "ring"]].map(([v, l]) =>
             `<option value="${v}" ${v === (weapon.getFlag?.("sr2e", "mountKind") ?? "") ? "selected" : ""}>${l}</option>`).join("")}</select></div>
@@ -1094,7 +1104,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                                       + woundPenalty + sustainPenalty + coordTN + defaultingPenalty);
       }
       const r2Now = isRanged ? r2Sync() : "core";
-      if (finalTnSpan) finalTnSpan.textContent = r2Now === "sensor" ? "Sig." : r2Now.startsWith("launch") ? "Phase 0" : finalTN;
+      if (finalTnSpan) finalTnSpan.textContent = r2Now === "sensor" || r2Now === "indirect" ? "Sig." : r2Now.startsWith("launch") ? "Phase 0" : finalTN;
     }
 
     // Rigger 2 gunnery rows (4b.1): show the active mode's rows; the manual extras are summed with the same function
@@ -1104,7 +1114,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     function r2Sync() {
       const m = r2Val("r2Mode")?.value ?? "core";
       for (const el of root.querySelectorAll(".r2-manual")) el.style.display = m === "manual" ? "" : "none";
-      for (const el of root.querySelectorAll(".r2-sensor")) el.style.display = m === "sensor" || m.startsWith("launch") ? "" : "none";
+      for (const el of root.querySelectorAll(".r2-sensor")) el.style.display = m === "sensor" || m === "indirect" || m.startsWith("launch") ? "" : "none";
+      for (const el of root.querySelectorAll(".r2-indirect")) el.style.display = m === "indirect" || m === "launch:indirect" ? "" : "none";
       return m;
     }
     function r2ManualNow() {
@@ -1642,6 +1653,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             // Rigger 2 gunnery (4b.1): re-validated in _rollWeaponAttack.
             ...(f.r2Mode ? { gunneryMode: f.r2Mode.value.startsWith("launch") ? "launch" : f.r2Mode.value,
               launchMode: f.r2Mode.value.split(":")[1] ?? "", mount: f.mount?.value ?? "",
+              ...(f.r2guidance?.value ? { guidanceRef: { spotterUuid: f.r2guidance.value.split("|")[0], id: f.r2guidance.value.split("|")[1] } } : {}),
               firingVehicleUuid: f.ride?.value || presets.firingVehicleUuid || null,
               r2: { legs: f.r2legs?.value || "", difficultGround: !!f.r2difficult?.checked, unmounted: !!f.r2unmounted?.checked,
                 motion: f.r2motion?.value || "", targetSize: f.r2size?.value || "",

@@ -1,6 +1,7 @@
 <div class="sensor-body" style="padding:6px;">
   <div class="flexrow" style="gap:6px;align-items:center;margin-bottom:6px;">
     {{#if hasSensors}}<button type="button" data-action="test" title="Sensor Rating dice vs the target's Signature (Rigger 2 p.28–30); a Complex Action (p.58)"><i class="fas fa-crosshairs"></i> Sensor Test</button>{{/if}}
+    {{#if hasSensors}}<button type="button" data-action="indirect" title="Spot the targeted token for indirect fire: the Indirect Fire Test (p.60)"><i class="fas fa-bullseye"></i> Indirect Fire Test</button>{{/if}}
     {{#if gm}}<button type="button" data-action="boosts" title="GM: engine and amplifier Flux boosts (p.30)"><i class="fas fa-bolt"></i> Flux boosts</button>{{/if}}
     <button type="button" data-action="upgrade" title="Add or upgrade a sensor component (p.27)"><i class="fas fa-wrench"></i> Upgrade components</button>
   </div>
