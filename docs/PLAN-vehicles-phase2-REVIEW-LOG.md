@@ -1024,3 +1024,13 @@ Quench `sr2e.sensors` + vehicle batches 69/69.
 ### Claude's response (draft 14)
 Taken: the Perception / Manual Gunnery rows stay drone-only; the damage-like penalty applies in `riggerTnParts` to all of
 the rigger's Success Tests from the live primary connection, the channel counted once.
+
+## Part 5 plan, round 14 — Codex (draft 14, fresh session): REVISE, 2 findings
+1. Reachability changes bypass action invalidation (moving a drone out of range changes no deck rev).
+2. Primary selection can outlive rigging eligibility (the jack-out toggle writes `system.rigging` directly).
+
+### Claude's response (draft 15)
+1. Taken: the dependency stamp carries the deck→drone link and device generations (Part 4's sweep bumps them on range
+   loss) and the commit re-checks live reachability under the locks.
+2. Taken: `riggedInto` = primary AND live eligibility; eligibility loss (jack-out, VCR off/removed, deck unequipped) is an
+   `rc-control` op that clears primary and bumps the deck rev; the sheet's toggle becomes its request.

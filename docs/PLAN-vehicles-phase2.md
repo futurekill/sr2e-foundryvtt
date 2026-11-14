@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 14 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 15 below, in Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 14 (2026-11-14, after Codex Part 5 rounds 1–13)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 15 (2026-11-14, after Codex Part 5 rounds 1–14)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1260,7 +1260,10 @@ Electronics).
   never a separate counter, so there is no second document to keep in step: every jump, return, connect, disconnect and
   takeover is ONE deck update that bumps that deck's `rev`, and a deck gaining or losing the operator changes the set),
   since modes are derived across networks; its commit runs under `rc-control` THEN `chase:<combatId>` (the stated lock order; round 3 #2), so
-  nothing can interleave between the check and the commit, and refuses a mismatched stamp; and each control op that changes affiliation, mode or
+  nothing can interleave between the check and the commit, and refuses a mismatched stamp — the stamp also carries the
+  drone's REACHABILITY dependencies (round 14 #1): the deck→drone link generation and the deck's device generation
+  (Part 4.0's `ewGen`, bumped by the range sweep when the drone leaves the deck's range), and the commit re-evaluates
+  live reachability (5a.1) under the same locks; and each control op that changes affiliation, mode or
   operator writes an outbox entry `rcNet.chaseOutbox.<rev>` in the same deck update, which the GM drains (any client,
   after reload) by marking that vehicle's uncommitted actions with older `rev`s stale, then deleting the entry.
 - **Test context** (round 1 #4): every drone test builds ONE context `droneCtx = { operatorUuid, droneUuid, mode,
@@ -1406,8 +1409,13 @@ Electronics).
   drone — it becomes `rcNet.primary` (the one-primary rule, the jump/return Simple Actions, `droneCtx`, Control Pool for
   damage resistance and the dump on loss all follow from that one selection); jumping into another drone moves the
   primary away, and the hardwired vehicle then runs as a secondary (Pilot) or, while its operator stays aboard without
-  rigging it, is driven onboard by datajack/manual. So `riggedInto(rigger, v)` = `v` is that operator's primary (no
-  separate hardwired branch), and only the primary is rigged; then `drivingModes` offers "rigged" and
+  rigging it, is driven onboard by datajack/manual. So `riggedInto(rigger, v)` = `v` is that operator's primary AND the
+  operator is still eligible — connected, jacked in, an active VCR (round 14 #2: checked live, not only at `rcJump`) (no
+  separate hardwired branch), and only the primary is rigged. **Eligibility loss is a control transition** (round 14
+  #2): the sheet's jack-out toggle, switching off or removing the VCR, and an unequipped deck all route through an
+  `rc-control` op (`rcEligibility`) that clears `primary` (as a return to captain's chair, or a dump where 5a.6 says so)
+  and bumps the deck `rev`, invalidating every reservation; the direct `system.rigging` write in sheet-actions becomes
+  that op's request. Then `drivingModes` offers "rigged" and
   `_vehicleSkill` / `rollDrivingTest` treat `hardwired` exactly as `rigged` (skill, pools, VCR bonuses, half-modifier
   defaulting), and `commitVehicleDamage`'s feedback applies; without a VCR the operator drives by the datajack/manual
   modes. The chase's rigging checks use the same predicate. Part 1 crew control stays excluded.
