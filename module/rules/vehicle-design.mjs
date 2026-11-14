@@ -376,7 +376,52 @@ export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad 
  * Mark-Up = (base for the chassis category + Special Features) × each Special Design multiplier in turn (never
  * added, p.114). `spec.base` is used only where the table gives a range (special vehicles, 1–2.5).
  */
-export function markUpFactor(category, spec = {}, table = {}, { smartMaterials = false } = {}) {
+/**
+ * Quality Factors (R2 p.84–85; docs/PLAN-vehicles-phase2.md 6a.3): Mark-Up modifier per level, max levels, and play
+ * effects. `maint` multiplies Maintenance per level; `stressTn` / `brTn` / `collisionTn` add per level.
+ */
+export const QUALITY_FACTORS = {
+  masterWorkmanship: { label: "Master Workmanship", mod: 0.10, max: 3, maint: 0.9 },
+  lemon: { label: "Lemon", mod: -0.15, max: 3, maint: 1.2 },
+  ruggedness: { label: "Ruggedness", mod: 0.50, max: 2, stressTn: -1 },
+  fragility: { label: "Fragility", mod: -0.50, max: 2, stressTn: 1 },
+  streamlined: { label: "Streamlined Layout", mod: 0.25, max: 1, brTn: -1 },
+  complexChassis: { label: "Complex Chassis", mod: -0.30, max: 1, brTn: 2 },
+  customBuilt: { label: "Custom Built", mod: -0.20, max: 1, customization: 2 },
+  prototype: { label: "Prototype Model/Used Vehicle", mod: -0.60, max: 1, hiddenStress: "1D6" },
+  safetyCertified: { label: "Safety Certified", mod: 0.15, max: 1, collisionTn: -1 },
+  passengerTrap: { label: "Passenger Trap", mod: -0.15, max: 1, collisionTn: 1 }
+};
+/** The chosen factors' levels, clamped to their maxima; unknown keys dropped. */
+export function qualityLevels(quality = {}) {
+  const out = {};
+  for (const [k, v] of Object.entries(quality ?? {})) {
+    const f = QUALITY_FACTORS[k], n = Math.floor(num0(v));
+    if (f && n > 0) out[k] = Math.min(n, f.max);
+  }
+  return out;
+}
+/** The one pure reading every consumer uses (6a.3): Mark-Up add, Maintenance ×, Stress/B-R/collision TNs, flags. */
+export function qualityEffects(quality = {}) {
+  const lv = qualityLevels(quality);
+  const e = { markUp: 0, maintenance: 1, stressTn: 0, brTn: 0, collisionTn: 0, customization: 1, hiddenStress: false, count: 0 };
+  for (const [k, n] of Object.entries(lv)) {
+    const f = QUALITY_FACTORS[k];
+    e.count++;
+    e.markUp += f.mod * n;
+    if (f.maint) e.maintenance *= f.maint ** n;
+    e.stressTn += (f.stressTn ?? 0) * n;
+    e.brTn += (f.brTn ?? 0) * n;
+    e.collisionTn += (f.collisionTn ?? 0) * n;
+    if (f.customization) e.customization = f.customization;
+    if (f.hiddenStress) e.hiddenStress = true;
+  }
+  e.markUp = Math.round(e.markUp * 100) / 100;
+  e.maintenance = Math.round(e.maintenance * 10000) / 10000;
+  return e;
+}
+
+export function markUpFactor(category, spec = {}, table = {}, { smartMaterials = false, quality = null } = {}) {
   const baseCell = table.base?.[category];
   const base = Array.isArray(baseCell) ? clamp(num0(spec.base) || baseCell[0], baseCell[0], baseCell[1]) : num0(baseCell) || 1;
   let add = smartMaterials ? num0(table.features?.smartMaterials ?? 0.5) : 0;
@@ -385,7 +430,9 @@ export function markUpFactor(category, spec = {}, table = {}, { smartMaterials =
     if (cell == null || k === "smartMaterials") continue;
     add += Array.isArray(cell) ? (v ? clamp(num0(v), cell[0], cell[1]) : 0) : (v ? num0(cell) : 0);
   }
-  let total = base + add;
+  // Quality Factors are added with the features, BEFORE the special-design multipliers (p.84).
+  const qAdd = quality ? qualityEffects(quality).markUp : 0;
+  let total = base + add + qAdd;
   const mults = [];
   for (const [k, v] of Object.entries(spec.multipliers ?? {})) {
     const cell = table.multipliers?.[k];
@@ -394,7 +441,8 @@ export function markUpFactor(category, spec = {}, table = {}, { smartMaterials =
     mults.push({ key: k, value: m });
     total *= m;
   }
-  return { base, add: Math.round(add * 100) / 100, multipliers: mults, total: Math.round(total * 10000) / 10000 };
+  return { base, add: Math.round(add * 100) / 100, quality: qAdd, preMultiplier: Math.round((base + add + qAdd) * 10000) / 10000,
+    multipliers: mults, total: Math.round(total * 10000) / 10000 };
 }
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -611,7 +659,11 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   if (cap.loadFree < -1e-9) problem("loadOver", `The options and mods weigh ${cap.loadUsed} kg; the vehicle's Load is ${load.value}.`, "p.115");
 
   const dp = Math.round(lines.reduce((s, l) => s + l.dp, 0) * 100) / 100;
-  const markUp = markUpFactor(cat, design.markUp ?? {}, tables.markUp ?? {}, { smartMaterials: sm });
+  const markUp = markUpFactor(cat, design.markUp ?? {}, tables.markUp ?? {}, { smartMaterials: sm, quality: design.quality ?? null });
+  // Quality Factors (p.84): no more than two; a negative factor may not take the Mark-Up below .1.
+  const qe = qualityEffects(design.quality ?? {});
+  if (qe.count > 2) problem("qualityCount", "No vehicle should be designed with more than two Quality Factors.", "p.84");
+  if (qe.markUp < 0 && markUp.preMultiplier < 0.1) problem("qualityFloor", `The Quality Factors take the Mark-Up Multiplier to ${markUp.preMultiplier}, below .1.`, "p.84");
   const stats = {
     handling, body, armor: eff.stats.armor, speed: speed.value, stallSpeed: cell(pp.speed?.stall),
     acceleration: accel.value, load: load.value, cargo: cargoFinal, signature: sigFinal, dbwSplit,

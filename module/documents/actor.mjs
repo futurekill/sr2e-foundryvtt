@@ -2622,7 +2622,9 @@ export class SR2EActor extends Actor {
     const bodyDice   = env && env.attr !== "body"
       ? (system[env.attr]?.value ?? 1) + bonusDice
       : (system.body?.value ?? 1) + dermalBonus + bonusDice;
-    let tn           = Math.max(2, power - armor);
+    // `tnMod`: a resistance TN modifier the caller's rule names (R2 p.85 Safety Certified −1 / Passenger Trap +1 on
+    // collision damage to a vehicle's occupants).
+    let tn           = Math.max(2, power - armor + (Number(options.tnMod) || 0));
     // A shapeshifter's bane (silver): Severe Allergy +2 Power, Vulnerability +1 Damage Level (Companion p.38;
     // core p.229). Asked here, pre-ticked when the attack says what it's made of.
     const bane = isShapeshifter(this) ? String(this.system.shapeshifter?.bane ?? "").trim() : "";

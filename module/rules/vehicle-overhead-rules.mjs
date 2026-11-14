@@ -35,9 +35,10 @@ export function overheadPayment(rows = [], allowance = {}, karma = 0) {
  * Closing month `m` for one vehicle: the new record, and the older months to mark missed now (unpaid, not yet missed;
  * reserved ones too — a reservation isn't a payment). Each missed month adds 1 Stress, counted in the NEW month.
  */
-export function assessMonth(months = {}, m, { value, stress }) {
+export function assessMonth(months = {}, m, { value, stress, maintenance = 1 }) {
   const missed = Object.entries(months).filter(([k, r]) => Number(k) < m && !r?.paid && !r?.missed).map(([k]) => Number(k));
-  return { record: { amount: overheadAmount(value, stress), stress: Math.max(0, Number(stress) || 0), paid: false, missed: false, tx: null },
+  // `maintenance`: Quality Factors' Maintenance Cost multiplier (R2 p.84: ×.9 / ×1.2 per level), rounded up.
+  return { record: { amount: Math.ceil(overheadAmount(value, stress) * (Number(maintenance) || 1)), stress: Math.max(0, Number(stress) || 0), paid: false, missed: false, tx: null },
     missed, addStress: missed.length };
 }
 

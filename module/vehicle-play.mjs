@@ -10,7 +10,7 @@ import { claimId } from "./rules/claim-rules.mjs";
 import { crashTrigger, woundLevelOf, impactDamage, reservedControl, levelBelow } from "./rules/vehicle-play-rules.mjs";
 import { resolveBarrier } from "./rules/sr2e-rules.mjs";
 import { r2Speed, engineFailureStress, permanentStress, repairQuote, repairHours, drivingTN, stressDice, ruleOfOne, drivingStressOutcome, overhaul } from "./rules/vehicle-r2-rules.mjs";
-import { isRigger2 } from "./vehicle-mode.mjs";
+import { isRigger2, vehicleQuality } from "./vehicle-mode.mjs";
 import { poolsLocked, actionOf, chaseDriverUuid, findEntry } from "./chase-state.mjs";
 import { brRound, installTime } from "./rules/vehicle-custom.mjs";
 import { stressPatch, mechanicLabour } from "./rules/vehicle-overhead-rules.mjs";
@@ -574,7 +574,8 @@ GM_OPS.drivingResolve = async ({ messageId }, user) => {
     const stress = vehicle.system.stressRating ?? 0;
     const stressRoll = failed ? (await new Roll("2d6").evaluate()).total : null;
     const ruleRoll = ruleOfOne(ones, threshold) ? (await new Roll("1d6").evaluate()).total : null;
-    const out = drivingStressOutcome({ failed, stress, body: st.body, ones, skill: threshold, stressRoll, ruleRoll });
+    const out = drivingStressOutcome({ failed, stress, body: st.body, ones, skill: threshold, stressRoll, ruleRoll,
+      stressTn: (await vehicleQuality(vehicle)).stressTn });
     if (out.addStress) {
       const after = stress + out.addStress;   // adding never meets the permanent floor
       await vehicle.update({ [`flags.sr2e.vstress.rule1-${messageId}`]: out.addStress, ...stressPatch({ before: stress, after, counter: overheadCounter(vehicle) }) });
@@ -769,7 +770,8 @@ GM_OPS.repair = async ({ vehicleUuid, action, data, jobId }, user) => {
         if (job) await vehicle.update({ "flags.sr2e.-=repairJob": null });
         const boxes = Math.max(1, Math.min(Number(data.boxes) || 0, vehicle.system.conditionMonitor.value ?? 0));
         const q = repairQuote({ boxes, value: vehicleValue(vehicle) });
-        const nj = { id: foundry.utils.randomID(12), state: "parts", boxes, tn: q.tn, baseHours: q.baseHours, parts: q.parts,
+        // Quality Factors (R2 p.84–85, optional): Streamlined Layout / Complex Chassis on every Build/Repair Test.
+        const nj = { id: foundry.utils.randomID(12), state: "parts", boxes, tn: q.tn + vehicleQuality(vehicle).brTn, baseHours: q.baseHours, parts: q.parts,
           availability: vehicle.system.availability ?? "", streetIndex: vehicle.system.streetIndex ?? 1, repairerUuid: data.repairerUuid ?? "",
           hoursLeft: null, successes: null };
         await vehicle.update({ "flags.sr2e.repairJob": nj });
@@ -923,9 +925,10 @@ export async function gmStressTest(vehicle) {
   if (!game.user.isGM) return ui.notifications.warn("The GM makes Stress Tests.");
   const stress = vehicle.system.stressRating ?? 0;
   const roll = (await new Roll("2d6").evaluate()).total;
-  const fails = roll < stress;
+  const q = (await vehicleQuality(vehicle)).stressTn;   // Ruggedness / Fragility (p.84)
+  const fails = roll < stress + q;
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}: Stress Test</strong>
-    2D6 = ${roll} against Stress ${stress}: ${fails ? "<strong>a major system fails</strong> (GM's pick)" : "no failure"} (R2 p.26).</div>` });
+    2D6 = ${roll} against Stress ${stress}${q ? ` (${q > 0 ? "+" : ""}${q} Quality Factors, p.84)` : ""}: ${fails ? "<strong>a major system fails</strong> (GM's pick)" : "no failure"} (R2 p.26).</div>` });
   if (fails) await postCrashTestDue(vehicle, "suffered a system failure", { ruleset: "rigger2" });
   return { roll, fails };
 }
@@ -971,7 +974,8 @@ export async function overhaulFlow(vehicle) {
     <p style="font-size:10px;color:#aaa1c0;">${esc(skill)} against Stress ${stress} + 4 = ${stress + 4}; every 2 successes remove 1 (never below 1, never the permanent ${permanent}); parts 50¥ a point.</p>`);
   if (!f?.worker) return;
   if (!f.elements.facility.checked) return ui.notifications.warn("A maintenance overhaul needs a Vehicle Facility (R2 p.26).");
-  const res = await f.worker.rollNamedSkill(skill, stress + 4, { label: `${skill}: overhauling ${vehicle.name}` });
+  const qb = vehicleQuality(vehicle).brTn;   // Streamlined Layout −1 / Complex Chassis +2 (R2 p.84–85, optional)
+  const res = await f.worker.rollNamedSkill(skill, stress + 4 + qb, { label: `${skill}: overhauling ${vehicle.name}${qb ? ` (Quality Factors ${qb > 0 ? "+" : ""}${qb})` : ""}` });
   if (!res) return;
   const o = await adjustStress(vehicle, 0, { eventId: `overhaul-${res.testMessageId ?? foundry.utils.randomID(8)}`, reason: "overhaul", overhaulSuccesses: res.successes ?? 0 });
   const removed = o?.removed ?? 0;

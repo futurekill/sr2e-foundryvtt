@@ -12,7 +12,7 @@ import { enqueueAttack } from "./engagement.mjs";
 import { gmCall, gmOp, brSkillFor } from "./vehicle-play.mjs";
 import { moneyWriterFor } from "./vehicle-customize.mjs";
 import { moneyQueue, adjustNuyen, updated, settingSet } from "./money.mjs";
-import { isRigger2 } from "./vehicle-mode.mjs";
+import { isRigger2, vehicleQuality } from "./vehicle-mode.mjs";
 import { assessMonth, overheadPayment, catchUpProblems, lifestyleDiscount, stressPatch, KARMA_NUYEN } from "./rules/vehicle-overhead-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -84,7 +84,8 @@ function assessThrough(vehicle, m) {
       const months = foundry.utils.deepClone(o.months ?? {});
       const upd = {};
       for (const [k, r] of Object.entries(months)) if (r?.tx && !r.paid && chargedReceipt(r)) { r.paid = true; upd[`flags.sr2e.overhead.months.${k}.paid`] = true; }
-      const a = assessMonth(months, next, { value: await overheadValue(vehicle), stress: o.stress ?? 0 });
+      const a = assessMonth(months, next, { value: await overheadValue(vehicle), stress: o.stress ?? 0,
+        maintenance: (await vehicleQuality(vehicle)).maintenance });
       Object.assign(upd, { [`flags.sr2e.overhead.months.${next}`]: a.record, "flags.sr2e.overhead.assessedThrough": next, "flags.sr2e.overhead.stress": 0 });
       if (a.addStress) {
         const before = vehicle.system.stressRating ?? 0;

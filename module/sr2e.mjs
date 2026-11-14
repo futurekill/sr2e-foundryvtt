@@ -6,6 +6,7 @@
  */
 
 // Configuration
+import { registerR2Options } from "./vehicle-mode.mjs";
 import { awardNuyenDialog } from "./award-nuyen.mjs";
 import { registerShapeshifters, shiftForm, regenerateMinutes, resolveDeath, clearDeath, deathMagicLoss } from "./shapeshift.mjs";
 import { firstTarget, registerTargetSync } from "./targeting.mjs";
@@ -1343,6 +1344,9 @@ function _registerSystemSettings() {
     default: "core",
     requiresReload: true
   });
+
+  // Rigger 2 optional advanced rules (Part 6), one world setting each.
+  registerR2Options();
 
   // VR2.0 optional rule "Utility Options" (pp.102–104; docs/archive/plans/PLAN-vr2-part5b.md). Reload: sizes and prices are derived.
   game.settings.register("sr2e", "vr2UtilityOptions", {

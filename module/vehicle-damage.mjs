@@ -15,7 +15,7 @@ import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { findEntry, findAboard } from "./chase-state.mjs";
-import { isRigger2 } from "./vehicle-mode.mjs";
+import { isRigger2, vehicleQuality } from "./vehicle-mode.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { impactDamage } from "./rules/vehicle-play-rules.mjs";
 import { STAGES, r2Impact, stageDown, occupantImpact, crashTestTN, terrainControlCap, wallCollision, pedestrianImpact } from "./rules/vehicle-combat-rules.mjs";
@@ -218,7 +218,9 @@ function postOccupants(vehicle, c, tag) {
   const spec = { power: o.occupants.power, level: o.occupants.level, armor: "impact", combatPool: false, title: "Crash",
                  restraint: r2, apps: r2 && hasApps(vehicle), cage: r2 && hasCrashCage(vehicle),
                  // Only a crash adds the rigger's Crash Test Control Pool dice (p.50); a wall spares the restrained (p.52).
-                 control: r2 && c.kind !== "impact" ? (o.control ?? 0) : 0, restraintNegates: !!c.restraintNegates };
+                 control: r2 && c.kind !== "impact" ? (o.control ?? 0) : 0, restraintNegates: !!c.restraintNegates,
+                 // Quality Factors (R2 p.85, optional): the driver and passengers resisting collision damage.
+                 collisionTn: vehicleQuality(vehicle).collisionTn };
   const steps = {};
   for (const u of aboardOf(vehicle, c)) steps[followId(u)] = { ...spec, actor: u, effectId: `${c.fid}:occupant:${followId(u)}` };
   steps.any = { ...spec, actor: null, effectId: `${c.fid}:occupant` };
@@ -410,7 +412,7 @@ export async function stepClick(message, key) {
     // Only the CURRENT attempt may apply (validated again in the damage queue).
     const current = () => actor.getFlag("sr2e", "vstep")?.[rk]?.attempt === attempt && !hasReceipt(actor, effectId);
     const res = await actor.rollDamageResistance(power, level, "impact", "physical", {
-      noCombatPool: !spec.combatPool, armorCalc: spec.armor === "none" ? "none" : "impact", bonusDice: bonus,
+      noCombatPool: !spec.combatPool, armorCalc: spec.armor === "none" ? "none" : "impact", bonusDice: bonus, tnMod: spec.collisionTn ?? 0,
       testFlags: { sr2e: { vstep: { attempt, effectId, power, level, actorUuid: actor.uuid } } },
       damageExtra: { [`flags.sr2e.dmgReceipts.${rk}`]: effectId }, damageSkipIf: () => !current(), beforeRoll: current
     });
