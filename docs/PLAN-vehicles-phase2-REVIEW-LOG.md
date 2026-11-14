@@ -972,3 +972,13 @@ driving without rigging (datajack/manual) is unchanged.
 2. Taken: the GM tracks each vehicle's receiving sensor (seeded at ready, token and actor creation) and bumps the stock
    sensors only when they STOP being the receiver.
 Quench `sr2e.sensors` 14/14 (2 new: a queued boost cut-and-restore; a pending Sensors item leaving a lock standing).
+
+## Part 5 plan, round 11 — Codex (draft 11, fresh session): REVISE, 1 finding
+1. Channel takeover outside interference is missing: p.70 — filling ANY channel's monitor shuts out the deck and lets
+   the intruder assume control of that channel's operations.
+
+### Claude's response (draft 12)
+Taken (re-read from the p.70 render): `rcNet.channelAuthority.<channel>` when a meaconing or intrusion entry fills a
+channel — command / system / simsense operations pass to the intruder's deck, the owner is shut out of that channel;
+ends on reconnection (5b.6), an invalid intercept or the intruder's exit. Jamming's own 10-box effects (p.71–72) stand as
+the specific rule. Interference keeps its whole-network contest.

@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 11 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 12 below, in Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 11 (2026-11-14, after Codex Part 5 rounds 1–10)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 12 (2026-11-14, after Codex Part 5 rounds 1–11)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1440,7 +1440,23 @@ attackerRating, boxes }`; an entry stores only the APPLIED boxes — capped at t
 committed (round 2 #7) — so Σ entries ≤ 10 always. `rcNet.carriers.<channel> = connected|lost`
 (round 1 #12): set `lost` when it reaches 10, and only a successful reconnection (5b.6) sets `connected` again —
 regeneration alone never restores service.
-
+- **A filled channel's authority** (p.70: "When all the boxes of a channel's Signal Monitor are filled, the intruder
+  effectively shuts out the remote control deck and can assume control of operations performed by that channel";
+  round 11 #1). When a meaconing or intrusion entry fills a channel to 10, the same deck update records
+  `rcNet.channelAuthority.<channel> = { attackerKey, deckUuid (the intruder's), eventId, freqGen }`; it is CHANNEL-
+  specific, never a whole-network transfer (that is interference's contest, 5b.4). While it stands the owner is shut
+  out of that channel (its carrier is `lost`) and the intruder performs that channel's operations through their own
+  deck: **command** — the intruder issues commands to the network's drones (5a.3's command rolls, with the intruder's
+  deck and skills; the drones' Comprehension Tests as usual; standing orders change only by the intruder's commands);
+  **system** — the intruder receives the network's system data (5b.1's position/heading/ammo/damage, any drone, Free)
+  and directs indirect fire through the network (Part 4b.5) while the owner can't; **simsense** — the intruder sees
+  what the drones sense and the owner gets nothing through it (the jumped-in owner is dumped as for a lost simsense
+  carrier, 5a.6). Jamming's own 10-box effects (p.71–72: drones cut off, the jammed dump) are the SPECIFIC rule for
+  jamming and stand instead (specific over general). The authority ends when the owner reconnects that carrier (5b.6),
+  when the intruder's intercept stops being valid (`freqGen` changed, 5b.1) or when the intruder exits; each end is one
+  deck update in `rc-control`. Readers (`controllerOf` for commands, the system-data and indirect-fire paths, the
+  simsense observe path) consult `channelAuthority` first. Quench: a meaconing fill of the command channel lets the
+  intruder command a drone and refuses the owner's command; reconnection returns it.
 **5b.1 Signal interception (p.68–69).** Complex Action; both decks within the LEAST powerful device's range (Part
 4a.3). Dice = the intruder's device rating (+ Task Pool) vs TN = target deck rating + 3 (+2 per failed decryption,
 cumulative, 5b.1a). Before rolling the intruder may name the channel(s) they are after (recorded on the roll);
