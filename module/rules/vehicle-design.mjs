@@ -224,8 +224,11 @@ export function applyModEffects(base = {}, mods = [], { category = "", transport
   const problems = [];
   const fx = { handling: 0, handlingOff: 0, speed: 0, acceleration: 0, load: 0, signature: 0, armor: 0, cargo: 0, economyMult: 1, speedMult: 1 };
   const live = mods.filter(m => modCounts(m) || modBaked(m));
+  // Subsystem damage (R2 p.86 Table 8, optional; 6a.4): `subsysLevel` on a mod — Serious/Deadly = inoperable (every
+  // effect stops, a factory-baked one included); Moderate halves its bonuses; Light takes 1 off them.
+  const dead = (m) => m.subsysLevel === "S" || m.subsysLevel === "D";
   const sets = {};
-  for (const m of live.filter(modCounts)) for (const [k, stat] of Object.entries(SET_KEYS)) {
+  for (const m of live.filter(m => modCounts(m) && !dead(m))) for (const [k, stat] of Object.entries(SET_KEYS)) {
     const e = modEffect(m, k, { category, transport, build });
     if (e?.value != null) sets[stat] = Math.max(sets[stat] ?? -Infinity, e.value);
   }
@@ -246,19 +249,23 @@ export function applyModEffects(base = {}, mods = [], { category = "", transport
     const total = items.reduce((t, m) => t + num0(m.rating), 0);
     const baked = items.filter(modBaked).reduce((t, m) => t + num0(m.rating), 0);
     const allBaked = items.every(modBaked);
+    const lvl = ["D", "S", "M", "L"].find(l => items.some(m => m.subsysLevel === l)) ?? null;
+    const dmg = (v, mult) => !lvl ? v : (lvl === "S" || lvl === "D") ? (mult ? 1 : 0)
+      : mult ? (lvl === "M" ? 1 + (v - 1) / 2 : v) : lvl === "M" ? Math.trunc(v / 2) : Math.sign(v) * Math.max(0, Math.abs(v) - 1);
     for (const k of EFFECT_KEYS) {
       const eT = evalAt(rep, k, total);
       if (!eT) continue;
       if (eT.value == null) { problems.push({ code: "badFormula", msg: `${rep.name}: its ${k} effect "${eT.formula}" can't be worked out.`, page: rep.page ?? "p.118" }); continue; }
       const eB = baked || allBaked ? evalAt(rep, k, allBaked ? total : baked) : null;
       const vB = eB?.value ?? (k.endsWith("Mult") ? 1 : 0);
-      if (k === "armor") { armorTotal += eT.value; armorBaked += vB; }
-      if (k.endsWith("Mult")) fx[k] *= vB ? eT.value / vB : eT.value;
-      else fx[k] += Math.trunc((eT.value - vB) * tireFactor(tire, familyOf(rep), k));   // halved effects round down (p.146)
+      const vT = dmg(eT.value, k.endsWith("Mult"));
+      if (k === "armor") { armorTotal += vT; armorBaked += vB; }
+      if (k.endsWith("Mult")) fx[k] *= vB ? vT / vB : vT;
+      else fx[k] += Math.trunc((vT - vB) * tireFactor(tire, familyOf(rep), k));   // halved effects round down (p.146)
     }
   }
   // Drive-by-wire: ONE +10% (never per level, never twice), split among Acceleration / Speed / Load in whole percents.
-  const dbws = live.filter(m => (m.modKey || m.key) === "drive-by-wire" && num0(m.rating) > 0);
+  const dbws = live.filter(m => (m.modKey || m.key) === "drive-by-wire" && num0(m.rating) > 0 && !dead(m));
   let split = null;
   if (dbws.length && !dbws.some(modBaked)) {
     const owner = dbws.find(m => m.design !== false && m.designMod !== false) ?? dbws[0];

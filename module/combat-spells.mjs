@@ -78,7 +78,7 @@ export function combatTargetRows(spell, tokens) {
       // Ram damages inanimate targets (p.151); its TN is the Object Resistance Table (p.130).
       if (kind === "living") rows.push({ ...base, eligible: false, why: "Ram only damages inanimate targets (SR2E p.151)" });
       else rows.push({ ...base, eligible: true, why: "", tn: 8, resistAttr: null,
-        barrier: kind === "vehicle" ? (Number(actor.system.body) || 0) + (Number(actor.system.effectiveArmor) || 0) : 0 });
+        barrier: kind === "vehicle" ? (Number(actor.system.effective?.body ?? actor.system.body) || 0) + (Number(actor.system.effectiveArmor) || 0) : 0 });
       continue;
     }
     const t = combatSpellTarget({ spellType: spell.system.type, damageType: dmgType, target: {
@@ -435,8 +435,8 @@ export async function resistCombatSpell(actor, message) {
       ...(mp > 0 ? { "system.dicePools.magic.value": p.magic.value - mp } : {}),
       [`flags.sr2e.spellRes.${rid}`]: { key, castSuccesses, own, mp, grantIds: grants.map(g => g.id), at: game.time.serverTime }
     });
-    const base = r2v ? (Number(actor.system.body) || 0)
-      : vehicle ? (Number(actor.system.body) || 0) + Math.floor((Number(actor.system.effectiveArmor) || 0) / 2) : (actor.system[attr]?.value ?? 1);
+    const base = r2v ? (Number(actor.system.effective?.body ?? actor.system.body) || 0)
+      : vehicle ? (Number(actor.system.effective?.body ?? actor.system.body) || 0) + Math.floor((Number(actor.system.effectiveArmor) || 0) / 2) : (actor.system[attr]?.value ?? 1);
     const resistTN = r2v ? r2CombatSpellTN(state.force, actor.system.effectiveArmor) : state.force;
     let dice = base + own + mp + granted;
     let notes = (own ? RL("SpellDefenseTag", { n: own }) : "") + (mp ? RL("MagicPoolTag", { n: mp }) : "")

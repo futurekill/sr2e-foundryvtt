@@ -37,16 +37,41 @@ function deliver(vehicle) {
   if (!game.users.activeGM?.isSelf) return null;
   return vq(vehicle.uuid, async () => {
     for (const [fid, f] of Object.entries(vehicle.getFlag("sr2e", "vfollow") ?? {})) {
-      for (const kind of ["feedback", "crash"]) {
+      for (const kind of ["feedback", "crash", "subsystem"]) {
         const x = f?.[kind];
         if (x?.state !== "pending") continue;
         const tag = `${fid}.${kind}`;
         if (kind === "crash") await openCrash(vehicle, fid, x);
-        const msg = cardWith("vfollowId", tag) ?? await postFollowup(vehicle, fid, kind, x, tag);
+        const msg = cardWith("vfollowId", tag) ?? (kind === "subsystem"
+          ? await (await import("./vehicle-subsystems.mjs")).postSubsystemCard(vehicle, fid, x, tag)
+          : await postFollowup(vehicle, fid, kind, x, tag));
         await vehicle.update({ [`flags.sr2e.vfollow.${fid}.${kind}.state`]: "posted", [`flags.sr2e.vfollow.${fid}.${kind}.messageId`]: msg.id });
       }
     }
   });
+}
+
+/**
+ * Crash coalescing (R2 subsystem damage, 6a.4): every crash consequence of ONE originating event merges into that
+ * event's crash follow-up/record (fid = the origin). An automatic crash beats a pending Crash Test (the test's card is
+ * "not counted"); once the origin has crashed, nothing starts another. GM only.
+ */
+export async function escalateCrash(vehicle, fid, kind, why = "") {
+  if (!game.users.activeGM?.isSelf) return;
+  await vq(vehicle.uuid, async () => {
+    const f = vehicle.getFlag("sr2e", "vfollow")?.[fid] ?? {};
+    const cr = crashOf(vehicle, fid);
+    if (cr && ["crashed", "resisting", "resolving", "done"].includes(cr[1].state) && cr[1].kind !== "test") return;   // already crashed
+    if (!f.crash) {
+      await vehicle.update({ [`flags.sr2e.vfollow.${fid}.crash`]: { kind, why, speed: findEntry(vehicle.uuid)?.entry?.speed ?? null, ruleset: "rigger2", state: "pending" } });
+    } else if (kind === "auto" && f.crash.kind === "test") {
+      await vehicle.update({ [`flags.sr2e.vfollow.${fid}.crash.kind`]: "auto", [`flags.sr2e.vfollow.${fid}.crash.why`]: why });
+      if (cr && ["open", "testing"].includes(cr[1].state))
+        await vehicle.update({ [`flags.sr2e.crashes.${cr[0]}.state`]: "crashed", [`flags.sr2e.crashes.${cr[0]}.kind`]: "auto",
+          [`flags.sr2e.crashes.${cr[0]}.test.attempt.state`]: "superseded" });
+    }
+  });
+  await deliver(vehicle);
 }
 
 /** The crash record for a follow-up id (created at most once, in the vehicle queue). */
@@ -331,7 +356,7 @@ export async function crashStepClick(message) {
       dice = (driver ? skill : f.skill) + pr + (f.autonav ? (vehicle.system.effective?.autonav ?? vehicle.system.autonav ?? 0) : 0);
       label = `${vehicle.name}: Crash Test (${r2 ? "Rigger 2 p.51" : "SR2E p.107"})`;
     } else {
-      const armor = vehicle.system.effectiveArmor ?? 0, body = vehicle.system.body ?? 1;
+      const armor = vehicle.system.effectiveArmor ?? 0, body = vehicle.system.effective?.body ?? vehicle.system.body ?? 1;
       if (r2) { dice = body + pr; tn = Math.max(2, hit?.power ?? 2); }
       else { dice = body + Math.floor(armor / 2); tn = Math.max(2, (hit?.power ?? 2) - armor); }
       roller = vehicle;

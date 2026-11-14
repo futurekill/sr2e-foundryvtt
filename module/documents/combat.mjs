@@ -162,7 +162,10 @@ export class SR2ECombat extends Combat {
       const F = await import("../vehicle-fuel.mjs");
       const coast = await F.fuelChaseStage(this, t.from);
       const r = await chaseCloseStage(this, t.from, { coast });
-      if (r.done) await F.fuelAdvanceStage(this, t.from);
+      if (r.done) {
+        await F.fuelAdvanceStage(this, t.from);
+        await (await import("../vehicle-subsystems.mjs")).subsystemLeakStage(this, t.from);   // a leaking tank (R2 p.87)
+      }
       if (!r.done) return this;   // waiting on players' rolls or acks; the panel lists them, the GM resumes
       await stage("advancing");
     }

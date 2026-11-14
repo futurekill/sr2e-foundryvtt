@@ -10,7 +10,7 @@ import { claimId } from "./rules/claim-rules.mjs";
 import { crashTrigger, woundLevelOf, impactDamage, reservedControl, levelBelow } from "./rules/vehicle-play-rules.mjs";
 import { resolveBarrier } from "./rules/sr2e-rules.mjs";
 import { r2Speed, engineFailureStress, permanentStress, repairQuote, repairHours, drivingTN, stressDice, ruleOfOne, drivingStressOutcome, overhaul } from "./rules/vehicle-r2-rules.mjs";
-import { isRigger2, vehicleQuality } from "./vehicle-mode.mjs";
+import { isRigger2, vehicleQuality, r2Option } from "./vehicle-mode.mjs";
 import { poolsLocked, actionOf, chaseDriverUuid, findEntry } from "./chase-state.mjs";
 import { brRound, installTime } from "./rules/vehicle-custom.mjs";
 import { stressPatch, mechanicLabour } from "./rules/vehicle-overhead-rules.mjs";
@@ -150,9 +150,9 @@ function phaseKeyFor(vehicle) {
  * @param {string} [o.woundLevel]  - the staged level of this application (else from the boxes)
  * @returns {Promise<{landedBoxes:number, skipped?:boolean, trigger?:string|null}>}
  */
-export function commitVehicleDamage(vehicle, boxes, { source = "weapon", eventId = null, receipt = null, woundLevel = null, ruleset = null, speed = null, attempt = null } = {}) {
+export function commitVehicleDamage(vehicle, boxes, { source = "weapon", eventId = null, receipt = null, woundLevel = null, ruleset = null, speed = null, attempt = null, attack = null } = {}) {
   return gmCall("damage", { vehicleUuid: vehicle.uuid, boxes, source, eventId: eventId ?? foundry.utils.randomID(16), receipt, woundLevel,
-    ruleset: ruleset ?? (isRigger2() ? "rigger2" : "core"), speed, attempt });
+    ruleset: ruleset ?? (isRigger2() ? "rigger2" : "core"), speed, attempt, attack });
 }
 
 /** chase.mjs's damage route (lock order chase-membership → chase:<combatId> → vdmg:<uuid>); null = direct. */
@@ -164,7 +164,7 @@ export function setFollowupDelivery(fn) { deliverFollowups = fn; }
 /** A follow-up id: the event id with only key-safe characters. */
 export const followId = (eventId) => String(eventId).replace(/[^\w-]/g, "_");
 
-GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLevel, ruleset = "core", speed = null, attempt = null }, user) => {
+GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLevel, ruleset = "core", speed = null, attempt = null, attack = null }, user) => {
   const vehicle = fromUuidSync(vehicleUuid);
   if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
   const path = receipt?.path ?? `flags.sr2e.vdmg.${eventId}`;
@@ -206,6 +206,10 @@ GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLeve
         upd["flags.sr2e.crashPhase"] = phase;
       }
     }
+    // Subsystem damage (R2 p.85, optional): Moderate or worse from ONE source → a roll follow-up in this same update,
+    // carrying the immutable attack context (Power after armour etc.) the Control Box and compartment rows need.
+    if (r2 && r2Option("r2Subsystems") && ["M", "S", "D"].includes(staged) && source !== "passenger" && !vehicle.getFlag("sr2e", "missile"))
+      follow.subsystem = { level: staged, attack: attack ?? null, state: "pending" };
     if (Object.keys(follow).length) upd[`flags.sr2e.vfollow.${followId(eventId ?? path)}`] = follow;
     await vehicle.update(upd);
     return { landedBoxes: value - before, follow: Object.keys(follow), crash: follow.crash?.kind ?? null };
@@ -340,7 +344,7 @@ export async function resistVehicleRam(message) {
 
   // The defending driver's dice: their own skill and pool, or the GM's figure for an NPC driver.
   const sk = driver ? driver._vehicleSkill(oppVehicle) : null;
-  const body = oppVehicle?.system.body ?? st.oppBody, armor = oppVehicle?.system.effectiveArmor ?? st.oppArmor;
+  const body = (oppVehicle?.system.effective?.body ?? oppVehicle?.system.body) ?? st.oppBody, armor = oppVehicle?.system.effectiveArmor ?? st.oppArmor;
   const handling = oppVehicle?.system.effectiveHandling ?? st.oppHandling;
   const terrainMod = CONFIG.SR2E.vehicleTerrainMods.ram[st.terrain] ?? 0;
   const cap = isPoolClient(driver) ? Math.min(driver?.system.dicePools?.control?.value ?? 0, sk?.cap ?? 0) : 0;
@@ -479,7 +483,7 @@ export async function hitObjectFlow(driver, vehicle) {
   }
 
   // The vehicle resists like a crash (p.109: "makes its Damage Resistance Test with its Body dice, plus one-half … armor").
-  const armor = vehicle.system.effectiveArmor ?? 0, body = vehicle.system.body ?? 1;
+  const armor = vehicle.system.effectiveArmor ?? 0, body = vehicle.system.effective?.body ?? vehicle.system.body ?? 1;
   const resist = await vehicle.rollSuccessTest(body + Math.floor(armor / 2), Math.max(2, power - armor), {
     label: `${vehicle.name} resists the impact (${power}${level})`, isResistance: true });
   const stages = ["L", "M", "S", "D"];
@@ -834,7 +838,7 @@ export async function promptDrivingTest(driver, vehicle) {
   const offRoadRating = vehicle.system.effectiveHandlingOffRoad;
   const sk = driver ? driver._vehicleSkill(vehicle) : null;
   const poolMax = driver && isPoolClient(driver) ? Math.min(driver.system.dicePools?.control?.value ?? 0, sk.cap) : 0;
-  const maxStressDice = driver ? stressDice(99, vehicle.system.body).dice : 0;
+  const maxStressDice = driver ? stressDice(99, vehicle.system.effective?.body ?? vehicle.system.body).dice : 0;
   const sel = (name, opts, v = "") => `<select name="${name}">${opts.map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   const label = { rigged: "Rigged (VCR)", datajack: "Datajack (−1)", manual: "Manual", drone: "The drone itself (Pilot)" };
   return foundry.applications.api.DialogV2.prompt({
@@ -884,7 +888,7 @@ export async function rollDrivingTest(driver, vehicle, o) {
     otherMod: (o.otherMod ?? 0) + sk.penalty + guidanceDrivingMod(vehicle) });   // continuous missile lock +2 (R2 p.59)
   const autonav = Math.max(0, sys.effective?.autonav ?? sys.autonav ?? 0);
   const paid = o.mode === "rigged" && driver ? await driver._payControl(o.control, sk.cap) : 0;
-  const push = drone ? { dice: 0, stress: 0 } : stressDice(o.stressDice, sys.body);
+  const push = drone ? { dice: 0, stress: 0 } : stressDice(o.stressDice, sys.effective?.body ?? sys.body);
   if (push.stress) {
     await adjustStress(vehicle, push.stress, { reason: "extra Driving Test dice", driverUuid: driver?.uuid ?? "" });
     (await import("./vehicle-quality.mjs")).hiddenStressPrompt(vehicle, "pushed with Stress dice").catch(() => {});   // R2 p.84
@@ -897,7 +901,7 @@ export async function rollDrivingTest(driver, vehicle, o) {
     tnContext: { kind: "skill", key: sk.key ?? "", skillCategory: "active", electronic: o.mode === "rigged" || o.mode === "datajack" },
   });
   if (!res) return null;
-  const st = { vehicleUuid: vehicle.uuid, driverUuid: driver?.uuid ?? "", testMessageId: res.testMessageId ?? "", skill: sk.dice, defaulted: !drone && !!sk.defaulted, body: sys.body ?? 0, resolved: false };
+  const st = { vehicleUuid: vehicle.uuid, driverUuid: driver?.uuid ?? "", testMessageId: res.testMessageId ?? "", skill: sk.dice, defaulted: !drone && !!sk.defaulted, body: sys.effective?.body ?? sys.body ?? 0, resolved: false };
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: roller }), flags: { sr2e: { drivingTest: st } },
     content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}: Driving Test</strong> — spend Karma first if you will, then Resolve.
       <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-driving-resolve-btn">✔ Resolve (Stress, R2 p.26)</button></div></div>` });

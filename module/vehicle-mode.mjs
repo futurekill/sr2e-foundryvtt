@@ -14,6 +14,7 @@ export function isRigger2() {
 export const R2_OPTIONS = {
   r2Fuel: { name: "Rigger 2: variable fuel consumption", hint: "Optional rule (Rigger 2 p.81–83): vehicles track their fuel — travel, chases and drones' idle time burn it by the Economy Rating Table; running dry coasts the vehicle to a stop (aircraft: a Crash Test)." },
   r2FlightFuel: { name: "Rigger 2: aircraft maneuver fuel", hint: "Optional rule (Rigger 2 p.82): STOL, VSTOL and VTOL takeoffs and landings use fuel by the Flight Maneuvers Table." },
+  r2Subsystems: { name: "Rigger 2: subsystem damage", hint: "Optional rule (Rigger 2 p.85–87): Moderate or worse damage from one source may damage the vehicle's subsystems (electronics, controls, accessories, weapons, engine, chassis)." },
   r2FuelGrades: { name: "Rigger 2: fuel grades", hint: "Optional rule (Rigger 2 p.83): cheap, premium or custom fuel changes a vehicle's Acceleration, Economy and Maintenance." },
   r2QualityFactors: { name: "Rigger 2: Quality Factors", hint: "Optional rule (Rigger 2 p.84–85): vehicle Quality Factors in design, with their Maintenance, Stress, Build/Repair and collision effects and a prototype's hidden Stress." }
 };
