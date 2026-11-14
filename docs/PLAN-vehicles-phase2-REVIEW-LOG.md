@@ -923,3 +923,16 @@ coasting invents a movement rule.
 1: one per-vehicle logical fuel clock with combat entry/exit mapping; every submission translated onto it. 2: user
 ruling R6-9 — the printed total is split across Turns in proportion to each Turn's speed (Gray Ghost 2,500/2,000/1,500/
 1,000/500 m).
+
+## Part 4a code, round 2 — Codex (fix review, fresh session): REVISE, 2 findings
+1. Range reductions can escape invalidation: ECCM on and off queued together both run before the appended sweeps, which
+   see the restored range.
+2. Restoring built-in sensors revives expired EW results: no receiving-device generation changes.
+
+### Claude's response
+1. Taken: sweeps read the broken links SYNCHRONOUSLY when each change lands (`brokenLinks` in `sweepAround`), and the
+   updateActor hook now sweeps on the panel's own flags (ewOn, fluxBoosts, txConditions) as well as Body/sensor; a boost
+   reallocation is one forced-replacement write (no transient unboosted state).
+2. Taken: the stock sensors' generation is bumped whenever `sensorInstalled` or `system.sensor` changes, and when a
+   Sensors item is created, deleted or changes state.
+Quench `sr2e.sensors` 12/12 (3 new tests).

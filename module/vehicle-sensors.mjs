@@ -383,8 +383,8 @@ async function bump(vehicle, paths) {
   if (Object.keys(patch).length) await vehicle.update(patch);
 }
 
-/** Re-check every recorded relationship FROM this vehicle and bump the links that broke (GM, inside its queue). */
-async function sweepVehicle(vehicle, positions = null) {
+/** The links of every recorded relationship FROM this vehicle that are out of range NOW (a synchronous read). */
+function brokenLinks(vehicle, positions = null) {
   const records = [];
   for (const lock of Object.values(vehicle.getFlag("sr2e", "locks") ?? {})) records.push({ deviceId: lock.deviceId, recipient: lock.targetUuid });
   const ev = vehicle.getFlag("sr2e", "jamEvent");
@@ -399,9 +399,13 @@ async function sweepVehicle(vehicle, positions = null) {
     const now = distanceBetween(vehicle, other), before = positions ? distanceBetween(vehicle, other, positions) : now;
     if (range == null || now == null || now > range || (before != null && before > range)) broken.add(`link.${linkKey(deviceId, other)}`);
   }
-  await bump(vehicle, [...broken]);
+  return [...broken];
 }
-/** Sweep this vehicle and every vehicle whose records name it as a recipient (GM; each in its own queue). */
+/** Bump the links broken now or at the sweep's request (`seen`), GM, inside the vehicle's queue. */
+const sweepVehicle = (vehicle, positions = null, seen = []) => bump(vehicle, [...new Set([...seen, ...brokenLinks(vehicle, positions)])]);
+/** Sweep this vehicle and every vehicle whose records name it as a recipient (GM; each in its own queue). The links
+ *  are read SYNCHRONOUSLY here, at the moment the change lands (code review 4a round 2 #1): a range cut and restored
+ *  before a queued sweep runs still ends the results it broke. */
 function sweepAround(vehicle, positions = null) {
   if (!isActiveGM() || !isRigger2() || !vehicle) return;
   const uuid = vehicle.uuid;
@@ -409,7 +413,9 @@ function sweepAround(vehicle, positions = null) {
     const f = v.flags?.sr2e ?? {};
     const involved = v.uuid === uuid || Object.values(f.locks ?? {}).some(l => l.targetUuid === uuid)
       || Object.values(f.jamVs ?? {}).some(r => r.observerUuid === uuid) || Object.values(f.edVs ?? {}).some(r => r.observerUuid === uuid);
-    if (involved) vq(v.uuid, () => sweepVehicle(v, positions)).catch(err => console.error("SR2E | ew sweep", err));
+    if (!involved) continue;
+    const seen = brokenLinks(v, positions);
+    vq(v.uuid, () => sweepVehicle(v, positions, seen)).catch(err => console.error("SR2E | ew sweep", err));
   }
 }
 
@@ -504,8 +510,7 @@ export function registerVehicleSensors() {
     await vq(vehicleUuid, async () => {
       const problems = boostProblems(alloc, boostContext(vehicle));
       if (problems.length) throw new Error(problems.join("; "));
-      await vehicle.update({ "flags.sr2e.-=fluxBoosts": null });
-      await vehicle.update({ "flags.sr2e.fluxBoosts": alloc });
+      await vehicle.update({ "flags.sr2e.==fluxBoosts": alloc });
     });
     sweepAround(vehicle);
     return true;
@@ -563,21 +568,29 @@ export function registerVehicleSensors() {
     sweepAround(tok.actor, before ? { [tok.uuid]: before } : null);
   });
   // Equipment and vehicle changes that can change a range: devices, amplifiers, ports, Body, boosts, conditions.
-  const itemHook = (item, deleted = false) => {
+  // A Sensors item appearing, failing or going away changes which sensor receives, so the stock sensors' generation is
+  // bumped too: results recorded against them never revive when they become the receiver again (code review 4a r2 #2).
+  const itemHook = (item, changes = null, deleted = false) => {
     const v = item.parent;
     if (!isActiveGM() || !isRigger2() || v?.type !== "vehicle" || item.type !== "vehicle_mod") return;
     const kind = KIND_BY_MODKEY[item.system?.modKey];
-    if (kind && (deleted || !WORKING.includes(item.system.custom?.state ?? "")))
-      vq(v.uuid, () => bump(v, [`device.${item.id}`])).catch(err => console.error("SR2E | ew device", err));
+    const paths = [];
+    if (kind && (deleted || !WORKING.includes(item.system.custom?.state ?? ""))) paths.push(`device.${item.id}`);
+    if (kind === "sensor" && (!changes || foundry.utils.hasProperty(changes, "system.custom.state"))) paths.push(`device.${BUILTIN}`);
+    if (paths.length) vq(v.uuid, () => bump(v, paths)).catch(err => console.error("SR2E | ew device", err));
     sweepAround(v);
   };
   Hooks.on("createItem", (item) => itemHook(item));
-  Hooks.on("updateItem", (item) => itemHook(item));
-  Hooks.on("deleteItem", (item) => itemHook(item, true));
+  Hooks.on("updateItem", (item, changes) => itemHook(item, changes));
+  Hooks.on("deleteItem", (item) => itemHook(item, null, true));
+  // Every change that can move a range sweeps at the moment it lands — Body, the stock sensors, and the panel's own
+  // flags (toggles, boosts, conditions), so a cut undone by the next queued op is still caught.
+  const has = (c, k) => foundry.utils.hasProperty(c, k);
   Hooks.on("updateActor", (actor, changes) => {
-    if (actor.type !== "vehicle") return;
-    if (foundry.utils.hasProperty(changes, "system.body") || foundry.utils.hasProperty(changes, "system.sensor")
-      || foundry.utils.hasProperty(changes, "system.sensorInstalled")) sweepAround(actor);
+    if (actor.type !== "vehicle" || !isActiveGM() || !isRigger2()) return;
+    if (has(changes, "system.sensorInstalled") || has(changes, "system.sensor")) vq(actor.uuid, () => bump(actor, [`device.${BUILTIN}`])).catch(err => console.error("SR2E | ew device", err));
+    if (["system.body", "system.sensor", "system.sensorInstalled", "flags.sr2e.ewOn", "flags.sr2e.fluxBoosts", "flags.sr2e.txConditions"]
+      .some(k => has(changes, k))) sweepAround(actor);
   });
   // Chase distances and round changes.
   Hooks.on("updateCombat", (combat, changes) => {

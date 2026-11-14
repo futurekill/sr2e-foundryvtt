@@ -18541,6 +18541,46 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Code review fixes (Part 4a round 2)", function () {
+        it("ECCM on and off queued together still ends a lock the cut put out of range", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const A = await mk("Quench Range2", {}, [await catalog("Sensors (Vehicle Sensor System)", 3), await catalog("Electronic Counter-Countermeasures (ECCM)", 2)]);
+          const B = await mk("Quench Range2 T");
+          await sceneWith([A, 100], [B, 100 + 80 * 100]);   // 8 km: inside Flux 5 (9 km), outside Flux 4 (6 km)
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          assert.ok(S.lockOn(A, B), "locked at 8 km");
+          const eccm = S.transmitters(A).find(t => t.kind === "eccm").id;
+          await Promise.all([S.gmCall("ewToggle", { vehicleUuid: A.uuid, deviceId: eccm, on: true }),
+            S.gmCall("ewToggle", { vehicleUuid: A.uuid, deviceId: eccm, on: false })]);
+          for (let i = 0; i < 30 && S.lockOn(A, B); i++) await new Promise(r => setTimeout(r, 100));
+          assert.notOk(S.lockOn(A, B), "the 6 km moment ended it");
+        });
+        it("an ECM result against stock sensors doesn't revive when the sensors are removed and restored", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const J = await mk("Quench Jam4", {}, [await catalog("Electronic Countermeasures (ECM)", 3)]);
+          const O = await mk("Quench Stock Obs", { sensor: 3 });
+          await sceneWith([J, 100], [O, 300]);
+          await S.gmCall("ewToggle", { vehicleUuid: J.uuid, deviceId: S.transmitters(J).find(t => t.kind === "ecm").id, on: true });
+          await faces([FIVES, FIVES, FIVES, FIVES, FIVES, ONES, ONES, ONES, ONES, ONES, ONES, ONES, ONES], () =>
+            S.gmCall("sensorTest", { vehicleUuid: O.uuid, targetUuid: J.uuid }));
+          assert.equal(S.ewTermOf(O, J).ecm, 5, "jammed through the stock sensors");
+          await O.update({ "system.sensorInstalled": false });
+          await O.update({ "system.sensorInstalled": true });
+          for (let i = 0; i < 30 && S.ewTermOf(O, J).ecm; i++) await new Promise(r => setTimeout(r, 100));
+          assert.equal(S.ewTermOf(O, J).ecm, 0, "the old result stays dead");
+        });
+        it("a boost reallocation is one write (no transient unboosted range)", async function () {
+          const S = await mods();
+          const A = await mk("Quench Boost2", { body: 4 }, [await catalog("Sensors (Vehicle Sensor System)", 3), await catalog("Power Amplifier", 2)]);
+          const sid = S.sensorOf(A).id, amp = A.items.find(i => i.system.modKey === "power-amplifier").id;
+          await S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: { [sid]: { amplifiers: { [amp]: 2 } } } });
+          await S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: { [sid]: { amplifiers: { [amp]: 1 } } } });
+          assert.deepEqual(A.getFlag("sr2e", "fluxBoosts"), { [sid]: { amplifiers: { [amp]: 1 } } }, "replaced, not merged");
+        });
+      });
+
       describe("Flux boosts (R2 p.30)", function () {
         it("refuses an engine boost without an Electronics Port and amplifier use over its rating", async function () {
           const S = await mods();
