@@ -170,6 +170,31 @@
       }
     },
     {
+      "_id": "d09a0c357a3b7380",
+      "name": "Fire missiles and indirect fire (Rigger 2)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 700000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> launch a guided missile, and call it in on a spotter&#39;s lock (<em>Rigger 2</em> pp.56–61).</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-r2-gunnery.png\" alt=\"The attack dialog's Rigger 2 gunnery section, and a missile's Phase 0 card\"></p>\n<ol>\n<li>Lock on first: the vehicle&#39;s <strong>Sensors → Sensor Test</strong> against the targeted token.</li>\n<li>Fire the missile weapon (or launcher) as usual. On the attack dialog&#39;s <strong>Tactics</strong> tab pick <strong>Launch missile —\ncontinuous lock</strong> (stay on it: no other targets, +2 on Driving Tests) or <strong>fire-and-forget</strong>, then <strong>Attack</strong>.</li>\n<li>Keep playing the Turn. When the GM ends it, each missile posts a <strong>Phase 0</strong> card: the gunner clicks <strong>Missile\nAttack Test</strong> and resolves damage as usual. The next Turn starts once every missile has struck.</li>\n<li><strong>Indirect:</strong> the spotter targets the enemy and clicks 🎯 (Combat tab, or the Sensors panel for a vehicle), picks\nthe missile and rolls. The firer then picks <strong>Launch missile — indirect</strong> and that spotter&#39;s lock. If the spotter\nloses the target, use the card&#39;s <strong>Area-effect attack</strong> button: pick the device and range, roll, and the card gives\nthe scatter.</li>\n</ol>\n"
+      }
+    },
+    {
       "_id": "a3bb81ee4ccf9902",
       "name": "Drive by the Rigger 2 rules",
       "type": "text",
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },
@@ -634,7 +659,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2500000,
+      "sort": 2600000,
       "ownership": {
         "default": -1
       },
@@ -659,7 +684,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2600000,
+      "sort": 2700000,
       "ownership": {
         "default": -1
       },
@@ -684,7 +709,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2700000,
+      "sort": 2800000,
       "ownership": {
         "default": -1
       },

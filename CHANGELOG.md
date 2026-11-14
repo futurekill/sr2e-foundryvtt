@@ -26,6 +26,34 @@
     Upgrade** modifications (Rigger 2 module) add a component or magnification levels through the usual Customize
     window: parts cost = the sensors' original cost × .10 × levels (Skyrie: 3,000¥), installed by the sensors' own rules.
     Footage guidance (2D only, storage/recorder/link, 2 Mp per minute, enlargement, +1 TN in Perception) on the panel.
+- **Rigger 2 gunnery** (R2 p.56–61; docs/PLAN-vehicles-phase2.md Part 4b), under the Rigger 2 vehicle ruleset. The attack
+  dialog's Tactics tab gets a **Rigger 2 gunnery** section:
+  - **Manual gunnery** (p.56–58), the default for a vehicle-mounted weapon or a shooter aboard: the Manual Gunnery
+    Modifiers Table replaces the attacker-movement rows and the p.108 speed table — drone legs, an unmounted weapon from
+    a vehicle +2, relative motion, Maneuver Score difference, relative speeds (under 5 m/turn counts as 5; both under 5 →
+    standard ranged combat), target size/type, Smartlink II, the attacking vehicle's damage. **Weapon mounts**: pintle
+    −2 and ring −6 recoil compensation; fixed mounts and turrets halve recoil before accessories (cancelling the
+    heavy-weapon doubling); remembered per weapon.
+  - **Sensor-enhanced gunnery** (p.58–59): needs the vehicle's lock (a Sensor Test); Gunnery + ½ Sensor dice against
+    the target's Signature + ECM/ED + urban +2, direct LOS −3 (minimum 2).
+  - **Missiles** (p.59–60): launch in continuous lock or fire-and-forget. Nothing is rolled at launch: every missile
+    strikes at the end of the Combat Turn (Phase 0) — the round change waits until each launch's **Missile Attack
+    Test** (Gunnery + Intelligence, + ½ Sensor in continuous lock) is rolled from its card. Continuous lock keeps the
+    gunner on that target (other attacks refused) and gives the vehicle +2 on Driving Tests; a lock lost by Phase 0 means
+    no strike. A missile crossing another vehicle's ECM field on the way is jammed against its own Sensor Rating (the GM
+    can add or strike fields on the card). Missiles and rockets carry their Intelligence (core p.255; Rigger 2, Fields of
+    Fire, Street Samurai Catalog items).
+  - **Indirect fire** (p.60): a spotter (a BattleTac FDDM on spotter, weapon and deck, or a laser/microwave/radar target
+    designator) makes the **Indirect Fire Test** from the 🎯 button on the character's Combat tab or the vehicle's Sensors
+    panel; the firer launches on that lock; the spotter takes +2 on other tests (and a designator user the Second
+    Firearm modifier) until the missile strikes with the spotting successes added (no Combat Pool). A lost lock → an
+    **area-effect attack**: Area-Effect Target Numbers Table and the Remote Gunnery Scatter. Non-missile indirect fire
+    (mortars, artillery) resolves at once on the spotter's lock.
+  - **One ammunition queue**: under Rigger 2 every shot, launch and reload goes through the GM, receipted; a reload
+    that swaps ammunition holds the ejected rounds until the new ones are in (no double counting if a client drops).
+  - NPC targets get their **Signature** automatically: the Critter Signature Ratings Table by name, else 6 for a
+    metahuman (p.61). An **improved datajack** (Level 2+) adds Level − 1 dice to the chase's relocation Perception Test
+    while rigging (p.17).
 
 ## 0.152.0 — 2026-11-13
 

@@ -36,7 +36,7 @@ import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.m
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { riggedInto, setControl, hitObjectFlow, isPoolClient } from "../vehicle-play.mjs";
 import { vehicleOperationMod, movingTargetMod } from "../rules/vehicle-play-rules.mjs";
-import { manualExtras, defaultGunneryMode, TARGET_SIZE_MODS } from "../rules/vehicle-gunnery-rules.mjs";
+import { manualExtras, defaultGunneryMode, TARGET_SIZE_MODS, vehicleRecoil } from "../rules/vehicle-gunnery-rules.mjs";
 import { isRigger2 } from "../vehicle-mode.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
@@ -641,7 +641,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       </div>` : "";
   // Rigger 2 gunnery (docs/PLAN-vehicles-phase2.md 4b.1–4b.3): the mode and the p.57/p.58 rows the core dialog lacks.
   // The roll re-validates everything (a sensor attack needs a live lock); this only collects choices.
-  const r2On = isRigger2() && isRanged && !weapon.system.blastType;
+  const r2On = isRigger2() && isRanged;   // blast ordnance too: every core missile and rocket is a blast weapon
   const r2Default = r2On ? defaultGunneryMode({ mounted: weapon.parent?.type === "vehicle", aboard: !!rideDefault,
     attackerSpeed: speedOf(rideDefault), targetSpeed: presets.targetSpeed ?? null }) : "core";
   const SIZE_LABELS = { human: "Human/metahuman 0", humanCritter: "Human-sized critter 0", smallCritter: "Small critter +1",
@@ -1016,6 +1016,10 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
       const left  = ammo?.max > 0 ? Math.max(1, ammo.current - walked) : Infinity;
       const fired = full ? burstFired(mode, full, left) : null;
       const burst = !full ? 0 : fired.isBurst ? fired.rounds : 0;
+      // Rigger 2 vehicle mounts (p.57, p.131): the same function the roll uses.
+      const mount = root.querySelector('[name="mount"]')?.value ?? "";
+      const r2m = root.querySelector('[name="r2Mode"]')?.value ?? "core";
+      if (mount && r2m !== "core") return vehicleRecoil({ recoil: liveShotsFired + walked + burst, heavy: heavyRecoil, mount, accessories: currentRecoilComp() });
       const net = Math.max(0, liveShotsFired + walked + burst - currentRecoilComp());
       // Heavy weapons/shotguns double uncompensated recoil (p.89-90)
       return heavyRecoil ? net * 2 : net;
@@ -1073,7 +1077,21 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         const effVis = Math.max(vMod, barrierBlindFire());
         const sMod = parseInt(root.querySelector("#sr2e-relspeed")?.value) || 0;
         const r2m = r2Sync();
-        const r2Adj = r2m === "manual" ? r2ManualNow() - aMod - sMod : 0;
+        const r2Ex = r2m === "manual" ? r2ManualNow() : 0;
+        const r2Adj = r2m === "manual" ? r2Ex - aMod - sMod : 0;
+        const r2RowEl = root.querySelector("#sr2e-r2-row");
+        if (r2RowEl) {
+          r2RowEl.style.display = r2m === "core" ? "none" : "";
+          root.querySelector("#sr2e-r2-label").textContent = r2m === "manual" ? "Rigger 2 manual rows (p.57):"
+            : r2m === "sensor" || r2m === "indirect" ? "TN = Signature + EW + p.58 rows, at the roll" : "Missile: rolled at Phase 0 (p.59)";
+          root.querySelector("#sr2e-r2-val").textContent = r2m === "manual" ? fmt(r2Ex) : "";
+        }
+        // p.57 replaces the core attacker-movement rows and the p.108 speed table: hide them in manual mode.
+        for (const id of ["#sr2e-attacker", "#sr2e-relspeed"]) {
+          const field = root.querySelector(id)?.closest(".sr2e-attack__field");
+          if (field) field.style.display = r2m === "core" ? "" : "none";
+        }
+        if (attackRow && r2m !== "core") attackRow.style.display = "none";
         finalTN = Math.max(2, BASE_TN + rMod + cMod + effVis + aMod + tMod + mMod + oMod + sMod + r2Adj
                                       + calledShotMod() - aimMod()
                                       + cyberwareMod + accessoryTnMod
@@ -1441,6 +1459,10 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
     </tr>`;
 
   const autoRows = `
+    <tr id="sr2e-r2-row" style="display:none;">
+      <td style="color:#9cf;padding:1px 0;" id="sr2e-r2-label">Rigger 2 gunnery (p.57):</td>
+      <td id="sr2e-r2-val" style="text-align:right;padding:1px 0;">+0</td>
+    </tr>
     <tr id="sr2e-attacker-row" style="display:none;">
       <td style="color:#aaa1c0;padding:1px 0;">Attacker moving:</td>
       <td id="sr2e-attacker-mod" style="text-align:right;padding:1px 0;">+0</td>

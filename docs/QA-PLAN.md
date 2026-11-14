@@ -1231,3 +1231,16 @@ Apply → range drops a band; Sensor Test with a token targeted; toggle ECM on a
 (an ECM card, then +N on the TN); buy a Sensor Upgrade: Magnification in Customize and finish it → magnification rises
 by 50× per level; turn the ED setting on and check the observer's card hides the TN.
 
+## Rigger 2 gunnery (`sr2e.sensors` batch; docs/PLAN-vehicles-phase2.md Part 4b)
+Automated (Quench): manual gunnery replaces attacker movement and p.108 with the p.57 rows; sensor-enhanced refused
+without a lock, Signature TN and ½ Sensor dice with one; reload with an ammunition swap (escrowed eject credited once);
+receipted, idempotent spends refused past the clip; a missile launch spends the round, holds the Turn's end until its
+Missile Attack Test, rolls once from the payload; indirect fire with a designator spotter (+2 to the spotter, spotting
+successes on the test, no Combat Pool) and a lock lost after launch (area-effect card). Vitest: every table and example
+(Steeler, Tubbs, Moly's laser band, the 16 − 12 = 4 m scatter, critter Signatures, recoil with mounts).
+Manual (Rigger 2 ruleset, a GM and one player): fire a vehicle weapon — the dialog defaults to manual with the vehicle's
+speed; switch to sensor-enhanced after a Sensor Test; load an anti-vehicle missile, launch it in continuous lock, try a
+second attack (refused), end the Turn (it waits), roll the Phase 0 card; spot with a laser designator and launch
+indirectly; take the designator off before Phase 0 → the area-effect card and its scatter; reload a launcher with a
+different missile type and check both reserves.
+
