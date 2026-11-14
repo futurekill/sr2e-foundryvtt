@@ -578,14 +578,18 @@ export function registerVehicleSensors() {
   const pendingReceiver = new Map();
   const receiverHook = (v) => {
     const now = sensorOf(v)?.id ?? null, stored = v.getFlag("sr2e", "ewReceiver");
-    const was = pendingReceiver.has(v.uuid) ? pendingReceiver.get(v.uuid) : stored === undefined ? BUILTIN : stored;
+    const pend = pendingReceiver.get(v.uuid);
+    const was = pend ? pend.receiver : stored === undefined ? BUILTIN : stored;
     if (was === now) return;
-    pendingReceiver.set(v.uuid, now);
+    // A unique token per captured transition (code review 4a r6): only the job that wrote the LATEST capture clears
+    // the cache, so an earlier job with an equal value (A→B→A→B) can't discard a newer pending transition.
+    const token = foundry.utils.randomID(8);
+    pendingReceiver.set(v.uuid, { receiver: now, token });
     const drop = was === BUILTIN;
     vq(v.uuid, async () => {
       if (drop) await bump(v, [`device.${BUILTIN}`]);
       await v.update({ "flags.sr2e.ewReceiver": now });
-      if (pendingReceiver.get(v.uuid) === now) pendingReceiver.delete(v.uuid);
+      if (pendingReceiver.get(v.uuid)?.token === token) pendingReceiver.delete(v.uuid);
     }).catch(err => console.error("SR2E | ew receiver", err));
   };
   const itemHook = (item, deleted = false) => {

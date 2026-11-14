@@ -1008,3 +1008,11 @@ intruder's operator stamp, re-validated under `rc-control` at commit.
 ### Claude's response
 Taken: each transition is captured synchronously against the last one SEEN (an in-memory value per vehicle, the durable
 flag as baseline) and persisted in queue order (bump, then the captured receiver). Quench `sr2e.sensors` 14/14.
+
+## Part 4a code, round 6 — Codex (fix review, fresh session): REVISE, 1 finding
+1. Cleanup can discard a newer pending transition: comparing receiver VALUES allows an A→B→A→B race in which an
+   earlier job clears the cache of the latest capture.
+
+### Claude's response
+Taken: each captured transition carries a unique token; a job clears the cache only when its token is the latest one.
+Quench `sr2e.sensors` + vehicle batches 69/69.
