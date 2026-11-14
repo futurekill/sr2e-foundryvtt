@@ -1244,3 +1244,14 @@ second attack (refused), end the Turn (it waits), roll the Phase 0 card; spot wi
 indirectly; take the designator off before Phase 0 → the area-effect card and its scatter; reload a launcher with a
 different missile type and check both reserves.
 
+
+## Rigger 2 Quality Factors (optional "Rigger 2: Quality Factors"; docs/PLAN-vehicles-phase2.md Part 6a.3)
+Automated (Vitest `test/vehicle-quality.test.mjs`): levels clamp to the printed maxima; Maintenance ×.9 / ×1.2 per level;
+Stress, Build/Repair and collision TNs; the modifier joins the Mark-Up before the special-design multipliers and
+existing callers are unchanged; the Stress Test with Ruggedness/Fragility; the month's overhead × the Maintenance factor.
+Manual (Rigger 2 ruleset, option on): Workshop → Price → pick two factors (a third shows the "more than two" problem; a
+Lemon dragging the Mark-Up under .1 shows its problem); save; End Month → the overhead reflects Master Workmanship;
+GM Stress Test → the card names the Ruggedness modifier; Customize a Custom Built vehicle → parts and time doubled;
+a crash → occupants' resistance TN −1 with Safety Certified. Prototype: saving the design whispers the GM 1D6 hidden
+Stress; push a Driving Test with Stress dice → the GM gets "Reveal all / Reveal 1"; reveal → Stress rises once
+(reload mid-reveal: it finishes). Option off: the Workshop shows the factors read-only and nothing changes in play.
