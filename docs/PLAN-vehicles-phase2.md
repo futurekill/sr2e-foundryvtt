@@ -21,8 +21,8 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 4 below, in Codex review.
-- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 4 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 5 below, in Codex review.
+- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 5 below, in Codex review.
 Each part gets its own plan section + Codex review before code, and its own release.
 
 ## Part 1 — core rules audit (SR2 core p.84–85, p.104–109, p.183)
@@ -893,7 +893,7 @@ pending survives a reload → crash → occupants (one receipt each, vehicle sta
 feedback per event (two Serious hits → two); weapons; spells; an old core card resolves by core after the switch; core
 path unchanged with the ruleset off.
 
-## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 8 (2026-11-13, after Codex Part 4 rounds 1–7)
+## Part 4 — Rigger 2 sensors, electronic warfare and gunnery (R2 p.27–32, p.56–61), draft 9 (2026-11-13, after Codex Part 4 rounds 1–8)
 _Read from 110-dpi renders (PDF = book + 1); every table re-checked at 300 dpi before coding. Everything below applies
 only under `isRigger2()`; the core attack flow (incl. the p.108 Moving Target Table) is untouched under core. Two
 releases: **4a** (sensors, Flux and range, ECM/ECCM/ED/ECD, locks), **4b** (gunnery modes, missiles, indirect fire,
@@ -1070,16 +1070,21 @@ nothing is invented.
   `ammo:<weaponUuid>`, committing the change and its receipt `flags.sr2e.ammoReceipts.<eventId>` in ONE weapon update
   (a GM is always present). Ordinary attacks await it before rolling (one socket round trip). Nothing else writes
   loaded ammunition.
-- **Reloads as a three-step transaction** (round 7 #1–2), replacing today's single-client `_reloadNow()` reads:
-  (1) `ammo` **plan** — inside `ammo:<weaponUuid>` the GM reads the clip revision, computes the rounds needed and the
-  ejected rounds, writes `reloadPlans.<reloadId> = { clipRev, need, eject, ammoItemId, state: planned }` and FENCES
-  the weapon (every other `ammo` op on it is refused while a plan is open); (2) the reserve owner's money writer,
-  inside that owner's `moneyQueue`, debits/credits the reserve exactly per the plan with `reserveReceipts.<reloadId>`;
-  (3) `ammo` **settle** — loads per the plan, marks it `done`, lifts the fence. Recovery: a plan with a reserve
-  receipt is settled; a plan without one after its timeout is **cancelled** in `ammo:` FIRST (terminal
-  `reloadPlans.<reloadId>.state = cancelled`, which permanently rejects that id's settle), and only after that receipt
-  does the money writer refund anything it had debited. A settle for a cancelled id is refused; a debit for a cancelled
-  id is refused by the money writer (it checks the plan state through the GM before debiting).
+- **Reloads as a journalled transaction** (round 7 #1–2, round 8 #1–2), replacing today's single-client
+  `_reloadNow()` reads: (1) `ammo` **plan** — inside `ammo:<weaponUuid>` the GM reads the clip revision, the rounds the
+  clip can take (`need`) and the rounds it will eject, writes `reloadPlans.<reloadId> = { clipRev, need, eject,
+  ammoItemId, state: planned }` and FENCES the weapon (every other `ammo` op on it is refused while a plan is open).
+  (2) **reserve step** — the reserve owner's money writer, inside that owner's `moneyQueue`, re-checks the plan is
+  still `planned` (through the GM), computes the ACTUAL quantity `loaded = min(need, available reserve)` (partial
+  reloads as today), debits it, and writes `reserveReceipts.<reloadId> = { loaded, ammo properties, ejected: n,
+  ejectEscrow: pending }` — the ejected rounds are ESCROWED in the receipt, not yet credited to any reserve, so no other
+  reload can consume them. (3) `ammo` **settle** — loads exactly the receipt's `loaded` with its properties, marks the
+  plan `settled`. (4) **escrow release** — the money writer credits the escrowed ejected rounds and marks
+  `ejectEscrow: released`; the GM lifts the fence on that acknowledgement. **Cancellation:** the GM writes the terminal
+  `cancelled` in `ammo:` FIRST (a later settle for that id is refused); the money writer then applies an idempotent
+  cancellation acknowledgement in `moneyQueue` — refunds any debit, discards the escrow (the ejected rounds never left the
+  unchanged clip) — receipted; only that acknowledgement lifts the fence. A reserve step that sees `cancelled` does
+  nothing.
 - **Atomic launch spend** (round 3 #5): in ONE `ammo` update the GM validates the loaded round is a missile, debits it
   and writes the receipt WITH the payload snapshot (`ammoReceipts.<launchId> = { payload }`); the launch record copies
   the payload from that receipt, never from a separate read.
@@ -1178,7 +1183,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 4 (2026-11-13, after Codex Part 5 rounds 1–3)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 5 (2026-11-13, after Codex Part 5 rounds 1–4)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1228,11 +1233,15 @@ Electronics).
   `chase-membership` → `rc-control` → `chase:<combatId>` → `vdmg:<uuid>`. Each op writes ONE item update (its deck) or,
   for a two-network contest, the two decks in a fixed order with a contest record that makes the pair recoverable
   (5b.4). Part 1's `vehicle-control` op becomes an alias of `rc-control` (same queue), so the two can't interleave.
-- **Chase integration** (round 1 #3; round 2 #3–4): a networked vehicle's chase entry has `driver: null` and
-  `operator: <actor uuid>`. One accessor `actingActorOf(entry)` = driver ?? operator replaces every direct
-  `entry.driver` read in `chase.mjs` — `dpStart`, `begin`, the Driver Points UI, ram expiry, Position/Maneuver dice —
-  with the dice source from `droneCtx` (primary: the rigger's skill and pools; secondary/captain: Pilot, no pools);
-  `chaseUnion` includes operators, deduplicated, so pool refreshes and membership locking see each operator once.
+- **Chase integration** (round 1 #3; round 2 #3–4; round 4 #1–2): a networked vehicle's chase entry has `driver:
+  null` and `networked: true` — the operator is NEVER cached in the chase: `operatorOf(entry)` reads the live network
+  (5.0 control truth), so a takeover or disconnect is seen at once. One accessor `actingActorOf(entry)` = driver ??
+  operatorOf(entry) replaces only the ACTION-AUTHORITY and DICE-SOURCE reads of `entry.driver` in `chase.mjs` —
+  `dpStart`, `begin`, the Driver Points UI, ram expiry, Position/Maneuver dice — with the dice from `droneCtx` (primary:
+  the rigger's skill and pools; secondary/captain: Pilot, no pools). PHYSICAL reads keep `entry.driver` (crew aboard):
+  the occupants snapshot for ram/crash damage (`chase.mjs` ~427), passenger restrictions and relocation eligibility —
+  a remote operator is never inside the drone. `chaseUnion` adds the live operators, deduplicated, so pool refreshes and
+  membership locking see each operator once.
   `chaseDriverUuid` returns crew drivers only; the "rigging driver with a VCR is jumped in" check becomes `droneMode(...)
   === "primary"`. One rigger may operate several vehicles in one chase (one-driver-per-vehicle applies to crew).
   **Invalidation is durable:** every chase action reserved for a networked vehicle stores that network's `rev`; its
@@ -1274,8 +1283,10 @@ Electronics).
   its last order or holds; nothing is written to the Signal Monitors (those change only through MIJI, 5b).
 
 ### 5a.2 Operative modes (p.65–66)
-- Per affiliated, reachable drone, DERIVED: **primary** (the operator's one jumped drone), **secondary** (others while a
-  primary is set), **captain** (no primary). `droneMode(operator, drone)` in `module/rules/drone-rules.mjs`.
+- Per affiliated, reachable drone, DERIVED PER OPERATOR across every network that operator runs (round 4 #4):
+  **primary** (the operator's one jumped drone, on whichever deck), **secondary** (all the operator's other drones on
+  ANY of their networks while a primary is set), **captain** (the operator has no primary anywhere). A takeover adds the
+  captured network's drones to that derivation (secondary if the winner is jumped in elsewhere). `droneMode(operator, drone)` in `module/rules/drone-rules.mjs`.
 - **One primary per rigger across all networks** (round 1 #1): `rcJump` refuses while that operator has a primary on
   any other deck (checked in `rc-control`). Jumping needs a VCR (`isVcr`) and the operator jacked in; captain's chair
   is the only mode without a VCR (p.65). Jump / return to captain's chair: Simple Actions.
@@ -1301,7 +1312,9 @@ Electronics).
 - A non-robot network drone has no Initiative: it acts in its operator's phases; the tracker refuses adding one as a
   combatant (GM override warns).
 - **Robots** (`design.traits` "robot", stamped by the R2 module on its robots): Reaction = 2 × Pilot; Initiative dice =
-  Learning Pool + 1, max 4 (not from the pool); a combatant. **Phase identity** (round 3 #7): a robot acting on its own
+  Learning Pool + 1, max 4 (not from the pool); a combatant. **Threat Rating** (p.67; round 4 #10): robots only, a
+  vehicle field `threatRating` (0 = none) added to the robot's own tests as an NPC's Threat dice are (core p.187);
+  ordinary drones have none. **Phase identity** (round 3 #7): a robot acting on its own
   uses ITS combatant's phase (weapon phase state, Learning Pool keys); only actions the operator takes directly with
   it (jumped in as primary, or a command roll) use the operator's phase. `droneCtx.phaseActorUuid` = the robot when
   autonomous, the operator otherwise.
@@ -1343,11 +1356,12 @@ Electronics).
   rigger jacks out) is never a dump. System-channel jamming alone never dumps.
 - One durable event on the rigger `flags.sr2e.rigDumps.<eventId> = { cause, deckRating, state: pending|open|done,
   steps }`. **Coupled to its cause** (round 2 #11, round 3 #3): the control op writes the rigger's event FIRST
-  (`pending`), then the deck change, which carries a cause receipt `rcNet.dumpCauses.<eventId>` IN THE SAME deck update
-  (a deck deleted by the cause gets a tombstone `dumpCauses` entry on the operator from the same op before deletion);
-  the GM's reconcile opens a pending event exactly when its receipt (or tombstone) exists and voids it when neither
-  does after the op finished — never inferred from revision numbers. Deleting a connected deck
-  goes through the op (the `preDeleteItem` hook routes it), so the event exists before the deck is gone. Each step
+  (`pending`), then the deck change, which carries a cause receipt `rcNet.dumpCauses.<eventId>` IN THE SAME deck update;
+  the GM's reconcile opens a pending event exactly when its receipt exists and voids it when it doesn't after the op
+  finished — never inferred from revision numbers. **Deck deletion** (round 4 #5) is journalled as an INTENT on the
+  operator (`rcDeckDeletes.<eventId> = { deckUuid, state: intended }`, routed by the `preDeleteItem` hook through the
+  op) and recovered to completion: the dump is published only after the GM verifies the deck is actually gone; an
+  intent whose deck still exists is retried (or cancelled by the GM, and then its pending dump voided). Each step
   resolves once: (1) the disorientation effect (a timed Active Effect carrying the event id: +2
   TN on all Success Tests, 10 Combat Turns, read by `testTnModifiers`); (2) resistance of (deck rating + 4)S Stun
   (a step on the rigger's damage writer with `dmgReceipts`, Spike Resistance/Sensitive Neural Structure applied); (3)
@@ -1355,11 +1369,15 @@ Electronics).
   Independent of the Matrix dump-shock code (different rules and state).
 
 ### 5a.7 Hardwiring (p.64; round 1 #7)
-- A deck item on a vehicle with Rigger Adaptation and an Electronics Port may be hardwired (GM op `rcHardwire`): that
-  vehicle is permanently subscribed and affiliated (`hardwired: true`), counts against both limits, and can't be
-  disaffiliated; removing the deck item (or the GM's un-hardwire) ends it. Effects: the deck may take engine Flux
-  boosts up to ⌊Body ÷ 2⌋ (Part 4a.3); the rigger aboard gets the vehicle's protection; the driver can drive while
-  jacked into the deck.
+- A deck item on a vehicle with Rigger Adaptation and an Electronics Port may be hardwired (GM op `rcHardwire`; p.64
+  asks for nothing else — no Pilot requirement, round 4 #3): that vehicle is permanently subscribed and affiliated
+  (`hardwired: true`), counts against both limits, and can't be disaffiliated; removing the deck item (or the GM's
+  un-hardwire) ends it. Effects: the deck may take engine Flux boosts up to ⌊Body ÷ 2⌋ (Part 4a.3); the rigger aboard
+  gets the vehicle's protection. **Onboard hardwired driving** (p.64: "enables the driver to run the vehicle while
+  jacked into the RC deck"): the deck's operator, while physically aboard the hardwired vehicle, drives it in mode
+  `hardwired` — the rigger's own Driving skill, pools and rigger bonuses, as if rigged — within the single control
+  authority (the operator is the network's operator; Part 1 crew control stays excluded); the chase entry for that
+  vehicle has the operator as its physical `driver` too.
 - Deck availability ≠ connection ≠ membership: an unequipped/uninstalled deck forces `rcDisconnect` but keeps the
   records; deleting the deck item deletes them.
 
@@ -1402,7 +1420,8 @@ the TARGET's `rcNet.freqGen` (round 1 #10).
   drone; command = hear orders.
 
 **5b.2 MIJI (p.69–72).** A Complex Action needing a valid intercept of the channel. **Opposed**: the intruder rolls
-their device's Flux (Part 4a.3) vs TN = target deck rating; the target rigger rolls their deck's Flux vs TN = the
+their device's Flux (Part 4a.3) vs TN = target deck rating + the target network's cumulative encryption-alert modifier
+(+2 per failed decryption, p.69 "including any MIJI attacks"; interference exchanges too; round 4 #6); the target rigger rolls their deck's Flux vs TN = the
 intruder's protocol emulation module rating (meaconing, intrusion, interference) or ECM rating (jamming); both + Task
 Pool. Intruder wins: an entry of net-successes boxes (capped, 5b.0) on the channel the operation hits. Both sides roll on their own
 clients; the GM op resolves once both are recorded (bound to `freqGen` and the network `rev`).
@@ -1468,7 +1487,9 @@ rigger's Physical/Stun damage modifiers; success when successes > filled boxes �
 - **Mechanical arms** (p.34–35): Arm Test — the controller's Quickness dice (Control Pool up to Quickness for a
   rigger; a drone not directly controlled uses Pilot via `droneTestDice`) vs the vehicle's Handling (GM may adjust).
   Arm Skill Test: skill TN +1 per Handling point above 3. Arm melee: the same Handling modifier; Strength = Body ×
-  Body (+ enhancement, already derived by the design pass).
+  Body (p.35) + the item's enhancement rating (R2 p.145), derived per installed Mechanical Arms item into
+  `VehicleData.effective.arms = [{ itemId, strength }]` (round 4 #11; cleared each preparation, Body = effective Body)
+  and passed into the arm melee attack.
 - **Legs** (p.35): walking/running by core p.83 (Speed Rating = walking; running = × 2.5), character combat rules,
   excluded from the chase; a kick attempt = a fall.
 - **ACVs** (p.35, round 1 #20): can't climb or cross any significant slope (the Driving dialog refuses a slope the GM
@@ -1492,14 +1513,16 @@ rigger's Physical/Stun damage modifiers; success when successes > filled boxes �
   Coverage limits (p.78): jumping into a room needs < 100 m², a corridor < 25 m (component validation).
 - **Actions in a CCSS** (p.78) as one action list with costs; control a room / fire a weapon system / issue a command
   / operate a drone use 5a; jumping into a component shifts the rigger's audiovisual perception there while they KEEP
-  tactile awareness of the whole system (round 1 #19). Radio (p.77; round 3 #9): the CCSS has scanning receivers the
-  rigger hears as sound (friendly frequencies monitored; hostile transmissions may be intercepted) and, commonly, a
-  decryption system rated at the Security Level — modelled as equipment on the CCSS item that the rigger's own tests
-  use (interception per 5b.1, decryption per 5b.1a with that rating), never as automatic success.
+  tactile awareness of the whole system (round 1 #19). Radio (p.77; round 3 #9; round 4 #8): the CCSS has scanning
+  receivers the rigger hears as sound (friendly frequencies monitored; hostile transmissions may be intercepted) and,
+  commonly, a decryption system rated at the Security Level — equipment on the CCSS item used by the rigger's own tests,
+  never automatic success. Ordinary radio traffic uses the core book's standard-radio rules (core p.184, radio
+  ECM/ECCM/encryption); 5b's procedures apply only when the target actually is a remote-control network.
 - **Controlled component** (round 3 #10): the CCSS's network record holds `control = { mode: body | component |
   drone, componentId?, vKey? }`, mutually exclusive: "assuming the body" (the whole system, Karma Pool only), jumped into
   ONE room/corridor/device group (perception there, its devices operable, pools returned), or jumped into a drone (5a,
-  `primary`). Transitions are Simple Actions as for drones (jump / return), written in `rc-control`.
+  `primary`). Costs as printed (p.78; round 4 #7): **Control a Room** (direct control of a room or corridor section) is
+  a Complex Action; Jump into a Primary Drone is a Simple Action; written in `rc-control`.
 - **Rigger Perception Tests Table** (p.78): door/gate 5, lock tampering no alarm 3, successful tampering 3 × tamper
   successes, device destroyed 4, carefully deactivated 6, system on alert −2; a triggered alarm needs no test. The GM's
   secret roll button.
@@ -1519,7 +1542,9 @@ rigger's Physical/Stun damage modifiers; success when successes > filled boxes �
 - **Rigger combat** (p.80): rigged Initiative per standard rules (every tenth phase as standard — clipped sentence read
   so); the Initiative winner may attack (Complex) or disengage (Free; re-entering = Complex); attack = opposed Willpower
   Tests, the attacker adding Control Pool up to Willpower; the winner deals (Willpower)L Stun, +1 level per 2 net
-  successes; the loser resists with Body (+ Control Pool up to Body). Ends when one disengages or passes out; the
+  successes; the loser resists with Body (+ Control Pool up to Body). Both Control Pool offers are filtered through the
+  pool-eligibility table first (round 4 #9): an intruding rigger battling a security rigger has only Karma Pool (p.78),
+  so it gets neither; the decker's printed exception (Control Pool = ⌈emulation rating ÷ 2⌉, below) stands. Ends when one disengages or passes out; the
   winner controls the system (becomes the CCSS network's operator) and gets the defeated rigger's information.
 - **Decking a rigged system** (p.80): a cyberdeck with a rigger protocol emulation module and its software; steps 1–3;
   then rigger combat with: no Matrix programs, +2 TN on all tests, Initiative −2 and no Response Increase dice, Control
@@ -1537,7 +1562,7 @@ with no pools while a primary uses the rigger's; an NPC operator; a disconnect k
 step once; a frequency switch voids other intruders' intercepts; a contest takeover transfers the operator only; a
 lost carrier stays lost after regeneration until reconnected; MIJI refused against a CCSS; stale cards "not counted".
 
-## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 4 (2026-11-13, after Codex Part 6 rounds 1–3)
+## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 5 (2026-11-13, after Codex Part 6 rounds 1–4)
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
 the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's
 printed copy). Every rule here is OPTIONAL (p.81) and has its OWN world setting (round 1 #1) — one per independently
@@ -1626,13 +1651,18 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   reversed by a durable refund receipt through the payer's money writer, only for what was actually paid and only
   once (the record's `rev` and the receipt guard repeats). In `split`, the half overhead stands and half-rate optempo
   is added. An adventure closing after its month was settled reopens that month's record once (new `rev`), applying
-  the same rule.
+  the same rule. **Missed-payment consequences** (round 4 #4): when a superseded liability had already been assessed as
+  missed, its consequences are reversed by receipt — the Stress `assessMonth()` applied for it (a `stress` op with the
+  original event id's reversal, floor = permanent Stress), its contribution to the month's overhead Stress counter, and
+  any restoration reservation released-or-settled through the payer protocol — each once, keyed to the original
+  assessment's receipt.
 - **Outstanding payments first** (round 3 #1): before superseding a vehicle-month's liability, the GM resolves any open
   payment reservation for it through the payer's existing release-or-settle protocol (2b-2: a `released` marker or the
   payer's receipt), so a `payOverhead` already admitted either completes (then it is refunded below) or aborts.
-- **Allocation** (round 3 #2): a refund is computed from the ORIGINAL payment receipt by one deterministic function —
-  the receipt's cash, lifestyle credit and Karma split pro rata over the vehicles it paid by their billed amounts (legacy
-  receipts included, recomputed the same way) — with a cumulative refund ledger keyed by that receipt
+- **Allocation** (round 3 #2, round 4 #3): a refund is computed from the ORIGINAL payment receipt by one deterministic
+  function (legacy receipts included, recomputed the same way): lifestyle credit is allocated only within its own month
+  (to that month's bills, pro rata); Karma is allocated in WHOLE points by largest remainder (ties broken by vehicle
+  uuid order) over the bills still uncovered; cash covers the remainder — with a cumulative refund ledger keyed by that receipt
   (`overheadRefunds.<tx> = { cash, credit, karma }`) capping every refund at what the receipt actually allocated to that
   vehicle-month, so reopening never refunds shared credit or Karma twice.
 - Charges reuse Part 2b-2's settlement: an immutable reservation `optempo.<adventureId>.<vKey> = { amount, payer, tx }`
@@ -1652,8 +1682,10 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   parts cost and base time ×2 for modifications installed later (customization quote); Prototype Model/Used Vehicle
   −.60, 1D6 hidden Stress; Safety Certified +.15, passengers and driver −1 TN resisting collision damage (not the
   vehicle, not weapons); Passenger Trap −.15, +1. Consumers read one pure `qualityEffects(choices)`.
-- **Hidden Stress** (round 1 #7; round 2 #2–3): rolled once at creation by the GM op `hiddenStress` into GM-only
-  storage (a world setting keyed by vehicle uuid, never an actor flag), with a creation receipt on the vehicle. A
+- **Hidden Stress** (round 1 #7; round 2 #2–3; round 4 #5): rolled once at creation by the GM op `hiddenStress` into
+  GM-only storage (a world setting keyed by vehicle uuid, never an actor flag), with a creation receipt on the vehicle.
+  Every read–modify–write of that store runs in ONE GM queue `hidden-stress` (world-wide), released before the vehicle
+  Stress op is called. A
   reveal is a recoverable transaction: (1) in the secret store, record `reveals.<revealId> = { n, state: pending }` and
   decrement the available balance; (2) OUTSIDE any vehicle lock, apply n Stress through the `stress` op with
   `eventId = revealId` (idempotent); (3) mark the reveal `done`. On reload the GM re-applies pending reveals (step 2 is
@@ -1717,7 +1749,11 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   clears it; the panel shows the reduced total beside the live sum.
 
 ### 6b.2 Breaking missile-target lock (setting `r2BreakLock`; p.88; round 1 #16)
-- The targeted vehicle's controller may make a Hide Action (Complex; Part 3a hide) before the missile strikes:
+- **Launch-bound Hide** (round 4 #2): the attempt is its own action on the launch (entered from the launch panel or the
+  target's sheet, no chase pair needed), using Part 3a's Hide TEST calculation but NOT its outcome: it never changes chase
+  contact; only reaching the required successes breaks the lock. Part 3a's ordinary Hide (any success = contact lost)
+  is not offered against a missile.
+- The targeted vehicle's controller may make this Hide Action (Complex) before the missile strikes:
   successes ≥ the missile's Intelligence break the lock and the missile misses; fewer = no effect; each further attempt
   needs +2 (p.88: "for each additional attempt" — counted per LAUNCH, across Turns for an extended missile; round 2 #9).
   Attempts are admitted under the launch's authority — the combat's `round:<combatId>` queue that admits and closes
@@ -1736,9 +1772,12 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   standing in for the driver's skill everywhere** — its Maneuver Score (others' TNs against it), its Driver Points
   test, and the printed Driving Tests for its Accelerate (closing) and Ram actions (p.89: "use the missile's
   Intelligence for the Driving Tests") — with no pools, Handling 4 (printed), its own Initiative (Intelligence + 2D6).
-  Its speed is FIXED at the printed value (1,000 / 5,000 m/turn), so Accelerate is the closing Driving Test and moves
-  that fixed distance toward the target on success (no speed change computed); it is entitled to Ram once its fixed
-  speed covers the remaining distance (R6-8), which replaces the Part 3a ram admission for `missile` participants.
+  Its speed is FIXED at the printed value (1,000 / 5,000 m/turn) and it moves that distance ONCE per Combat Turn
+  (round 4 #1): one movement budget per Turn (`launches.<id>.moved.<round>`) shared by its Accelerate (closing) action
+  and the round's closing stage — a successful closing test spends the Turn's budget, and `chaseCloseStage()` advances
+  the missile's pair distance only by whatever budget remains unspent (none after a success), never adding a second
+  move; it is entitled to Ram once its fixed speed covers the remaining distance (R6-8), which replaces the Part 3a ram
+  admission for `missile` participants.
 - Lifecycle, owned by the launch record (Part 4b.4): the launch spawns ONE GM-created temporary vehicle actor
   (`flags.sr2e.missile = { launchId }`, keepId = a launch-derived id so a retry can't duplicate), joins it to the chase,
   and routes its resolution EXCLUSIVELY through the chase (Part 4's Phase-0 strike skips launches marked `extended`).

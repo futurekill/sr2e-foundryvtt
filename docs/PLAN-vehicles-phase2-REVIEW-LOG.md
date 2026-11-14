@@ -776,3 +776,36 @@ no pools, and may Ram once their fixed speed covers the distance. Release-or-set
 pro-rata allocation with a cumulative refund ledger per original receipt (legacy too); submissions with intervals
 trimmed against the cursor, mode changes settling first; designs stay valid with the setting off (only editing
 restricted).
+
+## Part 4 plan, round 8 — Codex (draft 8, fresh session): REVISE, 2 findings
+1. The plan's frozen `need` could overdraw reserves or break partial reloads. 2. A cancelled reload could duplicate
+ejected rounds credited before the cancellation was seen.
+
+### Claude's response (draft 9)
+Both taken: the reserve step computes the actual `loaded = min(need, available)` and records it with the ammo properties;
+ejected rounds are escrowed in the reserve receipt until after settlement; cancellation is terminal in `ammo:` and then
+acknowledged idempotently by the reserve writer (refund, escrow discarded) before the fence lifts.
+
+## Part 5 plan, round 4 — Codex (draft 4, fresh session): REVISE, 11 findings
+Physical driver reads (occupants, relocation) wrongly replaced; cached chase operator goes stale; hardwired onboard
+driving impossible and an unprinted Pilot prerequisite; captain's chair decided per deck, not per operator; the deletion
+tombstone didn't prove the cause; MIJI missed the encryption-alert +2; Control a Room is Complex (p.78); CCSS radio
+routed through RC-network EW; rigger-combat Control Pool contradicted the pool table; robots' Threat Ratings dropped;
+mechanical-arm Strength not actually derived.
+
+### Claude's response (draft 5)
+All taken: only authority/dice reads use `actingActorOf`, physical reads keep the crew driver; the chase reads the live
+operator; onboard `hardwired` driving mode, hardwiring needs only adaptation + port; modes derived per operator across
+networks; deck deletion journalled as an intent and the dump published only after verified deletion; MIJI TN includes
+the alert modifier; Control a Room Complex; ordinary radio by the core rules; pool table applied in rigger combat; robot
+`threatRating`; per-arm Strength derived into `effective.arms`.
+
+## Part 6 plan, round 4 — Codex (draft 4, fresh session): REVISE, 5 findings
+1. Missiles could move more than their speed per Turn. 2. Part 3a's Hide ends contact on any success, contradicting
+failed lock-breaks. 3. Fractional Karma and cross-month credit in refunds. 4. Missed-payment Stress not reversed. 5. The
+hidden-Stress store wasn't serialized.
+
+### Claude's response (draft 5)
+All taken: one movement budget per Turn shared with the closing stage; a launch-bound Hide using only the test
+calculation; credit within its month, whole-point Karma by largest remainder, cash last; receipt-backed reversal of
+missed-payment consequences; one `hidden-stress` GM queue.
