@@ -773,6 +773,16 @@ GM_OPS.repair = async ({ vehicleUuid, action, data, jobId }, user) => {
       case "quote": {
         if (job && job.state !== "done") return { stale: true };
         if (job) await vehicle.update({ "flags.sr2e.-=repairJob": null });
+        // A subsystem repair (R2 p.87, optional; 6a.4): a discriminated target, priced from the damaged part.
+        if (data.target?.kind === "subsystem") {
+          const sq = subsystemRepairQuote(vehicle, data.target.recordId);
+          if (sq.refused) throw new Error(sq.refused);
+          const nj = { id: foundry.utils.randomID(12), state: "parts", boxes: sq.boxes, tn: sq.tn + vehicleQuality(vehicle).brTn, baseHours: sq.baseHours,
+            parts: sq.parts, target: { kind: "subsystem", recordId: data.target.recordId }, label: sq.label,
+            availability: vehicle.system.availability ?? "", streetIndex: vehicle.system.streetIndex ?? 1, repairerUuid: data.repairerUuid ?? "", hoursLeft: null, successes: null };
+          await vehicle.update({ "flags.sr2e.repairJob": nj });
+          return nj;
+        }
         const boxes = Math.max(1, Math.min(Number(data.boxes) || 0, vehicle.system.conditionMonitor.value ?? 0));
         const q = repairQuote({ boxes, value: vehicleValue(vehicle) });
         // Quality Factors (R2 p.84–85, optional): Streamlined Layout / Complex Chassis on every Build/Repair Test.
@@ -796,6 +806,11 @@ GM_OPS.repair = async ({ vehicleUuid, action, data, jobId }, user) => {
       case "finish": {
         if (job.state !== "working") return { stale: true };
         const cm = vehicle.system.conditionMonitor;
+        // A subsystem job marks THAT record repaired and never touches the main monitor (6a.4).
+        if (job.target?.kind === "subsystem") {
+          await vehicle.update({ [`flags.sr2e.subsystems.${job.target.recordId}.state`]: "repaired", "flags.sr2e.repairJob": { ...job, state: "done" } });
+          return { repaired: job.boxes };
+        }
         await vehicle.update({ "system.conditionMonitor.value": Math.max(0, (cm.value ?? 0) - job.boxes), "flags.sr2e.repairJob": { ...job, state: "done" } });
         return { repaired: job.boxes };
       }
@@ -997,13 +1012,25 @@ export async function repairFlow(vehicle) {
   const say = (html) => ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result">${html}</div>` });
   const dmg = vehicle.system.conditionMonitor.value ?? 0;
   if (!job || job.state === "done") {
-    if (!dmg) return ui.notifications.info(`${vehicle.name} isn't damaged.`);
+    // Repairable subsystem damage (R2 p.87, optional): not Deadly (replace), never an Armor-Defeating Hit.
+    const SS = r2Option("r2Subsystems") ? await import("./rules/vehicle-subsystem-rules.mjs") : null;
+    const subs = SS ? Object.entries(SS.subsystemsOf(vehicle)).filter(([, r]) => SS.recordLive(vehicle, r) && r.level !== "D" && r.key !== "armor") : [];
+    if (!dmg && !subs.length) return ui.notifications.info(`${vehicle.name} isn't damaged.`);
     const workers = game.actors.filter(a => a.type === "character" && a.isOwner);
     const f = await foundry.applications.api.DialogV2.prompt({ window: { title: `Repair ${vehicle.name}` }, rejectClose: false,
-      content: `<div class="form-group"><label>Boxes to repair:</label><input type="number" name="boxes" value="${dmg}" min="1" max="${dmg}" style="width:52px;"></div>
+      content: `${subs.length ? `<div class="form-group"><label>Repair:</label><select name="what"><option value="">${dmg ? "the vehicle's damage" : "—"}</option>
+          ${subs.map(([id, r]) => `<option value="${id}">${esc(r.label)} (${r.level})</option>`).join("")}</select></div>` : ""}
+        <div class="form-group"><label>Boxes to repair:</label><input type="number" name="boxes" value="${dmg}" min="1" max="${dmg}" style="width:52px;"></div>
         <div class="form-group"><label>Repairer:</label><select name="worker"><option value="">(decide later)</option>${workers.map(a => `<option value="${a.uuid}">${esc(a.name)}</option>`).join("")}</select></div>`,
-      ok: { label: "Quote", callback: (ev, b) => ({ boxes: parseInt(b.form.elements.boxes.value) || 0, repairerUuid: b.form.elements.worker.value }) } });
+      ok: { label: "Quote", callback: (ev, b) => ({ boxes: parseInt(b.form.elements.boxes.value) || 0, repairerUuid: b.form.elements.worker.value,
+        ...(b.form.elements.what?.value ? { target: { kind: "subsystem", recordId: b.form.elements.what.value } } : {}) }) } });
     if (!f) return;
+    if (f.target) {
+      const q = await repairOp(vehicle, "quote", f).catch(err => ui.notifications.warn(`SR2E | ${err.message}`));
+      if (!q || q.stale) return;
+      return say(`<strong>Repair quoted: ${esc(vehicle.name)} — ${esc(q.label)}</strong>: TN ${q.tn}, ${q.baseHours} hours base; parts ${q.parts.toLocaleString()}¥
+        (Rigger 2 p.87). The repair can't start until the parts arrive.`);
+    }
     const q = await repairOp(vehicle, "quote", f);
     if (q?.stale) return ui.notifications.warn("A repair is already under way.");
     return say(`<strong>Repair quoted: ${esc(vehicle.name)}</strong>, ${q.boxes} box${q.boxes === 1 ? "" : "es"}: TN ${q.tn}, ${q.baseHours} hours base;
@@ -1070,3 +1097,28 @@ export function r2Context(vehicle) {
     legacyEngine: game.user.isGM && legacyEngines(vehicle).length > 0,
     engine: game.user.isGM && (vehicle.items.some(isEngineCustomization) || (vehicle.system.stressPermanent ?? 0) > 0) };
 }
+
+/**
+ * A subsystem repair quote (R2 p.87): parts = damage boxes × .05 × the part's Parts Cost (engine: 40 % of the original
+ * cost + engine customization spending, R6-3; fuel tank × .9 and Body × .6 of the original cost; target acquisition:
+ * ½ the sensors' Parts Cost); TN by the level's boxes (the standard repair TN); base time = the part's installation
+ * time when known, else the standard repair time. Deadly parts are replaced; Armor-Defeating Hits never repaired.
+ */
+export function subsystemRepairQuote(vehicle, recordId) {
+  const r = vehicle.getFlag("sr2e", "subsystems")?.[recordId];
+  if (!r || r.state !== "active") return { refused: "no such damage" };
+  if (r.level === "D") return { refused: `${r.label} is destroyed: replace it (Rigger 2 p.86)` };
+  if (r.key === "armor") return { refused: "armor lost to an Armor-Defeating Hit is gone for good: replace the armor (Rigger 2 p.87)" };
+  const boxes = { L: 1, M: 3, S: 6 }[r.level];
+  const original = Number(vehicle.system.cost) || 0;
+  const engineCustom = vehicle.items.filter(i => i.type === "vehicle_mod" && i.system.modKey === "engine-customization")
+    .reduce((t, i) => t + (Number(i.system.custom?.receipt?.amount ?? i.system.cost) || 0), 0);
+  const item = r.target.kind === "item" ? vehicle.items.get(r.target.id) : null;
+  const sensorCost = Number(vehicle.items.find(i => i.type === "vehicle_mod" && i.system.modKey === "sensors")?.system.cost) || 0;
+  const base = r.key === "engine" ? 0.4 * (original + engineCustom) : r.key === "fuelTank" ? original * 0.9 : r.key === "body" ? original * 0.6
+    : r.key === "targetAcquisition" ? sensorCost / 2 : Number(item?.system.cost) || 0;
+  const q = repairQuote({ boxes, value: 0 });
+  const install = Number(item?.system.custom?.baseTime) || null;
+  return { boxes, tn: q.tn, baseHours: install ?? q.baseHours, parts: Math.round(boxes * 0.05 * base), label: r.label };
+}
+

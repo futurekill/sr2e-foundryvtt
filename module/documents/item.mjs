@@ -25,7 +25,7 @@ import { isCardResolved } from "../astral-combat.mjs";
 import { RL } from "../util/roll-label.mjs";
 import { controllerOf, gmCall } from "../vehicle-play.mjs";
 import { manualExtras, sensorGunneryTN, vehicleRecoil } from "../rules/vehicle-gunnery-rules.mjs";
-import { isRigger2 } from "../vehicle-mode.mjs";
+import { isRigger2, r2Option } from "../vehicle-mode.mjs";
 import { ammoQueued, queuedReload, spendRounds } from "../vehicle-ammo.mjs";
 import { validateSplit } from "../rules/spell-rules.mjs";
 import { renderSpellResistCard, combatSpellMode, combatSpellDamage, planCombatTargets, movementTN, postCombatSpellCards,
@@ -2399,8 +2399,17 @@ async function r2GunneryContext(weapon, actor, options, engage) {
   if (options.gunneryMode === "indirect") return indirectContext(options, weapon);
   const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent
     : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
-  const vehicleDamage = vehicle?.system?.damageTnMod ?? 0;
+  const vehicleDamage0 = vehicle?.system?.damageTnMod ?? 0;
   const mount = ["fixed", "turret", "pintle", "ring"].includes(options.mount) ? options.mount : "";
+  // Subsystem damage (R2 p.86, optional): a damaged turret's weapons and a damaged target-acquisition system's smart
+  // weapons take its damage modifier; Deadly → the turret is frozen / no smart weapons.
+  const SS = r2Option("r2Subsystems") && vehicle ? await import("../rules/vehicle-subsystem-rules.mjs") : null;
+  const turretLvl = SS && mount === "turret" ? SS.liveLevelOf(vehicle, "turret") : null;
+  if (turretLvl === "D") return { refused: "the turret is destroyed and frozen (Rigger 2 p.86)" };
+  const taLvl = SS && ["sensor", "missile"].includes(options.gunneryMode) ? SS.liveLevelOf(vehicle, "targetAcquisition") : null;
+  if (taLvl === "D") return { refused: "the target-acquisition system is destroyed: no smart weapons (Rigger 2 p.86)" };
+  const subsysMod = (SS?.SUBSYS_DAMAGE_MOD[turretLvl] ?? 0) + (SS?.SUBSYS_DAMAGE_MOD[taLvl] ?? 0);
+  const vehicleDamage = vehicleDamage0 + subsysMod;
   // Remember the mount on the weapon for the next dialog (a convenience; the roll uses the dialog's value).
   if (options.mount != null && weapon.isOwner && (weapon.getFlag("sr2e", "mountKind") ?? "") !== mount) weapon.setFlag("sr2e", "mountKind", mount).catch(() => {});
   if (options.gunneryMode === "manual") {
@@ -2439,7 +2448,9 @@ async function missileContext(l) {
   const spotter = l.mode === "indirect" ? (l.spotterSuccesses ?? 0) : 0;   // p.60: + the spotter's successes
   const exp = l.exposures ?? [];
   const ewTerm = exp.reduce((m, e) => Math.max(m, e.effect ?? 0), 0);
-  return { mode: "missile", mount: "", vehicleDamage: source?.system?.damageTnMod ?? 0, signature, ewTerm,
+  const SS = r2Option("r2Subsystems") && source ? await import("../rules/vehicle-subsystem-rules.mjs") : null;
+  const ta = SS?.liveLevelOf(source, "targetAcquisition");   // a damaged target-acquisition system (R2 p.86)
+  return { mode: "missile", mount: "", vehicleDamage: (source?.system?.damageTnMod ?? 0) + (SS?.SUBSYS_DAMAGE_MOD[ta] ?? 0), signature, ewTerm,
     urban: !!l.r2?.urban, los: l.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: intelligence + sensorHalf + spotter,
     diceNote: `Intelligence ${intelligence}${sensorHalf ? `, ½ Sensor ${sensorHalf}` : ""}${spotter ? `, spotter ${spotter}` : ""}`,
     exposureNote: exp.length ? `ECM crossed: ${exp.map(e => `${e.jammer} +${e.effect ?? 0}${e.needsGm ? " (no missile Sensor: the GM's call)" : ""}`).join("; ")}` : "" };

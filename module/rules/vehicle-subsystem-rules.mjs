@@ -75,6 +75,13 @@ export function reducedBonus(value, level) {
 /** With no bonus to reduce (Table 8): +1 (Light, R6-1) / +3 (Moderate) to Success Tests with the device. */
 export const NO_BONUS_TN = { L: 1, M: 3 };
 /** The worst of several levels (records for one target don't multiply; 6a.4). */
+/** A damaged subsystem's damage modifier on the weapons using it (Turret, Target Acquisition; p.86): L +1, M +2, S +3. */
+export const SUBSYS_DAMAGE_MOD = { L: 1, M: 2, S: 3 };
+/** The worst live level of records with this key on the vehicle (item or built-in), or null. */
+export function liveLevelOf(v, key) {
+  const lv = Object.values(subsystemsOf(v)).filter(r => r.key === key && recordLive(v, r)).map(r => r.level);
+  return worstLevel(lv);
+}
 export const worstLevel = (levels) => ["D", "S", "M", "L"].find(l => levels.includes(l)) ?? null;
 
 /* ── Records → derived state (pure: reads the vehicle's flags and items only) ─────────────────────────── */

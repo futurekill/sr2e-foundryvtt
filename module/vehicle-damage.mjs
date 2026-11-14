@@ -390,6 +390,39 @@ const hasReceipt = (actor, effectId) => actor?.getFlag("sr2e", "dmgReceipts")?.[
 /** Steps rolling on THIS client (the occupant's one writer): a second click can't start a parallel roll. */
 const inflight = new Set();
 
+/**
+ * Subsystem damage resistance steps (R2 p.86–87; 6a.4), each its own receipt (`subsys:<record>:<occupant>`), WITHOUT the
+ * crash-only restraint/APPS/crash-cage processing: the Rigger Control Box's ASIST backlash (the rigger, physical, Power =
+ * the attack's Power after armour — resisted like rigger feedback: Body, no armour, Combat Pool), and the passenger
+ * compartment's shrapnel (everyone aboard, physical, ½ that Power rounded up — resisted like a crash's occupants:
+ * impact armour, no Combat Pool). A record without an attack context asks the GM's Power on the card.
+ */
+export function postSubsystemSteps(vehicle, rec, recId) {
+  const pa = rec.attack?.powerAfterArmor;
+  if (rec.key === "controlBox") {
+    const rigger = controllerOf(vehicle);
+    if (!rigger || pa == null) return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result">
+      Rigger Control Box ${rec.level}: ${rigger ? `${esc(rigger.name)} resists` : "the rigger resists"} the attack's Power after armour (the GM's number)${rec.level} PHYSICAL (ASIST backlash, Rigger 2 p.86).</div>` });
+    const steps = { cb: { effectId: `subsys:${recId}:${followId(rigger.uuid)}`, actor: rigger.uuid, power: pa, level: rec.level, armor: "none", combatPool: true, title: "ASIST backlash" } };
+    return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), flags: { sr2e: { vsteps: steps } },
+      content: `<div class="sr2e-damage-result"><strong>Rigger Control Box ${rec.level}</strong> (Rigger 2 p.86): ${esc(rigger.name)} resists
+        <strong>${pa}${rec.level} Physical</strong> — ASIST backlash.${stepButtons(steps)}</div>` });
+  }
+  if (rec.key === "compartment") {
+    const power = pa != null ? Math.ceil(pa / 2) : null;
+    if (power == null) return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), content: `<div class="sr2e-damage-result">
+      Passenger Compartment ${rec.level}: passengers resist ½ the attack's Power after armour (the GM's number)${rec.level} physical shrapnel (Rigger 2 p.87).</div>` });
+    const spec = { power, level: rec.level, armor: "impact", combatPool: false, title: "Shrapnel" };
+    const steps = {};
+    for (const u of aboardOf(vehicle)) steps[followId(u)] = { ...spec, actor: u, effectId: `subsys:${recId}:${followId(u)}` };
+    steps.any = { ...spec, actor: null, effectId: `subsys:${recId}` };
+    return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }), flags: { sr2e: { vsteps: steps } },
+      content: `<div class="sr2e-damage-result"><strong>Passenger Compartment ${rec.level}</strong> (Rigger 2 p.87): passengers resist
+        <strong>${power}${rec.level} Physical</strong> shrapnel.${stepButtons(steps)}</div>` });
+  }
+  return null;
+}
+
 function stepButtons(steps) {
   const rows = Object.entries(steps).map(([key, s]) => {
     const who = s.actor ? fromUuidSync(s.actor)?.name ?? "occupant" : "anyone else aboard (select your token)";

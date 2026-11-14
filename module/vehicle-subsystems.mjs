@@ -111,13 +111,8 @@ async function consequences(v, hits, origin) {
   // ONE crash per originating event (the damage writer's own follow-up id), an automatic crash taking precedence.
   if (auto) await escalateCrash(v, origin, "auto", "a Deadly subsystem hit (Rigger 2 p.86–87)");
   else if (test) await escalateCrash(v, origin, "test", "a Deadly engine or fuel-tank hit (Rigger 2 p.87)");
-  const notes = [];
-  for (const h of hits) {
-    const pa = h.attack?.powerAfterArmor;
-    if (h.key === "controlBox") notes.push(`Rigger Control Box ${h.level}: the rigger resists ${pa ?? "the attack's Power after armour"}${h.level} PHYSICAL (ASIST backlash, p.86).`);
-    if (h.key === "compartment") notes.push(`Passenger Compartment ${h.level}: passengers resist ${pa != null ? Math.ceil(pa / 2) : "½ the attack's Power after armour"}${h.level} physical shrapnel (p.87).`);
-  }
-  if (notes.length) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: v }), content: `<div class="sr2e-damage-result">${notes.map(esc).join("<br>")}</div>` });
+  const { postSubsystemSteps } = await import("./vehicle-damage.mjs");
+  for (const h of hits) if (h.key === "controlBox" || h.key === "compartment") await postSubsystemSteps(v, { ...h, attack: subsystemsOf(v)[h.id]?.attack }, h.id);
 }
 
 /**
