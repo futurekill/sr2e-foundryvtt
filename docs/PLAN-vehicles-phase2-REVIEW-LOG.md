@@ -952,3 +952,12 @@ settings, and specifies recoverable transactions and derived-state handling comp
    operators excluded; Quench case.
 2. Taken (the second fix offered): `rcOpGen` is replaced by an operator stamp DERIVED from the authoritative deck records
    — the sorted `(deckUuid, rev)` of every deck the operator runs, from `rcIndex()` — validated under `rc-control`.
+
+## Part 5 plan, round 10 — Codex (draft 10, fresh session): REVISE, 1 finding
+1. Hardwired rigging bypasses the single-primary model: `riggedInto` true for any aboard operator with a VCR, apart
+   from `rcNet.primary` — jumping elsewhere leaves it rigged too, and the primary-only Control Pool excludes it.
+
+### Claude's response (draft 11)
+Taken: rigging a hardwired vehicle is the operator's primary (`rcJump`), so the one-primary rule, `droneCtx`, pools,
+jump/return and the dump derive from one selection; `riggedInto` = primary, no separate hardwired branch; onboard
+driving without rigging (datajack/manual) is unchanged.

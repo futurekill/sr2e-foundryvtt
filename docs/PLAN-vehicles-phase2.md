@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 10 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 11 below, in Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 10 (2026-11-14, after Codex Part 5 rounds 1–9)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 11 (2026-11-14, after Codex Part 5 rounds 1–10)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1401,8 +1401,13 @@ Electronics).
   controller rigged into it — `controllerOf(v) === actor && riggedInto(actor, v)` — never `entry.driver === actor`, so a
   hardwired operator aboard keeps the driver's exemption (round 8 #1). Onboard hardwired driving AUTHORITY (who drives)
   is separate from rigging ELIGIBILITY (round 6 #1): any operator aboard drives it, but the rigging benefits and rigger feedback keep the existing prerequisite — the
-  operator jacked in with a VCR (R2 p.16; hardwiring doesn't replace a VCR). So `riggedInto(rigger, v)` is true for a
-  hardwired vehicle only when its aboard operator has an active VCR; then `drivingModes` offers "rigged" and
+  operator jacked in with a VCR (R2 p.16; hardwiring doesn't replace a VCR). **Rigging a hardwired vehicle IS its
+  operator's primary** (round 10 #1, p.65's one direct control): with a VCR, the operator rigs it by `rcJump` like any
+  drone — it becomes `rcNet.primary` (the one-primary rule, the jump/return Simple Actions, `droneCtx`, Control Pool for
+  damage resistance and the dump on loss all follow from that one selection); jumping into another drone moves the
+  primary away, and the hardwired vehicle then runs as a secondary (Pilot) or, while its operator stays aboard without
+  rigging it, is driven onboard by datajack/manual. So `riggedInto(rigger, v)` = `v` is that operator's primary (no
+  separate hardwired branch), and only the primary is rigged; then `drivingModes` offers "rigged" and
   `_vehicleSkill` / `rollDrivingTest` treat `hardwired` exactly as `rigged` (skill, pools, VCR bonuses, half-modifier
   defaulting), and `commitVehicleDamage`'s feedback applies; without a VCR the operator drives by the datajack/manual
   modes. The chase's rigging checks use the same predicate. Part 1 crew control stays excluded.
