@@ -982,3 +982,12 @@ Taken (re-read from the p.70 render): `rcNet.channelAuthority.<channel>` when a 
 channel — command / system / simsense operations pass to the intruder's deck, the owner is shut out of that channel;
 ends on reconnection (5b.6), an invalid intercept or the intruder's exit. Jamming's own 10-box effects (p.71–72) stand as
 the specific rule. Interference keeps its whole-network contest.
+
+## Part 4a code, round 4 — Codex (fix review, fresh session): REVISE, 2 findings
+1. Unseeded vehicles (a token switched to unlinked) can revive stale results: the in-memory receiver defaulted to null.
+2. The receiver cache goes stale on a standby GM, which then misses the transition after a handover.
+
+### Claude's response
+Both taken by one change: the last receiver is DURABLE (`flags.sr2e.ewReceiver`, written in the vehicle queue), and the
+drop decision is read synchronously from it as each change lands; never recorded (an older vehicle) counts as the stock
+sensors receiving (a one-time conservative bump). Quench `sr2e.sensors` 14/14.

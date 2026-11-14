@@ -570,17 +570,19 @@ export function registerVehicleSensors() {
   // Equipment and vehicle changes that can change a range: devices, amplifiers, ports, Body, boosts, conditions.
   // When the stock sensors STOP being the receiving sensor (removed, or displaced by a working Sensors item), their
   // generation is bumped, so results recorded against them never revive when they receive again (code review 4a r2
-  // #2, r3 #2: only on that transition — a pending Sensors item leaves them receiving and their results standing).
-  const receiver = new Map();
-  const seen = (v) => receiver.set(v.uuid, sensorOf(v)?.id ?? null);
+  // #2, r3 #2, r4: only on that transition). The last receiver is DURABLE (`flags.sr2e.ewReceiver`, any GM can take
+  // over, unlinked tokens carry it), and the decision is read synchronously as each change lands, so a removal undone
+  // by the next update is still seen. Never recorded (an older vehicle): assume the stock sensors were receiving.
   const receiverHook = (v) => {
-    const was = receiver.has(v.uuid) ? receiver.get(v.uuid) : null;
-    seen(v);
-    if (was === BUILTIN && receiver.get(v.uuid) !== BUILTIN) vq(v.uuid, () => bump(v, [`device.${BUILTIN}`])).catch(err => console.error("SR2E | ew device", err));
+    const now = sensorOf(v)?.id ?? null, stored = v.getFlag("sr2e", "ewReceiver");
+    const was = stored === undefined ? BUILTIN : stored;
+    const drop = was === BUILTIN && now !== BUILTIN;
+    vq(v.uuid, async () => {
+      if (drop) await bump(v, [`device.${BUILTIN}`]);
+      const cur = sensorOf(v)?.id ?? null;
+      if (v.getFlag("sr2e", "ewReceiver") !== cur) await v.update({ "flags.sr2e.ewReceiver": cur });
+    }).catch(err => console.error("SR2E | ew receiver", err));
   };
-  Hooks.once("ready", () => { if (isRigger2()) for (const v of allVehicles()) seen(v); });
-  Hooks.on("createToken", (tok) => { if (tok.actor?.type === "vehicle") seen(tok.actor); });
-  Hooks.on("createActor", (a) => { if (a.type === "vehicle") seen(a); });
   const itemHook = (item, deleted = false) => {
     const v = item.parent;
     if (!isActiveGM() || !isRigger2() || v?.type !== "vehicle" || item.type !== "vehicle_mod") return;
