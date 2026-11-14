@@ -577,6 +577,7 @@ GM_OPS.drivingResolve = async ({ messageId }, user) => {
     const out = drivingStressOutcome({ failed, stress, body: st.body, ones, skill: threshold, stressRoll, ruleRoll,
       stressTn: (await vehicleQuality(vehicle)).stressTn });
     if (out.addStress) {
+      import("./vehicle-quality.mjs").then(m => m.hiddenStressPrompt(vehicle, "a Stress Rule of One")).catch(() => {});   // R2 p.84
       const after = stress + out.addStress;   // adding never meets the permanent floor
       await vehicle.update({ [`flags.sr2e.vstress.rule1-${messageId}`]: out.addStress, ...stressPatch({ before: stress, after, counter: overheadCounter(vehicle) }) });
     }
@@ -884,7 +885,10 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const autonav = Math.max(0, sys.effective?.autonav ?? sys.autonav ?? 0);
   const paid = o.mode === "rigged" && driver ? await driver._payControl(o.control, sk.cap) : 0;
   const push = drone ? { dice: 0, stress: 0 } : stressDice(o.stressDice, sys.body);
-  if (push.stress) await adjustStress(vehicle, push.stress, { reason: "extra Driving Test dice", driverUuid: driver?.uuid ?? "" });
+  if (push.stress) {
+    await adjustStress(vehicle, push.stress, { reason: "extra Driving Test dice", driverUuid: driver?.uuid ?? "" });
+    (await import("./vehicle-quality.mjs")).hiddenStressPrompt(vehicle, "pushed with Stress dice").catch(() => {});   // R2 p.84
+  }
   const roller = driver ?? vehicle;
   const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;

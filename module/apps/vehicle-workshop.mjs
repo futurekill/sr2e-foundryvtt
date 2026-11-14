@@ -8,7 +8,8 @@
  * record (their ratings included). Mods added on the sheet later are customizations: shown read-only, counted for
  * capacity and mount points, never touched.
  */
-import { designVehicle, evalCell, modDesignDP, modCf, modLoad, modProblems, isTransport } from "../rules/vehicle-design.mjs";
+import { designVehicle, evalCell, modDesignDP, modCf, modLoad, modProblems, isTransport, QUALITY_FACTORS } from "../rules/vehicle-design.mjs";
+import { r2Option } from "../vehicle-mode.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -322,6 +323,11 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
         { key: "military", label: "Military grade", ...range(t.multipliers?.military), value: num(mu.multipliers?.military) },
         { key: "drone", label: "Drone", fixed: t.multipliers?.drone, value: !!mu.multipliers?.drone, suggest: !!ch?.drone }
       ],
+      // Quality Factors (R2 p.84–85, optional): editable only while the option is on; a saved design keeps its factors.
+      quality: Object.entries(QUALITY_FACTORS).map(([key, f]) => ({ key, label: f.label, mod: f.mod, max: f.max,
+        value: num(this.design.quality?.[key]), levels: Array.from({ length: f.max + 1 }, (_, i) => i) }))
+        .filter(q => r2Option("r2QualityFactors") || q.value > 0),
+      qualityOn: r2Option("r2QualityFactors"),
       round: num(mu.round), markUp: r.markUp, price: r.price, dp: r.dp,
       militaryHint: this.mods.some(m => /RAM|Smart Armor/i.test(m.name)) ? "RAM and smart armor make a design military-grade (p.129–130)." : ""
     };
@@ -378,7 +384,8 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
       const [, uid, key] = path.split(".");
       const m = this.mods.find(x => x.uid === uid);
       if (m) m.system[key] = Math.max(0, Math.floor(num(v)));
-    } else foundry.utils.setProperty(this.design, path, v);
+    } else if (path.startsWith("quality.") && !r2Option("r2QualityFactors")) return;   // read-only with the option off
+    else foundry.utils.setProperty(this.design, path, v);
     this.render();
   }
 
@@ -392,7 +399,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
   static #onPickChassis(event, target) {
     const key = target.dataset.key;
     // A new chassis: its power plant and the options priced from it start over; the Mark-Up choices stay.
-    if (key !== this.design.chassisKey) this.design = { ...blankDesign(), chassisKey: key, markUp: this.design.markUp };
+    if (key !== this.design.chassisKey) this.design = { ...blankDesign(), chassisKey: key, markUp: this.design.markUp, quality: this.design.quality };
     this.step = "plant";
     this.render();
   }

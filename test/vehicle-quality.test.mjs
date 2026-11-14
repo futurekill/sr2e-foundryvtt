@@ -20,3 +20,19 @@ describe("Quality Factors (R2 p.84–85)", () => {
     expect(markUpFactor("car", {}, table).total).toBe(1);   // existing callers unchanged
   });
 });
+
+import { drivingStressOutcome } from "../module/rules/vehicle-r2-rules.mjs";
+import { assessMonth } from "../module/rules/vehicle-overhead-rules.mjs";
+describe("Quality Factor consumers (R2 p.84)", () => {
+  it("Ruggedness −1 per level on the Stress Test; Fragility +1", () => {
+    const base = { failed: true, stress: 6, body: 4, ones: 0, skill: 3, stressRoll: 5 };
+    expect(drivingStressOutcome(base).failure).toBe("stressTest");                 // 5 < 6
+    expect(drivingStressOutcome({ ...base, stressTn: -2 }).failure).toBe(null);     // 5 ≥ 4
+    expect(drivingStressOutcome({ ...base, stressRoll: 6, stressTn: 1 }).failure).toBe("stressTest");
+  });
+  it("Maintenance × the factor, rounded up", () => {
+    expect(assessMonth({}, 1, { value: 40000, stress: 0 }).record.amount).toBe(400);
+    expect(assessMonth({}, 1, { value: 40000, stress: 0, maintenance: 0.81 }).record.amount).toBe(324);
+    expect(assessMonth({}, 1, { value: 40000, stress: 1, maintenance: 1.2 }).record.amount).toBe(492);
+  });
+});
