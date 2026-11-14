@@ -326,7 +326,7 @@ export async function fuelAdvanceStage(combat, r) {
       if (eid) await combat.update({ [`flags.sr2e.chase.entries.${eid}.speed`]: step.next?.speed ?? 0 });
     }
     if (step.crashNow) await postCrashTestDue(v, `ran out of fuel and fell to its Stall Speed (p.82; ${Math.round(step.travelled)} m coasted)`,
-      { ruleset: "rigger2", speed: Number(v.system.stallSpeed) || 0 });
+      { ruleset: "rigger2", speed: Number(v.system.stallSpeed) || 0, cause: "fuel", fid: `fuel-${fuelOutOf(v)?.id ?? v.id}` });
   }
 }
 
