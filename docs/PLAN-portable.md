@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 2 (2026-11-14), after Codex round 1 (13 findings, all taken). Implements milestone **M1** of the standalone
+_Draft 3 (2026-11-14), after Codex rounds 1–2 (13 + 8 findings, all taken). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
 character backup._
@@ -20,8 +20,10 @@ what the chargen web app reads and writes.
   ruleset acceptance, the fence, the write journal and recovery, clock re-anchoring, migrations on read.
 - **M1c — import OVER an existing actor**: recursive source reconciliation with confirmed deletions (items, effects,
   flags, fields), `edits[]`/`deleted[]`, backup/restore with the same ids.
-- **M1d — hardening**: round trips over every pregen and module-enabled character, failure injection at every journal
-  step, multi-client fence tests.
+- **Release gates** (round 2 #8): M1b ships only with its failure-injection (a crash before/after every journal step,
+  recovery and rollback) and multi-client barrier/fence tests (two clients, a GM handover) passing; M1c only with its
+  overwrite, deletion and rollback tests. **M1d** adds coverage beyond those gates (every pregen, module-enabled
+  characters, historical fixtures for each new `schemaVersion`).
 
 ## 1. The format and export (M1a)
 ```
@@ -51,6 +53,11 @@ from their synthetic source. A reference to something not exported → `unresolv
   removes the "recovery recreates a randomized item" case, round 1 #1).
 - **Revision check.** Export reads every source, then the prepared projections, then re-reads each document's
   `_stats.modifiedTime` (actor and embedded) and the quiescence check; any change → retry (3 times, then refuse).
+- **One clock and context per snapshot** (round 2 #6): the export captures `worldTime`, `serverTime` and the settings
+  context ONCE, first; every prepared projection is derived with that pinned context (folds that read
+  `game.time.worldTime` — `mbwFold`, `cymFold`, the substance clock, healing — take an explicit `now`, the extraction
+  D9 already requires), `metadata.worldTime`/`serverTime` are those values, and the validation re-reads world time and
+  the settings: changed → retry.
 - The export runs on the active GM (`gmCall("portableExport")`), so it sees the same queue state as every writer.
 
 ### 1.3 Complete source and portable ids (D5; round 1 #10)
@@ -154,12 +161,21 @@ restore may keep ids (`keepId`) when they are free.
 ### 2.4 The fence (round 1 #5)
 - **Atomic with creation**: actors created by the import carry `flags.sr2e.importFence = { importId }` in their CREATE
   data; existing actors (M1c) get it in one update first.
-- **Commit-time enforcement on every client**: one set of `preCreate/preUpdate/preDelete` hooks for Actor, Item and
-  ActiveEffect (`module/portable/fence.mjs`) VETOES any write to a fenced actor or its embedded documents unless the
-  write carries `sr2eImport` with that `importId`. A writer already past an `await` is stopped at its commit — no
-  drain acknowledgement is needed for safety. Writers that write OTHER documents about the actor (a payer's money
-  queue receipt for a fenced vehicle's request, a chat card) are covered by quiescence (§1.2 applies to import too:
-  M1c refuses over an actor with open transactions).
+- **The barrier protocol** (round 2 #1: pre-hooks run on the requesting client, so a veto alone can't stop a request
+  already past its hook, and the queues are client-local): (1) **close admission** — the GM writes a world-level
+  barrier record (`importBarrier = { importId, epoch, actors: [uuids incl. payers named by any graph record], phase:
+  closing }`, a world setting every client receives); from then every client's queue wrappers (`enqueueAttack` keys
+  naming those actors, `moneyQueue`, the GM op dispatcher) refuse new entries for those actors; (2) **drain and
+  acknowledge** — each connected client awaits the tails of its own queues for those actors, then writes
+  `flags.sr2e.importAck.<importId> = epoch` on its User document (one per client instance, keyed by a per-page-load
+  instance id); the GM waits for every connected client's ack (a client that disconnects is dropped from the wait; one
+  that never answers blocks the import, which the GM may cancel — never proceed without it); (3) **fence and verify** —
+  the GM writes the actors' fences, re-reads every source, and re-runs quiescence (§1.2) against that fenced state
+  before any import write. The pre-hook veto (below) stays as defense in depth for writers that ignore the barrier.
+- **Pre-hook veto on every client**: one set of `preCreate/preUpdate/preDelete` hooks for Actor, Item and ActiveEffect
+  (`module/portable/fence.mjs`) refuses any write to a fenced actor or its embedded documents unless the write carries
+  `sr2eImport: { importId, epoch }` matching the journal's CURRENT epoch (so an old recovery owner's late write is
+  refused too, #3).
 - **Admission closure**: queues and reconcilers (money, `damage:`, `vdmg:`, `vr2op:`, `rc-control`, pool, matrix, the
   healing/substance clocks, mbw/cybermancy reconcilers incl. delayed ones, astral forms, persona tokens, jackpoints,
   overhead, chase and vehicle GM passes, the VR2 sequencer) check `fenced(actor)` at admission and skip without error,
@@ -175,6 +191,13 @@ restore may keep ids (`keepId`) when they are free.
   ELAPSED time, not the instant, with a test.
 - `serverTime` (claim `at`, STUCK/TTL) shifts by Δserver.
 - Time-bearing `derivedKey`s (cybermancy notice keys) are re-derived from the shifted time.
+- **Healing epoch** (round 2 #5): the healing clock clamps a cursor to the world's `healingClockEpoch`; an imported
+  actor gets an actor-local baseline (`healClock.<key>.importEpoch` = the rebased cursor) that the clamp honours, so the
+  rebased bleeding interval survives; a world-level enable/disable AFTER the import still applies as usual.
+- **VR2 sequence numbers** (round 2 #4): imported sequence numbers and every sequence reference (a registry kind
+  `sequence`) are rebased into the destination's sequence space preserving their order (offset = the destination's
+  next sequence − the bundle's minimum), and — while holding the sequencer barrier — the sequencer's counter (`SEQ`,
+  vr2ic.mjs) is advanced above every imported value before the graph is released.
 - **Combat durations** (`duration.combat`, `startRound`, `startTurn`): the combat is `transient` — on a new-world
   import the AE keeps its remaining rounds (`rounds − (combat.round − startRound)` at export, stored in the bundle)
   re-anchored to the next combat it joins, listed in the report.
@@ -184,9 +207,13 @@ restore may keep ids (`keepId`) when they are free.
   create, update AND delete, on Actor, Item, ActiveEffect and their embedded descendants, plus deferred callbacks
   they schedule (round 1 #7: shapeshift death results on `createActiveEffect`, vr2ic's sequencer/dataworm scheduling
   on effect creation, drugs' tombstones, receipt stripping and deletion veto) — returns early on it. A **hook
-  inventory test** (AST) lists every `Hooks.on("(pre)?(create|update|delete)…")` in `module/`; each must be marked
-  either `import-safe` (no gameplay consequence: renders, caches) or `import-guarded` with a behavioural Quench case
-  (import a fixture that would trigger it; assert nothing fired). A new unlisted hook fails CI.
+  inventory test** (AST) lists every document hook in `module/` — literal `Hooks.on("…")` names AND dynamic
+  registrations whose names resolve by constant folding (round 2 #7: the `Hooks.on(h, …)` loops over name arrays in
+  mbw.mjs and cybermancy.mjs), plus every document-class lifecycle override in `module/documents/` (`_preCreate`,
+  `_onCreate`, `_preUpdate`, `_onUpdate`, `_preDelete`, `_onDelete`, and `prepareData` side effects such as the
+  prototype-token rename at actor.mjs:391); a registration the scan can't resolve must carry a `// portable-hook:`
+  annotation. Each is marked `import-safe` (no gameplay consequence) or `import-guarded` with a behavioural Quench case
+  (import a fixture that would trigger it; assert nothing fired). A new unlisted one fails CI.
 - **Ownership** (D7 "Permissions"): the exported `ownership` is replaced on import: the importing user owner, the
   world's default otherwise.
 - Embedded items are authoritative; `_stats.compendiumSource` restored for provenance only.
@@ -194,19 +221,30 @@ restore may keep ids (`keepId`) when they are free.
 
 ### 2.7 The write journal and recovery (round 1 #6)
 - One journal per import: a page of the hidden journal entry `SR2E Imports`, `flags.sr2e.importJournal` = { importId,
-  phase: reserved → writing → written → committed → closed, lease: { userId }, steps: [ { op, docRef, expectBefore
-  (sha256 of the source, or "absent"), target (the full final source), ackAt } ] }.
+  epoch, phase: reserved → writing → written → committed → releasing → closed, lease, steps: [ { op, docRef, before
+  (the COMPLETE pre-image source, or "absent"), after (the complete expected post-image), ackAt } ] } — full images,
+  not hashes (round 2 #2), so rollback can restore exactly; large images go to their own journal pages.
+- **Canonical comparison** (round 2 #2): images are compared after normalisation — `cleanData` with the schema
+  defaults, `_stats` removed, the import's own bookkeeping (`importId`, `importFence`, portable ids written by the
+  import) removed — and per DOCUMENT: an actor step compares the actor without its embedded collections, each embedded
+  document has its own step, so a later embedded step never makes the parent look divergent.
 - **Ownership proof**: every document the import creates carries `flags.sr2e.importId` in its create data; recovery
   treats an existing document as this import's only if it carries that id AND its source hash equals the step's
   `target` (done) — otherwise it is DIVERGENT.
-- **Roll-forward** per step: absent → create; equals target → done; equals `expectBefore` → re-apply; anything else →
-  divergent: STOP, list it, the GM chooses (rollback or keep as is). Rollback symmetrically restores `expectBefore`
-  only where the document equals `target` or `expectBefore`, listing divergences.
-- **One recovery owner**: imports and recovery run only on the active GM, serialized in the world queue `sr2e-import`
-  (one import at a time per world); each step first checks the journal's `lease` is this user (a GM handover takes the
-  lease in one update, then resumes). Recovery runs on GM `ready` and from a button.
-- **Commit and unfence**: `written` → unfence each actor (`-=importFence`, with `sr2eImport`) → `committed` → `closed`;
-  every transition is idempotent, so a crash at any point resumes.
+- **Roll-forward** per step: absent → create; equals `after` → done; equals `before` → re-apply; anything else →
+  divergent: STOP, list it, the GM chooses (rollback or keep as is). Rollback writes `before` back only where the
+  document equals `after` or `before`, listing divergences. Both only while the actors are still fenced.
+- **One recovery owner** (round 2 #3): the lease is a CLIENT INSTANCE (`{ userId, instanceId, heartbeat }`, the
+  instance id random per page load, so two tabs of the same GM differ), renewed while working. A takeover only after
+  the heartbeat is stale or the old instance has acknowledged a handover request (the drained-handover of the barrier
+  protocol); the takeover bumps the journal `epoch`, and the pre-hook veto refuses every write carrying an older
+  epoch, so the old owner's in-flight write can't land. Imports and recovery are serialized per world (one import at a
+  time). Recovery runs on GM `ready` and from a button.
+- **Commit, then release** (round 2 #3): `written` → `committed` is persisted while every actor is STILL fenced (the
+  import's decision point: before it, recovery may roll back; after it, only forward); then `releasing` unfences the
+  actors one by one, each release its own journalled step; then the barrier is lifted and the journal `closed`. A crash
+  in `releasing` only finishes releasing; gameplay changes made to an already-released actor are never compared
+  against the journal again.
 
 ### 2.8 Existing-actor reconciliation (M1c, chargen round 11)
 Match items/effects by `portableId`; unmatched → create; in the destination but not the bundle → delete (listed,
