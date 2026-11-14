@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 13 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 14 below, in Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 13 (2026-11-14, after Codex Part 5 rounds 1–12)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 14 (2026-11-14, after Codex Part 5 rounds 1–13)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1503,8 +1503,10 @@ clients; the GM op resolves once both are recorded (bound to `freqGen` and the n
 - **Interference** (p.72): deck + protocol emulation; system channel only — see 5b.4.
 
 **5b.3 Applying degradation** (round 1 #11): a test's modifier comes from the channels its CONTEXT uses (the drone test
-helper for meaconing/command/system; the Comprehension and IVIS Tests; `riggerTnParts` with a drone context for
-simsense; `worstControlledInitMod` with the simsense term), counting a channel only if one of its present entries is
+helper for meaconing/command/system; the Comprehension and IVIS Tests; for simsense, the Perception and Manual
+Gunnery rows only through the drone, and — for a REMOTELY rigged drone — the damage-like penalty on ALL the rigger's
+Success Tests (round 13 #1, p.72: "like a standard damage modifier"), derived in `riggerTnParts` from the rigger's
+live primary connection whatever the test, the channel counted once; `worstControlledInitMod` with the simsense term), counting a channel only if one of its present entries is
 of an operation that affects that kind of test, and each channel once per test (the band from the channel's total
 boxes) — never the same channel twice.
 

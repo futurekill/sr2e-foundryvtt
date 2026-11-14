@@ -1016,3 +1016,11 @@ flag as baseline) and persisted in queue order (bump, then the captured receiver
 ### Claude's response
 Taken: each captured transition carries a unique token; a job clears the cache only when its token is the latest one.
 Quench `sr2e.sensors` + vehicle batches 69/69.
+
+## Part 5 plan, round 13 — Codex (draft 13, fresh session): REVISE, 1 finding
+1. Simsense jamming scoped too narrowly: p.72 applies it to the remotely rigged rigger's target numbers like a damage
+   modifier, not only to tests through the drone.
+
+### Claude's response (draft 14)
+Taken: the Perception / Manual Gunnery rows stay drone-only; the damage-like penalty applies in `riggerTnParts` to all of
+the rigger's Success Tests from the live primary connection, the channel counted once.
