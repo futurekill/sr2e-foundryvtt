@@ -21,8 +21,8 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 6 below, in Codex review.
-- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 7 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 7 below, in Codex review.
+- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 8 below, in Codex review.
 Each part gets its own plan section + Codex review before code, and its own release.
 
 ## Part 1 — core rules audit (SR2 core p.84–85, p.104–109, p.183)
@@ -1185,7 +1185,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 6 (2026-11-14, after Codex Part 5 rounds 1–5)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 7 (2026-11-14, after Codex Part 5 rounds 1–6)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1224,7 +1224,10 @@ Electronics).
   driver (round 3 #1), and the Part 1 `control` op and the chase's driver assignment (`addEntry`/driver edits, now run
   inside `rc-control` per the lock order) are refused for a vehicle affiliated anywhere (the Vehicles-tab toggle on an affiliated vehicle opens
   the network instead).
-  Lookups use one derived index (`rcIndex()`: deck items with `rcNet`, rebuilt on item create/update/delete), so NPC
+  Lookups use one derived index (`rcIndex()`: deck items with `rcNet`, rebuilt on `ready` and on every relevant lifecycle
+  change — embedded item create/update/delete, actor create/delete/update (a replaced actor), token create/delete and
+  token actor-delta changes (synthetic token actors), scene create/delete/activation — resolving current synthetic
+  actors by uuid each time, round 6 #3), so NPC
   and token operators work without `controlledVehicles`. `riggedInto(rigger, drone)` = the drone is that operator's
   `primary`.
 - **Drone identity** (round 1 #5) is separate from adaptation and from control: `isDrone(v)` = `vehicleType ===
@@ -1388,10 +1391,13 @@ Electronics).
   in mode `hardwired`. Authority for a networked entry is derived ONLY from the live network (`actingActorOf` uses
   `operatorOf` for every networked entry, never `entry.driver`), so a takeover or disconnect moves control at once;
   physical occupancy is recorded separately (`entry.aboard: [actorUuids]`, used by the occupant snapshot, passenger and
-  relocation checks). `hardwired` is a rigging mode throughout: `riggedInto(rigger, v)` is true for the primary AND for
-  a hardwired vehicle its operator is aboard; `drivingModes` offers "rigged" for it; `_vehicleSkill` and
-  `rollDrivingTest` treat `hardwired` exactly as `rigged` (skill, pools, VCR bonuses, half-modifier defaulting); the
-  chase's rigging checks use the same predicate. Part 1 crew control stays excluded.
+  relocation checks). Onboard hardwired driving AUTHORITY (who drives) is separate from rigging ELIGIBILITY (round 6
+  #1): any operator aboard drives it, but the rigging benefits and rigger feedback keep the existing prerequisite — the
+  operator jacked in with a VCR (R2 p.16; hardwiring doesn't replace a VCR). So `riggedInto(rigger, v)` is true for a
+  hardwired vehicle only when its aboard operator has an active VCR; then `drivingModes` offers "rigged" and
+  `_vehicleSkill` / `rollDrivingTest` treat `hardwired` exactly as `rigged` (skill, pools, VCR bonuses, half-modifier
+  defaulting), and `commitVehicleDamage`'s feedback applies; without a VCR the operator drives by the datajack/manual
+  modes. The chase's rigging checks use the same predicate. Part 1 crew control stays excluded.
 - Deck availability ≠ connection ≠ membership: an unequipped/uninstalled deck forces `rcDisconnect` but keeps the
   records; deleting the deck item deletes them.
 
@@ -1470,8 +1476,12 @@ recorded in the journal, then applied to each deck with that deck's receipt key 
 re-applies any journal step lacking a deck receipt (idempotent by key), and while a contest has unapplied steps both
 decks refuse every other network op except its recovery. **Reads too** (round 5 #5): while a contest has unapplied
 steps, `controllerOf`, `riggedInto`, `operatorOf` and `droneMode` for its two networks resolve from the journal's last
-COMMITTED state (not the half-updated decks), and dependent actions on either network (damage commits that consult the
-controller included) wait for the recovery to finish. The FIRST interference attempt opens the contest journal (roles
+COMMITTED state (not the half-updated decks), and dependent actions on either network wait for the recovery to finish.
+For damage (round 6 #2): `routeDamage` first checks, under `rc-control` and BEFORE acquiring `chase-membership` /
+`chase:<id>` / `vdmg:<uuid>`, whether the vehicle's network has a pending contest step; if so it runs the recovery
+there (the stated lock order) and only then proceeds — in both its chase and non-chase branches — so no damage commit
+waits on recovery while holding a chase or vehicle lock. Synchronous readers (`controllerOf` …) never wait; they read
+the journal's committed state. The FIRST interference attempt opens the contest journal (roles
 `attacker`/`defender` deck uuids, `rev`, `state`) before its opposed roll (round 2 #5), each deck carrying a pointer
 `rcNet.contest = <id>` applied as the journal's creation step; from that first exchange on, the LOSER of each opposed test
 takes the net successes as boxes on its OWN system channel (an intruder losing the first test is already degraded).
@@ -1524,7 +1534,9 @@ rigger's Physical/Stun damage modifiers; success when successes > filled boxes �
 
 ### 5d — The security rigger (p.77–80)
 - **CCSS** (round 1 #17): a new item type `ccss` (server restart, noted): Technical Rating 1–10, Vigilance Code
-  (Blue/Green/Amber/Red = 1/2/3/4 successes), encryption (= the Security Level, p.77), protocol, its deck rating (drone
+  (Blue/Green/Amber/Red = 1/2/3/4 successes), whether its communications are encrypted (p.80: "many high-security
+  systems encrypt") — an encrypted system is the one whose access needs step 3 vs its Technical Rating; optional
+  radio-DECRYPTION equipment rated at the Security Level (p.77, for intercepted radio traffic only, round 6 #4), protocol, its deck rating (drone
   command limit, p.77) and **components** `{ id, kind: room|corridor|device, area m² / length m, devices }`. A CCSS is
   a **hardwired** network: no Signal Interception or MIJI against it (p.79); its record has no Signal Monitors.
   Coverage limits (p.78): jumping into a room needs < 100 m², a corridor < 25 m (component validation).
@@ -1579,7 +1591,7 @@ with no pools while a primary uses the rigger's; an NPC operator; a disconnect k
 step once; a frequency switch voids other intruders' intercepts; a contest takeover transfers the operator only; a
 lost carrier stays lost after regeneration until reconnected; MIJI refused against a CCSS; stale cards "not counted".
 
-## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 7 (2026-11-14, after Codex Part 6 rounds 1–6)
+## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 8 (2026-11-14, after Codex Part 6 rounds 1–7)
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
 the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's
 printed copy). Every rule here is OPTIONAL (p.81) and has its OWN world setting (round 1 #1) — one per independently
@@ -1740,10 +1752,13 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   level applies (records don't multiply); Armor-Defeating Hits are the exception the book makes cumulative ("lost …
   for good", −1/−3/−6/−10 each until the armor is replaced). Secondary consequences (a Deadly Handling crash, a ruptured
   tank's Crash Test, a Deadly engine's Crash Test, a Control Box backlash, shrapnel) run once per record (receipts).
-  **Crash coalescing** (round 6 #2): all crash consequences from subsystem records of ONE originating event coalesce into
-  a single crash (keyed `subsys-crash:<originEventId>`), and none is generated when the originating event is already a
-  crash/impact or the vehicle's crash record for it is open — matching the damage writer's existing crash-on-crash
-  suppression — so a crash's own damage can't chain into another crash.
+  **Crash coalescing** (round 6 #2, round 7 #1): every crash consequence of ONE originating event — the damage writer's
+  Crash Test for a Serious wound AND the subsystem records' automatic crashes (Deadly Handling, Deadly Aggravated Body)
+  or Crash Tests — merges into ONE origin-keyed crash record (`subsys-crash:<originEventId>`, the same record the
+  writer's follow-up uses) with **automatic-crash precedence**: an automatic crash replaces a pending Crash Test for
+  that origin (the test's attempt is invalidated and its card "not counted"); further crashes are suppressed only once
+  that origin has actually CRASHED (and damage taken during a crash never starts another — the writer's existing
+  crash-on-crash suppression).
 - **Effects** (derived each preparation, cleared first): accessories/mods — Light: bonuses or extra dice −1 (none →
   +1 TN with it, R6-1); Moderate: halved (none → +3 TN); Serious: inoperable but repairable; Deadly: destroyed (6.0
   operability; must be replaced). Rigger Control Box: the rigger resists PHYSICAL damage, Power = the attack's

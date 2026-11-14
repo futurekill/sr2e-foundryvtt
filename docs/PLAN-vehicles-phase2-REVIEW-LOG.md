@@ -853,3 +853,21 @@ and chain. 3. Generic repair could restore armor lost to Armor-Defeating Hits.
 All taken: a distinct `ostress-rev:<id>` receipt updating the counter atomically; subsystem records carry the
 originating event, crash consequences coalesce per event and are suppressed during a crash; Armor-Defeating Hit
 records excluded from repair, retired only by armor replacement.
+
+## Part 5 plan, round 6 — Codex (draft 6, fresh session): REVISE, 4 findings
+1. Hardwired `riggedInto` dropped the VCR prerequisite (and would enable rigger feedback without one). 2. Waiting for
+contest recovery inside `routeDamage` reverses the lock order. 3. The network index missed actor/token/scene lifecycle
+changes. 4. The CCSS's p.77 rating is radio DECRYPTION, not system encryption.
+
+### Claude's response (draft 7)
+All taken: driving authority vs rigging eligibility (VCR still required for rigging benefits and feedback); the contest
+check and recovery run under `rc-control` before `routeDamage` takes chase/vehicle locks, readers never wait; the index
+rebuilds on ready and every relevant lifecycle change; CCSS encryption a separate flag, the p.77 rating optional radio
+decryption equipment.
+
+## Part 6 plan, round 7 — Codex (draft 7, fresh session): REVISE, 1 finding
+Crash coalescing could let a Crash Test's success prevent a mandatory automatic crash from Deadly Handling/Body.
+
+### Claude's response (draft 8)
+Taken: one origin-keyed crash record with automatic-crash precedence (a pending test is invalidated), further crashes
+suppressed only once that origin has actually crashed.
