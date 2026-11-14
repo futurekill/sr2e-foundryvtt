@@ -663,3 +663,47 @@ two-deck interference contest transferring only the operator; dump events with d
 intrusion ended by Part 4's ECCM procedure (a stated reading); CCSS as a hardwired network (no MIJI) with components and
 coverage limits; access steps per p.79–80; security-rigger perception, radio and a pool table; ACV slope, tailhook and
 train rules; four releases with real dependencies.
+
+## Part 4 plan, round 5 — Codex (draft 5, fresh session): REVISE, 3 findings
+1. Exposure history kept only a rating: it can't reproduce the ECM effect after the event expires; item ids aren't
+   unique across vehicles.
+2. Owner and GM `ammo:` queues run on different clients: a late owner spend could beat a GM cancellation.
+3. Indirect guidance had no durable spotter-owned record (designator characters, ongoing penalties, lost guidance).
+
+### Claude's response (draft 6)
+All taken: exposures keyed by emitter uuid + device + ECM event, carrying immutable copies of the rolls, inputs and
+cancellation; spend vs cancel decided by one server-serialized `once()` claim per launch, the debit applied idempotently
+by whoever is writer; a spotter-owned guidance record (route, endpoints, test, generations, linked launches) driving
+the commitments and Phase-0 validation/branching.
+
+## Part 5 plan, round 2 — Codex (draft 2, fresh session): REVISE, 16 findings
+A vehicle could affiliate with two decks; affiliated non-drone vehicles kept Part 1 control; chase callers still read
+`entry.driver` and `chaseUnion` missed operators; chase invalidation had a window; the first interference loss wasn't
+handled; a takeover left the captured network unusable; monitors accumulated hidden boxes; multi-attacker regeneration
+invented; intrusion's ECCM operands undefined; voluntary vs forced disconnects; dump events not coupled to their cause;
+`initiativePass` doesn't exist (the combat has `phaseSeq`); IVIS group membership; deck/module recognition and binding;
+aircraft adverse-weather trigger; tailhook applies to arrestor cables only.
+
+### Claude's response (draft 3)
+All taken. User rulings R5-5 (each regeneration targets one intruder's boxes, the rigger's choice) and R5-6 (blocking an
+intrusion = p.31 ECCM with the protocol emulation rating in place of the ECM rating; all net successes cancelled ends
+it). One network per vehicle; network control for every affiliated vehicle, exclusive with crew control both ways;
+`actingActorOf` across chase callers, operators in `chaseUnion`; rev-stamped chase actions + a deck-side outbox; the
+contest opens before the first roll; takeover = connected operator, carrier restored for the winner, boxes kept;
+applied-box capping; forced ejection dumps in any mode, voluntary jack-out never; rigger event written first and
+reconciled against the deck rev; Learning Pool keyed on `phaseSeq`; exclusive IVIS membership; rule keys + `deckId`
+binding for modules; adverse weather; tailhook only for arrestor cables.
+
+## Part 6 plan, round 1 — Codex (draft 1, fresh session): REVISE, 18 findings
+Bundled options; fuel write races and recovery; no exhaustion state machine; aircraft crash distance; optempo settlement;
+quality data plumbing; hidden Stress visible and duplicable; no attack snapshot for subsystem effects; repeated hits and
+replacement; destroyed state vs the equipment model; no effective Body; subsystem repairs through the monitor path;
+special resistance modes; footprint expiry and arithmetic; extended-missile damage and lifecycle; lock-breaking
+arbitration; pre-programmed command failure/storage; partial-MIJI overlays.
+
+### Claude's response (draft 2)
+All taken; Part 6 rewritten (6.0 shared contracts: effective Body, operability separate from installation). One
+setting per selectable rule (fuel, flight fuel, fuel grades, optempo modes, quality factors, subsystems, footprint,
+break-lock, extended missiles, pre-programmed commands, back-up channels, CRD server, partial MIJI, multi-channel,
+barrage, hot mike), each re-checked in its handlers. User rulings R6-6 (a Footprint reduction lasts until the GM clears
+it) and R6-7 (an extended-range missile's collision does its warhead damage).
