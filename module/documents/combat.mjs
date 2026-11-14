@@ -158,7 +158,11 @@ export class SR2ECombat extends Combat {
       // Phase 0 (R2 p.59): every missile launched this Turn strikes first — before the chase's distances change.
       const m = await missileCloseStage(this, t.from);
       if (!m.done) return this;   // waiting on Missile Attack Tests; each card's roll resumes the round change
-      const r = await chaseCloseStage(this, t.from);
+      // Fuel (R2 p.81–82, optional): this Turn's chase burn, and coasting vehicles' metres instead of their speed.
+      const F = await import("../vehicle-fuel.mjs");
+      const coast = await F.fuelChaseStage(this, t.from);
+      const r = await chaseCloseStage(this, t.from, { coast });
+      if (r.done) await F.fuelAdvanceStage(this, t.from);
       if (!r.done) return this;   // waiting on players' rolls or acks; the panel lists them, the GM resumes
       await stage("advancing");
     }

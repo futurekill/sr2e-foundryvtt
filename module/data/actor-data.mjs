@@ -1,6 +1,7 @@
 import { VEHICLE_POINTS } from "../rules/vehicle-combat-rules.mjs";
 import { permanentStress, rigBonuses, isVehicleSkillName } from "../rules/vehicle-r2-rules.mjs";
-import { isRigger2 } from "../vehicle-mode.mjs";
+import { isRigger2, r2Option } from "../vehicle-mode.mjs";
+import { fuelGradeEffects } from "../rules/vehicle-fuel-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral } from "../rules/shapeshift-rules.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
@@ -2125,6 +2126,8 @@ export class VehicleData extends SR2EDataModel {
       economyIdle: new fields.StringField({ initial: "", blank: true }),
       fuelType: new fields.StringField({ initial: "", blank: true }),
       fuelSize: new fields.NumberField({ initial: 0, min: 0 }),
+      // Fuel left (R2 p.81, optional r2Fuel): blank = a full tank. Changed only by the GM op `fuel` (6a.1).
+      fuelLevel: new fields.NumberField({ initial: null, nullable: true, min: 0 }),
       fuelUnit: new fields.StringField({ initial: "", blank: true }),
       entryPoints: new fields.StringField({ initial: "", blank: true }),
       ltProfile: new fields.StringField({ initial: "", blank: true }),
@@ -2168,6 +2171,13 @@ export class VehicleData extends SR2EDataModel {
     else {
       const add = (k) => mods.filter(modCounts).reduce((t, m) => t + (modEffect(m, k, ctx)?.value ?? 0), 0);
       eff = { ...base, armor: (Number(this.armor) || 0) + add("armor"), signature: (Number(this.signature) || 0) + add("signature") };
+    }
+    // Fuel grade (R2 p.83, optional r2FuelGrades): Acceleration and Economy, derived each preparation after the mods.
+    const grade = r2Option("r2FuelGrades") ? this.parent?.flags?.sr2e?.fuelGrade : null;
+    if (grade) {
+      const g = fuelGradeEffects(grade.grade, grade.custom);
+      eff = { ...eff, acceleration: Math.max(0, (Number(eff.acceleration) || 0) + g.acceleration),
+        economy: Math.round((Number(eff.economy) || 0) * g.economy * 1000) / 1000 };
     }
     const h = eff.handling;
     this.effective = {

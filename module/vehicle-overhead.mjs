@@ -12,7 +12,10 @@ import { enqueueAttack } from "./engagement.mjs";
 import { gmCall, gmOp, brSkillFor } from "./vehicle-play.mjs";
 import { moneyWriterFor } from "./vehicle-customize.mjs";
 import { moneyQueue, adjustNuyen, updated, settingSet } from "./money.mjs";
-import { isRigger2, vehicleQuality } from "./vehicle-mode.mjs";
+import { isRigger2, vehicleQuality, r2Option } from "./vehicle-mode.mjs";
+import { fuelGradeEffects } from "./rules/vehicle-fuel-rules.mjs";
+/** The fuel grade's Maintenance factor (R2 p.83, optional r2FuelGrades). */
+const fuelGradeMaintenance = (v) => { const g = r2Option("r2FuelGrades") ? v.getFlag("sr2e", "fuelGrade") : null; return g ? fuelGradeEffects(g.grade, g.custom).maintenance : 1; };
 import { assessMonth, overheadPayment, catchUpProblems, lifestyleDiscount, stressPatch, KARMA_NUYEN } from "./rules/vehicle-overhead-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -85,7 +88,7 @@ function assessThrough(vehicle, m) {
       const upd = {};
       for (const [k, r] of Object.entries(months)) if (r?.tx && !r.paid && chargedReceipt(r)) { r.paid = true; upd[`flags.sr2e.overhead.months.${k}.paid`] = true; }
       const a = assessMonth(months, next, { value: await overheadValue(vehicle), stress: o.stress ?? 0,
-        maintenance: (await vehicleQuality(vehicle)).maintenance });
+        maintenance: (await vehicleQuality(vehicle)).maintenance * fuelGradeMaintenance(vehicle) });
       Object.assign(upd, { [`flags.sr2e.overhead.months.${next}`]: a.record, "flags.sr2e.overhead.assessedThrough": next, "flags.sr2e.overhead.stress": 0 });
       if (a.addStress) {
         const before = vehicle.system.stressRating ?? 0;

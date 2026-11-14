@@ -145,7 +145,7 @@ export async function chaseOpenStage(combat, r) {
  * applied; cancels re-acked), then — only when none is left — close: every pair's distance (p.44 step 7), NPC
  * relocation counters (p.49), `closed.<r>`. Returns {done} or {done:false, waiting:[…]}.
  */
-export async function chaseCloseStage(combat, r) {
+export async function chaseCloseStage(combat, r, { coast = {} } = {}) {
   if (!hasChase(combat)) return { done: true };
   if (chaseOf(combat).closed?.[r]) return { done: true };
   await gmPass(combat, r);
@@ -159,7 +159,8 @@ export async function chaseCloseStage(combat, r) {
     for (const [pid, p] of Object.entries(ch.pairs ?? {})) {
       const P = ch.entries[p.pursuer], Q = ch.entries[p.quarry];
       if (!P || !Q) continue;
-      patch[`pairs.${pid}.distance`] = closeDistance(p.distance, P.speed, Q.speed);
+      // A vehicle out of fuel moves its coasting share this Turn, not its speed (R2 p.81–82; ruling R6-9).
+      patch[`pairs.${pid}.distance`] = closeDistance(p.distance, coast[p.pursuer] ?? P.speed, coast[p.quarry] ?? Q.speed);
       patch[`pairs.${pid}.rev`] = (p.rev ?? 0) + 1;
       if (p.contact && p.contact !== true && isNpc(fromUuidSync(P.driver))) {
         const turns = (p.contact.npcTurns ?? 0) + 1;
@@ -237,6 +238,8 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
     liveRound(combat, ch, round);
     const e = ch.entries[eid];
     if (e?.kind !== "vehicle") throw new Error("not a vehicle in this chase");
+    // Out of fuel (R2 p.81, optional): no powered actions while it coasts.
+    if (["accelerate", "ram"].includes(kind) && fromUuidSync(e.uuid)?.getFlag("sr2e", "fuelOut")) throw new Error("out of fuel: it can only coast (Rigger 2 p.81)");
     const actor = kind === "relocate" ? actorUuid : e.driver;
     if (kind === "relocate" && !(e.driver === actor || (e.aboard ?? []).includes(actor))) throw new Error("the spotter must be aboard the pursuing vehicle");
     if (!owns(user, actor)) throw new Error(`${user?.name} may not act for that character`);

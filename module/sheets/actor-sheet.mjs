@@ -2094,6 +2094,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       // Rigger 2 standard operations (docs/PLAN-vehicles-phase2.md Part 2a).
       r2Drive: async function () { const vp = await import("../vehicle-play.mjs"); return vp.rollDrivingTest(null, this.document, await vp.promptDrivingTest(null, this.document)); },
       r2Sensors: async function () { (await import("../apps/sensor-panel.mjs")).SensorPanel.open(this.document); },
+      r2FuelDialog: async function () { (await import("../vehicle-fuel.mjs")).fuelDialog(this.document); },
       r2Exceed: async function () { (await import("../vehicle-play.mjs")).exceedSpeed(this.document); },
       r2StressTest: async function () { (await import("../vehicle-play.mjs")).gmStressTest(this.document); },
       r2StressAdjust: async function (event, target) {
@@ -2163,6 +2164,12 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     }
     context.baseConvert = game.user.isGM && !this.document.system.baseConverted ? this.document.getFlag("sr2e", "baseConvert") : null;
     context.r2 = (await import("../vehicle-play.mjs")).r2Context(this.document);
+    // Rigger 2 fuel (6a.1, optional): any of the three fuel options shows the Fuel button.
+    const { r2Option } = await import("../vehicle-mode.mjs");
+    if (["r2Fuel", "r2FlightFuel", "r2FuelGrades"].some(r2Option)) {
+      const F = await import("../vehicle-fuel.mjs");
+      context.r2Fuel = { left: F.fuelLeft(this.document), size: Number(this.document.system.fuelSize) || 0, out: !!F.fuelOutOf(this.document) };
+    }
     return context;
   }
 
