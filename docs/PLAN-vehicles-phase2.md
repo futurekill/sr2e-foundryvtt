@@ -21,8 +21,8 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 9 below, in Codex review.
-- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 10 below, in Codex review.
+- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
 ## Part 1 — core rules audit (SR2 core p.84–85, p.104–109, p.183)
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 9 (2026-11-14, after Codex Part 5 rounds 1–8)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 10 (2026-11-14, after Codex Part 5 rounds 1–9)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1255,9 +1255,11 @@ Electronics).
   `chaseDriverUuid` returns crew drivers only; the "rigging driver with a VCR is jumped in" check becomes `droneMode(...)
   === "primary"`. One rigger may operate several vehicles in one chase (one-driver-per-vehicle applies to crew).
   **Invalidation is durable:** every chase action reserved for a networked vehicle stores a DEPENDENCY STAMP — that
-  network's `rev` AND the operator's operator-wide control generation `rcOpGen.<operatorKey>` (bumped by every jump,
-  return, connect, disconnect and takeover on ANY of that operator's networks, round 5 #2), since modes are derived
-  across networks; its commit runs under `rc-control` THEN `chase:<combatId>` (the stated lock order; round 3 #2), so
+  network's `rev` AND the operator's OPERATOR STAMP — the sorted list of `(deckUuid, rev)` of every deck whose
+  operator is that actor, read from `rcIndex()` (round 5 #2; round 9 #2: derived from the authoritative deck records,
+  never a separate counter, so there is no second document to keep in step: every jump, return, connect, disconnect and
+  takeover is ONE deck update that bumps that deck's `rev`, and a deck gaining or losing the operator changes the set),
+  since modes are derived across networks; its commit runs under `rc-control` THEN `chase:<combatId>` (the stated lock order; round 3 #2), so
   nothing can interleave between the check and the commit, and refuses a mismatched stamp; and each control op that changes affiliation, mode or
   operator writes an outbox entry `rcNet.chaseOutbox.<rev>` in the same deck update, which the GM drains (any client,
   after reload) by marking that vehicle's uncommitted actions with older `rev`s stale, then deleting the entry.
@@ -1404,6 +1406,11 @@ Electronics).
   `_vehicleSkill` / `rollDrivingTest` treat `hardwired` exactly as `rigged` (skill, pools, VCR bonuses, half-modifier
   defaulting), and `commitVehicleDamage`'s feedback applies; without a VCR the operator drives by the datajack/manual
   modes. The chase's rigging checks use the same predicate. Part 1 crew control stays excluded.
+  **Driving Initiative** (R2 p.44; round 9 #1): `chase-state.drivenEntry(uuid)` also returns a networked entry whose
+  live operator (`operatorOf(entry)`) is that character AND who is in `entry.aboard` driving it in mode `hardwired` —
+  so natural Reaction + 1D6 applies to a hardwired driver without an active VCR exactly as to a crew driver; a remote
+  captain or secondary-drone operator (not aboard) is not "driving" here. Quench: a wired-reflexes operator aboard a
+  hardwired drone in a chase gets natural Reaction + 1D6 without a VCR, and the VCR's with one.
 - Deck availability ≠ connection ≠ membership: an unequipped/uninstalled deck forces `rcDisconnect` but keeps the
   records; deleting the deck item deletes them.
 
@@ -1601,7 +1608,7 @@ with no pools while a primary uses the rigger's; an NPC operator; a disconnect k
 step once; a frequency switch voids other intruders' intercepts; a contest takeover transfers the operator only; a
 lost carrier stays lost after regeneration until reconnected; MIJI refused against a CCSS; stale cards "not counted".
 
-## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 10 (2026-11-14, after Codex Part 6 rounds 1–9)
+## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 10 (2026-11-14, after Codex Part 6 rounds 1–9) — APPROVED round 10
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
 the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's
 printed copy). Every rule here is OPTIONAL (p.81) and has its OWN world setting (round 1 #1) — one per independently

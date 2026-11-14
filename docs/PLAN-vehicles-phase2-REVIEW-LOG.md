@@ -936,3 +936,19 @@ ruling R6-9 — the printed total is split across Turns in proportion to each Tu
 2. Taken: the stock sensors' generation is bumped whenever `sensorInstalled` or `system.sensor` changes, and when a
    Sensors item is created, deleted or changes state.
 Quench `sr2e.sensors` 12/12 (3 new tests).
+
+## Part 6 plan, round 10 — Codex (draft 10, fresh session): APPROVED
+"No material unresolved findings. Draft 10 covers the supplied rules and settled rulings, separates the optional
+settings, and specifies recoverable transactions and derived-state handling compatible with the existing callers."
+
+## Part 5 plan, round 9 — Codex (draft 9, fresh session): REVISE, 2 findings
+1. Hardwired driving loses the Initiative restriction: `drivenEntry()` recognizes only `entry.driver`, so a hardwired
+   operator aboard without a VCR keeps enhanced Initiative.
+2. The operator-wide generation `rcOpGen` has no recoverable commit protocol (a deck update plus a counter on another
+   document can't be atomic).
+
+### Claude's response (draft 10)
+1. Taken: `drivenEntry` also returns a networked entry whose live operator is aboard driving it hardwired; remote
+   operators excluded; Quench case.
+2. Taken (the second fix offered): `rcOpGen` is replaced by an operator stamp DERIVED from the authoritative deck records
+   — the sorted `(deckUuid, rev)` of every deck the operator runs, from `rcIndex()` — validated under `rc-control`.
