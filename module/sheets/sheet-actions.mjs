@@ -658,6 +658,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
             <option value="core" ${r2Default === "core" ? "selected" : ""}>Standard ranged combat</option>
             <option value="manual" ${r2Default === "manual" ? "selected" : ""}>Manual gunnery (p.56–58)</option>
             <option value="sensor">Sensor-enhanced (needs a lock, p.58)</option>
+            ${weapon.system.ammo?.guided?.kind === "missile" ? `<option value="launch:continuous">Launch missile — continuous lock (p.59)</option>
+            <option value="launch:fireAndForget">Launch missile — fire-and-forget (p.59)</option>` : ""}
           </select></div>
         <div class="sr2e-attack__field"><label title="p.57, p.131: pintle −2 and ring −6 recoil compensation; fixed mounts and turrets halve recoil before accessories">Mount:</label>
           <select name="mount">${[["", "none / hand-held"], ["fixed", "fixed mount"], ["turret", "turret"], ["pintle", "pintle"], ["ring", "ring"]].map(([v, l]) =>
@@ -1091,7 +1093,8 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         finalTN = Math.max(2, BASE_TN + rchMod + frMod + posMod + muMod + mvMod + oMod + leadTN
                                       + woundPenalty + sustainPenalty + coordTN + defaultingPenalty);
       }
-      if (finalTnSpan) finalTnSpan.textContent = isRanged && r2Sync() === "sensor" ? "Sig." : finalTN;
+      const r2Now = isRanged ? r2Sync() : "core";
+      if (finalTnSpan) finalTnSpan.textContent = r2Now === "sensor" ? "Sig." : r2Now.startsWith("launch") ? "Phase 0" : finalTN;
     }
 
     // Rigger 2 gunnery rows (4b.1): show the active mode's rows; the manual extras are summed with the same function
@@ -1101,7 +1104,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
     function r2Sync() {
       const m = r2Val("r2Mode")?.value ?? "core";
       for (const el of root.querySelectorAll(".r2-manual")) el.style.display = m === "manual" ? "" : "none";
-      for (const el of root.querySelectorAll(".r2-sensor")) el.style.display = m === "sensor" ? "" : "none";
+      for (const el of root.querySelectorAll(".r2-sensor")) el.style.display = m === "sensor" || m.startsWith("launch") ? "" : "none";
       return m;
     }
     function r2ManualNow() {
@@ -1637,7 +1640,8 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             // Validated against the actor's live leadWith in item.roll.
             leadWith:        f.leadWith?.value ?? "",
             // Rigger 2 gunnery (4b.1): re-validated in _rollWeaponAttack.
-            ...(f.r2Mode ? { gunneryMode: f.r2Mode.value, mount: f.mount?.value ?? "",
+            ...(f.r2Mode ? { gunneryMode: f.r2Mode.value.startsWith("launch") ? "launch" : f.r2Mode.value,
+              launchMode: f.r2Mode.value.split(":")[1] ?? "", mount: f.mount?.value ?? "",
               firingVehicleUuid: f.ride?.value || presets.firingVehicleUuid || null,
               r2: { legs: f.r2legs?.value || "", difficultGround: !!f.r2difficult?.checked, unmounted: !!f.r2unmounted?.checked,
                 motion: f.r2motion?.value || "", targetSize: f.r2size?.value || "",

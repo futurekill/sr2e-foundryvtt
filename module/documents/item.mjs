@@ -23,7 +23,7 @@ import { isCardResolved } from "../astral-combat.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL } from "../util/roll-label.mjs";
-import { controllerOf } from "../vehicle-play.mjs";
+import { controllerOf, gmCall } from "../vehicle-play.mjs";
 import { manualExtras, sensorGunneryTN, vehicleRecoil } from "../rules/vehicle-gunnery-rules.mjs";
 import { isRigger2 } from "../vehicle-mode.mjs";
 import { ammoQueued, queuedReload, spendRounds } from "../vehicle-ammo.mjs";
@@ -596,6 +596,12 @@ export class SR2EItem extends Item {
       return enqueueAttack(actor.uuid, () => this._rollWeaponAttack({ ...options, _engage }));
     }
     const engage = options._engage ?? null;
+    // Rigger 2 missiles (4b.4): a launch rolls nothing now — the missile strikes at Phase 0.
+    if (isRigger2() && options.gunneryMode === "launch") return launchMissile(this, actor, options, engage);
+    if (isRigger2() && options.gunneryMode !== "missile" && !["melee", "throwing"].includes(this.system.weaponType)) {
+      const committed = await continuousCommitment(this, actor, options, engage);
+      if (committed) return ui.notifications.warn(`${this.name}: ${committed}`);
+    }
 
     const RANGE_TN_MODS = CONFIG.SR2E.rangeTnMods;
     const BASE_TN = 4;
@@ -907,7 +913,7 @@ export class SR2EItem extends Item {
       const r2 = await r2GunneryContext(this, actor, options, engage);
       if (r2?.refused) return ui.notifications.warn(`${this.name}: ${r2.refused}`);
       if (r2?.mode === "manual") { attackerMod = 0; speedMod = 0; }   // p.57 replaces the p.89 movement rows and p.108
-      if (r2?.mode === "sensor") dicePool += r2.sensorDice;
+      if (r2?.mode === "sensor" || r2?.mode === "missile") dicePool += r2.sensorDice;
       const range    = blastRange ?? options.range ?? "short";
       firingMode     = options.firingMode ?? "sa";
       const coverMod = options.coverMod   ?? 0;
@@ -1058,13 +1064,14 @@ export class SR2EItem extends Item {
       if (r2?.mode === "manual") for (const p of r2.extraParts) modParts.push(`${p.label} ${p.value > 0 ? "+" : ""}${p.value} (R2 p.57)`);
       // Sensor-enhanced (p.58): the target's Signature + the EW term + the table; recoil as manual; min 2. The p.89
       // situational modifiers don't apply ("most standard target modifiers do not apply", p.61).
-      if (r2?.mode === "sensor") {
+      if (r2?.mode === "sensor" || r2?.mode === "missile") {
         const st = sensorGunneryTN({ signature: r2.signature, ewTerm: r2.ewTerm, urban: r2.urban, los: r2.los,
           recoil: recoilMod, vehicleDamage: r2.vehicleDamage });
         targetNumber = Math.max(2, st.raw + defaultingPenalty);
         modParts.length = 0;
         modParts.push(`sensor-enhanced: ${st.parts.map(p => `${p.label === "ew" ? "EW" : p.label} ${p.label === "Signature" ? "" : p.value > 0 ? "+" : ""}${p.value}`).join(", ")}`);
-        modParts.push(`+${r2.sensorDice} sensor dice`);
+        modParts.push(r2.mode === "missile" ? `Missile Attack Test (R2 p.59): +${r2.sensorDice} dice (${r2.diceNote})` : `+${r2.sensorDice} sensor dice`);
+        if (r2.mode === "missile" && r2.exposureNote) modParts.push(r2.exposureNote);
         if (defaultingNote) modParts.push(defaultingNote);
       }
       if (calledShotMod_) modParts.push(`called shot +${calledShotMod_}`);
@@ -2378,7 +2385,8 @@ export class SR2EItem extends Item {
  * VALID lock on the target (4a.2; R4-2), and every number is read from live documents.
  */
 async function r2GunneryContext(weapon, actor, options, engage) {
-  if (!isRigger2() || !["manual", "sensor"].includes(options.gunneryMode)) return null;
+  if (!isRigger2() || !["manual", "sensor", "missile"].includes(options.gunneryMode)) return null;
+  if (options.gunneryMode === "missile") return missileContext(options.launch);
   const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent
     : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
   const vehicleDamage = vehicle?.system?.damageTnMod ?? 0;
@@ -2402,4 +2410,60 @@ async function r2GunneryContext(weapon, actor, options, engage) {
   const sensor = S.sensorOf(vehicle)?.rating ?? 0;
   return { mode: "sensor", mount, vehicleDamage, signature, ewTerm: ew.total,
     urban: !!options.r2?.urban, los: options.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: Math.floor(sensor / 2) };
+}
+
+/**
+ * The Phase 0 Missile Attack Test's context (R2 p.59; 4b.4) from the LAUNCH record, never the launcher: Gunnery +
+ * Intelligence (+ ⌊Sensor ÷ 2⌋ in continuous lock); TN = the target's Signature + the recorded ECM exposures (the
+ * largest, p.32) + the Sensor-Enhanced Targeting rows chosen at launch.
+ */
+async function missileContext(l) {
+  if (!l?.payload) return { refused: "no launch record" };
+  const S = await import("../vehicle-sensors.mjs");
+  const source = fromUuidSync(l.sourceVehicleUuid), target = fromUuidSync(l.targetUuid);
+  if (!target) return { refused: "the missile's target is gone" };
+  const signature = S.baseSignature(target, Number.isFinite(l.r2?.signature) ? l.r2.signature : null);
+  if (signature == null) return { refused: `the GM must set ${target.name}'s Signature (R2 p.61)` };
+  const intelligence = l.payload.guided?.intelligence ?? 0;
+  const sensorHalf = l.mode === "continuous" ? Math.floor((S.sensorOf(source)?.rating ?? 0) / 2) : 0;
+  const exp = l.exposures ?? [];
+  const ewTerm = exp.reduce((m, e) => Math.max(m, e.effect ?? 0), 0);
+  return { mode: "missile", mount: "", vehicleDamage: source?.system?.damageTnMod ?? 0, signature, ewTerm,
+    urban: !!l.r2?.urban, los: l.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: intelligence + sensorHalf,
+    diceNote: `Intelligence ${intelligence}${sensorHalf ? `, ½ Sensor ${sensorHalf}` : ""}`,
+    exposureNote: exp.length ? `ECM crossed: ${exp.map(e => `${e.jammer} +${e.effect ?? 0}${e.needsGm ? " (no missile Sensor: the GM's call)" : ""}`).join("; ")}` : "" };
+}
+
+/** A continuous-lock missile commits its gunner to the target until Phase 0 (R2 p.59): other targets are refused. */
+async function continuousCommitment(weapon, actor, options, engage) {
+  if (game.user.isGM) return null;   // GM override
+  const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
+  if (!vehicle) return null;
+  const { guidanceCommitment } = await import("../vehicle-missiles.mjs");
+  const c = guidanceCommitment(actor, vehicle);
+  const target = engage?.token?.uuid ? fromUuidSync(engage.token.uuid)?.actor : null;
+  if (!c || target?.uuid === c.targetUuid) return null;
+  return `${actor.name} is guiding a missile in continuous lock until it strikes (Rigger 2 p.59): no other targets this Turn`;
+}
+
+/** Launch a guided missile (R2 p.59; 4b.4): a lock now, an active combat; the GM admits, spends and records it. */
+async function launchMissile(weapon, actor, options, engage) {
+  const warn = (m) => ui.notifications.warn(`${weapon.name}: ${m}`);
+  const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
+  if (!vehicle) return warn("a missile launch needs the firing vehicle's sensors (Rigger 2 p.59)");
+  if (weapon.system.ammo?.guided?.kind !== "missile") return warn("it isn't loaded with a guided missile");
+  const combat = game.combats.find(c => c.started && c.combatants.some(x => [actor.uuid, vehicle.uuid].includes(x.actor?.uuid))) ?? game.combat;
+  if (!combat?.started || !(combat.round >= 1)) return warn("missiles strike at the end of the Combat Turn: start the combat first (Rigger 2 p.59)");
+  const tokenUuid = engage?.token?.uuid ?? null, target = tokenUuid ? fromUuidSync(tokenUuid)?.actor : null;
+  if (!target) return warn("target the token to launch at");
+  const S = await import("../vehicle-sensors.mjs");
+  if (!S.lockOn(vehicle, target)) return warn(`${vehicle.name} has no sensor lock on ${target.name}: make a Sensor Test first (Rigger 2 p.59)`);
+  const { lockSnapshot } = await import("../vehicle-missiles.mjs");
+  try {
+    await gmCall("missileLaunch", { combatId: combat.id, round: combat.round, launchId: foundry.utils.randomID(16), weaponUuid: weapon.uuid,
+      holderUuid: vehicle.uuid, gunnerUuid: actor.uuid, sourceVehicleUuid: vehicle.uuid, targetUuid: target.uuid, targetTokenUuid: tokenUuid,
+      mode: options.launchMode === "fireAndForget" ? "fireAndForget" : "continuous", lock: lockSnapshot(vehicle, target),
+      r2: { los: options.r2?.los ?? "interrupted", urban: !!options.r2?.urban,
+        ...(game.user.isGM && Number.isFinite(options.r2?.signature) ? { signature: options.r2.signature } : {}) } });
+  } catch (err) { return warn(err.message); }
 }

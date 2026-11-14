@@ -19,6 +19,7 @@ import { nextPhaseSeq, enqueueAttack } from "../engagement.mjs";
 import { gmCall } from "../vehicle-play.mjs";
 import { chaseOf, chaseUnion } from "../chase-state.mjs";
 import { chaseCloseStage, chaseOpenStage, requestRefresh, hasChase } from "../chase.mjs";
+import { missileCloseStage } from "../vehicle-missiles.mjs";
 
 export class SR2ECombat extends Combat {
 
@@ -148,12 +149,15 @@ export class SR2ECombat extends Combat {
     if (!t) {
       if (this.round !== from) return this;
       t = { from, to: from + 1, seq: (this.getFlag("sr2e", "boundarySeq") ?? 0) + 1,
-            stage: hasChase(this) ? "closing" : "advancing" };
+            stage: "closing" };   // every combat: Phase 0 missiles (R2 p.59), then the chase's close
       await this.setFlag("sr2e", "roundTransition", t);
     }
     const stage = async (next) => { t = { ...t, stage: next }; await this.setFlag("sr2e", "roundTransition", t); };
 
     if (t.stage === "closing") {
+      // Phase 0 (R2 p.59): every missile launched this Turn strikes first — before the chase's distances change.
+      const m = await missileCloseStage(this, t.from);
+      if (!m.done) return this;   // waiting on Missile Attack Tests; each card's roll resumes the round change
       const r = await chaseCloseStage(this, t.from);
       if (!r.done) return this;   // waiting on players' rolls or acks; the panel lists them, the GM resumes
       await stage("advancing");

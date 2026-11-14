@@ -282,6 +282,57 @@ async function card(speakerActor, html) {
 }
 const roll = async (dice, tn) => SR2ESuccessRoll.successTest(Math.max(0, dice), Math.max(2, tn));
 
+/** The jammer's ONE ECM Test (p.32), rolled when it has no valid one: its Flux in dice (R4-1), stored and read at each
+ *  observer's Sensor Rating. The caller holds the jammer's queue. */
+async function jamEventOf(jammer, ecm) {
+  let ev = jammer.getFlag("sr2e", "jamEvent");
+  if (ev && ev.deviceId === ecm.id && ev.deviceGen === devGen(jammer, ecm.id)) return ev;
+  const jf = txFlux(jammer, ecm);
+  const r = await roll(Math.floor(jf.flux), 2);
+  ev = { id: foundry.utils.randomID(16), deviceId: ecm.id, deviceGen: devGen(jammer, ecm.id), dice: r.results, ecm: ecm.rating, flux: jf.flux };
+  await jammer.update({ "flags.sr2e.jamEvent": ev, "flags.sr2e.-=jamVs": null });
+  return ev;
+}
+
+/**
+ * A missile's ECM exposures (4b.4, p.59: a field crossed "during any part of flight"): every OTHER vehicle's active ECM
+ * whose range reaches the flight path (shooter → target: the segment when both are tokens on one scene with the
+ * jammer, else either endpoint). The missile is that field's observer with ITS OWN Sensor Rating (Flux = Sensor × 1.5,
+ * rounded up), rolling its opposed dice now; each exposure keeps immutable copies of both sides. A missile with no
+ * Sensor Rating can't be an ECM observer: listed `needsGm` (the GM decides; nothing invented). GM client only.
+ */
+export async function missileExposures(shooter, target, missileSensor) {
+  const out = [];
+  for (const j of allVehicles()) {
+    if (j.uuid === shooter?.uuid) continue;
+    const ecm = best(activeOf(j, "ecm"));
+    const range = ecm ? txFlux(j, ecm)?.range : null;
+    if (range == null || !pathWithin(j, shooter, target, range)) continue;
+    out.push(await vq(j.uuid, async () => {
+      const ev = await jamEventOf(j, ecm);
+      const base = { key: `${keyOf(j)}:${ecm.id}:${ev.id}`, jammerUuid: j.uuid, jammer: j.name, ecm: ecm.rating, jamFlux: ev.flux, dice: ev.dice };
+      if (!(missileSensor > 0)) return { ...base, needsGm: true, effect: 0 };
+      const flux = Math.ceil(missileSensor * 1.5), opp = await roll(flux, ecm.rating);
+      const res = ecmEffect({ jamDice: ev.dice.map(total => ({ total })), observerSensor: missileSensor, observerSuccesses: opp.successes });
+      return { ...base, missileSensor, missileFlux: flux, opp: opp.successes, oppDice: opp.results, jam: res.jam, effect: res.effect };
+    }));
+  }
+  return out;
+}
+function pathWithin(j, a, b, range) {
+  const ends = [a, b].filter(Boolean).map(x => distanceBetween(j, x)).filter(d => d != null);
+  if (ends.some(d => d <= range)) return true;
+  for (const scene of [game.scenes?.viewed, ...(game.scenes ?? [])].filter(Boolean)) {
+    const tj = tokenOf(j, scene), ta = a && tokenOf(a, scene), tb = b && tokenOf(b, scene);
+    if (!tj || !ta || !tb) continue;
+    const vx = tb.x - ta.x, vy = tb.y - ta.y, len2 = vx * vx + vy * vy || 1;
+    const t = Math.max(0, Math.min(1, ((tj.x - ta.x) * vx + (tj.y - ta.y) * vy) / len2));
+    const px = Math.hypot(tj.x - (ta.x + t * vx), tj.y - (ta.y + t * vy));
+    return (px / (scene.grid.size || 100)) * (scene.grid.distance || 1) <= range;
+  }
+  return false;
+}
+
 /** Every jammer covering O: a valid base record (rolling what's missing), then O's ECCM layer if it has one on. */
 async function ensureEcm(observer) {
   const sensor = sensorOf(observer);
@@ -290,15 +341,7 @@ async function ensureEcm(observer) {
     await vq(jammer.uuid, async () => {
       let b = jamBase(jammer, observer);
       if (!b) {
-        const jf = txFlux(jammer, ecm);
-        let ev = jammer.getFlag("sr2e", "jamEvent");
-        const evValid = ev && ev.deviceId === ecm.id && ev.deviceGen === devGen(jammer, ecm.id);
-        if (!evValid) {
-          // ONE ECM Test for this jammer (p.32): its Flux in dice (R4-1), stored and read at each observer's Sensor Rating.
-          const r = await roll(Math.floor(jf.flux), 2);
-          ev = { id: foundry.utils.randomID(16), deviceId: ecm.id, deviceGen: devGen(jammer, ecm.id), dice: r.results, ecm: ecm.rating, flux: jf.flux };
-          await jammer.update({ "flags.sr2e.jamEvent": ev, "flags.sr2e.-=jamVs": null });
-        }
+        const ev = await jamEventOf(jammer, ecm);
         const sf = txFlux(observer, sensor);
         const opp = await roll(Math.floor(sf.flux), ecm.rating);
         const vs = { eventId: ev.id, observerUuid: observer.uuid, observerSensor: sensor.rating, observerSuccesses: opp.successes,

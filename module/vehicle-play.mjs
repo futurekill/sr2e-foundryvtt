@@ -2,6 +2,7 @@
  * Vehicles in play, core rulebook (docs/PLAN-vehicles-phase2.md Part 1): who controls a vehicle, the ONE vehicle
  * damage commit (the active GM's per-vehicle queue) with its crash triggers, and Control Pool spends.
  */
+import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
 import { once } from "./claims.mjs";
@@ -32,7 +33,8 @@ export const overheadCounter = (vehicle) => Number(vehicle.getFlag("sr2e", "over
 
 /** Run `op` on the active GM's client (here when this IS the active GM) and return its result. */
 export function gmCall(op, args) {
-  if (isActiveGM()) return GM_OPS[op](args, game.user);
+  // Always a promise (a synchronous op or throw too), run synchronously as before.
+  if (isActiveGM()) { try { return Promise.resolve(GM_OPS[op](args, game.user)); } catch (err) { return Promise.reject(err); } }
   if (!game.users.activeGM) {
     ui.notifications.error("A GM must be connected for this (vehicle damage and control are written by the GM).");
     return Promise.reject(new Error("no active GM"));
@@ -876,7 +878,7 @@ export async function rollDrivingTest(driver, vehicle, o) {
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);
   const { tn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
     terrain: o.terrain, combat: o.combat, mode: o.mode, vcr: driver?.system.vehicleControlRig ?? 0, damageMod: sys.damageTnMod ?? 0, empathy,
-    otherMod: (o.otherMod ?? 0) + sk.penalty });
+    otherMod: (o.otherMod ?? 0) + sk.penalty + guidanceDrivingMod(vehicle) });   // continuous missile lock +2 (R2 p.59)
   const autonav = Math.max(0, sys.effective?.autonav ?? sys.autonav ?? 0);
   const paid = o.mode === "rigged" && driver ? await driver._payControl(o.control, sk.cap) : 0;
   const push = drone ? { dice: 0, stress: 0 } : stressDice(o.stressDice, sys.body);

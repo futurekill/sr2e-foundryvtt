@@ -9,6 +9,7 @@
  *     apply ("resolving" → "done"). Cancel is acked by the pool writer before the tombstone ("cancelled").
  * Read-only lookups are in chase-state.mjs.
  */
+import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
 import { gmCall, gmOp, isPoolClient, adjustStress, r2SpeedOf, spendPosition, setChaseRoute } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
@@ -301,7 +302,7 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
         : accelerateTN({ ...common, ms: t.ms, oppMs, extraPursuers: Math.max(0, fleeing - 1) });
       // Defaulting and Vehicle Empathy (R2 p.14: −1, never a remote drone) join before the minimum of 2.
       const empathy = actorDoc.qualityValues?.()["vehicle-empathy"] && vehicle.system.vehicleType !== "drone" ? -1 : 0;
-      const extra = [["Defaulting", sk.penalty ?? 0], ["Vehicle Empathy", empathy]].filter(([, v]) => v);
+      const extra = [["Defaulting", sk.penalty ?? 0], ["Vehicle Empathy", empathy], ["Missile guidance (R2 p.59)", guidanceDrivingMod(vehicle)]].filter(([, v]) => v);
       tn = { ...tn, tn: tn.tn + extra.reduce((t, [, v]) => t + v, 0), parts: [...tn.parts, ...extra] };
       dice = sk.dice;
       note = sk.note ?? "";
