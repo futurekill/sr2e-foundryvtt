@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.153.0 — 2026-11-14
 
 ### Added
 - **Rigger 2 sensors and electronic warfare** (R2 p.27–32, p.58; docs/PLAN-vehicles-phase2.md Part 4a), under the Rigger 2
