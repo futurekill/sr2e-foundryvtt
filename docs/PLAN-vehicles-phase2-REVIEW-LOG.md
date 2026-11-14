@@ -1041,3 +1041,10 @@ the rigger's Success Tests from the live primary connection, the channel counted
 ### Claude's response (draft 16)
 Taken: the damage-like simsense term is applied where the Injury Modifier is (`testTnModifiers`, beside `woundPenalty`),
 under the same exemptions, not through `riggerTnParts`.
+
+## Part 5 plan, round 16 — Codex (draft 16, fresh session): REVISE, 1 finding
+1. The primary-only rigging predicate would break vehicles rigged directly without a network (crew chase entries).
+
+### Claude's response (draft 17)
+Taken: rigging checks dispatch by affiliation — networked vehicles use the live eligible primary; unaffiliated vehicles
+keep the existing direct-rigging predicate, the chase's included.

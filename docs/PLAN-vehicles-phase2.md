@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 16 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 17 below, in Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 16 (2026-11-14, after Codex Part 5 rounds 1–15)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 17 (2026-11-14, after Codex Part 5 rounds 1–16)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1252,8 +1252,8 @@ Electronics).
   the occupants snapshot for ram/crash damage (`chase.mjs` ~427), passenger restrictions and relocation eligibility —
   a remote operator is never inside the drone. `chaseUnion` adds the live operators, deduplicated, so pool refreshes and
   membership locking see each operator once.
-  `chaseDriverUuid` returns crew drivers only; the "rigging driver with a VCR is jumped in" check becomes `droneMode(...)
-  === "primary"`. One rigger may operate several vehicles in one chase (one-driver-per-vehicle applies to crew).
+  `chaseDriverUuid` returns crew drivers only; for a NETWORKED entry the "rigging driver with a VCR is jumped in" check
+  becomes `droneMode(...) === "primary"` (crew entries keep the existing check; round 16 #1). One rigger may operate several vehicles in one chase (one-driver-per-vehicle applies to crew).
   **Invalidation is durable:** every chase action reserved for a networked vehicle stores a DEPENDENCY STAMP — that
   network's `rev` AND the operator's OPERATOR STAMP — the sorted list of `(deckUuid, rev)` of every deck whose
   operator is that actor, read from `rcIndex()` (round 5 #2; round 9 #2: derived from the authoritative deck records,
@@ -1409,8 +1409,11 @@ Electronics).
   drone — it becomes `rcNet.primary` (the one-primary rule, the jump/return Simple Actions, `droneCtx`, Control Pool for
   damage resistance and the dump on loss all follow from that one selection); jumping into another drone moves the
   primary away, and the hardwired vehicle then runs as a secondary (Pilot) or, while its operator stays aboard without
-  rigging it, is driven onboard by datajack/manual. So `riggedInto(rigger, v)` = `v` is that operator's primary AND the
-  operator is still eligible — connected, jacked in, an active VCR (round 14 #2: checked live, not only at `rcJump`) (no
+  rigging it, is driven onboard by datajack/manual. **Dispatch by affiliation** (round 16 #1): for a vehicle affiliated
+  with a network, `riggedInto(rigger, v)` = `v` is that operator's primary AND the
+  operator is still eligible — connected, jacked in, an active VCR (round 14 #2: checked live, not only at `rcJump`);
+  for an UNAFFILIATED vehicle the existing Part 1–3 direct-rigging predicate (`vehicle-play.mjs riggedInto`, the
+  chase's "driver jacked in with a VCR") is unchanged — the same dispatch in every rigging check, the chase's included (no
   separate hardwired branch), and only the primary is rigged. **Eligibility loss is a control transition** (round 14
   #2): the sheet's jack-out toggle, switching off or removing the VCR, and an unequipped deck all route through an
   `rc-control` op (`rcEligibility`) that clears `primary` (as a return to captain's chair, or a dump where 5a.6 says so)
