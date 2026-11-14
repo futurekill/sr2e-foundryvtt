@@ -1076,3 +1076,10 @@ validate on the spotter's working FDDM. 9: failed spotting posts an area-effect 
 mode (the round spent through the ammo queue). 10: the ammo queue admits the controller's player. 11: the GM closes a
 cancelled/settled plan whose reserve is gone. 12: Gunnery for sensor/indirect/missile modes.
 Quench `sr2e.sensors` 23/23 (+ a relock test); vehicle batches 93/93.
+
+## Part 5 plan, round 17 — Codex (draft 17, fresh session): REVISE, 1 finding
+1. Round 16's dispatch permits simultaneous direct rigging of unaffiliated vehicle A and a network primary B.
+
+### Claude's response (draft 18)
+Taken: under R2 direct rigging of an unaffiliated vehicle is suspended while the character has a network primary
+anywhere; jump/return invalidate their direct-vehicle chase reservations through the operator stamp.

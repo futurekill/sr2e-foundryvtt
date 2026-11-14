@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 17 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 18 below, in Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 17 (2026-11-14, after Codex Part 5 rounds 1–16)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 18 (2026-11-14, after Codex Part 5 rounds 1–17)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1413,7 +1413,11 @@ Electronics).
   with a network, `riggedInto(rigger, v)` = `v` is that operator's primary AND the
   operator is still eligible — connected, jacked in, an active VCR (round 14 #2: checked live, not only at `rcJump`);
   for an UNAFFILIATED vehicle the existing Part 1–3 direct-rigging predicate (`vehicle-play.mjs riggedInto`, the
-  chase's "driver jacked in with a VCR") is unchanged — the same dispatch in every rigging check, the chase's included (no
+  chase's "driver jacked in with a VCR") is unchanged EXCEPT that, under R2, it is suspended while that character has a
+  network primary anywhere (round 17 #1: one direct-control selection, p.65) — `rcJump` and `rcReturn` bump the
+  character's direct-vehicle chase reservations (their dependency stamp includes the operator stamp) so an action
+  reserved on vehicle A is "not counted" once the rigger jumps into drone B — the same dispatch in every rigging check,
+  the chase's included (no
   separate hardwired branch), and only the primary is rigged. **Eligibility loss is a control transition** (round 14
   #2): the sheet's jack-out toggle, switching off or removing the VCR, and an unequipped deck all route through an
   `rc-control` op (`rcEligibility`) that clears `primary` (as a return to captain's chair, or a dump where 5a.6 says so)
