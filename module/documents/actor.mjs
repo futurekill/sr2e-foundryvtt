@@ -2327,7 +2327,8 @@ export class SR2EActor extends Actor {
           : Number.isFinite(v.stageVs) ? stageByNet(v.startIdx, v.stageVs, got).idx : v.startIdx - netToSteps(got);
         const toVehicle = !v.component?.own || v.component.alsoVehicle;
         // Idempotent by the event's receipt: when the damage already landed this only posts the missing outcome card.
-        const done = idx >= 0 && toVehicle ? await commitVehicleDamage(this, [1, 3, 6, 10][idx], { source: options.source ?? "weapon", eventId, woundLevel: stages0[idx], ruleset: "rigger2", attempt: att.id }) : null;
+        const done = idx >= 0 && toVehicle ? await commitVehicleDamage(this, [1, 3, 6, 10][idx], { source: options.source ?? "weapon", eventId, woundLevel: stages0[idx], ruleset: "rigger2", attempt: att.id,
+          attack: { power, powerAfterArmor: Math.max(0, power - armor), level: stages0[idx], sourceKind: options.source ?? "weapon" } }) : null;
         // A takeover replaced it in the vehicle queue: the card stays open for the current attempt.
         if (done?.stale) return ui.notifications.warn("SR2E | That roll was taken over: it doesn't count.");
         const comp = v.component && idx >= 0 ? ` The ${foundry.utils.escapeHTML(v.component.name)}: ${idx >= stages0.indexOf(v.component.at) ? "destroyed" : "still working"}.` : "";
@@ -2516,7 +2517,9 @@ export class SR2EActor extends Actor {
     }
     // One commit (the GM's per-vehicle queue); it fires the crash triggers (p.107). Its event id is the card row, so
     // a replay never damages twice.
-    const landed = await commitVehicleDamage(this, boxes, { source: options.source ?? "weapon", eventId, woundLevel: stages[finalIdx], ruleset: r2 ? "rigger2" : "core", attempt });
+    // The immutable attack context the subsystem rows need (R2 p.86–87: the Control Box backlash and shrapnel Power).
+    const landed = await commitVehicleDamage(this, boxes, { source: options.source ?? "weapon", eventId, woundLevel: stages[finalIdx], ruleset: r2 ? "rigger2" : "core", attempt,
+      attack: { power, powerAfterArmor: Math.max(0, power - armor), level: stages[finalIdx], sourceKind: options.source ?? "weapon" } });
     if (landed?.stale) { ui.notifications.warn("SR2E | That roll was taken over: it doesn't count."); return null; }
     return ChatMessage.create({
       ...resolves,

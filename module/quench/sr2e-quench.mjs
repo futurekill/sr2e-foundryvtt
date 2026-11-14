@@ -19073,6 +19073,24 @@ export function registerSR2EQuenchTests() {
             assert.equal(V.system.effective.speed, 100);
           } finally { ON.delete("r2Subsystems"); }
         });
+        it("a subsystem repair quotes from the part and repairs THAT record, not the monitor (p.87)", async function () {
+          const V = await mk("Quench Subsys Repair", { cost: 100000, conditionMonitor: { value: 2, max: 10 } });
+          ON.add("r2Subsystems");
+          try {
+            await V.update({ "flags.sr2e.subsystems.t1": { target: { kind: "builtin", id: "fuelTank", gen: 0 }, key: "fuelTank", label: "Fuel Tank", level: "M", state: "active", origin: "q" } });
+            const op = (action, data) => call("repair", { vehicleUuid: V.uuid, action, data, jobId: V.getFlag("sr2e", "repairJob")?.id });
+            const q = await op("quote", { target: { kind: "subsystem", recordId: "t1" } });
+            assert.equal(q.parts, Math.round(3 * 0.05 * 100000 * 0.9), "3 boxes × .05 × (original × .9)");
+            await op("partsArrived", {}); await op("tested", { successes: 2 }); await op("finish", {});
+            assert.equal(V.getFlag("sr2e", "subsystems").t1.state, "repaired");
+            assert.equal(V.system.conditionMonitor.value, 2, "the monitor untouched");
+            await V.update({ "flags.sr2e.subsystems.t2": { target: { kind: "builtin", id: "armor", gen: 0 }, key: "armor", label: "Armor", level: "L", state: "active", origin: "q" },
+              "flags.sr2e.-=repairJob": null });
+            let err = null;
+            try { await op("quote", { target: { kind: "subsystem", recordId: "t2" } }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /gone for good/);
+          } finally { ON.delete("r2Subsystems"); }
+        });
         it("a Moderate hit records a subsystem follow-up; an automatic crash beats a pending Crash Test for the same event", async function () {
           this.timeout(20000);
           const V = await mk("Quench Subsys2", { handling: 4, speed: 100, body: 4, conditionMonitor: { value: 0, max: 10 } });

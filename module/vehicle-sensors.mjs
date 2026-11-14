@@ -18,7 +18,7 @@
  */
 import { gmCall, gmOp, controllerOf, followId } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
-import { isRigger2 } from "./vehicle-mode.mjs";
+import { isRigger2, r2Option } from "./vehicle-mode.mjs";
 import { activeChases, chaseOf } from "./chase-state.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
 import { critterSignature } from "./rules/vehicle-gunnery-rules.mjs";
@@ -525,7 +525,9 @@ export function registerVehicleSensors() {
       const r = await roll(sensor.rating, tn);
       const result = sensorResult(r.successes);
       // A hide that landed while the dice rolled (the chase's queue, not ours) means no lock.
-      const lockOk = !!target && r.successes > 0 && hideState(vehicle, target).inContact && hideState(vehicle, target).gen === deps.hide;
+      // A destroyed target-acquisition system can't lock on (R2 p.86, optional subsystem damage).
+      const taDead = r2Option("r2Subsystems") && (await import("./rules/vehicle-subsystem-rules.mjs")).liveLevelOf(vehicle, "targetAcquisition") === "D";
+      const lockOk = !!target && !taDead && r.successes > 0 && hideState(vehicle, target).inContact && hideState(vehicle, target).gen === deps.hide;
       const LABEL = { Signature: "Signature", directLos: "direct LOS", urban: "urban", weather: "weather", restricted: "restricted terrain",
         tight: "tight terrain", spirit: "concealing spirit", damage: "vehicle damage", ew: "ECM" };
       // ED is secret (p.32: "the gamemaster keeps that a secret"): with ED in play the public card hides the TN.
