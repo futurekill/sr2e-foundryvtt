@@ -991,3 +991,12 @@ the specific rule. Interference keeps its whole-network contest.
 Both taken by one change: the last receiver is DURABLE (`flags.sr2e.ewReceiver`, written in the vehicle queue), and the
 drop decision is read synchronously from it as each change lands; never recorded (an older vehicle) counts as the stock
 sensors receiving (a one-time conservative bump). Quench `sr2e.sensors` 14/14.
+
+## Part 5 plan, round 12 — Codex (draft 12, fresh session): REVISE, 2 findings
+1. Channel takeover conflicts with `controllerOf` (feedback, resistance, driving, permissions).
+2. Channel-authority actions lack the intruder's dependency stamp.
+
+### Claude's response (draft 13)
+Both taken: `controllerOf` untouched; a separate `channelActor(net, channel)` read only by the command, observation/
+system-data, indirect-fire and simsense-observe paths; captured-channel actions stamp both networks' generations and the
+intruder's operator stamp, re-validated under `rc-control` at commit.

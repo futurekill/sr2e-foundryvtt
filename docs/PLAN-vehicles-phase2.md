@@ -21,7 +21,7 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 12 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 13 below, in Codex review.
 - **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, **APPROVED at Codex round 10**.
 Each part gets its own plan section + Codex review before code, and its own release.
 
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 12 (2026-11-14, after Codex Part 5 rounds 1–11)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 13 (2026-11-14, after Codex Part 5 rounds 1–12)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1454,8 +1454,14 @@ regeneration alone never restores service.
   carrier, 5a.6). Jamming's own 10-box effects (p.71–72: drones cut off, the jammed dump) are the SPECIFIC rule for
   jamming and stand instead (specific over general). The authority ends when the owner reconnects that carrier (5b.6),
   when the intruder's intercept stops being valid (`freqGen` changed, 5b.1) or when the intruder exits; each end is one
-  deck update in `rc-control`. Readers (`controllerOf` for commands, the system-data and indirect-fire paths, the
-  simsense observe path) consult `channelAuthority` first. Quench: a meaconing fill of the command channel lets the
+  deck update in `rc-control`. **`controllerOf` is untouched** (round 12 #1): vehicle control, rigger feedback, damage
+  resistance, driving and permissions stay with the owner. One operation-specific accessor
+  `channelActor(net, channel)` (= the intruder while the authority stands, else the operator) is read ONLY by the
+  command, observation/system-data, indirect-fire and simsense-observe paths. **Dependency stamp** (round 12 #2): an
+  action taken through a captured channel stores the TARGET network's `rev` and `freqGen`, the INTRUDER's deck `rev`
+  and connection generation, and the intruder's operator stamp (5.0); its commit, under `rc-control`, re-validates the
+  authority and the intruder's mode (the secondary-command modifier is derived then, not at reservation) and refuses
+  a mismatch ("not counted"). Quench: a meaconing fill of the command channel lets the
   intruder command a drone and refuses the owner's command; reconnection returns it.
 **5b.1 Signal interception (p.68–69).** Complex Action; both decks within the LEAST powerful device's range (Part
 4a.3). Dice = the intruder's device rating (+ Task Pool) vs TN = target deck rating + 3 (+2 per failed decryption,
