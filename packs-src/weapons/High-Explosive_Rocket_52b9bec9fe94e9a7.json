@@ -19,7 +19,12 @@
     "ammo": {
       "current": 1,
       "max": 1,
-      "type": "rocket"
+      "type": "rocket",
+      "guided": {
+        "kind": "rocket",
+        "intelligence": 0,
+        "sensor": 0
+      }
     },
     "recoilComp": 0,
     "ranges": {
