@@ -1418,6 +1418,9 @@ export class VehicleModData extends SR2EDataModel {
       // A key may end in @<category> (bike, car, boat, fixedWing, rotor…) or @transport to apply only there; the specific
       // key wins over the plain one. E.g. Drive-by-Wire { handling: "-R", handlingOff: "-R" }.
       effects: new fields.ObjectField({ initial: {} }),
+      // Sensor component upgrades (Rigger 2 p.27; docs/PLAN-vehicles-phase2.md 4a.1): { <componentKey>: { added, level } }
+      // — a component the rating doesn't include, or magnification levels; written by the customization delivery only.
+      components: new fields.ObjectField({ initial: {} }),
       // "levels": one system bought in level batches (turbocharging, armor, drive-by-wire…): its family's effects are
       // worked out once on the total; "" / "instance": independent equipment (docs/archive/plans/PLAN-vehicle-customization.md C2.4).
       stack: new fields.StringField({ initial: "", blank: true }),

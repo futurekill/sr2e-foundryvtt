@@ -871,3 +871,20 @@ Crash coalescing could let a Crash Test's success prevent a mandatory automatic 
 ### Claude's response (draft 8)
 Taken: one origin-keyed crash record with automatic-crash precedence (a pending test is invalidated), further crashes
 suppressed only once that origin has actually crashed.
+
+## Part 5 plan, round 7 — Codex (draft 7, fresh session): REVISE, 3 findings
+1. The damage-path fix took `rc-control` before `chase-membership`, against the declared order. 2. A takeover could
+re-key a non-robot's Learning Pool. 3. One `rcNet.contest` pointer let concurrent contests overwrite each other.
+
+### Claude's response (draft 8)
+All taken: `routeDamage` takes `chase-membership → rc-control`, recovers, and holds both through `chase → vdmg` and the
+snapshot; a persisted `learningKey` advanced only at qualifying boundaries and carried through control changes; several
+contests per deck, exchanges bound to both networks' generations, other contests voided atomically on exit/takeover.
+
+## Part 6 plan, round 8 — Codex (draft 8, fresh session): REVISE, 2 findings
+1. Combat rounds don't advance world time, so chase debits had no distinct intervals. 2. Coasting distance wasn't
+applied to chase movement.
+
+### Claude's response (draft 9)
+Both taken: persisted round→interval mapping (3 s per Combat Turn, reused on replay); a receipted coasting ledger moving
+total ÷ turnsToStop per Turn in place of ordinary movement, the travelled distance feeding an early aircraft crash.

@@ -2059,6 +2059,9 @@ export class VehicleData extends SR2EDataModel {
       signature: new fields.NumberField({ integer: true, initial: 2, min: 0 }),
       pilot: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       sensor: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Explicit sensor presence (R2 p.27, p.31; plan 4a.3): null = auto (Sensor > 0 or a Sensors item); true marks a
+      // Rating-0 system (rangefinders, ultrasound, laser proximity; 250 m), false = no sensors at all.
+      sensorInstalled: new fields.BooleanField({ nullable: true, initial: null }),
       // Stress Rating (Rigger 2 p.25–26; docs/PLAN-vehicles-phase2.md 2a.3): written only by the GM vehicle op. Its
       // permanent part is derived from the engine records (flags.sr2e.engineStress), never stored.
       stress: new fields.NumberField({ integer: true, initial: 0, min: 0 }),

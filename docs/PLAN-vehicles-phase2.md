@@ -21,8 +21,8 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 7 below, in Codex review.
-- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 8 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 8 below, in Codex review.
+- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 9 below, in Codex review.
 Each part gets its own plan section + Codex review before code, and its own release.
 
 ## Part 1 — core rules audit (SR2 core p.84–85, p.104–109, p.183)
@@ -1185,7 +1185,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 7 (2026-11-14, after Codex Part 5 rounds 1–6)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 8 (2026-11-14, after Codex Part 5 rounds 1–7)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1334,12 +1334,12 @@ Electronics).
   dialog), the declaration printed on the card for the GM to veto (a GM veto voids the spend, receipted); an unscoped
   pool is offered on every eligible test. Augments any test a
   character would augment with Combat, Control or Task Pool. Balance = pool − Σ spends under the current refresh key;
-  the key (round 2 #12, round 5 #3) is `<combatId>:<round>:<phaseSeq>` where `phaseSeq` is the combat's existing
-  `flags.sr2e.phaseSeq` at the start of the phase in which the pool's vehicle ACTS — its own combatant's phase for an
-  independent robot (`flags.sr2e.robotPhase.<combatantId>` written by the turn change), or its operator's phase for a
-  networked non-robot such as the Wolfhound (`flags.sr2e.operatorPhase.<operatorKey>`, written when the operator's
-  phase begins). The key is computed from the phase that ACTUALLY started, so a control transition (jump, return,
-  takeover) in the middle of a phase neither re-keys nor refreshes twice. It refreshes at the start of each Turn and of
+  the key (round 2 #12, round 5 #3, round 7 #2) is PERSISTED on the vehicle, `flags.sr2e.learningKey = <combatId>:
+  <round>:<phaseSeq>`, and advanced only at a qualifying boundary: the start of a Combat Turn, or the start of a phase in
+  which THIS vehicle acts — its own combatant's phase for an independent robot, or the phase of whoever operates it at
+  that moment for a networked non-robot such as the Wolfhound (stamped by the turn change into the vehicle's key, using
+  the combat's existing `flags.sr2e.phaseSeq`). A control transition (jump, return, takeover) never changes the key:
+  the current key and its expenditure carry over to the new operator. It refreshes at the start of each Turn and of
   each phase the vehicle acts (p.67); spends are `flags.sr2e.learningSpends.<eventId> = { key, n }` written by the robot's pool client.
   Not available while a rigger is jumped into it (primary).
 
@@ -1477,13 +1477,17 @@ re-applies any journal step lacking a deck receipt (idempotent by key), and whil
 decks refuse every other network op except its recovery. **Reads too** (round 5 #5): while a contest has unapplied
 steps, `controllerOf`, `riggedInto`, `operatorOf` and `droneMode` for its two networks resolve from the journal's last
 COMMITTED state (not the half-updated decks), and dependent actions on either network wait for the recovery to finish.
-For damage (round 6 #2): `routeDamage` first checks, under `rc-control` and BEFORE acquiring `chase-membership` /
-`chase:<id>` / `vdmg:<uuid>`, whether the vehicle's network has a pending contest step; if so it runs the recovery
-there (the stated lock order) and only then proceeds — in both its chase and non-chase branches — so no damage commit
-waits on recovery while holding a chase or vehicle lock. Synchronous readers (`controllerOf` …) never wait; they read
+For damage (round 6 #2, round 7 #1): `routeDamage` acquires locks in the declared order — `chase-membership` →
+`rc-control` — runs any pending contest recovery for the vehicle's network there, and KEEPS both held while it takes
+`chase:<id>` → `vdmg:<uuid>` and snapshots the controller/feedback inputs and commits, in both its chase and non-chase
+branches, so no takeover can start between recovery and the damage snapshot, and nothing waits on a lock taken out of
+order. Synchronous readers (`controllerOf` …) never wait; they read
 the journal's committed state. The FIRST interference attempt opens the contest journal (roles
-`attacker`/`defender` deck uuids, `rev`, `state`) before its opposed roll (round 2 #5), each deck carrying a pointer
-`rcNet.contest = <id>` applied as the journal's creation step; from that first exchange on, the LOSER of each opposed test
+`attacker`/`defender` deck uuids, `rev`, `state`) before its opposed roll (round 2 #5). A deck may be in SEVERAL contests
+(round 7 #3): each deck carries `rcNet.contests = [ids]` (added as the journal's creation step); every exchange is bound
+to the contest `rev` AND both networks' operator/connection generations at reservation; any exit, takeover or control
+transfer on either deck atomically (in the same journal step) voids every OTHER live contest involving that deck
+(state `void`, its pending exchanges "not counted"), so no contest resolves against obsolete participants; from that first exchange on, the LOSER of each opposed test
 takes the net successes as boxes on its OWN system channel (an intruder losing the first test is already degraded).
 Each later Combat Phase either side may spend a Complex Action for another test bound to the contest `rev`. Terminal states, exactly one: **taken** — one side's system channel reaches 10 boxes on the other, or one
 side stays while the other exits; **withdrawn** — both exit. A taken contest writes one takeover receipt: the loser is
@@ -1591,7 +1595,7 @@ with no pools while a primary uses the rigger's; an NPC operator; a disconnect k
 step once; a frequency switch voids other intruders' intercepts; a contest takeover transfers the operator only; a
 lost carrier stays lost after regeneration until reconnected; MIJI refused against a CCSS; stale cards "not counted".
 
-## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 8 (2026-11-14, after Codex Part 6 rounds 1–7)
+## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 9 (2026-11-14, after Codex Part 6 rounds 1–8)
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
 the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's
 printed copy). Every rule here is OPTIONAL (p.81) and has its OWN world setting (round 1 #1) — one per independently
@@ -1638,7 +1642,11 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   submission carries its covered interval `{ from, to, mode }` (round 3 #3): the `fuel` op trims it to `[cursor, to]`
   (a submission whose `to` ≤ the cursor is a no-op, receipted; a distance submission is pro-rated to the uncovered
   part), and a mode change is its own op that first settles the open interval in the old mode, then switches —
-  so a late chase debit after an idle debit can't double-bill. **Out-of-order arrival** (round 5 #1): intervals that
+  so a late chase debit after an idle debit can't double-bill. **Combat time** (round 8 #1): combat rounds don't
+  advance world time, so chase debits get explicit intervals: the first debit of a round persists
+  `fuelRounds.<combatId>.<round> = { from, to }` with `from` = the cursor and `to` = `from` + 3 s (a Combat Turn, core
+  p.80), reused by every later or replayed debit of that round (reload-safe); travel/idle intervals reconcile against
+  these mapped spans like any other. **Out-of-order arrival** (round 5 #1): intervals that
   start beyond the cursor are persisted as PENDING (`fuelPending.<eventId>`) and the cursor advances only across
   contiguous settled coverage, absorbing pending intervals as the gap fills; a mode change is deferred until the
   previous mode's movement up to the change time has arrived (or the GM settles the gap explicitly).
@@ -1647,7 +1655,11 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   actions (accelerate, boosts) while it lasts; speed falls 2 × Acceleration per Turn (applied once per processed Turn,
   resumable after a reload); coasting distance = (.75 × startSpeed²) ÷ Acceleration (Gray Ghost: 7,500 m); one Driving
   ("Vehicle") Test, the vehicle's Handling TN, Control Pool allowed, extends it by Acceleration per 2 successes (R6-4);
-  `stopped` at 0. Refuelling ends the episode.
+  `stopped` at 0. **Coasting movement** (round 8 #2): during an episode the chase's closing stage does NOT move the
+  vehicle by its speed; instead the episode's receipt-backed ledger moves it `total ÷ turnsToStop` per Turn, where
+  `total` = the formula distance + any extension and `turnsToStop` = ⌈startSpeed ÷ (2 × Acceleration)⌉ (Gray Ghost:
+  7,500 m over 5 Turns = 1,500 m/Turn), each Turn's movement receipted once (`fuelOut.moved.<round>`); the cumulative
+  travelled distance is what an aircraft's early Crash Test uses. Refuelling ends the episode.
 - **Aircraft** (p.82; round 1 #3–4): crossing below Stall Speed triggers ONE Crash Test (Part 3b crash record, `cause:
   "fuel"`, receipt in the episode). Success = an emergency landing at the end of the deceleration: the vehicle takes
   1D6 Stress (GM op `stress`) and resists 6L as a VEHICLE-ONLY resistance mode (no occupant step: "no damage occurs to
