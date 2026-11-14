@@ -568,28 +568,39 @@ export function registerVehicleSensors() {
     sweepAround(tok.actor, before ? { [tok.uuid]: before } : null);
   });
   // Equipment and vehicle changes that can change a range: devices, amplifiers, ports, Body, boosts, conditions.
-  // A Sensors item appearing, failing or going away changes which sensor receives, so the stock sensors' generation is
-  // bumped too: results recorded against them never revive when they become the receiver again (code review 4a r2 #2).
-  const itemHook = (item, changes = null, deleted = false) => {
+  // When the stock sensors STOP being the receiving sensor (removed, or displaced by a working Sensors item), their
+  // generation is bumped, so results recorded against them never revive when they receive again (code review 4a r2
+  // #2, r3 #2: only on that transition — a pending Sensors item leaves them receiving and their results standing).
+  const receiver = new Map();
+  const seen = (v) => receiver.set(v.uuid, sensorOf(v)?.id ?? null);
+  const receiverHook = (v) => {
+    const was = receiver.has(v.uuid) ? receiver.get(v.uuid) : null;
+    seen(v);
+    if (was === BUILTIN && receiver.get(v.uuid) !== BUILTIN) vq(v.uuid, () => bump(v, [`device.${BUILTIN}`])).catch(err => console.error("SR2E | ew device", err));
+  };
+  Hooks.once("ready", () => { if (isRigger2()) for (const v of allVehicles()) seen(v); });
+  Hooks.on("createToken", (tok) => { if (tok.actor?.type === "vehicle") seen(tok.actor); });
+  Hooks.on("createActor", (a) => { if (a.type === "vehicle") seen(a); });
+  const itemHook = (item, deleted = false) => {
     const v = item.parent;
     if (!isActiveGM() || !isRigger2() || v?.type !== "vehicle" || item.type !== "vehicle_mod") return;
     const kind = KIND_BY_MODKEY[item.system?.modKey];
-    const paths = [];
-    if (kind && (deleted || !WORKING.includes(item.system.custom?.state ?? ""))) paths.push(`device.${item.id}`);
-    if (kind === "sensor" && (!changes || foundry.utils.hasProperty(changes, "system.custom.state"))) paths.push(`device.${BUILTIN}`);
-    if (paths.length) vq(v.uuid, () => bump(v, paths)).catch(err => console.error("SR2E | ew device", err));
+    if (kind && (deleted || !WORKING.includes(item.system.custom?.state ?? "")))
+      vq(v.uuid, () => bump(v, [`device.${item.id}`])).catch(err => console.error("SR2E | ew device", err));
+    if (kind === "sensor") receiverHook(v);
     sweepAround(v);
   };
   Hooks.on("createItem", (item) => itemHook(item));
-  Hooks.on("updateItem", (item, changes) => itemHook(item, changes));
-  Hooks.on("deleteItem", (item) => itemHook(item, null, true));
+  Hooks.on("updateItem", (item) => itemHook(item));
+  Hooks.on("deleteItem", (item) => itemHook(item, true));
   // Every change that can move a range sweeps at the moment it lands — Body, the stock sensors, and the panel's own
   // flags (toggles, boosts, conditions), so a cut undone by the next queued op is still caught.
   const has = (c, k) => foundry.utils.hasProperty(c, k);
   Hooks.on("updateActor", (actor, changes) => {
     if (actor.type !== "vehicle" || !isActiveGM() || !isRigger2()) return;
-    if (has(changes, "system.sensorInstalled") || has(changes, "system.sensor")) vq(actor.uuid, () => bump(actor, [`device.${BUILTIN}`])).catch(err => console.error("SR2E | ew device", err));
-    if (["system.body", "system.sensor", "system.sensorInstalled", "flags.sr2e.ewOn", "flags.sr2e.fluxBoosts", "flags.sr2e.txConditions"]
+    if (has(changes, "system.sensorInstalled") || has(changes, "system.sensor")) receiverHook(actor);
+    // A forced replacement keeps its `==` key in the hook's changes (Foundry v13 ObjectField._updateDiff).
+    if (["system.body", "system.sensor", "system.sensorInstalled", "flags.sr2e.ewOn", "flags.sr2e.fluxBoosts", "flags.sr2e.==fluxBoosts", "flags.sr2e.txConditions"]
       .some(k => has(changes, k))) sweepAround(actor);
   });
   // Chase distances and round changes.

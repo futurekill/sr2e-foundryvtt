@@ -961,3 +961,14 @@ settings, and specifies recoverable transactions and derived-state handling comp
 Taken: rigging a hardwired vehicle is the operator's primary (`rcJump`), so the one-primary rule, `droneCtx`, pools,
 jump/return and the dump derive from one selection; `riggedInto` = primary, no separate hardwired branch; onboard
 driving without rigging (datajack/manual) is unchanged.
+
+## Part 4a code, round 3 — Codex (fix review, fresh session): REVISE, 2 findings
+1. Forced boost replacements escape the synchronous check: Foundry keeps the `==fluxBoosts` key in the hook's changes.
+2. The stock-sensor bump is too broad: a pending Sensors item (parts, tested, deleted) expires valid results though the
+   stock sensors stayed the receiver.
+
+### Claude's response
+1. Taken: the updateActor check also recognizes `flags.sr2e.==fluxBoosts`.
+2. Taken: the GM tracks each vehicle's receiving sensor (seeded at ready, token and actor creation) and bumps the stock
+   sensors only when they STOP being the receiver.
+Quench `sr2e.sensors` 14/14 (2 new: a queued boost cut-and-restore; a pending Sensors item leaving a lock standing).

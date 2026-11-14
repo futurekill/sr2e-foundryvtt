@@ -18571,6 +18571,38 @@ export function registerSR2EQuenchTests() {
           for (let i = 0; i < 30 && S.ewTermOf(O, J).ecm; i++) await new Promise(r => setTimeout(r, 100));
           assert.equal(S.ewTermOf(O, J).ecm, 0, "the old result stays dead");
         });
+        it("a boost cut and restored by queued ops still ends a lock the cut put out of range (round 3 #1)", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const A = await mk("Quench Boost3", { body: 4 }, [await catalog("Sensors (Vehicle Sensor System)", 3), await catalog("Power Amplifier", 2)]);
+          const B = await mk("Quench Boost3 T");
+          const sid = S.sensorOf(A).id, amp = A.items.find(i => i.system.modKey === "power-amplifier").id;
+          const one = { [sid]: { amplifiers: { [amp]: 1 } } };
+          await S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: one });   // Flux 6 = 12 km
+          await sceneWith([A, 100], [B, 100 + 100 * 100]);                      // 10 km: outside Flux 5 (9 km)
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          assert.ok(S.lockOn(A, B), "locked at 10 km");
+          await Promise.all([S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: {} }), S.gmCall("fluxBoost", { vehicleUuid: A.uuid, alloc: one })]);
+          for (let i = 0; i < 30 && S.lockOn(A, B); i++) await new Promise(r => setTimeout(r, 100));
+          assert.notOk(S.lockOn(A, B), "the unboosted moment ended it");
+        });
+        it("a Sensors item still being installed leaves the stock sensors' lock standing (round 3 #2)", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const A = await mk("Quench Stock Lock", { sensor: 3 });
+          const B = await mk("Quench Stock Lock T");
+          await sceneWith([A, 100], [B, 600]);
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          assert.ok(S.lockOn(A, B), "locked through the stock sensors");
+          const pending = await catalog("Sensors (Vehicle Sensor System)", 5);
+          foundry.utils.setProperty(pending, "system.custom.state", "parts");
+          const [it] = await A.createEmbeddedDocuments("Item", [pending]);
+          await new Promise(r => setTimeout(r, 500));
+          assert.ok(S.lockOn(A, B), "still locked while the new system is only parts");
+          await it.update({ "system.custom.state": "done" });
+          for (let i = 0; i < 30 && S.lockOn(A, B); i++) await new Promise(r => setTimeout(r, 100));
+          assert.notOk(S.lockOn(A, B), "the installed system replaces the receiver: the lock ends");
+        });
         it("a boost reallocation is one write (no transient unboosted range)", async function () {
           const S = await mods();
           const A = await mk("Quench Boost2", { body: 4 }, [await catalog("Sensors (Vehicle Sensor System)", 3), await catalog("Power Amplifier", 2)]);
