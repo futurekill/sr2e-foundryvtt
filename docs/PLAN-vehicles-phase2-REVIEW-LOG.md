@@ -741,3 +741,38 @@ origin; maneuvers consume capacity × (1 − multiplier) (reading stated for par
 an atomic cursor; Footprint as ordered operations over the live sum; a missile chase adapter (no Driver Points, own
 Initiative, fixed speed, Intelligence dice); one launch-wide break-lock resolver; logical→physical channel routing; scoped
 partial-MIJI operations covering every effect and its range-exit cleanup.
+
+## Part 4 plan, round 7 — Codex (draft 7, fresh session): REVISE, 3 findings
+1. Reloads still read clip contents outside the GM queue (stale reads). 2. A timed-out reload's refund could race a late
+load. 3. The under-5-m/turn fallback belongs to manual gunnery only (p.58).
+
+### Claude's response (draft 8)
+All taken: reloads are a three-step transaction (GM plan + weapon fence → reserve debit on the money writer → GM settle),
+cancellation terminal in `ammo:` before any refund; the low-speed fallback applies only where `manual` would be chosen.
+
+## Part 5 plan, round 3 — Codex (draft 3, fresh session): REVISE, 10 findings
+1. Exclusivity missed chase drivers. 2. The chase commit could interleave with `rc-control`. 3. A deck revision isn't
+proof a dump's cause committed. 4. The two-deck contest had no recovery journal. 5. Task Pool caps undefined on
+equipment-rolled tests. 6. Scoped Learning Pools not enforced (MK-Guyver, Wolfhound). 7. Robots' own phases. 8. The
+intruder can't pick channels after rolling (p.69: the GM, unless named). 9. Automatic CCSS interception/decryption
+invented. 10. No CCSS controlled-component state.
+
+### Claude's response (draft 4)
+All taken. User ruling R5-7: Task Pool on equipment-rolled tests capped at Electronics (or the concentration in use).
+Chase drivers included and driver assignment moved into `rc-control`; chase commits hold `rc-control` then the chase
+lock; dump cause receipts/tombstones in the same deck update; a world-level contest journal with per-deck application
+receipts and blocking recovery; Learning Pool as `{ dice, scope }` independent of the robot trait (the Wolfhound is an
+aircraft) with declared-scope use and GM veto; robots act in their own phases; intended channels named before rolling,
+else the GM picks; CCSS receivers and decryption as equipment used by tests; a mutually exclusive CCSS control state.
+
+## Part 6 plan, round 3 — Codex (draft 3, fresh session): REVISE, 5 findings
+1. Superseding a liability could race an admitted payment. 2. Per-vehicle refunds not derivable from aggregated
+receipts. 3. Fuel submissions lacked covered intervals. 4. The missile adapter couldn't use the Ram path or a Maneuver
+Score, and dropped the printed Driving Test. 5. Disabling quality factors would block `replaceEngine`.
+
+### Claude's response (draft 4)
+All taken. User ruling R6-8: extended-range missiles use Part 3a's formulas with Intelligence for the driver's skill,
+no pools, and may Ram once their fixed speed covers the distance. Release-or-settle before superseding; a deterministic
+pro-rata allocation with a cumulative refund ledger per original receipt (legacy too); submissions with intervals
+trimmed against the cursor, mode changes settling first; designs stay valid with the setting off (only editing
+restricted).
