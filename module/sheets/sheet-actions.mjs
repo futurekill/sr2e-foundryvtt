@@ -36,6 +36,8 @@ import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.m
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { riggedInto, setControl, hitObjectFlow, isPoolClient } from "../vehicle-play.mjs";
 import { vehicleOperationMod, movingTargetMod } from "../rules/vehicle-play-rules.mjs";
+import { manualExtras, defaultGunneryMode, TARGET_SIZE_MODS } from "../rules/vehicle-gunnery-rules.mjs";
+import { isRigger2 } from "../vehicle-mode.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
 
 // ===========================================================================
@@ -637,6 +639,50 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         <select id="sr2e-relspeed" name="relSpeed">${[[0, "≤ yours (0)"], [2, "up to 2× (+2)"], [4, "2–3× (+4)"], [6, "> 3× (+6)"]].map(([v, l]) =>
           `<option value="${v}" ${v === speedAuto(rideDefault) ? "selected" : ""}>${l}</option>`).join("")}</select>
       </div>` : "";
+  // Rigger 2 gunnery (docs/PLAN-vehicles-phase2.md 4b.1–4b.3): the mode and the p.57/p.58 rows the core dialog lacks.
+  // The roll re-validates everything (a sensor attack needs a live lock); this only collects choices.
+  const r2On = isRigger2() && isRanged && !weapon.system.blastType;
+  const r2Default = r2On ? defaultGunneryMode({ mounted: weapon.parent?.type === "vehicle", aboard: !!rideDefault,
+    attackerSpeed: speedOf(rideDefault), targetSpeed: presets.targetSpeed ?? null }) : "core";
+  const SIZE_LABELS = { human: "Human/metahuman 0", humanCritter: "Human-sized critter 0", smallCritter: "Small critter +1",
+    largeCritter: "Large critter −1", smallDrone: "Small drone +1", motorcycle: "Motorcycle 0", automobile: "Automobile −1",
+    limousine: "Limousine/light truck −1", heavyTruck: "Heavy truck/tractor-trailer −3", boat: "Regular boat −1",
+    yacht: "Luxury yacht −3", freighter: "Freighter/oil tanker −8", ultralight: "Ultralight glider 0", fixedWing: "Fixed-wing aircraft −2",
+    airliner: "Commercial airliner −6", helicopter: "Helicopter −2", lta: "LTA aircraft (zeppelin) −6", lav: "LAV (t-bird) −3",
+    military: "Security/military ground vehicle −3" };
+  const r2Row = !r2On ? "" : `
+      <fieldset class="sr2e-attack__r2" style="grid-column:1/-1;border:1px solid #556;padding:4px 6px;margin:4px 0;">
+        <legend title="Rigger 2 p.56–59">Rigger 2 gunnery</legend>
+        <div class="sr2e-attack__field"><label>Mode:</label>
+          <select id="sr2e-r2-mode" name="r2Mode">
+            <option value="core" ${r2Default === "core" ? "selected" : ""}>Standard ranged combat</option>
+            <option value="manual" ${r2Default === "manual" ? "selected" : ""}>Manual gunnery (p.56–58)</option>
+            <option value="sensor">Sensor-enhanced (needs a lock, p.58)</option>
+          </select></div>
+        <div class="sr2e-attack__field"><label title="p.57, p.131: pintle −2 and ring −6 recoil compensation; fixed mounts and turrets halve recoil before accessories">Mount:</label>
+          <select name="mount">${[["", "none / hand-held"], ["fixed", "fixed mount"], ["turret", "turret"], ["pintle", "pintle"], ["ring", "ring"]].map(([v, l]) =>
+            `<option value="${v}" ${v === (weapon.getFlag?.("sr2e", "mountKind") ?? "") ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <div class="sr2e-attack__field r2-manual"><label title="p.57: only a drone on mechanical legs">Drone legs:</label>
+          <select name="r2legs"><option value="">—</option><option value="walk">walking +1</option><option value="run">running +4</option></select>
+          <label><input type="checkbox" name="r2difficult"> difficult ground</label></div>
+        <div class="sr2e-attack__field r2-manual"><label><input type="checkbox" name="r2unmounted" ${weapon.parent?.type !== "vehicle" && rideDefault ? "checked" : ""}> unmounted weapon from a vehicle +2</label></div>
+        <div class="sr2e-attack__field r2-manual"><label title="p.57: not on one axis at matched speeds; applies at right angles">Relative motion:</label>
+          <select name="r2motion"><option value="">none</option><option value="toward">toward −1</option><option value="away">away +1</option></select></div>
+        <div class="sr2e-attack__field r2-manual"><label title="p.57: more than 10 apart (the chase's Maneuver Scores)">Maneuver Scores (you / target):</label>
+          <input type="number" name="r2ams" style="width:50px"> <input type="number" name="r2tms" style="width:50px"></div>
+        <div class="sr2e-attack__field r2-manual"><label title="p.57–58: under 5 m/turn counts as 5">Speeds (you / target):</label>
+          <input type="number" name="r2as" value="${rideDefault ? speedOf(rideDefault) : ""}" style="width:60px"> <input type="number" name="r2ts" value="${presets.targetSpeed ?? ""}" style="width:60px"></div>
+        <div class="sr2e-attack__field r2-manual"><label>Target size/type (p.57):</label>
+          <select name="r2size"><option value="">—</option>${Object.keys(TARGET_SIZE_MODS).map(k => `<option value="${k}">${SIZE_LABELS[k]}</option>`).join("")}</select></div>
+        <div class="sr2e-attack__field r2-manual"><label title="Fields of Fire pp.84–85">Smartlink II:</label><input type="number" name="r2sl2" value="0" style="width:50px"></div>
+        <div class="sr2e-attack__field r2-sensor"><label>Line of sight (p.58):</label>
+          <select name="r2los"><option value="interrupted">interrupted 0 (most ground-to-ground)</option><option value="direct">direct −3 (air/ground, or a target in clear open terrain)</option></select>
+          <label><input type="checkbox" name="r2urban"> urban +2</label></div>
+        ${game.user.isGM ? `<div class="sr2e-attack__field r2-sensor"><label title="GM: a critter's Signature (p.61)">Signature (GM):</label><input type="number" name="r2sig" style="width:50px"></div>` : ""}
+        <p class="r2-sensor" style="font-size:11px;margin:2px 0;">TN = the target's Signature + EW + these rows (min 2), set at the roll from the lock.</p>
+        <p class="r2-manual" style="font-size:11px;margin:2px 0;">Replaces the attacker-movement rows and the p.108 speed table.</p>
+      </fieldset>`;
+
   // A bear's or tiger's animal form adds Reach to its natural weapons (Companion p.36). Reach is the
   // player's Reach Mod here; the dialog states it.
   const formReach = weapon.system.form === "animal" ? characterForm(actor.system).reach : 0;
@@ -1014,7 +1060,9 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         // opaque barrier plus a Blind Fire visibility pick reach +16.
         const effVis = Math.max(vMod, barrierBlindFire());
         const sMod = parseInt(root.querySelector("#sr2e-relspeed")?.value) || 0;
-        finalTN = Math.max(2, BASE_TN + rMod + cMod + effVis + aMod + tMod + mMod + oMod + sMod
+        const r2m = r2Sync();
+        const r2Adj = r2m === "manual" ? r2ManualNow() - aMod - sMod : 0;
+        finalTN = Math.max(2, BASE_TN + rMod + cMod + effVis + aMod + tMod + mMod + oMod + sMod + r2Adj
                                       + calledShotMod() - aimMod()
                                       + cyberwareMod + accessoryTnMod
                                       + woundPenalty + sustainPenalty + coordTN
@@ -1043,7 +1091,27 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         finalTN = Math.max(2, BASE_TN + rchMod + frMod + posMod + muMod + mvMod + oMod + leadTN
                                       + woundPenalty + sustainPenalty + coordTN + defaultingPenalty);
       }
-      if (finalTnSpan) finalTnSpan.textContent = finalTN;
+      if (finalTnSpan) finalTnSpan.textContent = isRanged && r2Sync() === "sensor" ? "Sig." : finalTN;
+    }
+
+    // Rigger 2 gunnery rows (4b.1): show the active mode's rows; the manual extras are summed with the same function
+    // the roll uses (manualExtras), so dialog and card agree.
+    const r2Val = (n) => root.querySelector(`[name="${n}"]`);
+    const r2Num = (n) => { const v = r2Val(n)?.value; return v === "" || v == null ? undefined : Number(v); };
+    function r2Sync() {
+      const m = r2Val("r2Mode")?.value ?? "core";
+      for (const el of root.querySelectorAll(".r2-manual")) el.style.display = m === "manual" ? "" : "none";
+      for (const el of root.querySelectorAll(".r2-sensor")) el.style.display = m === "sensor" ? "" : "none";
+      return m;
+    }
+    function r2ManualNow() {
+      return manualExtras({ legs: r2Val("r2legs")?.value || "", difficultGround: !!r2Val("r2difficult")?.checked,
+        unmounted: !!r2Val("r2unmounted")?.checked, motion: r2Val("r2motion")?.value || "", attackerMS: r2Num("r2ams"),
+        targetMS: r2Num("r2tms"), attackerSpeed: r2Num("r2as"), targetSpeed: r2Num("r2ts"), targetSize: r2Val("r2size")?.value || "",
+        smartlinkII: r2Num("r2sl2") ?? 0 }).reduce((t, p) => t + p.value, 0);
+    }
+    for (const el of root.querySelectorAll(".sr2e-attack__r2 select, .sr2e-attack__r2 input")) {
+      el.addEventListener("change", () => updateTN()); el.addEventListener("input", () => updateTN());
     }
 
     // --- aim / called shot / barrier, live (p.82, p.92, p.98) ---------------
@@ -1310,6 +1378,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
         </select>
       </div>
       ${isRanged && speedRow ? speedRow : ""}
+      ${r2Row}
       <div class="sr2e-attack__field">
         <label>Other Mod:</label>
         <input type="number" id="sr2e-other-mod" name="otherMod" value="0"
@@ -1567,6 +1636,14 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             boneLacingPhysical: !!f.boneLacingPhysical?.checked,
             // Validated against the actor's live leadWith in item.roll.
             leadWith:        f.leadWith?.value ?? "",
+            // Rigger 2 gunnery (4b.1): re-validated in _rollWeaponAttack.
+            ...(f.r2Mode ? { gunneryMode: f.r2Mode.value, mount: f.mount?.value ?? "",
+              firingVehicleUuid: f.ride?.value || presets.firingVehicleUuid || null,
+              r2: { legs: f.r2legs?.value || "", difficultGround: !!f.r2difficult?.checked, unmounted: !!f.r2unmounted?.checked,
+                motion: f.r2motion?.value || "", targetSize: f.r2size?.value || "",
+                ...Object.fromEntries([["attackerMS", "r2ams"], ["targetMS", "r2tms"], ["attackerSpeed", "r2as"], ["targetSpeed", "r2ts"],
+                  ["smartlinkII", "r2sl2"], ["signature", "r2sig"]].filter(([, n]) => f[n]?.value !== "" && f[n]?.value != null).map(([k, n]) => [k, Number(f[n].value)])),
+                los: f.r2los?.value ?? "interrupted", urban: !!f.r2urban?.checked } } : {}),
             shotSpread:      !!f.shotSpread?.checked,
             choke:           weapon.system.choke ?? 0,
             poolDice,

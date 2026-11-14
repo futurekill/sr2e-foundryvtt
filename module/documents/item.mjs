@@ -24,6 +24,8 @@ import { isCardResolved } from "../astral-combat.mjs";
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL } from "../util/roll-label.mjs";
 import { controllerOf } from "../vehicle-play.mjs";
+import { manualExtras, sensorGunneryTN, vehicleRecoil } from "../rules/vehicle-gunnery-rules.mjs";
+import { isRigger2 } from "../vehicle-mode.mjs";
 import { validateSplit } from "../rules/spell-rules.mjs";
 import { renderSpellResistCard, combatSpellMode, combatSpellDamage, planCombatTargets, movementTN, postCombatSpellCards,
          resolveMisfire } from "../combat-spells.mjs";
@@ -827,9 +829,9 @@ export class SR2EItem extends Item {
     // Common modifiers.
     // NOTE: wound and sustain penalties are NOT added here — rollSuccessTest
     // applies them centrally (they used to be double-counted).
-    const attackerMod  = options.attackerMod ?? 0;
+    let attackerMod    = options.attackerMod ?? 0;
     const targetMod    = options.targetMod   ?? 0;
-    const speedMod     = options.speedMod    ?? 0;   // Moving Target Table (p.108)
+    let speedMod       = options.speedMod    ?? 0;   // Moving Target Table (p.108)
     const otherMod     = options.otherMod    ?? 0;
 
     const modParts = [];
@@ -897,6 +899,11 @@ export class SR2EItem extends Item {
 
     } else {
       // ── Ranged TN (SR2E p.100–110) ─────────────────────────────────────────
+      // Rigger 2 gunnery (docs/PLAN-vehicles-phase2.md 4b.1–4b.3): one explicit mode; "core" is every caller's default.
+      const r2 = await r2GunneryContext(this, actor, options, engage);
+      if (r2?.refused) return ui.notifications.warn(`${this.name}: ${r2.refused}`);
+      if (r2?.mode === "manual") { attackerMod = 0; speedMod = 0; }   // p.57 replaces the p.89 movement rows and p.108
+      if (r2?.mode === "sensor") dicePool += r2.sensorDice;
       const range    = blastRange ?? options.range ?? "short";
       firingMode     = options.firingMode ?? "sa";
       const coverMod = options.coverMod   ?? 0;
@@ -1007,6 +1014,9 @@ export class SR2EItem extends Item {
       // Rounds walked between targets were fired before this burst (p.93).
       let recoilMod       = recoilPenalty(shotsFired + (hasRecoil ? eng.walked : 0), rounds,
                                           { isBurst, hasRecoil, recoilComp, heavyRecoil });
+      // Vehicle weapon mounts (R2 p.57, p.131): their compensation, or fixed/turret halving before accessories.
+      if (r2 && r2.mount && hasRecoil) recoilMod = vehicleRecoil({ heavy: heavyRecoil, mount: r2.mount, accessories: recoilComp,
+        recoil: shotsFired + eng.walked + (isBurst ? rounds : 0) });
 
       // Gyro mount (p.90): rating eats recoil + attacker movement modifiers,
       // cumulative with recoil comp. Applied to recoil first, remainder to
@@ -1039,8 +1049,20 @@ export class SR2EItem extends Item {
         BASE_TN + rangeMod + coverMod + attackerMod + targetMod + speedMod + meleeMod + otherMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
                 + effVis_ + spreadMod + defaultingPenalty
-                + calledShotMod_ - aimCut_ + eng.tnMod
+                + calledShotMod_ - aimCut_ + eng.tnMod + (r2?.mode === "manual" ? r2.extra : 0)
       );
+      if (r2?.mode === "manual") for (const p of r2.extraParts) modParts.push(`${p.label} ${p.value > 0 ? "+" : ""}${p.value} (R2 p.57)`);
+      // Sensor-enhanced (p.58): the target's Signature + the EW term + the table; recoil as manual; min 2. The p.89
+      // situational modifiers don't apply ("most standard target modifiers do not apply", p.61).
+      if (r2?.mode === "sensor") {
+        const st = sensorGunneryTN({ signature: r2.signature, ewTerm: r2.ewTerm, urban: r2.urban, los: r2.los,
+          recoil: recoilMod, vehicleDamage: r2.vehicleDamage });
+        targetNumber = Math.max(2, st.raw + defaultingPenalty);
+        modParts.length = 0;
+        modParts.push(`sensor-enhanced: ${st.parts.map(p => `${p.label === "ew" ? "EW" : p.label} ${p.label === "Signature" ? "" : p.value > 0 ? "+" : ""}${p.value}`).join(", ")}`);
+        modParts.push(`+${r2.sensorDice} sensor dice`);
+        if (defaultingNote) modParts.push(defaultingNote);
+      }
       if (calledShotMod_) modParts.push(`called shot +${calledShotMod_}`);
       if (aimCut_)        modParts.push(`aim −${aimCut_}`);
       if (barrierBlind_ && barrierBlind_ >= visMod) modParts.push("blind fire through barrier +8");
@@ -2337,4 +2359,36 @@ export class SR2EItem extends Item {
       content
     });
   }
+}
+
+/**
+ * The Rigger 2 gunnery context of a ranged attack (docs/PLAN-vehicles-phase2.md 4b.1–4b.3), or null under core rules
+ * or the "core" mode. Validated here, not trusted from the dialog: a sensor-enhanced attack needs the firing vehicle's
+ * VALID lock on the target (4a.2; R4-2), and every number is read from live documents.
+ */
+async function r2GunneryContext(weapon, actor, options, engage) {
+  if (!isRigger2() || !["manual", "sensor"].includes(options.gunneryMode)) return null;
+  const vehicle = weapon.parent?.type === "vehicle" ? weapon.parent
+    : options.firingVehicleUuid ? fromUuidSync(options.firingVehicleUuid) : null;
+  const vehicleDamage = vehicle?.system?.damageTnMod ?? 0;
+  const mount = ["fixed", "turret", "pintle", "ring"].includes(options.mount) ? options.mount : "";
+  // Remember the mount on the weapon for the next dialog (a convenience; the roll uses the dialog's value).
+  if (options.mount != null && weapon.isOwner && (weapon.getFlag("sr2e", "mountKind") ?? "") !== mount) weapon.setFlag("sr2e", "mountKind", mount).catch(() => {});
+  if (options.gunneryMode === "manual") {
+    const parts = manualExtras({ ...(options.r2 ?? {}), vehicleDamage,
+      attackerSpeed: options.r2?.attackerSpeed ?? vehicle?.system?.effectiveSpeed, unmounted: !!options.r2?.unmounted && weapon.parent?.type !== "vehicle" });
+    return { mode: "manual", mount, extra: parts.reduce((t, p) => t + p.value, 0), extraParts: parts };
+  }
+  if (!vehicle) return { refused: "sensor-enhanced gunnery needs a firing vehicle with sensors (R2 p.58)" };
+  const target = engage?.token?.uuid ? fromUuidSync(engage.token.uuid)?.actor : null;
+  if (!target) return { refused: "target the locked-on token first (R2 p.58)" };
+  const S = await import("../vehicle-sensors.mjs");
+  if (!S.lockOn(vehicle, target)) return { refused: `${vehicle.name} has no sensor lock on ${target.name}: make a Sensor Test first (R2 p.58)` };
+  const gmSig = game.user.isGM && Number.isFinite(options.r2?.signature) ? options.r2.signature : null;
+  const signature = S.baseSignature(target, gmSig);
+  if (signature == null) return { refused: `the GM must set ${target.name}'s Signature (R2 p.61)` };
+  const ew = S.ewTermOf(vehicle, target);
+  const sensor = S.sensorOf(vehicle)?.rating ?? 0;
+  return { mode: "sensor", mount, vehicleDamage, signature, ewTerm: ew.total,
+    urban: !!options.r2?.urban, los: options.r2?.los === "direct" ? "direct" : "interrupted", sensorDice: Math.floor(sensor / 2) };
 }
