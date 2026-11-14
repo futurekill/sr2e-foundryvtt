@@ -106,6 +106,7 @@ import { registerVehicleSensors } from "./vehicle-sensors.mjs";
 import { registerAmmoQueue } from "./vehicle-ammo.mjs";
 import { registerMissiles } from "./vehicle-missiles.mjs";
 import { registerIndirect } from "./vehicle-indirect.mjs";
+import { registerHiddenStress, revealHiddenStress, hiddenStressLeft } from "./vehicle-quality.mjs";
 
 /**
  * Delete every world document a Quench run leaves behind. Quench doesn't clean
@@ -534,6 +535,8 @@ Hooks.once("init", async () => {
   registerAmmoQueue();
   registerMissiles();
   registerIndirect();
+  registerHiddenStress();
+  game.sr2e = Object.assign(game.sr2e ?? {}, { hiddenStress: { reveal: revealHiddenStress, left: hiddenStressLeft } });
 
   // Register in-Foundry integration tests (no-op unless the Quench module is on).
   registerSR2EQuenchTests();

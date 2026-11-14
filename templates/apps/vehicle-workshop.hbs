@@ -249,6 +249,12 @@
           {{#if fixed}}<input type="checkbox" data-field="markUp.multipliers.{{key}}" {{#if value}}checked{{/if}} /> ×{{fixed}}{{#if suggest}} <span class="ws-muted">(this chassis is a drone)</span>{{/if}}
           {{else}}<input type="number" data-field="markUp.multipliers.{{key}}" value="{{value}}" min="0" max="{{hi}}" step="0.05" /> <span class="ws-muted">0, or ×{{lo}}–{{hi}}</span>{{/if}}</td></tr>
         {{/each}}
+        {{#if priceStep.quality.length}}<tr><th colspan="3">Quality Factors <span class="ws-ref">p.84–85</span>{{#unless priceStep.qualityOn}}
+          <span class="ws-muted">— quality factors need the optional rule (read-only)</span>{{/unless}}</th></tr>
+        {{#each priceStep.quality}}
+        <tr><th>{{label}}</th><td colspan="2"><select data-field="quality.{{key}}" data-number {{#unless ../priceStep.qualityOn}}disabled{{/unless}}>
+          {{#each levels}}<option value="{{this}}" {{#if (eq this ../value)}}selected{{/if}}>{{#if this}}{{this}} × {{../mod}}{{else}}—{{/if}}</option>{{/each}}</select></td></tr>
+        {{/each}}{{/if}}
         <tr><th>Round the price</th><td colspan="2"><select data-field="markUp.round" data-number>
           <option value="0" {{#unless priceStep.round}}selected{{/unless}}>No</option>
           <option value="500" {{#if (eq priceStep.round 500)}}selected{{/if}}>to 500¥</option>
