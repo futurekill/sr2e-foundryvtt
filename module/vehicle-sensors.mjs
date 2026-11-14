@@ -569,6 +569,8 @@ export function registerVehicleSensors() {
     if (!user.isGM) throw new Error("the GM sets boosts");
     await vq(vehicleUuid, async () => {
       const problems = boostProblems(alloc, boostContext(vehicle));
+      // Out of fuel (R2 p.81, optional r2Fuel): no engine power to boost a transmitter.
+      if (vehicle.getFlag("sr2e", "fuelOut") && Object.values(alloc ?? {}).some(a => Number(a?.engine) > 0)) problems.push("out of fuel: no engine boosts (Rigger 2 p.81)");
       if (problems.length) throw new Error(problems.join("; "));
       await vehicle.update({ "flags.sr2e.==fluxBoosts": alloc });
     });

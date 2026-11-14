@@ -18868,5 +18868,81 @@ export function registerSR2EQuenchTests() {
         });
       });
     }, { displayName: "SR2E: Rigger 2 sensors and EW" });
+
+    quench.registerBatch("sr2e.r2-advanced", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [], combats = [], t0 = Date.now();
+      let g = null;
+      const ON = new Set(["r2Fuel", "r2FlightFuel", "r2FuelGrades", "r2QualityFactors"]);
+      before(function () {
+        g = game.settings.get;
+        game.settings.get = function (ns, k) {
+          if (ns === "sr2e" && k === "vehicleRuleset") return "rigger2";
+          if (ns === "sr2e" && ON.has(k)) return true;
+          return g.call(this, ns, k);
+        };
+      });
+      after(async function () {
+        this.timeout(30000);
+        if (g) game.settings.get = g;
+        for (const c of combats) { try { await c.delete(); } catch (e) {} }
+        const ids = game.messages.filter(m => (m._stats?.createdTime ?? 0) >= t0).map(m => m.id);
+        if (ids.length) await ChatMessage.deleteDocuments(ids);
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const mk = async (name, sys) => { const a = await Actor.create({ name, type: "vehicle", system: { body: 4, ...sys } }); made.push(a); return a; };
+      const F = () => import("../vehicle-fuel.mjs");
+      const call = async (op, a) => (await import("../vehicle-play.mjs")).gmCall(op, a);
+
+      describe("Fuel (Part 6a.1, R2 p.81–83)", function () {
+        it("travel burns by the Economy Rating Table, receipted once; refuel fills", async function () {
+          const V = await mk("Quench Fuel Car", { economy: 4, fuelSize: 60, speed: 60 });
+          await call("fuel", { vehicleUuid: V.uuid, origin: "travel", km: 80, band: "below", eventId: "qf1" });
+          await call("fuel", { vehicleUuid: V.uuid, origin: "travel", km: 80, band: "below", eventId: "qf1" });
+          assert.equal((await F()).fuelLeft(V), 40, "80 km at 4 km/l = 20 l, once");
+          await call("fuel", { vehicleUuid: V.uuid, origin: "travel", km: 40, band: "over", eventId: "qf2" });
+          assert.equal((await F()).fuelLeft(V), 20, "1–1.5 × the Speed Rating: Economy ÷ 2");
+          await call("fuel", { vehicleUuid: V.uuid, origin: "refuel" });
+          assert.equal(V.system.fuelLevel, null, "full again");
+        });
+        it("running dry opens one coasting episode; the chase moves it by its share; it stops", async function () {
+          this.timeout(20000);
+          const V = await mk("Quench Gray Ghost", { economy: 1, fuelSize: 1, speed: 1000, acceleration: 100, stallSpeed: 0 });
+          await call("fuel", { vehicleUuid: V.uuid, origin: "travel", km: 5, band: "below", speed: 1000 });
+          const o = V.getFlag("sr2e", "fuelOut");
+          assert.equal(o?.state, "coasting");
+          assert.equal(o.startSpeed, 1000);
+          const combat = await Combat.create({ active: false, flags: { sr2e: { chase: { entries: { e1: { kind: "vehicle", uuid: V.uuid, speed: 1000 } }, pairs: {} } } } });
+          combats.push(combat);
+          const M = await F();
+          for (let r = 1; r <= 5; r++) {
+            const coast = await M.fuelChaseStage(combat, r);
+            assert.equal(coast.e1, [2500, 2000, 1500, 1000, 500][r - 1], `Turn ${r}: its share of 7,500 m`);
+            await M.fuelAdvanceStage(combat, r);
+          }
+          assert.equal(V.getFlag("sr2e", "fuelOut").state, "stopped");
+          assert.equal(combat.getFlag("sr2e", "chase").entries.e1.speed, 0);
+        });
+        it("fuel grades change Acceleration and Economy (derived)", async function () {
+          const V = await mk("Quench Premium", { economy: 10, acceleration: 8, fuelSize: 50 });
+          await V.update({ "flags.sr2e.fuelGrade": { grade: "premium", custom: 0 } });
+          assert.equal(V.system.effective.acceleration, 10);
+          assert.equal(V.system.effective.economy, 11);
+          await V.update({ "flags.sr2e.fuelGrade": { grade: "regular", custom: 0 } });
+          assert.equal(V.system.effective.acceleration, 8, "back, both directions");
+        });
+      });
+
+      describe("Quality Factors (Part 6a.3, R2 p.84–85)", function () {
+        it("the vehicle's factors feed the consumers while the option is on", async function () {
+          const V = await mk("Quench Rugged", { economy: 4 });
+          await V.update({ "system.design.choices": { quality: { ruggedness: 2, safetyCertified: 1 } } });
+          const { vehicleQuality } = await import("../vehicle-mode.mjs");
+          const q = vehicleQuality(V);
+          assert.equal(q.stressTn, -2);
+          assert.equal(q.collisionTn, -1);
+        });
+      });
+    }, { displayName: "SR2E: Rigger 2 advanced rules (Part 6)" });
   });
 }
