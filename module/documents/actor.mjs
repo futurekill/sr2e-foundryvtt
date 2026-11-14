@@ -34,7 +34,7 @@ import { evaluateDamageCode, renderMeleeAttackCard, renderSpellResistCard,
          renderHealingCard, renderManipDamageCard, isManipCardResolved,
          renderRangedDamageCard, renderBlastLauncher, renderSpreadLauncher } from "./item.mjs";
 import { placeSummonedToken } from "../placement.mjs";
-import { commitDamage, drugsInForce, drugDamageNote, substanceKarmaClosed, reconcileSubstanceTest, substancesOf } from "../drugs.mjs";
+import { commitDamage, drugsInForce, drugDamageNote, substanceKarmaClosed, reconcileSubstanceTest, substancesOf, workingImplant } from "../drugs.mjs";
 import { addictionTnFor } from "../rules/substances.mjs";
 import { renderNetCard } from "../nets.mjs";
 import { matrixQueue } from "../jackpoints.mjs";
@@ -500,6 +500,13 @@ export class SR2EActor extends Actor {
    * test's tnContext: kind "matrix", key (skill), smartlink (an attack through one), electronic (a Driving Test by
    * datajack or rig).
    */
+  /** Extra Perception dice while rigging from an improved datajack (R2 p.17; Shadowtech p.45): Level − 1, the best. */
+  improvedDatajackDice() {
+    const best = Math.max(0, ...this.items.filter(i => i.flags?.sr2e?.rule === "improved-datajack" && i.type === "cyberware"
+      && workingImplant(this, i)).map(i => Number(i.system.rating) || 0));
+    return Math.max(0, best - 1);
+  }
+
   riggerTnParts(ctx = {}) {
     const sys = this.system ?? {};
     const q = this.qualityValues();

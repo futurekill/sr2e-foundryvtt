@@ -10,7 +10,7 @@
  * Read-only lookups are in chase-state.mjs.
  */
 import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
-import { gmCall, gmOp, isPoolClient, adjustStress, r2SpeedOf, spendPosition, setChaseRoute } from "./vehicle-play.mjs";
+import { gmCall, gmOp, isPoolClient, adjustStress, r2SpeedOf, spendPosition, setChaseRoute, riggedInto } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
 import { chaseOf, findEntry, findAboard, activeChases, actionOf, poolsLocked, chaseUnion } from "./chase-state.mjs";
@@ -291,6 +291,9 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
                           hideSuccesses: ch.pairs[target].contact.successes ?? 0, hideTerrain: ch.entries[targetEid].terrain,
                           damageTn: stats.damageTn, groupExtra: g });
       dice = actorDoc?.system?.intelligence?.value ?? 0;
+      // R2 p.17: an improved datajack (Level 2+) adds Level − 1 dice to Perception Tests while rigging.
+      const dj = riggedInto(actorDoc, vehicle) ? actorDoc.improvedDatajackDice?.() ?? 0 : 0;
+      if (dj) { dice += dj; note = ` + ${dj} improved datajack (R2 p.17)`; }
     } else {
       const sk = actorDoc._vehicleSkill(vehicle, { mode: vcr ? "rigged" : "manual" });
       const oppMs = opponents.length ? highestMs(ch, round, opponents) : t.ms;
