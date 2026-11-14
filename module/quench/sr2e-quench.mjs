@@ -18378,6 +18378,14 @@ export function registerSR2EQuenchTests() {
       };
       const FIVES = 0.2, ONES = 0.99;
       const mods = async () => ({ ...(await import("../vehicle-play.mjs")), ...(await import("../vehicle-sensors.mjs")) });
+      // A struck missile waits for its damage card (code review 4b r1 #3): resolve it as a player would.
+      const settleStrike = async (M, A, id, combat) => {
+        const l = M.launchesOf(A)[id];
+        const dep = game.messages.find(m => ["blastLaunch", "rangedDamage", "spreadLaunch"].some(k => m.getFlag("sr2e", k)?.testMessageId === l.messageId));
+        if (dep) await ChatMessage.create({ content: "Quench: damage resolved", flags: { sr2e: { resolves: dep.id } } });
+        await combat.resumeRound();
+      };
+
       const catalog = async (name, rating) => {
         const docs = await game.packs.get("sr2e-rigger-2.r2-vehicle-mods")?.getDocuments();
         const d = docs?.find(x => x.name === name)?.toObject();
@@ -18718,13 +18726,42 @@ export function registerSR2EQuenchTests() {
             assert.equal(combat.round, 1, "the Turn waits for Phase 0");
             assert.ok(game.messages.some(m => m.getFlag("sr2e", "missilePhase0")?.launchId === l.id), "the Phase 0 card");
             await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
-            assert.equal(M.launchesOf(A)[l.id].state, "resolved");
+            assert.equal(M.launchesOf(A)[l.id].state, "struck", "rolled; its damage card still to resolve");
+            assert.equal(combat.round, 1, "the Turn waits for the strike's damage");
             assert.deepEqual(spy[0], [4 + 4 + 1, 2], "Gunnery 4 + Intelligence 4 + ½ Sensor 1; TN 4 − 3 direct LOS → 2");
             let err = null;
             try { await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 }); } catch (e) { err = e.message; }
-            assert.match(err ?? "", /resolved/, "it strikes once");
+            assert.match(err ?? "", /struck/, "it strikes once");
+            assert.equal(spy.length, 1, "one roll only");
+            await settleStrike(M, A, l.id, combat);
+            assert.equal(M.launchesOf(A)[l.id].state, "resolved");
             assert.ok(await until(() => combat.round === 2), "the Turn ends once every missile has struck");
           } finally { pc.rollSuccessTest = orig; }
+        });
+      });
+
+      describe("Missile review fixes (Part 4b code round 1)", function () {
+        it("a continuous lock lost and re-acquired before Phase 0 is still lost (r1 #5)", async function () {
+          this.timeout(30000);
+          const S = await mods(), M = await import("../vehicle-missiles.mjs");
+          const A = await mk("Quench Relock A", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]), B = await mk("Quench Relock B");
+          const scene = await sceneWith([A, 100], [B, 600]);
+          const pc = await Actor.create({ name: "Quench Relocker", type: "character" }); made.push(pc);
+          const [gun] = await A.createEmbeddedDocuments("Item", [{ name: "Quench AVM2", type: "weapon", system: { weaponType: "heavy", skill: "gunnery",
+            damageCode: "16D", ammo: { max: 1, current: 1, type: "missile", guided: { kind: "missile", intelligence: 4, sensor: 0 } }, firingModes: { ss: true } } }]);
+          const combat = await Combat.create({ scene: scene.id, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: A.id, tokenId: scene.tokens.find(t => t.actorId === A.id).id, sceneId: scene.id }]);
+          await combat.update({ round: 1 });
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          await gun._rollWeaponAttack({ gunner: pc, gunneryMode: "launch", launchMode: "continuous", r2: {},
+            _engage: { key: "quench-relock", token: { uuid: scene.tokens.find(t => t.actorId === B.id).uuid } } });
+          const [l] = Object.values(M.launchesOf(A));
+          await S.gmCall("ewClear", { vehicleUuid: A.uuid, deviceId: S.sensorOf(A).id, recipientUuid: B.uuid });   // contact lost
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));   // a NEW lock
+          assert.ok(S.lockOn(A, B), "locked again");
+          await combat.advanceRound(1);
+          await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
+          assert.equal(M.launchesOf(A)[l.id].state, "lost", "continuous contact was broken");
         });
       });
 
@@ -18749,8 +18786,11 @@ export function registerSR2EQuenchTests() {
           assert.equal(l?.payload?.guided?.intelligence, 4, "core p.255: Intelligence 4");
           await combat.advanceRound(1);
           await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
-          assert.equal(M.launchesOf(A)[l.id].state, "resolved");
+          assert.equal(M.launchesOf(A)[l.id].state, "struck");
           assert.ok(M.launchesOf(A)[l.id].messageId, "the Missile Attack Test card");
+          assert.ok(game.messages.some(m => m.getFlag("sr2e", "blastLaunch")?.testMessageId === M.launchesOf(A)[l.id].messageId), "its blast card");
+          await settleStrike(M, A, l.id, combat);
+          assert.equal(M.launchesOf(A)[l.id].state, "resolved");
         });
       });
 
@@ -18794,6 +18834,7 @@ export function registerSR2EQuenchTests() {
           try { await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 3 }); } finally { tubbs.rollSuccessTest = orig; }
           assert.equal(spy[0][0], 6 + 4 + g.successes, "Gunnery 6 + Intelligence 4 + the spotting successes");
           assert.notOk(spy[0][2]?.combat, "no Combat Pool on a targeted indirect missile attack");
+          await settleStrike(M, A, l.id, combat);
           assert.ok(await until(() => combat.round === 2), "the Turn ends");
           assert.ok(await until(() => I.guidanceOf(spot)[g.id].state === "ended"), "the spotting ends with its launches");
         });

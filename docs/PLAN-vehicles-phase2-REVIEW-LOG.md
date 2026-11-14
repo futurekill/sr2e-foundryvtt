@@ -1016,3 +1016,63 @@ flag as baseline) and persisted in queue order (bump, then the captured receiver
 ### Claude's response
 Taken: each captured transition carries a unique token; a job clears the cache only when its token is the latest one.
 Quench `sr2e.sensors` + vehicle batches 69/69.
+
+## Part 5 plan, round 13 — Codex (draft 13, fresh session): REVISE, 1 finding
+1. Simsense jamming scoped too narrowly: p.72 applies it to the remotely rigged rigger's target numbers like a damage
+   modifier, not only to tests through the drone.
+
+### Claude's response (draft 14)
+Taken: the Perception / Manual Gunnery rows stay drone-only; the damage-like penalty applies in `riggerTnParts` to all of
+the rigger's Success Tests from the live primary connection, the channel counted once.
+
+## Part 5 plan, round 14 — Codex (draft 14, fresh session): REVISE, 2 findings
+1. Reachability changes bypass action invalidation (moving a drone out of range changes no deck rev).
+2. Primary selection can outlive rigging eligibility (the jack-out toggle writes `system.rigging` directly).
+
+### Claude's response (draft 15)
+1. Taken: the dependency stamp carries the deck→drone link and device generations (Part 4's sweep bumps them on range
+   loss) and the commit re-checks live reachability under the locks.
+2. Taken: `riggedInto` = primary AND live eligibility; eligibility loss (jack-out, VCR off/removed, deck unequipped) is an
+   `rc-control` op that clears primary and bumps the deck rev; the sheet's toggle becomes its request.
+
+## Part 5 plan, round 15 — Codex (draft 15, fresh session): REVISE, 1 finding
+1. The round-13 resolution applies simsense jamming to resistance tests too; a damage modifier is exempt there.
+
+### Claude's response (draft 16)
+Taken: the damage-like simsense term is applied where the Injury Modifier is (`testTnModifiers`, beside `woundPenalty`),
+under the same exemptions, not through `riggerTnParts`.
+
+## Part 5 plan, round 16 — Codex (draft 16, fresh session): REVISE, 1 finding
+1. The primary-only rigging predicate would break vehicles rigged directly without a network (crew chase entries).
+
+### Claude's response (draft 17)
+Taken: rigging checks dispatch by affiliation — networked vehicles use the live eligible primary; unaffiliated vehicles
+keep the existing direct-rigging predicate, the chase's included.
+
+## Part 4b code, round 1 — Codex (fresh session): REVISE, 12 findings
+1. Launch ops escalate permissions (only the gunner checked; guidanceCommit/End unchecked).
+2. One missile can produce several attacks (double click, retry after reload).
+3. The round advances before the missile's damage resolves; refused attacks counted as resolved.
+4. A refused indirect launch leaves the spotting committed forever.
+5. Continuous guidance accepts a replacement lock.
+6. Continuous-lock restriction bypassed (launch dispatched first; melee/personal weapons; other vehicles).
+7. Non-missile indirect fire can use one target's spotting against another.
+8. A character FDDM spotter's guidance never validates.
+9. Area-effect entry paths missing (failed spotting; no lock/no Signature from the dialog).
+10. The ammo queue refuses a player controlling a GM-owned vehicle.
+11. A deleted reserve leaves a reload fence closed forever.
+12. Sensor-enhanced / indirect personal weapons roll the wrong skill.
+
+### Claude's response — all taken
+1: `missileLaunch` authorizes the requesting user (gunner, weapon/its vehicle/its controller, holder relationship) and
+checks the lock GM-side; `guidanceCommit` GM-only; `guidanceEnd` GM or the spotter's player; non-missile indirect goes
+through a new GM op `guidanceUse`. 2: one durable `attempt` per arm, written on the test card (`missileAttempt`); a retry
+finds the card and only records it; a client in-flight guard. 3: a rolled launch is `struck`, terminal (`resolved`) only
+when its damage card (blast/ranged/spread) is resolved or there is none; the round change waits; a GM hook resumes it
+when such a card resolves; no card for the attempt → back to `launched`. 4: `guidanceUnlink` on a refused launch
+(back to acquired). 5: Phase 0 requires the ORIGINAL lock (id). 6: the commitment is checked before any dispatch, any
+weapon, across every vehicle's launches. 7: the attack must be aimed at the spotter's target. 8: FDDM-route spottings
+validate on the spotter's working FDDM. 9: failed spotting posts an area-effect card; the dialog offers an area-effect
+mode (the round spent through the ammo queue). 10: the ammo queue admits the controller's player. 11: the GM closes a
+cancelled/settled plan whose reserve is gone. 12: Gunnery for sensor/indirect/missile modes.
+Quench `sr2e.sensors` 23/23 (+ a relock test); vehicle batches 93/93.

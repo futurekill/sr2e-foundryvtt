@@ -13,11 +13,16 @@
  *   - Continuous lock: until Phase 0 the gunner's other attacks are refused (GM override) and the vehicle's Driving
  *     Tests take +2; contact is re-checked at Phase 0 (R4-2): lost → the missile doesn't strike (p.59).
  */
-import { gmOp, gmCall, followId } from "./vehicle-play.mjs";
+import { gmOp, gmCall, followId, controllerOf } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 const TERMINAL = new Set(["resolved", "lost", "cancelled"]);
+/** The test card of a launch's ONE roll attempt (flags.sr2e.missileAttempt), if it was posted. */
+const attemptCard = (l) => l?.attempt ? game.messages.find(m => m.getFlag("sr2e", "missileAttempt") === l.attempt) ?? null : null;
+/** The damage card that depends on a missile's test (blast launcher or ranged damage), if any. */
+const DAMAGE_KEYS = ["blastLaunch", "rangedDamage", "spreadLaunch"];
+const damageCard = (testId) => game.messages.find(m => DAMAGE_KEYS.some(k => m.getFlag("sr2e", k)?.testMessageId === testId)) ?? null;
 export const launchesOf = (holder) => holder?.getFlag("sr2e", "launches") ?? {};
 const hq = (uuid, fn) => enqueueAttack(`vdmg:${uuid}`, fn);
 
@@ -41,7 +46,21 @@ export function registerMissiles() {
     const combat = game.combats.get(a.combatId);
     const weapon = fromUuidSync(a.weaponUuid), holder = fromUuidSync(a.holderUuid), gunner = fromUuidSync(a.gunnerUuid);
     if (!combat || !weapon || !holder || !gunner) throw new Error("the launch is missing its combat, weapon or shooter");
-    if (!user.isGM && !gunner.testUserPermission(user, "OWNER")) throw new Error("not allowed");
+    // Authorize the REQUESTING user (code review 4b r1 #1): the gunner is theirs, the weapon is reachable (theirs, their
+    // vehicle's, or the vehicle they control), the holder is the weapon's vehicle or the firing vehicle the gunner
+    // controls, and a direct launch has that vehicle's VALID lock on the target now.
+    if (!user.isGM) {
+      const own = (d) => !!d?.testUserPermission?.(user, "OWNER");
+      const wp = weapon.parent;
+      if (!own(gunner)) throw new Error("not allowed");
+      if (!(own(weapon) || own(wp) || (wp?.type === "vehicle" && own(controllerOf(wp))))) throw new Error("not your weapon");
+      if (!(holder === wp || (holder.type === "vehicle" && (own(holder) || controllerOf(holder) === gunner)))) throw new Error("not your vehicle");
+    }
+    if (a.mode !== "indirect") {
+      const S = await import("./vehicle-sensors.mjs");
+      const src = fromUuidSync(a.sourceVehicleUuid), tgt = fromUuidSync(a.targetUuid);
+      if (!src || !tgt || !S.lockOn(src, tgt)) throw new Error("no valid sensor lock on the target (Rigger 2 p.59)");
+    }
     await enqueueAttack(`round:${combat.id}`, async () => {
       if (combat.round !== a.round || combat.getFlag("sr2e", "roundTransition")) throw new Error("this Combat Turn is ending: launch next Turn");
       if (combat.getFlag("sr2e", "launchAdmit")?.[a.round]?.[a.launchId]) return;
@@ -59,7 +78,7 @@ export function registerMissiles() {
       if (!l) throw new Error("no such launch");
       const gunner = fromUuidSync(l.gunnerUuid);
       if (!user.isGM && !gunner?.testUserPermission(user, "OWNER")) throw new Error("the gunner or the GM rolls this");
-      if (l.state === "rolling" && l.armedBy === user.id) return l;   // the same roller retrying
+      if (l.state === "rolling" && l.armedBy === user.id) return l;   // the same roller retrying: the SAME attempt (r1 #2)
       if (l.state !== "launched") throw new Error(`this missile is ${l.state}`);
       const S = await import("./vehicle-sensors.mjs");
       const source = fromUuidSync(l.sourceVehicleUuid), target = fromUuidSync(l.targetUuid);
@@ -69,7 +88,9 @@ export function registerMissiles() {
         const r = await I.indirectAtPhase0(l);
         if (r.ok) spotter = { successes: r.successes };
       }
-      const lost = l.mode === "continuous" ? !(source && target && S.lockOn(source, target)) : l.mode === "indirect" ? !spotter : false;
+      // Continuous contact (r1 #5): the ORIGINAL lock must still stand — a lock lost and re-acquired is a new lock.
+      const lost = l.mode === "continuous" ? !(source && target && S.lockOn(source, target)?.id && S.lockOn(source, target).id === l.lock?.id)
+        : l.mode === "indirect" ? !spotter : false;
       if (lost) {
         await holder.update({ [`flags.sr2e.launches.${launchId}.state`]: "lost" });
         // p.59: a lost continuous lock — the missile won't strike (the GM may resolve an area-effect attack); p.60: a lost
@@ -84,7 +105,7 @@ export function registerMissiles() {
       }
       // The GM's prepared list (added/struck on the card) stands; otherwise the exposures are found and rolled now.
       const exposures = l.exposures ?? await S.missileExposures(source ?? holder, target, l.payload.guided?.sensor ?? 0);
-      const upd = { state: "rolling", armedBy: user.id, exposures, ...(spotter ? { spotterSuccesses: spotter.successes } : {}) };
+      const upd = { state: "rolling", armedBy: user.id, attempt: foundry.utils.randomID(16), exposures, ...(spotter ? { spotterSuccesses: spotter.successes } : {}) };
       await holder.update(Object.fromEntries(Object.entries(upd).map(([k, v]) => [`flags.sr2e.launches.${launchId}.${k}`, v])));
       return { ...l, ...upd };
     });
@@ -106,14 +127,18 @@ export function registerMissiles() {
     });
   });
 
-  // The roll's card is the record: the launch is resolved (terminal), once.
-  gmOp("missileDone", async ({ holderUuid, launchId, messageId }, user) => {
+  // The attempt's test card is the record (r1 #2–#3): the launch is `struck` (its damage still to resolve); with no card
+  // for the attempt (the attack was refused) it goes back to `launched` for another try.
+  gmOp("missileDone", async ({ holderUuid, launchId }, user) => {
     const holder = fromUuidSync(holderUuid);
     return hq(holderUuid, async () => {
       const l = launchesOf(holder)[launchId];
       if (l?.state !== "rolling") return l;
       if (!user.isGM && l.armedBy !== user.id) throw new Error("not the armed roller");
-      await holder.update({ [`flags.sr2e.launches.${launchId}.state`]: "resolved", [`flags.sr2e.launches.${launchId}.messageId`]: messageId ?? "" });
+      const msg = attemptCard(l);
+      const base = `flags.sr2e.launches.${launchId}`;
+      if (!msg) await holder.update({ [`${base}.state`]: "launched", [`${base}.-=armedBy`]: null, [`${base}.-=attempt`]: null });
+      else await holder.update({ [`${base}.state`]: "struck", [`${base}.messageId`]: msg.id });
       return true;
     });
   });
@@ -128,6 +153,16 @@ export function registerMissiles() {
       return true;
     });
   });
+
+  // A struck missile's damage card resolving may let the Turn end: the GM resumes any round change that waits.
+  const resumeWaiting = (msg) => {
+    if (!game.users.activeGM?.isSelf) return;
+    const f = msg.flags?.sr2e ?? {};
+    if (!(f.resolves || DAMAGE_KEYS.some(k => f[k]))) return;
+    for (const c of game.combats.contents) if (c.getFlag("sr2e", "roundTransition")) c.resumeRound?.();
+  };
+  Hooks.on("createChatMessage", resumeWaiting);
+  Hooks.on("updateChatMessage", resumeWaiting);
 
   Hooks.on("renderChatMessageHTML", (message, html) => {
     const m = message.getFlag("sr2e", "missilePhase0");
@@ -148,6 +183,8 @@ async function finishLaunch(combat, a, user) {
     receipt = await gmCall("ammo", { action: "launch", weaponUuid: a.weaponUuid, eventId: a.launchId });
   } catch (err) {
     await gmCall("ammo", { action: "cancel", weaponUuid: a.weaponUuid, eventId: a.launchId }).catch(() => {});
+    // A refused indirect launch never existed: unlink it from the spotting (r1 #4).
+    if (a.mode === "indirect") await (await import("./vehicle-indirect.mjs")).guidanceUnlink(a.guidance?.spotterUuid, a.guidance?.id, a.launchId).catch(() => {});
     await admit(combat, a.round, a.launchId, "released");
     throw err;
   }
@@ -195,7 +232,16 @@ export async function missileCloseStage(combat, r) {
       await combat.update({ [`flags.sr2e.launchAdmit.${r}.${id}.state`]: rec?.payload ? "launched" : "released" });
       if (!rec?.payload) continue;
     }
-    const l = launchesOf(holder)[id];
+    let l = launchesOf(holder)[id];
+    if (l?.state === "struck") {
+      // Phase 0 damage resolves before the Turn ends (4b.4): a hit's damage card must be resolved; a miss has none.
+      const dep = damageCard(l.messageId);
+      const { isCardResolved } = await import("./astral-combat.mjs");
+      if (!dep || isCardResolved(dep, DAMAGE_KEYS.find(k => dep.getFlag("sr2e", k)))) {
+        await hq(holder.uuid, () => holder.update({ [`flags.sr2e.launches.${id}.state`]: "resolved" }));
+        l = launchesOf(holder)[id];
+      }
+    }
     if (!l || TERMINAL.has(l.state)) continue;
     waiting.push(id);
     const key = `${holder.uuid}:${id}`;
@@ -215,10 +261,18 @@ export async function missileCloseStage(combat, r) {
 }
 
 /** The Phase 0 roll (the gunner's client or the GM's): arm, then the ordinary attack path on the payload. */
+const ROLLING = new Set();
 export async function rollPhase0({ holderUuid, launchId }, { pool: given = null } = {}) {
+  if (ROLLING.has(launchId)) return;   // a double click (r1 #2)
+  ROLLING.add(launchId);
+  try { return await rollPhase0Once({ holderUuid, launchId }, { given }); } finally { ROLLING.delete(launchId); }
+}
+async function rollPhase0Once({ holderUuid, launchId }, { given }) {
   const l = await gmCall("missileArm", { holderUuid, launchId });
   const resume = () => { const c = game.combats.get(l.combatId); if (c?.getFlag("sr2e", "roundTransition")) gmCall("roundResume", { combatId: c.id }).catch(() => {}); };
   if (l.state !== "rolling") return resume();   // lost at Phase 0: terminal — the Turn may end
+  // This attempt already posted its test (a reload, a retry): never roll again, just record it (r1 #2).
+  if (attemptCard(l)) { await gmCall("missileDone", { holderUuid, launchId }); return resume(); }
   const gunner = fromUuidSync(l.gunnerUuid), p = l.payload;
   // Targeted indirect missile attacks take no Combat Pool (p.60).
   const pool = l.mode === "indirect" ? 0 : given != null ? given : await foundry.applications.api.DialogV2.prompt({ window: { title: `Missile Attack Test — ${p.ammoName}` },
@@ -234,12 +288,11 @@ export async function rollPhase0({ holderUuid, launchId }, { pool: given = null 
   const tokDoc = l.targetTokenUuid ? fromUuidSync(l.targetTokenUuid) : null;
   const center = tokDoc ? { x: tokDoc.x + (tokDoc.width * (tokDoc.parent?.grid?.size ?? 100)) / 2, y: tokDoc.y + (tokDoc.height * (tokDoc.parent?.grid?.size ?? 100)) / 2 } : null;
   const aim = p.blastType && tokDoc ? { mode: "token", tokenUuid: tokDoc.uuid, sceneId: tokDoc.parent?.id ?? null, ...center } : null;
-  const before = new Set(game.messages.map(m => m.id));
   await weapon._rollWeaponAttack({ gunner, gunneryMode: "missile", launch: l, firingVehicleUuid: l.sourceVehicleUuid,
     poolDice: pool ? { combat: pool } : undefined, firingMode: "ss", range: "short", rangeExplicit: true,   // the TN is the Signature's, not a bracket
+    testFlags: { sr2e: { missileAttempt: l.attempt } },
     _engage: { key: `missile:${launchId}`, token: tokDoc ? { uuid: tokDoc.uuid, sceneId: tokDoc.parent?.id ?? null, ...center } : null, aim } });
-  const msg = game.messages.contents.filter(m => !before.has(m.id)).find(m => m.getFlag("sr2e", "test"));
-  await gmCall("missileDone", { holderUuid, launchId, messageId: msg?.id ?? "" });
+  await gmCall("missileDone", { holderUuid, launchId });
   resume();
 }
 
