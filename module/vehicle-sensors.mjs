@@ -127,7 +127,7 @@ export function boostContext(vehicle) {
   const devices = {}, amplifiers = {};
   for (const t of transmitters(vehicle)) devices[t.id] = { working: t.working, ported: t.ported };
   for (const i of vehicle?.items ?? []) if (i.type === "vehicle_mod" && i.system.modKey === "power-amplifier" && itemWorking(i)) amplifiers[i.id] = Number(i.system.rating) || 0;
-  return { body: vehicle?.system?.body ?? 0, devices, amplifiers };
+  return { body: vehicle?.system?.effective?.body ?? vehicle?.system?.body ?? 0, devices, amplifiers };
 }
 
 /**
@@ -673,7 +673,7 @@ export function registerVehicleSensors() {
     if (actor.type !== "vehicle" || !isActiveGM() || !isRigger2()) return;
     if (has(changes, "system.sensorInstalled") || has(changes, "system.sensor")) receiverHook(actor);
     // A forced replacement keeps its `==` key in the hook's changes (Foundry v13 ObjectField._updateDiff).
-    if (["system.body", "system.sensor", "system.sensorInstalled", "flags.sr2e.ewOn", "flags.sr2e.fluxBoosts", "flags.sr2e.==fluxBoosts", "flags.sr2e.txConditions"]
+    if (["system.body", "system.sensor", "system.sensorInstalled", "flags.sr2e.ewOn", "flags.sr2e.fluxBoosts", "flags.sr2e.==fluxBoosts", "flags.sr2e.txConditions", "flags.sr2e.subsystems"]
       .some(k => has(changes, k))) sweepAround(actor);
   });
   // Chase distances and round changes.

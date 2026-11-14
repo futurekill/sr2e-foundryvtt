@@ -58,7 +58,7 @@ const playerWriter = (actor) => game.users.find(u => u.active && !u.isGM && acto
 export function vehicleStats(doc) {
   const s = doc?.system ?? {};
   return { handling: s.effectiveHandling ?? s.handling ?? 0, acceleration: s.effective?.acceleration ?? s.acceleration ?? 0,
-           speedRating: doc ? r2SpeedOf(doc).rating : 0, autonav: s.effective?.autonav ?? s.autonav ?? 0, body: s.body ?? 0,
+           speedRating: doc ? r2SpeedOf(doc).rating : 0, autonav: s.effective?.autonav ?? s.autonav ?? 0, body: s.effective?.body ?? s.body ?? 0,
            armor: s.effectiveArmor ?? s.armor ?? 0, signature: s.effective?.signature ?? s.signature ?? 0, damageLevel: s.damageLevel ?? "Undamaged",
            damageTn: s.damageTnMod ?? 0 };
 }

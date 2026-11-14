@@ -19057,6 +19057,41 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Subsystem damage (Part 6a.4, R2 p.85–87)", function () {
+        it("records derive Handling, engine, Body and Armor; a replaced instance's record is inert", async function () {
+          const V = await mk("Quench Subsys", { handling: 4, speed: 100, acceleration: 10, load: 1000, armor: 10, body: 5 });
+          ON.add("r2Subsystems");
+          try {
+            const rec = (id, level, extra = {}) => ({ target: { kind: "builtin", id, gen: 0 }, key: id, label: id, level, state: "active", origin: "q", ...extra });
+            await V.update({ "flags.sr2e.subsystems": { a: rec("handling", "M"), b: rec("engine", "L"), c: rec("body", "M"), d: rec("armor", "L"), e: rec("armor", "S") } });
+            const e = V.system.effective;
+            assert.equal(e.handling, 6, "+2 Moderate");
+            assert.equal(e.speed, 90); assert.equal(e.acceleration, 9); assert.equal(e.load, 900);
+            assert.equal(e.body, 3, "½ of 5 rounded up");
+            assert.equal(e.armor, 10 - 1 - 6, "Armor-Defeating Hits are cumulative");
+            await V.update({ "flags.sr2e.subsysGen.engine": 1 });   // the engine replaced: its record no longer applies
+            assert.equal(V.system.effective.speed, 100);
+          } finally { ON.delete("r2Subsystems"); }
+        });
+        it("a Moderate hit records a subsystem follow-up; an automatic crash beats a pending Crash Test for the same event", async function () {
+          this.timeout(20000);
+          const V = await mk("Quench Subsys2", { handling: 4, speed: 100, body: 4, conditionMonitor: { value: 0, max: 10 } });
+          ON.add("r2Subsystems");
+          try {
+            await call("damage", { vehicleUuid: V.uuid, boxes: 3, source: "weapon", eventId: "qsub1", woundLevel: "M", ruleset: "rigger2" });
+            assert.ok(V.getFlag("sr2e", "vfollow")?.qsub1?.subsystem, "the subsystem follow-up, same update");
+            await call("damage", { vehicleUuid: V.uuid, boxes: 3, source: "weapon", eventId: "qsub2", woundLevel: "S", ruleset: "rigger2" });
+            const D = await import("../vehicle-damage.mjs");
+            await D.escalateCrash(V, "qsub2", "auto", "test");
+            await new Promise(r => setTimeout(r, 500));
+            const f = V.getFlag("sr2e", "vfollow").qsub2.crash;
+            assert.equal(f.kind, "auto", "upgraded");
+            const crashes = Object.values(V.getFlag("sr2e", "crashes") ?? {}).filter(c => c.fid === "qsub2");
+            assert.equal(crashes.length, 1, "ONE crash record for the event");
+          } finally { ON.delete("r2Subsystems"); }
+        });
+      });
+
       describe("Quality Factors (Part 6a.3, R2 p.84–85)", function () {
         it("the vehicle's factors feed the consumers while the option is on", async function () {
           const V = await mk("Quench Rugged", { economy: 4 });

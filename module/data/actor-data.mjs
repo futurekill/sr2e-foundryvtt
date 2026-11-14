@@ -2,6 +2,7 @@ import { VEHICLE_POINTS } from "../rules/vehicle-combat-rules.mjs";
 import { permanentStress, rigBonuses, isVehicleSkillName } from "../rules/vehicle-r2-rules.mjs";
 import { isRigger2, r2Option } from "../vehicle-mode.mjs";
 import { fuelGradeEffects } from "../rules/vehicle-fuel-rules.mjs";
+import { subsystemState, applySubsystemEffects } from "../rules/vehicle-subsystem-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
 import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral } from "../rules/shapeshift-rules.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
@@ -2160,7 +2161,9 @@ export class VehicleData extends SR2EDataModel {
     const traits = new Set([...(this.design.traits ?? []), category, ...(this.vehicleType === "drone" ? ["drone"] : []), ...(this.design.transport ? ["transport"] : [])].filter(Boolean));
     const build = { body: this.body, pilot: this.pilot, traits };
     const ctx = { category, transport: this.design.transport, build, tires: this.tires };
-    const mods = items.map(i => ({ ...i.system, name: i.name, designMod: !!i.flags?.sr2e?.designMod }));
+    // Subsystem damage (R2 p.85–87, optional; 6a.4): each damaged mod's worst level, derived from live records.
+    const subsys = r2Option("r2Subsystems") && this.parent ? subsystemState(this.parent) : null;
+    const mods = items.map(i => ({ ...i.system, name: i.name, designMod: !!i.flags?.sr2e?.designMod, subsysLevel: subsys?.items?.[i._id ?? i.id] ?? null }));
     const pair = this.handlingOffRoad != null;
     const base = { handling: pair ? { onRoad: this.handling, offRoad: this.handlingOffRoad } : this.handling,
       speed: this.speed, acceleration: this.acceleration, load: this.load, cargo: this.cargo, armor: this.armor,
@@ -2183,8 +2186,11 @@ export class VehicleData extends SR2EDataModel {
     this.effective = {
       handling: typeof h === "object" && h !== null ? h.onRoad : h, handlingOffRoad: typeof h === "object" && h !== null ? h.offRoad : null,
       speed: eff.speed, acceleration: eff.acceleration, load: eff.load, cargo: eff.cargo, armor: eff.armor,
-      signature: eff.signature, economy: eff.economy, sensor: eff.sensor, autonav: eff.autonav, pilot: eff.pilot
+      signature: eff.signature, economy: eff.economy, sensor: eff.sensor, autonav: eff.autonav, pilot: eff.pilot,
+      body: Number(this.body) || 0
     };
+    // Built-in subsystem effects (Handling, engine, Body, Armor), derived — reassigned every preparation.
+    if (subsys) applySubsystemEffects(this.effective, subsys, Number(this.body) || 0);
     // Usable Cargo and Load: the effective gross − the design options − every mod's consumption (the one capacity
     // rule, module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
     const cap = vehicleCapacity({ cargo: this.effective.cargo, load: this.effective.load, optionCf: this.design.optionCf,

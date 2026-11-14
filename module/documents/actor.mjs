@@ -2208,7 +2208,7 @@ export class SR2EActor extends Actor {
     const terrainMod = CONFIG.SR2E.vehicleTerrainMods.ram[terrain] ?? 0;
     const sk = this._vehicleSkill(myVehicle);
     const myArmor = myVehicle.system.effectiveArmor ?? 0;
-    const dice = Math.max(1, sk.dice + (myVehicle.system.body ?? 1) + Math.floor(myArmor / 2) - (myVehicle.system.effectiveHandling ?? 0));
+    const dice = Math.max(1, sk.dice + (myVehicle.system.effective?.body ?? myVehicle.system.body ?? 1) + Math.floor(myArmor / 2) - (myVehicle.system.effectiveHandling ?? 0));
     const tn = Math.max(2, (opp.body ?? 1) + Math.floor((opp.armor ?? 0) / 2) - terrainMod + (myVehicle.system.damageTnMod ?? 0) + sk.penalty);
     const oppName = opp.name || "the other vehicle";
     const paid = await this._payControl(options.poolDice?.control, sk.cap);
@@ -2218,7 +2218,7 @@ export class SR2EActor extends Actor {
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
     const st = { rammerUuid: this.uuid, rammerVehicleUuid: myVehicle.uuid, rammerVehicleName: myVehicle.name,
-      rammerBody: myVehicle.system.body ?? 1, rammerArmor: myArmor,
+      rammerBody: myVehicle.system.effective?.body ?? myVehicle.system.body ?? 1, rammerArmor: myArmor,
       oppVehicleUuid: opp.actor?.uuid ?? "", oppName, oppBody: opp.body ?? 1, oppArmor: opp.armor ?? 0, oppHandling: opp.handling ?? 0,
       terrain, successes: res?.successes ?? 0, testMessageId: res?.testMessageId ?? "", resolved: false };
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: this }), content: renderVehicleRamCard(st), flags: { sr2e: { vehicleRam: st } } });
@@ -2299,7 +2299,7 @@ export class SR2EActor extends Actor {
    */
   async rollVehicleDamageResistance(power, level, options = {}) {
     const system    = this.system;
-    const body      = system.body ?? 1;
+    const body      = system.effective?.body ?? system.body ?? 1;   // Effective Body (subsystem damage, R2 p.87)
     const armor     = system.effectiveArmor ?? 0;   // armour mods count (plan Part 1 #3)
     const basePower = options.basePower ?? power;
     // Every terminal outcome names the card it resolves (flag-backed ranged
@@ -2570,7 +2570,7 @@ export class SR2EActor extends Actor {
     const cover = aboard ? fromUuidSync(aboard.entry.uuid) : null;
     if (cover) {
       const rigged = aboard.entry.driver === this.uuid && riggedInto(this, cover);
-      power = passengerShotPower({ power, armor: cover.system.effectiveArmor ?? 0, body: cover.system.body ?? 0 }) + (rigged ? 3 : 0);
+      power = passengerShotPower({ power, armor: cover.system.effectiveArmor ?? 0, body: cover.system.effective?.body ?? cover.system.body ?? 0 }) + (rigged ? 3 : 0);
       options = { ...options, noCombatPool: true, passengerOf: cover };
     }
     const system    = this.system;
