@@ -637,3 +637,29 @@ All taken: LOS per p.58 with ground-to-ground restricted; ordered transition sna
 dependent action; receiving-device and separate cancellation-layer generations; release only on the ammo writer's
 durable cancel receipt (later spends refused); per-launch exposure history used at Phase 0 with GM add/strike; one
 `transmitterOf` resolver. Also removed a sentence draft 4 left duplicated in 4.0.
+
+## Part 5 plan, round 1 — Codex (draft 1, fresh session): REVISE, 22 findings
+No operator/connection, one primary per rigger unenforced; `setControl` isn't an atomic multi-actor transaction (other
+queue, `linkedVehicles`, no NPCs); chase driver logic competes with network control; substituting Pilot dice doesn't
+adapt callers (drivingModes, rollDrivingTest, gunner state); drone identity conflated with adaptation; range loss
+invented as carrier loss and observation of non-affiliated drones; hardwiring incomplete; secondary-drone weapon fire
+while jumped; IVIS/Learning Pool spend and refresh; alert/frequency state on the wrong side; channel totals can't carry
+operation-specific effects or attacker provenance; no lost-carrier state, no reconnect TN; takeover invented a
+drone transfer; interference without a durable contest; dump causes and idempotency; intrusion removal by the wrong
+rule; CCSS treated as a radio network and coverage limits missing; access-step rules altered; security-rigger
+perception/radio/pool rules missing; ACV slopes, tailhook, train restrictions dropped; Task Pool omitted; wrong release
+dependencies.
+
+### Claude's response (draft 2)
+All taken; Part 5 rewritten. Task Pool read from R2 p.16 and Shadowtech pp.23/49 (encephalon L2–4 = 1–3 dice, cerebral
+booster L2 = 1) and added as 5a.0. User rulings R5-3 (reconnect base TN 4) and R5-4 (encephalon and booster Task Pool
+dice add). The network record gains operator/connection; drones' control truth is the connected network (NPC and token
+operators via a derived index); one world-wide `rc-control` queue (Part 1's control op joins it) with a stated lock
+order; chase operator vs crew; one drone test context with every caller adapted; drone identity / network capability
+separated; reachability separate from MIJI; observation only of affiliated drones; hardwiring as permanent affiliation;
+fire gated by mode; per-group IVIS and per-robot Learning Pool balances with keyed refreshes; target-side alert and
+`freqGen`; degradation entries with operation/attacker provenance and per-test channel rules; carrier state; a durable
+two-deck interference contest transferring only the operator; dump events with distinct causes and once-only steps;
+intrusion ended by Part 4's ECCM procedure (a stated reading); CCSS as a hardwired network (no MIJI) with components and
+coverage limits; access steps per p.79–80; security-rigger perception, radio and a pool table; ACV slope, tailhook and
+train rules; four releases with real dependencies.
