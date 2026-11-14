@@ -11,6 +11,7 @@
  * Removing a bought item writes `custDelivery.<id> = "removed"` first; recovery never recreates it and finishes the
  * deletion. Every step re-reads the live documents, so a replay changes nothing.
  */
+import { vehicleQuality } from "./vehicle-mode.mjs";
 import { isEngineCustomization, engineCheckForInstall, installRound, labourQuote } from "./vehicle-play.mjs";
 import { customizationQuote, vehicleTraits, installSkills, familyOf, brPenalty } from "./rules/vehicle-custom.mjs";
 import { applyModEffects, modProblems, vehicleCapacity, modCounts, modBaked } from "./rules/vehicle-design.mjs";
@@ -161,6 +162,14 @@ export function quoteCustomization(vehicle, cat, levels, catalog, { user = game.
   if (need && vehicle.system.tires && !need.includes(vehicle.system.tires) && ["bike", "car"].includes(ctx.category))
     problems.push(`it needs ${need.map(t => ({ performance: "performance", dualPurpose: "dual-purpose", offRoad: "off-road" })[t]).join(" or ")} tires (p.146)`);
   if (q.restricted === "military" && !user.isGM) problems.push("military only: the GM must arrange it");
+  // Quality Factors (R2 p.84–85, optional): Custom Built doubles the parts cost and base time of modifications
+  // installed later; Streamlined Layout / Complex Chassis change the Build/Repair (installation) TN.
+  const qe = vehicleQuality(vehicle);
+  if (qe.customization !== 1) {
+    if (q.price != null) q.price = Math.round(q.price * qe.customization * 100) / 100;
+    if (q.baseTime != null) q.baseTime = q.baseTime * qe.customization;
+  }
+  if (qe.brTn && q.tn != null) q.tn = q.tn + qe.brTn;
   const charged = q.price == null ? null : Math.round(q.streetIndex != null ? streetPrice(q.price, q.streetIndex) : q.price);
   return { ...q, ok: problems.length === 0, problems, charged, family: familyOf(m), mountPoints: num(m.mountPoints) };
 }

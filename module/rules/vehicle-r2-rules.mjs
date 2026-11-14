@@ -61,11 +61,12 @@ export function ruleOfOne(ones, skill) {
  * @param {object} o failed, stress (after any purchased Stress), body, ones, skill, stressRoll (2D6), ruleRoll (1D6)
  * @returns {{stressTest: boolean, failure: null|"stressTest"|"ruleOfOne", addStress: number}}
  */
-export function drivingStressOutcome({ failed, stress, body, ones, skill, stressRoll = null, ruleRoll = null }) {
+export function drivingStressOutcome({ failed, stress, body, ones, skill, stressRoll = null, ruleRoll = null, stressTn = 0 }) {
   let failure = null, addStress = 0;
   const s0 = Math.max(0, Number(stress) || 0);
   const stressTest = !!failed;
-  if (stressTest && stressRoll != null && stressRoll < s0) failure = "stressTest";
+  // `stressTn`: Quality Factors' target modifier on Stress Tests (R2 p.84: Ruggedness −1, Fragility +1 per level).
+  if (stressTest && stressRoll != null && stressRoll < s0 + (Number(stressTn) || 0)) failure = "stressTest";
   if (ruleOfOne(ones, skill) && ruleRoll != null) {
     addStress = ruleRoll;
     if (!failure && s0 + addStress >= 2 * (Number(body) || 0)) failure = "ruleOfOne";
