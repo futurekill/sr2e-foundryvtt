@@ -145,6 +145,31 @@
       }
     },
     {
+      "_id": "98dc22f09297da3f",
+      "name": "Use a vehicle's sensors (Rigger 2)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 600000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> spot and lock on to a target with a vehicle&#39;s sensors, and jam or be jammed (<em>Rigger 2</em> pp.27–32).</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-r2-sensors.png\" alt=\"The Sensors panel and a Sensor Test card\"></p>\n<ol>\n<li>On the vehicle&#39;s sheet (Rigger 2 panel) click <strong>Sensors</strong>.</li>\n<li>Target the token you want to find, then <strong>Sensor Test</strong>. Tick the conditions that apply and <strong>Roll</strong>. The card says\nwhat you found; any success locks on until you lose contact.</li>\n<li>Out of range? The panel shows each transmitter&#39;s range. Tick the conditions around you (urban, high elevation…)\nand <strong>Apply</strong>; ask the GM for a Flux boost if the vehicle has an Electronics Port or amplifiers.</li>\n<li>Being jammed? Switch on your <strong>ECCM</strong> (a Simple Action) before the next Sensor Test. Jamming them? Switch on your\n<strong>ECM</strong>: anyone whose sensors are inside its range sees your vehicle as harder to spot.</li>\n<li>Want sharper eyes? <strong>Customize</strong> → buy a <strong>Sensor Upgrade</strong> (magnification, thermographic, flare compensation…).</li>\n</ol>\n"
+      }
+    },
+    {
       "_id": "a3bb81ee4ccf9902",
       "name": "Drive by the Rigger 2 rules",
       "type": "text",
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },
@@ -634,7 +659,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2500000,
+      "sort": 2600000,
       "ownership": {
         "default": -1
       },
@@ -659,7 +684,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2600000,
+      "sort": 2700000,
       "ownership": {
         "default": -1
       },
