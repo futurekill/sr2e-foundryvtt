@@ -18613,6 +18613,47 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Gunnery modes (Part 4b, R2 p.56–59)", function () {
+        const gunFor = async (vehicle) => (await vehicle.createEmbeddedDocuments("Item", [{ name: "Quench HMG", type: "weapon",
+          system: { weaponType: "firearm", damageCode: "6M", ammo: { max: 0, current: 0 }, firingModes: { sa: true } } }]))[0];
+        const spyTN = (a) => { const seen = [], orig = a.rollSuccessTest.bind(a);
+          a.rollSuccessTest = (dice, tn, o) => { seen.push([dice, tn]); return orig(dice, tn, o); };
+          return { seen, off: () => { a.rollSuccessTest = orig; } }; };
+        it("manual gunnery: the p.57 rows replace attacker movement and p.108", async function () {
+          this.timeout(20000);
+          const A = await mk("Quench Gun A"), B = await mk("Quench Gun B");
+          const scene = await sceneWith([A, 100], [B, 600]);
+          const pc = await Actor.create({ name: "Quench Gunner", type: "character" }); made.push(pc);
+          await pc.createEmbeddedDocuments("Item", [{ name: "Firearms", type: "skill", system: { rating: 3, category: "active" } }]);
+          const gun = await gunFor(A), sp = spyTN(pc);
+          try {
+            await gun._rollWeaponAttack({ gunner: pc, gunneryMode: "manual", range: "short", attackerMod: 4, speedMod: 6,
+              r2: { attackerSpeed: 40, targetSpeed: 100, targetSize: "helicopter" },
+              _engage: { key: "quench-gun", token: { uuid: scene.tokens.find(t => t.actorId === B.id).uuid } } });
+          } finally { sp.off(); }
+          assert.equal(sp.seen[0]?.[1], 4 + 4 - 2, "base 4, relative speed 2.5× +4, helicopter −2; no +4 moving, no p.108 +6");
+        });
+        it("sensor-enhanced gunnery: refused without a lock; with one, Signature-based TN and ⌊Sensor ÷ 2⌋ dice", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const A = await mk("Quench SGun A", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]), B = await mk("Quench SGun B");
+          const scene = await sceneWith([A, 100], [B, 600]);
+          const pc = await Actor.create({ name: "Quench SGunner", type: "character" }); made.push(pc);
+          await pc.createEmbeddedDocuments("Item", [{ name: "Firearms", type: "skill", system: { rating: 3, category: "active" } }]);
+          const gun = await gunFor(A), sp = spyTN(pc);
+          const opts = { gunner: pc, gunneryMode: "sensor", range: "short", r2: { los: "direct", urban: true },
+            _engage: { key: "quench-sgun", token: { uuid: scene.tokens.find(t => t.actorId === B.id).uuid } } };
+          try {
+            await gun._rollWeaponAttack(opts);
+            assert.equal(sp.seen.length, 0, "no lock: refused before rolling");
+            await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+            await gun._rollWeaponAttack(opts);
+          } finally { sp.off(); }
+          assert.equal(sp.seen[0]?.[1], 4 + 2 - 3, "Signature 4, urban +2, direct LOS −3");
+          assert.equal(sp.seen[0]?.[0], 3 + 1, "Firearms 3 + ⌊3 ÷ 2⌋");
+        });
+      });
+
       describe("Flux boosts (R2 p.30)", function () {
         it("refuses an engine boost without an Electronics Port and amplifier use over its rating", async function () {
           const S = await mods();

@@ -23,16 +23,14 @@ export function relativeSpeedMod(a, b) {
 /** p.58: both under 5 m/turn → standard ranged combat instead of manual gunnery. */
 export const bothSlow = (a, b) => Math.abs(Number(a) || 0) < 5 && Math.abs(Number(b) || 0) < 5;
 
-/** Recoil (p.57 / p.58 tables, key p.57): `uncompensated` recoil, the mount and the accessories' compensation.
- *  Fixed mounts and turrets halve (round down) before accessories, which cancels the heavy-weapon doubling. */
+/** Recoil (p.57 / p.58 tables, key p.57) from the rounds that count (`recoil`). Pintle −2 and ring −6 are recoil
+ *  COMPENSATION, added to the accessories' (core p.89–90: heavy weapons then double what is left uncompensated).
+ *  Fixed mounts and turrets halve the recoil (round down) BEFORE the accessories, which cancels the doubling. */
 export function vehicleRecoil({ recoil = 0, heavy = false, mount = "", accessories = 0 }) {
-  let r = Math.max(0, recoil);
-  if (mount === "fixed" || mount === "turret") r = Math.floor(r / 2);
-  else if (heavy) r *= 2;
-  r -= Math.max(0, accessories);
-  if (mount === "pintle") r -= 2;
-  if (mount === "ring") r -= 6;
-  return Math.max(0, r);
+  const r = Math.max(0, recoil), acc = Math.max(0, accessories);
+  if (mount === "fixed" || mount === "turret") return Math.max(0, Math.floor(r / 2) - acc);
+  const net = Math.max(0, r - acc - (mount === "pintle" ? 2 : mount === "ring" ? 6 : 0));
+  return heavy ? net * 2 : net;
 }
 
 /**
@@ -132,3 +130,24 @@ export function critterSignature(name) {
 }
 /** By size (p.61): 3× larger 5, 6× larger 4, "and so on"; 3× smaller 7, 6× smaller 8. `steps` = ±1 per 3×. */
 export const sizeSignature = (steps) => 6 - steps;
+
+/**
+ * The manual-gunnery rows the core attack engine does NOT already apply (4b.2, p.57): attacking drone legs, firing an
+ * unmounted weapon, relative motion, Maneuver Score difference, relative speed, target size, smartlink II and the
+ * attacking vehicle's damage. Blind fire, partial cover, visibility, smartlink I, aimed shots, multiple targets, target
+ * running/stationary and recoil have the core values and stay where the core engine applies them, once.
+ */
+export function manualExtras(o = {}) {
+  const { legs, difficultGround, unmounted, motion, attackerMS, targetMS, attackerSpeed, targetSpeed, targetSize,
+    smartlinkII, vehicleDamage } = o;
+  return manualGunneryMods({ legs, difficultGround, unmounted, motion, attackerMS, targetMS, attackerSpeed, targetSpeed,
+    targetSize, smartlinkII, vehicleDamage });
+}
+
+/** Dispatch default (4b.1): manual for a vehicle-mounted weapon or a shooter aboard; core otherwise; p.58's slow
+ *  exception (both under 5 m/turn) turns manual into standard ranged combat. */
+export function defaultGunneryMode({ mounted = false, aboard = false, attackerSpeed = null, targetSpeed = null }) {
+  if (!mounted && !aboard) return "core";
+  if (Number.isFinite(attackerSpeed) && Number.isFinite(targetSpeed) && bothSlow(attackerSpeed, targetSpeed)) return "core";
+  return "manual";
+}

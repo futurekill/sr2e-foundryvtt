@@ -17,6 +17,7 @@ describe("Rigger 2 gunnery (p.56–61)", () => {
     expect(vehicleRecoil({ recoil: 6, heavy: true, mount: "turret", accessories: 1 })).toBe(2);
     expect(vehicleRecoil({ recoil: 5, mount: "ring" })).toBe(0);
     expect(vehicleRecoil({ recoil: 5, mount: "pintle" })).toBe(3);
+    expect(vehicleRecoil({ recoil: 9, heavy: true, mount: "pintle", accessories: 1 })).toBe(12);   // (9 − 1 − 2) × 2
   });
   it("manual modifiers (p.57)", () => {
     const sum = (o) => manualGunneryMods(o).reduce((t, p) => t + p.value, 0);
@@ -58,5 +59,19 @@ describe("Rigger 2 gunnery (p.56–61)", () => {
     expect(critterSignature("Ghoul")).toBeNull();
     expect(sizeSignature(1)).toBe(5);
     expect(sizeSignature(-2)).toBe(8);
+  });
+});
+
+import { manualExtras, defaultGunneryMode } from "../module/rules/vehicle-gunnery-rules.mjs";
+describe("Rigger 2 gunnery dispatch (4b.1)", () => {
+  it("manual extras exclude rows the core engine applies (no double counting)", () => {
+    const sum = (o) => manualExtras(o).reduce((t, p) => t + p.value, 0);
+    expect(sum({ blind: true, partialCover: true, aimed: 2, extraTargets: 1, targetRunning: true })).toBe(0);
+    expect(sum({ unmounted: true, targetSize: "helicopter", vehicleDamage: 2, attackerSpeed: 40, targetSpeed: 100 })).toBe(2 - 2 + 2 + 4);
+  });
+  it("defaults: mounted or aboard → manual; both under 5 m/turn → core (p.58)", () => {
+    expect(defaultGunneryMode({})).toBe("core");
+    expect(defaultGunneryMode({ mounted: true })).toBe("manual");
+    expect(defaultGunneryMode({ aboard: true, attackerSpeed: 3, targetSpeed: 4 })).toBe("core");
   });
 });
