@@ -26,6 +26,7 @@ import { RL } from "../util/roll-label.mjs";
 import { controllerOf } from "../vehicle-play.mjs";
 import { manualExtras, sensorGunneryTN, vehicleRecoil } from "../rules/vehicle-gunnery-rules.mjs";
 import { isRigger2 } from "../vehicle-mode.mjs";
+import { ammoQueued, queuedReload, spendRounds } from "../vehicle-ammo.mjs";
 import { validateSplit } from "../rules/spell-rules.mjs";
 import { renderSpellResistCard, combatSpellMode, combatSpellDamage, planCombatTargets, movementTN, postCombatSpellCards,
          resolveMisfire } from "../combat-spells.mjs";
@@ -447,6 +448,8 @@ export class SR2EItem extends Item {
   async reloadWeapon() {
     const actor = this.parent;
     if (!actor || this.type !== "weapon") return;
+    // Rigger 2: the one ammunition queue (4b.4) — a journalled reload through the GM.
+    if (ammoQueued(this)) return queuedReload(this);
     // Reserve rounds are refundable stock: the reload reads and writes them inside the
     // owner's money queue, so it can't interleave with a sale or a consolidation.
     return moneyQueue(actor, () => this._reloadNow(), "reload");
@@ -520,7 +523,8 @@ export class SR2EItem extends Item {
       "system.ammo.armorMod":       source.system.armorModifier ?? 0,
       "system.ammo.armorCalc":      source.system.armorCalc ?? "standard",
       "system.ammo.damageType":     source.system.damageType ?? "",
-      "system.ammo.material":       source.system.material ?? ""
+      "system.ammo.material":       source.system.material ?? "",
+      "system.ammo.guided":         source.system.guided ?? { kind: "", intelligence: 0, sensor: 0 }
     }, {}, "reload: load");
     if (!loaded) return undo("the weapon couldn't be loaded");
 
@@ -1099,6 +1103,13 @@ export class SR2EItem extends Item {
     // brackets (p.88), the cadence from the rounds actually fired.
     const attackSfx = attackSound({ weaponType: this.system.weaponType, ranges: this.system.ranges,
       skillKey: tnContext.key, name: this.name, rounds }, SFX_KEYS);
+    // Rigger 2 (4b.4): the rounds are spent through the GM's ammunition queue BEFORE the roll; a refusal (a reload in
+    // progress, the clip emptied by another attack) aborts without rolling.
+    const queuedSpend = isRanged && !isThrown && ammoQueued(this);
+    if (queuedSpend) {
+      try { await spendRounds(this, eng.walked + rounds); }
+      catch (err) { return ui.notifications.warn(`${this.name}: ${err.message}`); }
+    }
     const result = await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
       flags: sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null),
@@ -1153,7 +1164,7 @@ export class SR2EItem extends Item {
       } else if (hasRecoil) {
         await actor.update({ "system.combatRecoil": shotsFired + spent });
       }
-      if (this.system.ammo?.max > 0 && !isThrown) {
+      if (this.system.ammo?.max > 0 && !isThrown && !queuedSpend) {
         await this.update({
           "system.ammo.current": Math.max(0, this.system.ammo.current - spent)
         });

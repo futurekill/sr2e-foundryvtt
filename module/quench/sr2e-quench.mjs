@@ -18654,6 +18654,39 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("The ammunition queue (Part 4b.4)", function () {
+        const until = async (fn, n = 60) => { for (let i = 0; i < n && !fn(); i++) await new Promise(r => setTimeout(r, 100)); return fn(); };
+        it("a reload swapping ammunition ejects to escrow, loads what the reserve has, credits the eject, closes", async function () {
+          this.timeout(20000);
+          const A = await import("../vehicle-ammo.mjs");
+          const pc = await Actor.create({ name: "Quench Ammo PC", type: "character" }); made.push(pc);
+          const [reg, ex] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Regular", type: "ammo", system: { quantity: 20 } },
+            { name: "Quench EX", type: "ammo", system: { quantity: 5, ammoType: "ex" } }]);
+          const [w] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Rifle", type: "weapon", system: { weaponType: "firearm",
+            damageCode: "8M", ammo: { max: 10, current: 8, sourceId: ex.id, loadedSourceId: reg.id, loadedName: "Quench Regular" } } }]);
+          const id = await A.queuedReload(w);
+          assert.ok(await until(() => w.getFlag("sr2e", "reloadPlans")?.[id]?.state === "closed"), "the reload closed");
+          assert.equal(w.system.ammo.current, 5, "only 5 EX rounds to load");
+          assert.equal(w.system.ammo.loadedName, "Quench EX");
+          assert.equal(ex.system.quantity, 0);
+          assert.equal(reg.system.quantity, 28, "the 8 ejected regular rounds back, once");
+          A.reconcileReloads(w); await new Promise(r => setTimeout(r, 500));
+          assert.equal(reg.system.quantity, 28, "a re-run credits nothing twice");
+        });
+        it("spends are receipted, idempotent and refused past the clip", async function () {
+          const A = await import("../vehicle-ammo.mjs");
+          const pc = await Actor.create({ name: "Quench Spend PC", type: "character" }); made.push(pc);
+          const [w] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench SMG", type: "weapon", system: { weaponType: "firearm",
+            damageCode: "6M", ammo: { max: 30, current: 3 } } }]);
+          await A.spendRounds(w, 2, "quenchspend1");
+          await A.spendRounds(w, 2, "quenchspend1");
+          assert.equal(w.system.ammo.current, 1, "a replay of the same event spends once");
+          let err = null;
+          try { await A.spendRounds(w, 2); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /1 round left/);
+        });
+      });
+
       describe("Flux boosts (R2 p.30)", function () {
         it("refuses an engine boost without an Electronics Port and amplifier use over its rating", async function () {
           const S = await mods();

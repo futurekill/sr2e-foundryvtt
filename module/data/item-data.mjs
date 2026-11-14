@@ -38,6 +38,16 @@ import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effect
  * @param {string} s  The raw drain code string.
  * @returns {{ modifier: number, level: string, levelFromWound: boolean }}
  */
+/** Guided ordnance (R2 p.59; docs/PLAN-vehicles-phase2.md 4b.4): kind "" (none) | "missile" | "rocket". */
+function guidedField() {
+  const fields = foundry.data.fields;
+  return new fields.SchemaField({
+    kind: new fields.StringField({ initial: "", blank: true, choices: { "": "—", missile: "Missile", rocket: "Rocket" } }),
+    intelligence: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+    sensor: new fields.NumberField({ integer: true, initial: 0, min: 0 })
+  });
+}
+
 export function parseDrainCode(s) {
   s = s ?? "";
   // Canonical with modifier: ((F / 2) ± N)Level (handles en-dash / em-dash too)
@@ -252,7 +262,10 @@ export class WeaponData extends SR2EDataModel {
         armorMod: new fields.NumberField({ integer: true, initial: 0 }),
         armorCalc: new fields.StringField({ initial: "standard" }),
         damageType: new fields.StringField({ initial: "", blank: true }),
-        material: new fields.StringField({ initial: "", blank: true })
+        material: new fields.StringField({ initial: "", blank: true }),
+        // Guided ordnance in the clip (R2 p.59, Part 4b.4): a one-shot missile weapon authors it here; a launcher gets it
+        // from the reserve at reload. Rockets have no Intelligence and fire through manual/sensor gunnery.
+        guided: guidedField()
       }),
       recoilComp: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       smartgunCompatible: new fields.BooleanField({ initial: false }),
@@ -1285,6 +1298,7 @@ export class AmmoData extends SR2EDataModel {
       cost: new fields.NumberField({ initial: 0, min: 0 }),
       // What the rounds are made of (silver…); wins over the weapon's own material.
       material: new fields.StringField({ initial: "", blank: true }),
+      guided: guidedField(),   // missiles/rockets (R2 p.59): copied into the weapon's clip at reload
       notes: new fields.StringField({ initial: "" })
     };
   }
