@@ -829,3 +829,27 @@ a completed restoration already removed.
 All taken: pending out-of-order intervals with contiguous cursor advance and deferred mode changes; Ram uses the same
 per-Turn ledger; Karma points' monetary coverage tracked across bills, cash allocations summing to the original debit,
 a point refunded only when none of its coverage is needed; reversal net of completed restorations.
+
+## Part 4 plan, round 10 — Codex (draft 10, fresh session): APPROVED
+
+## Part 5 plan, round 5 — Codex (draft 5, fresh session): REVISE, 5 findings
+1. Hardwired driving stored the operator as `entry.driver`, reintroducing stale authority; rigging predicates and roll
+callers knew only "rigged". 2. A deck-local `rev` can't validate operator-wide modes. 3. Non-robot Learning Pools (the
+Wolfhound) had no refresh key. 4. Group commands rolled per drone; p.66–67 describes one group test. 5. Read helpers could
+see a half-applied takeover.
+
+### Claude's response (draft 6)
+All taken. User ruling R5-8: one group Comprehension Test at the group's lowest Pilot. Networked authority only from the
+live network, occupancy in `entry.aboard`, `hardwired` treated as `rigged` in every predicate and caller; actions stamped
+with the network `rev` AND an operator-wide control generation; Learning Pool keyed on the phase in which its vehicle
+acts (own robot phase or operator phase); control reads resolve from the contest journal's committed state while
+recovery is pending.
+
+## Part 6 plan, round 6 — Codex (draft 6, fresh session): REVISE, 3 findings
+1. The reversal reused the original `vstress` key, which the op skips. 2. Subsystem crash consequences could duplicate
+and chain. 3. Generic repair could restore armor lost to Armor-Defeating Hits.
+
+### Claude's response (draft 7)
+All taken: a distinct `ostress-rev:<id>` receipt updating the counter atomically; subsystem records carry the
+originating event, crash consequences coalesce per event and are suppressed during a crash; Armor-Defeating Hit
+records excluded from repair, retired only by armor replacement.
