@@ -573,14 +573,19 @@ export function registerVehicleSensors() {
   // #2, r3 #2, r4: only on that transition). The last receiver is DURABLE (`flags.sr2e.ewReceiver`, any GM can take
   // over, unlinked tokens carry it), and the decision is read synchronously as each change lands, so a removal undone
   // by the next update is still seen. Never recorded (an older vehicle): assume the stock sensors were receiving.
+  // Each transition is captured synchronously against the last one SEEN (in memory, from the durable flag as the
+  // baseline) and persisted in queue order, so changes landing while the queue is busy each count (round 5).
+  const pendingReceiver = new Map();
   const receiverHook = (v) => {
     const now = sensorOf(v)?.id ?? null, stored = v.getFlag("sr2e", "ewReceiver");
-    const was = stored === undefined ? BUILTIN : stored;
-    const drop = was === BUILTIN && now !== BUILTIN;
+    const was = pendingReceiver.has(v.uuid) ? pendingReceiver.get(v.uuid) : stored === undefined ? BUILTIN : stored;
+    if (was === now) return;
+    pendingReceiver.set(v.uuid, now);
+    const drop = was === BUILTIN;
     vq(v.uuid, async () => {
       if (drop) await bump(v, [`device.${BUILTIN}`]);
-      const cur = sensorOf(v)?.id ?? null;
-      if (v.getFlag("sr2e", "ewReceiver") !== cur) await v.update({ "flags.sr2e.ewReceiver": cur });
+      await v.update({ "flags.sr2e.ewReceiver": now });
+      if (pendingReceiver.get(v.uuid) === now) pendingReceiver.delete(v.uuid);
     }).catch(err => console.error("SR2E | ew receiver", err));
   };
   const itemHook = (item, deleted = false) => {

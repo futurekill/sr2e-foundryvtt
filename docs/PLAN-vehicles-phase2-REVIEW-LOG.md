@@ -1000,3 +1000,11 @@ sensors receiving (a one-time conservative bump). Quench `sr2e.sensors` 14/14.
 Both taken: `controllerOf` untouched; a separate `channelActor(net, channel)` read only by the command, observation/
 system-data, indirect-fire and simsense-observe paths; captured-channel actions stamp both networks' generations and the
 intruder's operator stamp, re-validated under `rc-control` at commit.
+
+## Part 4a code, round 5 — Codex (fix review, fresh session): REVISE, 1 finding
+1. Queued flag writes can hide receiver interruptions: hooks landing while the queue is busy all read the same durable
+   value, so a disable-and-restore between them bumps nothing.
+
+### Claude's response
+Taken: each transition is captured synchronously against the last one SEEN (an in-memory value per vehicle, the durable
+flag as baseline) and persisted in queue order (bump, then the captured receiver). Quench `sr2e.sensors` 14/14.
