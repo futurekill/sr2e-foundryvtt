@@ -888,3 +888,22 @@ applied to chase movement.
 ### Claude's response (draft 9)
 Both taken: persisted round→interval mapping (3 s per Combat Turn, reused on replay); a receipted coasting ledger moving
 total ÷ turnsToStop per Turn in place of ordinary movement, the travelled distance feeding an early aircraft crash.
+
+## Part 4a code, round 1 — Codex: REVISE, 11 findings
+1. A countermeasure switched on later never countered a standing ECM/ED result. 2. Unlinked token vehicles were left out
+of EW discovery and sweeps. 3. A token's first move after placement skipped invalidation. 4. Toggles/equipment changes
+that shrink a range didn't sweep. 5. EW records lacked hide and receiving-sensor identity dependencies. 6. A Sensor Test
+went ahead with no usable range or no known distance. 7. ECM wasn't settled when the scanned target wasn't a vehicle.
+8. Range/generations were read outside the queue (a sweep could slip between), no idempotency. 9. Players could pass the
+GM-only Signature override. 10. No way to connect an Electronics Port to a device. 11. A pending/removed Sensors item
+displaced working sensors.
+
+### Claude's response
+All fixed: ECCM/ECD are separate layers rolled against the standing record; `allVehicles()` includes unlinked token
+vehicles; positions cached at ready and on token creation, uncached moves still swept; sweeps on every toggle, boost,
+port, condition, item and Body change (`sweepAround`, transmitter and recipient sides); records store the receiving
+sensor id+generation and the directed hide generation; targeted tests fail closed (range, distance — the GM may state
+one); ECM settled for every Sensor Test, ED only for vehicle targets; the test is admitted, rolled and recorded in ONE
+observer-queue step, idempotent by `eventId` with `sensorReceipts`; `gmValue` only from a GM; a `portBind` GM op and a
+Ports section on the panel; the sensor transmitter is the WORKING Sensors item, else stock sensors. Quench: 4 new cases
+(sr2e.sensors 9/9); vehicle batches 93/93.

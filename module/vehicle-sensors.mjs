@@ -2,16 +2,19 @@
  * Rigger 2 sensors and electronic warfare, Part 4a (docs/PLAN-vehicles-phase2.md 4.0, 4a.1–4a.5). Rigger 2 ruleset only.
  *
  *   - Transmitters: a vehicle's working devices (Sensors, ECM, ECCM, ED, ECD vehicle mods; RC decks/radios flagged by
- *     rule) identified by item id, plus `builtin-sensor` for stock sensors with no Sensors item (`transmitterOf`).
+ *     rule) identified by item id, plus `builtin-sensor` for stock sensors with no working Sensors item (`transmitterOf`).
  *   - Every record is written by the ACTIVE GM in the vehicle queue `vdmg:<uuid>` (GM ops below). Records store the
  *     generations they depend on and are valid only while those still match (R4-2: "until contact is lost"):
  *       flags.sr2e.ewGen = { device: { <deviceId>: n }, link: { <deviceId>~<recipientKey>: n } }
  *     `device` bumps when a device is switched off, stops working or is removed; `link` when the recipient leaves that
- *     transmitter's range (the GM's sweep on token moves, chase-distance changes, boosts and conditions). Hiding from a
- *     pursuer is the chase pair's `hideGen` (chase.mjs). Readers never mutate records.
+ *     transmitter's range (the GM's sweep on token moves, chase changes, toggles, boosts, conditions and equipment
+ *     changes). Hiding is the chase pair's `hideGen` (chase.mjs). Every record also names the RECEIVING sensor (id +
+ *     generation). Readers never mutate records.
  *   - ECM/ECCM/ED/ECD Tests are equipment against equipment, "not … an action by either character" (R2 p.31): the GM's
- *     client rolls them when an observer first needs them and posts the card. The Sensor Test (Sensor Rating dice, no
- *     pools) is rolled and recorded by the GM in one step for the controlling player.
+ *     client rolls them when an observer first needs them and posts the card. A countermeasure (ECCM, ECD) is its own
+ *     layer: switched on later, it is rolled against the standing result without re-rolling it.
+ *   - The Sensor Test (Sensor Rating dice, no pools) is reserved, rolled and recorded by the GM in ONE queue step for
+ *     the controlling player, idempotent by the caller's event id.
  */
 import { gmCall, gmOp, controllerOf, followId } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
@@ -32,6 +35,20 @@ const gmWhisper = () => ChatMessage.getWhisperRecipients("GM").map(u => u.id);
 /** The optional ED/ECD rule (R2 p.32), off by default. */
 export const edRuleOn = () => { try { return isRigger2() && !!game.settings.get("sr2e", "r2ElectronicDeception"); } catch (e) { return false; } };
 
+/* ── Vehicles in the world (world actors AND unlinked token vehicles) ─────────────────────────────────────── */
+
+/** Every vehicle actor that can take part: world vehicles and every scene's unlinked vehicle tokens, by uuid. */
+export function allVehicles() {
+  const out = new Map();
+  for (const a of game.actors ?? []) if (a.type === "vehicle") out.set(a.uuid, a);
+  for (const scene of game.scenes ?? []) for (const t of scene.tokens ?? []) {
+    if (t.actorLink) continue;
+    const a = t.actor;
+    if (a?.type === "vehicle") out.set(a.uuid, a);
+  }
+  return [...out.values()];
+}
+
 /* ── Transmitters ─────────────────────────────────────────────────────────────────────────────────────────── */
 
 const isPort = (i) => i.type === "vehicle_mod" && (i.system.modKey === "electronics-port" || /electronics port/i.test(i.name));
@@ -41,30 +58,38 @@ const itemWorking = (i) => WORKING.includes(i.system.custom?.state ?? "");
 export function ported(vehicle, deviceId) {
   return !!vehicle?.items?.some(i => isPort(i) && itemWorking(i) && i.system.custom?.choice?.device === deviceId);
 }
+/** The vehicle's installed Electronics Ports: { id, name, device }. */
+export const portsOf = (vehicle) => (vehicle?.items ?? []).filter(i => isPort(i) && itemWorking(i))
+  .map(i => ({ id: i.id, name: i.name, device: i.system.custom?.choice?.device ?? "" }));
+
+const workingSensorItem = (vehicle) => vehicle.items.find(i => i.type === "vehicle_mod" && i.system.modKey === "sensors" && itemWorking(i)) ?? null;
 
 /** Does the vehicle have a sensor system at all (R2 p.27, p.31; plan 4a.3)? */
 export function hasSensors(vehicle) {
   const s = vehicle?.system;
   if (!s) return false;
   if (s.sensorInstalled != null) return s.sensorInstalled;
-  return (s.effective?.sensor ?? s.sensor ?? 0) > 0 || !!vehicle.items.some(i => i.system?.modKey === "sensors" && itemWorking(i));
+  return (s.effective?.sensor ?? s.sensor ?? 0) > 0 || !!workingSensorItem(vehicle);
 }
 
-/** Every transmitter on the vehicle, working or not: { id, kind, rating, item, working, on, ported }. */
+/**
+ * Every transmitter on the vehicle: { id, kind, rating, item, working, on, ported }. The sensor transmitter is the
+ * WORKING Sensors item, else the stock sensors (`builtin-sensor`); bought-but-uninstalled or removed Sensors items are
+ * listed as not working and never displace a working system.
+ */
 export function transmitters(vehicle) {
   if (vehicle?.type !== "vehicle") return [];
   const on = vehicle.getFlag("sr2e", "ewOn") ?? {};
   const out = [];
-  let sensorItem = null;
+  const sensorItem = workingSensorItem(vehicle);
   for (const i of vehicle.items) {
     const kind = i.type === "vehicle_mod" ? KIND_BY_MODKEY[i.system.modKey]
       : ["rc-deck", "radio"].includes(i.flags?.sr2e?.rule) ? (i.flags.sr2e.rule === "rc-deck" ? "rcDeck" : "radio") : null;
     if (!kind) continue;
-    if (kind === "sensor") { if (sensorItem) continue; sensorItem = i; }
-    const working = i.type === "vehicle_mod" ? itemWorking(i) : true;
+    const working = i.type === "vehicle_mod" ? itemWorking(i) && (kind !== "sensor" || i === sensorItem) : true;
     // Sensors, decks and radios are always on while working; ECM/ECCM/ED/ECD are toggled (Simple Actions, p.32).
     const toggled = ["ecm", "eccm", "ed", "ecd"].includes(kind);
-    out.push({ id: i.id, kind, rating: kind === "sensor" ? (vehicle.system.effective?.sensor ?? i.system.rating) : Number(i.system.rating) || 0,
+    out.push({ id: i.id, kind, rating: kind === "sensor" ? (working ? vehicle.system.effective?.sensor ?? i.system.rating : Number(i.system.rating) || 0) : Number(i.system.rating) || 0,
       item: i, working, on: working && (!toggled || !!on[i.id]), ported: ported(vehicle, i.id) });
   }
   if (!sensorItem && hasSensors(vehicle))
@@ -126,7 +151,7 @@ export function componentsOf(vehicle) {
 /* ── Distance and generations ─────────────────────────────────────────────────────────────────────────────── */
 
 const keyOf = (actor) => followId(actor.uuid);
-/** A token of this actor on a scene (the viewed scene first). */
+/** This actor's token on a scene: a synthetic actor's own token, else a linked token. */
 function tokenOf(actor, scene) {
   if (actor?.isToken) return actor.token?.parent === scene ? actor.token : null;
   return scene?.tokens?.find(t => t.actorId === actor?.id && t.actorLink) ?? null;
@@ -158,7 +183,7 @@ const gens = (vehicle) => vehicle?.getFlag("sr2e", "ewGen") ?? {};
 const devGen = (vehicle, id) => gens(vehicle).device?.[id] ?? 0;
 const linkKey = (deviceId, recipient) => `${deviceId}~${keyOf(recipient)}`;
 const linkGen = (vehicle, deviceId, recipient) => gens(vehicle).link?.[linkKey(deviceId, recipient)] ?? 0;
-/** The chase pair's hide generation between an observer and a target (chase.mjs bumps it when the target hides). */
+/** The chase pair's hide generation for `target` hiding from `observer` (chase.mjs bumps it when the target hides). */
 function hideState(observer, target) {
   for (const chase of activeChases().map(chaseOf)) {
     const eo = Object.entries(chase.entries ?? {}).find(([, e]) => e.uuid === observer.uuid)?.[0];
@@ -169,6 +194,16 @@ function hideState(observer, target) {
   }
   return { inContact: true, gen: 0 };
 }
+/** The receiving side's dependencies: its sensor's identity and generation, and the hide state toward the emitter. */
+function receiverDeps(observer, emitter) {
+  const s = sensorOf(observer);
+  return s ? { sensorId: s.id, sensorGen: devGen(observer, s.id), hide: hideState(observer, emitter).gen } : null;
+}
+const receiverOk = (observer, emitter, d) => {
+  if (!d) return false;
+  const s = sensorOf(observer), h = hideState(observer, emitter);
+  return !!s && s.id === d.sensorId && devGen(observer, s.id) === d.sensorGen && h.inContact && h.gen === d.hide;
+};
 
 /* ── Validity ─────────────────────────────────────────────────────────────────────────────────────────────── */
 
@@ -176,8 +211,7 @@ function hideState(observer, target) {
 export function lockOn(vehicle, target) {
   const lock = vehicle?.getFlag("sr2e", "locks")?.[keyOf(target)];
   if (!lock || lock.cleared) return null;
-  const sensor = transmitterOf(vehicle, lock.deviceId);
-  if (!sensor) return null;
+  if (!transmitterOf(vehicle, lock.deviceId) || sensorOf(vehicle)?.id !== lock.deviceId) return null;
   if (devGen(vehicle, lock.deviceId) !== lock.deps.device) return null;
   if (linkGen(vehicle, lock.deviceId, target) !== lock.deps.link) return null;
   const h = hideState(vehicle, target);
@@ -185,36 +219,45 @@ export function lockOn(vehicle, target) {
   return lock;
 }
 
-/** The valid ECM outcome of jammer J against observer O, or null (plan 4a.4). */
-function jamOn(jammer, observer) {
+/** The valid BASE ECM record of jammer J against observer O (the jam itself, without its ECCM layer), or null. */
+function jamBase(jammer, observer) {
   const ev = jammer.getFlag("sr2e", "jamEvent"), vs = jammer.getFlag("sr2e", "jamVs")?.[keyOf(observer)];
   if (!ev || !vs || vs.eventId !== ev.id) return null;
-  const ecm = transmitterOf(jammer, ev.deviceId);
-  if (!ecm || !activeOf(jammer, "ecm").some(t => t.id === ev.deviceId)) return null;
-  if (devGen(jammer, ev.deviceId) !== ev.deviceGen || linkGen(jammer, ev.deviceId, observer) !== vs.link) return null;
-  const sensor = sensorOf(observer);
-  if (!sensor || devGen(observer, sensor.id) !== vs.observerDeviceGen) return null;
-  // A cancellation layer stands only while its ECCM is still on and unchanged (plan 4.0).
-  const eccmOk = vs.eccm && activeOf(observer, "eccm").some(t => t.id === vs.eccm.deviceId) && devGen(observer, vs.eccm.deviceId) === vs.eccm.deviceGen;
-  return ecmEffect({ jamDice: ev.dice.map(total => ({ total })), observerSensor: vs.observerSensor, observerSuccesses: vs.observerSuccesses,
-    eccm: eccmOk ? vs.eccm : null }).effect;
+  if (!activeOf(jammer, "ecm").some(t => t.id === ev.deviceId) || devGen(jammer, ev.deviceId) !== ev.deviceGen) return null;
+  if (linkGen(jammer, ev.deviceId, observer) !== vs.link || !receiverOk(observer, jammer, vs.receiver)) return null;
+  return { ev, vs };
+}
+/** A countermeasure layer stands only while that device is still on, unchanged (plan 4.0). */
+const layerOk = (vehicle, kind, layer) => !!layer && activeOf(vehicle, kind).some(t => t.id === layer.deviceId) && devGen(vehicle, layer.deviceId) === layer.deviceGen;
+
+/** The valid ECM effect of jammer J against observer O, or null. */
+function jamOn(jammer, observer) {
+  const b = jamBase(jammer, observer);
+  if (!b) return null;
+  return ecmEffect({ jamDice: b.ev.dice.map(total => ({ total })), observerSensor: b.vs.observerSensor,
+    observerSuccesses: b.vs.observerSuccesses, eccm: layerOk(observer, "eccm", b.vs.eccm) ? b.vs.eccm : null }).effect;
 }
 
-/** The valid ED outcome of deceiver T against observer O (optional rule), or null. */
-function edOn(target, observer) {
+/** The valid BASE ED record of deceiver T against observer O (optional rule), or null. */
+function edBase(target, observer) {
   if (!edRuleOn()) return null;
   const rec = target.getFlag("sr2e", "edVs")?.[keyOf(observer)];
   if (!rec) return null;
   if (!activeOf(target, "ed").some(t => t.id === rec.deviceId) || devGen(target, rec.deviceId) !== rec.deviceGen) return null;
-  if (linkGen(target, rec.deviceId, observer) !== rec.link) return null;
-  const ecdOk = rec.ecd && activeOf(observer, "ecd").some(t => t.id === rec.ecd.deviceId) && devGen(observer, rec.ecd.deviceId) === rec.ecd.deviceGen;
-  return edEffect({ edSuccesses: rec.edSuccesses, ecdSuccesses: ecdOk ? rec.ecd.successes : 0 });
+  if (linkGen(target, rec.deviceId, observer) !== rec.link || !receiverOk(observer, target, rec.receiver)) return null;
+  return rec;
+}
+function edOn(target, observer) {
+  const rec = edBase(target, observer);
+  if (!rec) return null;
+  return edEffect({ edSuccesses: rec.edSuccesses, ecdSuccesses: layerOk(observer, "ecd", rec.ecd) ? rec.ecd.successes : 0 });
 }
 
 /** Jammers whose ECM field covers the observer (any field other than its own, p.58). */
 function jammersCovering(observer) {
   const out = [];
-  for (const j of game.actors.filter(a => a.type === "vehicle" && a !== observer)) {
+  for (const j of allVehicles()) {
+    if (j.uuid === observer.uuid) continue;
     const ecm = best(activeOf(j, "ecm"));
     if (!ecm) continue;
     const d = distanceBetween(j, observer), r = txFlux(j, ecm)?.range;
@@ -238,64 +281,79 @@ async function card(speakerActor, html) {
 }
 const roll = async (dice, tn) => SR2ESuccessRoll.successTest(Math.max(0, dice), Math.max(2, tn));
 
-/** Make sure every jammer covering O has a valid outcome against O, and T's ED against O (rolling what's missing). */
-async function ensureEw(observer, target) {
+/** Every jammer covering O: a valid base record (rolling what's missing), then O's ECCM layer if it has one on. */
+async function ensureEcm(observer) {
   const sensor = sensorOf(observer);
   if (!sensor) return;
   for (const { jammer, ecm } of jammersCovering(observer)) {
-    if (jamOn(jammer, observer) != null) continue;
     await vq(jammer.uuid, async () => {
-      if (jamOn(jammer, observer) != null) return;
-      const jf = txFlux(jammer, ecm);
-      let ev = jammer.getFlag("sr2e", "jamEvent");
-      const evValid = ev && ev.deviceId === ecm.id && ev.deviceGen === devGen(jammer, ecm.id);
-      const patch = {};
-      if (!evValid) {
-        // ONE ECM Test for this jammer (p.32): its Flux in dice (R4-1), stored and read at each observer's Sensor Rating.
-        const r = await roll(Math.floor(jf.flux), 2);
-        ev = { id: foundry.utils.randomID(16), deviceId: ecm.id, deviceGen: devGen(jammer, ecm.id), dice: r.results, ecm: ecm.rating, flux: jf.flux };
-        patch["flags.sr2e.jamEvent"] = ev;
-        patch["flags.sr2e.-=jamVs"] = null;
+      let b = jamBase(jammer, observer);
+      if (!b) {
+        const jf = txFlux(jammer, ecm);
+        let ev = jammer.getFlag("sr2e", "jamEvent");
+        const evValid = ev && ev.deviceId === ecm.id && ev.deviceGen === devGen(jammer, ecm.id);
+        if (!evValid) {
+          // ONE ECM Test for this jammer (p.32): its Flux in dice (R4-1), stored and read at each observer's Sensor Rating.
+          const r = await roll(Math.floor(jf.flux), 2);
+          ev = { id: foundry.utils.randomID(16), deviceId: ecm.id, deviceGen: devGen(jammer, ecm.id), dice: r.results, ecm: ecm.rating, flux: jf.flux };
+          await jammer.update({ "flags.sr2e.jamEvent": ev, "flags.sr2e.-=jamVs": null });
+        }
+        const sf = txFlux(observer, sensor);
+        const opp = await roll(Math.floor(sf.flux), ecm.rating);
+        const vs = { eventId: ev.id, observerUuid: observer.uuid, observerSensor: sensor.rating, observerSuccesses: opp.successes,
+          link: linkGen(jammer, ecm.id, observer), receiver: receiverDeps(observer, jammer), eccm: null };
+        await jammer.update({ [`flags.sr2e.jamVs.${keyOf(observer)}`]: vs });
+        const res = ecmEffect({ jamDice: ev.dice.map(total => ({ total })), observerSensor: sensor.rating, observerSuccesses: opp.successes });
+        await card(jammer, `<strong>ECM Test: ${esc(jammer.name)} vs ${esc(observer.name)}</strong> (Rigger 2 p.31–32)<br>
+          Jammer: ${ev.dice.length} dice (ECM Flux ${ev.flux}) vs ${Math.max(2, sensor.rating)} (Sensor) → ${res.jam};
+          ${esc(observer.name)}: ${Math.floor(sf.flux)} dice (sensor Flux) vs ${ecm.rating} (ECM) → ${opp.successes}.
+          <br><strong>${res.won ? `${esc(jammer.name)}'s Signature +${res.effect} against ${esc(observer.name)}'s sensors.` : "No jamming."}</strong>
+          <br><em>Holds until contact is lost (R4-2).</em>`);
+        b = jamBase(jammer, observer);
       }
-      const sf = txFlux(observer, sensor);
-      const opp = await roll(Math.floor(sf.flux), ecm.rating);
-      let eccm = null;
+      // The ECCM layer (p.32): rolled against the standing result whenever the observer's ECCM is on and has no valid layer.
       const counter = best(activeOf(observer, "eccm"));
-      if (counter) {
-        const c = await roll(counter.rating, ecm.rating), j = await roll(ecm.rating, counter.rating);
-        eccm = { deviceId: counter.id, deviceGen: devGen(observer, counter.id), counterSuccesses: c.successes, jammerSuccesses: j.successes };
-      }
-      const vs = { eventId: ev.id, observerUuid: observer.uuid, observerSensor: sensor.rating, observerSuccesses: opp.successes, observerDeviceGen: devGen(observer, sensor.id),
-        link: linkGen(jammer, ecm.id, observer), eccm };
-      if (!evValid) await jammer.update(patch);
-      await jammer.update({ [`flags.sr2e.jamVs.${keyOf(observer)}`]: vs });
-      const res = ecmEffect({ jamDice: ev.dice.map(total => ({ total })), observerSensor: sensor.rating, observerSuccesses: opp.successes, eccm });
-      await card(jammer, `<strong>ECM Test: ${esc(jammer.name)} vs ${esc(observer.name)}</strong> (Rigger 2 p.31–32)<br>
-        Jammer: ${ev.dice.length} dice (ECM Flux ${ev.flux}) vs ${Math.max(2, sensor.rating)} (Sensor) → ${res.jam};
-        ${esc(observer.name)}: ${Math.floor(sf.flux)} dice (sensor Flux) vs ${ecm.rating} (ECM) → ${opp.successes}.
-        ${eccm ? `<br>ECCM ${eccm.counterSuccesses} vs jammer ${eccm.jammerSuccesses}: cancels ${res.cancel ?? 0}.` : ""}
-        <br><strong>${res.won ? `${esc(jammer.name)}'s Signature +${res.effect} against ${esc(observer.name)}'s sensors.` : "No jamming."}</strong>
-        <br><em>Holds until contact is lost (R4-2).</em>`);
+      if (!b || !counter || layerOk(observer, "eccm", b.vs.eccm)) return;
+      const c = await roll(counter.rating, b.ev.ecm), j = await roll(b.ev.ecm, counter.rating);
+      const eccm = { deviceId: counter.id, deviceGen: devGen(observer, counter.id), counterSuccesses: c.successes, jammerSuccesses: j.successes };
+      await jammer.update({ [`flags.sr2e.jamVs.${keyOf(observer)}.eccm`]: eccm });
+      const res = ecmEffect({ jamDice: b.ev.dice.map(total => ({ total })), observerSensor: b.vs.observerSensor, observerSuccesses: b.vs.observerSuccesses, eccm });
+      await card(observer, `<strong>ECCM: ${esc(observer.name)} vs ${esc(jammer.name)}</strong> (Rigger 2 p.32)<br>
+        ECCM ${counter.rating} dice vs ${b.ev.ecm} → ${c.successes}; jammer ECM ${b.ev.ecm} dice vs ${counter.rating} → ${j.successes}:
+        cancels ${res.cancel ?? 0}. <strong>${res.won ? `Signature +${res.effect} remains.` : "No jamming."}</strong>`);
     });
   }
+}
+
+/** T's ED against O (optional rule): a valid base record, then O's ECD layer if it has one on. */
+async function ensureEd(observer, target) {
   if (!edRuleOn() || target?.type !== "vehicle") return;
-  const ed = best(activeOf(target, "ed"));
-  if (!ed || edOn(target, observer) != null) return;
+  const sensor = sensorOf(observer), ed = best(activeOf(target, "ed"));
+  if (!sensor || !ed) return;
   const d = distanceBetween(target, observer), r = txFlux(target, ed)?.range;
   if (d == null || r == null || d > r) return;
   await vq(target.uuid, async () => {
-    if (edOn(target, observer) != null) return;
-    const e = await roll(ed.rating, sensor.rating);
-    let ecd = null;
+    let rec = edBase(target, observer);
+    const lines = [];
+    if (!rec) {
+      const e = await roll(ed.rating, sensor.rating);
+      rec = { deviceId: ed.id, observerUuid: observer.uuid, deviceGen: devGen(target, ed.id), edSuccesses: e.successes,
+        link: linkGen(target, ed.id, observer), receiver: receiverDeps(observer, target), ecd: null };
+      await target.update({ [`flags.sr2e.edVs.${keyOf(observer)}`]: rec });
+      lines.push(`ED ${ed.rating} dice vs ${sensor.rating} → ${e.successes}`);
+    }
     const counter = best(activeOf(observer, "ecd"));
-    if (counter) { const c = await roll(counter.rating, ed.rating); ecd = { deviceId: counter.id, deviceGen: devGen(observer, counter.id), successes: c.successes }; }
-    await target.update({ [`flags.sr2e.edVs.${keyOf(observer)}`]: { deviceId: ed.id, observerUuid: observer.uuid, deviceGen: devGen(target, ed.id), edSuccesses: e.successes,
-      link: linkGen(target, ed.id, observer), ecd } });
+    if (counter && !layerOk(observer, "ecd", rec.ecd)) {
+      const c = await roll(counter.rating, ed.rating);
+      rec = { ...rec, ecd: { deviceId: counter.id, deviceGen: devGen(observer, counter.id), successes: c.successes } };
+      await target.update({ [`flags.sr2e.edVs.${keyOf(observer)}.ecd`]: rec.ecd });
+      lines.push(`ECD ${counter.rating} dice vs ${ed.rating} → ${c.successes}`);
+    }
+    if (!lines.length) return;
     // ED is secret (p.32: the GM doesn't tell the observer's player).
     await ChatMessage.create({ whisper: gmWhisper(), speaker: ChatMessage.getSpeaker({ actor: target }),
       content: `<div class="sr2e-damage-result"><strong>ED (secret): ${esc(target.name)} vs ${esc(observer.name)}</strong> (Rigger 2 p.32)<br>
-        ED ${ed.rating} dice vs ${sensor.rating} → ${e.successes}${ecd ? `; ECD ${counter.rating} vs ${ed.rating} → ${ecd.successes}` : ""}:
-        Signature +${edEffect({ edSuccesses: e.successes, ecdSuccesses: ecd?.successes ?? 0 })} against these sensors.</div>` });
+        ${lines.join("; ")}: Signature +${edOn(target, observer) ?? 0} against these sensors.</div>` });
   });
 }
 
@@ -318,14 +376,14 @@ export function baseSignature(target, gmValue = null) {
   return null;   // critters and NPCs: the GM's value (4b.7)
 }
 
-/** Bump generations in the vehicle's queue (the caller holds it). */
+/** Bump generations (the caller holds the vehicle's queue). */
 async function bump(vehicle, paths) {
   const g = gens(vehicle), patch = {};
   for (const p of paths) patch[`flags.sr2e.ewGen.${p}`] = (foundry.utils.getProperty(g, p) ?? 0) + 1;
   if (Object.keys(patch).length) await vehicle.update(patch);
 }
 
-/** Re-check every recorded relationship from this vehicle and bump the links that broke (GM, in its queue). */
+/** Re-check every recorded relationship FROM this vehicle and bump the links that broke (GM, inside its queue). */
 async function sweepVehicle(vehicle, positions = null) {
   const records = [];
   for (const lock of Object.values(vehicle.getFlag("sr2e", "locks") ?? {})) records.push({ deviceId: lock.deviceId, recipient: lock.targetUuid });
@@ -334,13 +392,25 @@ async function sweepVehicle(vehicle, positions = null) {
   for (const rec of Object.values(vehicle.getFlag("sr2e", "edVs") ?? {})) records.push({ deviceId: rec.deviceId, recipient: rec.observerUuid });
   const broken = new Set();
   for (const { deviceId, recipient } of records) {
-    const other = recipient && fromUuidSync(recipient), t = transmitterOf(vehicle, deviceId);
-    if (!other || !t) continue;
-    const range = txFlux(vehicle, t)?.range;
+    const other = recipient && fromUuidSync(recipient);
+    if (!other) continue;
+    const t = transmitterOf(vehicle, deviceId);
+    const range = t ? txFlux(vehicle, t)?.range : null;
     const now = distanceBetween(vehicle, other), before = positions ? distanceBetween(vehicle, other, positions) : now;
     if (range == null || now == null || now > range || (before != null && before > range)) broken.add(`link.${linkKey(deviceId, other)}`);
   }
   await bump(vehicle, [...broken]);
+}
+/** Sweep this vehicle and every vehicle whose records name it as a recipient (GM; each in its own queue). */
+function sweepAround(vehicle, positions = null) {
+  if (!isActiveGM() || !isRigger2() || !vehicle) return;
+  const uuid = vehicle.uuid;
+  for (const v of allVehicles()) {
+    const f = v.flags?.sr2e ?? {};
+    const involved = v.uuid === uuid || Object.values(f.locks ?? {}).some(l => l.targetUuid === uuid)
+      || Object.values(f.jamVs ?? {}).some(r => r.observerUuid === uuid) || Object.values(f.edVs ?? {}).some(r => r.observerUuid === uuid);
+    if (involved) vq(v.uuid, () => sweepVehicle(v, positions)).catch(err => console.error("SR2E | ew sweep", err));
+  }
 }
 
 export function registerVehicleSensors() {
@@ -350,33 +420,46 @@ export function registerVehicleSensors() {
     scope: "world", config: true, type: Boolean, default: false, requiresReload: true
   });
 
-  // The Sensor Test (p.28, p.30, p.58): Sensor Rating dice vs the target's Signature + modifiers + the EW term. Rolled
-  // and recorded by the GM in one queue step (no pools apply to sensors, R2 p.16); a success makes a lock.
-  gmOp("sensorTest", async ({ vehicleUuid, targetUuid = null, gmValue = null, conditions = {}, spiritForce = 0, distance = null, label = "" }, user) => {
+  // The Sensor Test (p.28, p.30, p.58): Sensor Rating dice vs the target's Signature + modifiers + the EW term. The
+  // observer's ECM layers are settled first (jammers' queues), then the test is admitted, rolled and recorded in ONE
+  // step of the observer's queue — range checks and dependency generations are read there, so no sweep can slip
+  // between them — idempotent by `eventId` (a replay returns the recorded result).
+  gmOp("sensorTest", async ({ vehicleUuid, targetUuid = null, gmValue = null, conditions = {}, spiritForce = 0, distance = null, label = "", eventId = null }, user) => {
     const vehicle = vehicleArg(vehicleUuid, user);
-    const sensor = sensorOf(vehicle);
-    if (!sensor) throw new Error(`${vehicle.name} has no sensors`);
+    if (!sensorOf(vehicle)) throw new Error(`${vehicle.name} has no sensors`);
     const target = targetUuid ? fromUuidSync(targetUuid) : null;
-    const base = baseSignature(target, Number.isFinite(gmValue) ? gmValue : null);
-    if (base == null) throw new Error("enter the target's Signature (critters: the Critter Signature Ratings Table, R2 p.61)");
-    const range = txFlux(vehicle, sensor)?.range;
-    const dist = target ? distanceBetween(vehicle, target) : null;
-    const usedDist = dist ?? (user.isGM && Number.isFinite(distance) ? distance : null);
-    if (target && range != null && usedDist != null && usedDist > range) throw new Error(`${target.name} is beyond the sensors' range (${usedDist} m > ${range} m)`);
-    if (target?.type === "vehicle") await ensureEw(vehicle, target);
-    const ew = target ? ewTermOf(vehicle, target) : { total: 0, ecm: 0, ed: 0 };
-    const { tn, parts } = sensorTestTN({ base, ewTerm: ew.total, conditions, spiritForce: Number(spiritForce) || 0, damageMod: vehicle.system.damageTnMod ?? 0 });
+    if (targetUuid && !target) throw new Error("the target is gone");
+    // Only the GM sets a Signature by hand (critters, the GM's call); a player gets the target's own.
+    const gmSig = user.isGM && Number.isFinite(gmValue) ? gmValue : null;
+    const base = baseSignature(target, gmSig);
+    if (base == null) throw new Error(user.isGM ? "enter the target's Signature (critters: the Critter Signature Ratings Table, R2 p.61)"
+      : "the GM must set this target's Signature (R2 p.61)");
+    const id = followId(eventId ?? foundry.utils.randomID(16));
+    const done = vehicle.getFlag("sr2e", "sensorReceipts")?.[id];
+    if (done) return done;
+    await ensureEcm(vehicle);
+    if (target) await ensureEd(vehicle, target);
     return vq(vehicleUuid, async () => {
+      const again = vehicle.getFlag("sr2e", "sensorReceipts")?.[id];
+      if (again) return again;
+      const sensor = sensorOf(vehicle);
+      if (!sensor) throw new Error(`${vehicle.name} has no sensors`);
+      const range = txFlux(vehicle, sensor)?.range;
+      let deps = null;
+      if (target) {
+        // Fail closed (plan 4a.2): a usable range and a known distance, or the GM's stated distance.
+        if (range == null) throw new Error(`${vehicle.name}'s sensors have no usable range (set one on the Sensors panel)`);
+        const dist = distanceBetween(vehicle, target) ?? (user.isGM && Number.isFinite(distance) ? distance : null);
+        if (dist == null) throw new Error(user.isGM ? "no chase or shared scene: enter the distance" : "the GM must state the distance to the target");
+        if (dist > range) throw new Error(`${target.name} is beyond the sensors' range (${Math.round(dist)} m > ${range} m)`);
+        deps = { device: devGen(vehicle, sensor.id), link: linkGen(vehicle, sensor.id, target), hide: hideState(vehicle, target).gen };
+      }
+      const ew = target ? ewTermOf(vehicle, target) : { total: 0, ecm: 0, ed: 0 };
+      const { tn, parts } = sensorTestTN({ base, ewTerm: ew.total, conditions, spiritForce: Number(spiritForce) || 0, damageMod: vehicle.system.damageTnMod ?? 0 });
       const r = await roll(sensor.rating, tn);
       const result = sensorResult(r.successes);
-      const patch = {};
-      if (target && r.successes > 0) {
-        const h = hideState(vehicle, target);
-        patch[`flags.sr2e.locks.${keyOf(target)}`] = { id: foundry.utils.randomID(16), targetUuid: target.uuid, deviceId: sensor.id,
-          successes: r.successes, tn, deps: { device: devGen(vehicle, sensor.id), link: linkGen(vehicle, sensor.id, target), hide: h.gen },
-          at: Date.now() };
-      }
-      if (Object.keys(patch).length) await vehicle.update(patch);
+      // A hide that landed while the dice rolled (the chase's queue, not ours) means no lock.
+      const lockOk = !!target && r.successes > 0 && hideState(vehicle, target).inContact && hideState(vehicle, target).gen === deps.hide;
       const LABEL = { Signature: "Signature", directLos: "direct LOS", urban: "urban", weather: "weather", restricted: "restricted terrain",
         tight: "tight terrain", spirit: "concealing spirit", damage: "vehicle damage", ew: "ECM" };
       // ED is secret (p.32: "the gamemaster keeps that a secret"): with ED in play the public card hides the TN.
@@ -388,39 +471,56 @@ export function registerVehicleSensors() {
       const msg = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }),
         content: `<div class="sr2e-damage-result"><strong>Sensor Test: ${esc(vehicle.name)}${target ? ` → ${esc(target.name)}` : ""}</strong>${label ? ` (${esc(label)})` : ""}
           (Rigger 2 p.28–30; a Complex Action, p.58)<br>${sensor.rating} dice vs ${secret ? "the GM's TN" : `TN ${tn} (${esc(parts2)})`}: <strong>${r.successes} success${r.successes === 1 ? "" : "es"}</strong>
-          — ${game.i18n.localize(`SR2E.Sensors.Result.${result}`)}${target && r.successes > 0 ? `<br>🔒 Locked on ${esc(target.name)} until contact is lost.` : ""}
-          <br><small>Dice: ${r.results.join(", ")}</small></div>`, flags: { sr2e: { sensorTest: { vehicleUuid, targetUuid, successes: r.successes, tn } } } });
-      return { successes: r.successes, tn, messageId: msg.id };
+          — ${game.i18n.localize(`SR2E.Sensors.Result.${result}`)}${lockOk ? `<br>🔒 Locked on ${esc(target.name)} until contact is lost.` : ""}
+          <br><small>Dice: ${r.results.join(", ")}</small></div>`, flags: { sr2e: { sensorTest: { vehicleUuid, targetUuid, successes: r.successes, tn, eventId: id } } } });
+      const receipt = { successes: r.successes, tn, messageId: msg.id, locked: lockOk };
+      const patch = { [`flags.sr2e.sensorReceipts.${id}`]: receipt };
+      if (lockOk) patch[`flags.sr2e.locks.${keyOf(target)}`] = { id, targetUuid: target.uuid, deviceId: sensor.id, successes: r.successes, tn, deps, at: Date.now() };
+      await vehicle.update(patch);
+      return receipt;
     });
   });
 
   // ECM / ECCM / ED / ECD on or off: Simple Actions (p.32). Switching off bumps the device generation, ending every
-  // result that depends on it (R4-2).
+  // result that depends on it (R4-2); either way the vehicle's transmitters' Flux changes, so ranges are swept.
   gmOp("ewToggle", async ({ vehicleUuid, deviceId, on }, user) => {
     const vehicle = vehicleArg(vehicleUuid, user);
     const t = transmitterOf(vehicle, deviceId);
     if (!t || !["ecm", "eccm", "ed", "ecd"].includes(t.kind)) throw new Error("not a toggled device");
     if (["ed", "ecd"].includes(t.kind) && !edRuleOn()) throw new Error("the ED/ECD optional rule is off");
-    return vq(vehicleUuid, async () => {
+    await vq(vehicleUuid, async () => {
       await vehicle.update({ [`flags.sr2e.ewOn.${deviceId}`]: !!on });
       if (!on) await bump(vehicle, [`device.${deviceId}`]);
       await card(vehicle, `<strong>${esc(vehicle.name)}: ${esc(t.item?.name ?? t.kind.toUpperCase())} ${on ? "on" : "off"}</strong> (a Simple Action, Rigger 2 p.32)`);
-      return true;
     });
+    sweepAround(vehicle);
+    return true;
   });
 
   // Flux boosts (p.30): the WHOLE allocation validated against the live vehicle in one step (GM only).
   gmOp("fluxBoost", async ({ vehicleUuid, alloc }, user) => {
     const vehicle = vehicleArg(vehicleUuid, user);
     if (!user.isGM) throw new Error("the GM sets boosts");
-    return vq(vehicleUuid, async () => {
+    await vq(vehicleUuid, async () => {
       const problems = boostProblems(alloc, boostContext(vehicle));
       if (problems.length) throw new Error(problems.join("; "));
       await vehicle.update({ "flags.sr2e.-=fluxBoosts": null });
       await vehicle.update({ "flags.sr2e.fluxBoosts": alloc });
-      await sweepVehicle(vehicle);
-      return true;
     });
+    sweepAround(vehicle);
+    return true;
+  });
+
+  // Connect an installed Electronics Port to one of the vehicle's devices (R2 p.30, p.139), or disconnect it.
+  gmOp("portBind", async ({ vehicleUuid, portId, deviceId }, user) => {
+    const vehicle = vehicleArg(vehicleUuid, user);
+    const port = vehicle.items.get(portId);
+    if (!port || !isPort(port) || !itemWorking(port)) throw new Error("not an installed Electronics Port");
+    if (deviceId && !transmitterOf(vehicle, deviceId)) throw new Error("no such working device");
+    if (deviceId && portsOf(vehicle).some(p => p.id !== portId && p.device === deviceId)) throw new Error("that device already has a port");
+    await vq(vehicleUuid, () => port.update({ "system.custom.choice.device": deviceId || "" }));
+    sweepAround(vehicle);
+    return true;
   });
 
   // A transmitter's situational conditions (p.31) and the GM's half-point/negative-Flux range choice (plan 4a.3).
@@ -429,12 +529,14 @@ export function registerVehicleSensors() {
     if (!transmitterOf(vehicle, deviceId)) throw new Error("no such working transmitter");
     const allowed = ["highElevation", "electricalStorm", "encryption", "humidAir", "urban"];
     const clean = Object.fromEntries(allowed.map(k => [k, !!conditions?.[k]]));
-    if (user.isGM) for (const k of ["halfRange", "gmRange", "runAt"]) if (Number.isFinite(conditions?.[k])) clean[k] = conditions[k];
-    return vq(vehicleUuid, async () => {
-      await vehicle.update({ [`flags.sr2e.txConditions.${deviceId}`]: clean });
-      await sweepVehicle(vehicle);
-      return true;
-    });
+    const prev = vehicle.getFlag("sr2e", "txConditions")?.[deviceId] ?? {};
+    for (const k of ["halfRange", "gmRange", "runAt"]) {
+      if (user.isGM && Number.isFinite(conditions?.[k])) clean[k] = conditions[k];
+      else if (Number.isFinite(prev[k])) clean[k] = prev[k];
+    }
+    await vq(vehicleUuid, () => vehicle.update({ [`flags.sr2e.txConditions.${deviceId}`]: clean }));
+    sweepAround(vehicle);
+    return true;
   });
 
   // The GM clears a lock or an EW result (R4-2): a generation bump, never a deletion readers could race.
@@ -446,39 +548,45 @@ export function registerVehicleSensors() {
   });
 
   // Range sweeps (plan 4.0): on the active GM, every move is checked against the position BEFORE and AFTER it, so a
-  // move out of range and back still ends the result.
+  // move out of range and back still ends the result. Positions are cached from every scene at ready and from every
+  // token creation, so a token's first move is checked too; with no cached position the move is still swept.
   const last = new Map();
   const remember = (tok) => last.set(tok.uuid, { x: tok.x, y: tok.y, elevation: tok.elevation });
+  Hooks.once("ready", () => { for (const s of game.scenes ?? []) for (const t of s.tokens ?? []) remember(t); });
+  Hooks.on("createToken", (tok) => remember(tok));
+  Hooks.on("deleteToken", (tok) => { last.delete(tok.uuid); if (tok.actor?.type === "vehicle") sweepAround(tok.actor); });
   Hooks.on("updateToken", (tok, changes) => {
-    if (!isActiveGM() || !isRigger2() || !("x" in changes || "y" in changes || "elevation" in changes)) return;
+    if (!("x" in changes || "y" in changes || "elevation" in changes)) return;
     const before = last.get(tok.uuid);
     remember(tok);
-    if (!before) return;
-    const moved = tok.actor;
-    // Every vehicle whose records involve the moved actor (as transmitter or recipient) sweeps with the before-position.
-    const involved = game.actors.filter(a => a.type === "vehicle" && (a === moved || JSON.stringify(a.flags?.sr2e?.locks ?? {}).includes(moved?.uuid ?? "~")
-      || JSON.stringify(a.flags?.sr2e?.jamVs ?? {}).includes(moved?.uuid ?? "~") || JSON.stringify(a.flags?.sr2e?.edVs ?? {}).includes(moved?.uuid ?? "~")));
-    for (const v of involved) vq(v.uuid, () => sweepVehicle(v, { [tok.uuid]: before })).catch(err => console.error("SR2E | ew sweep", err));
+    if (!tok.actor) return;
+    sweepAround(tok.actor, before ? { [tok.uuid]: before } : null);
   });
-  Hooks.on("canvasReady", () => { for (const t of canvas.scene?.tokens ?? []) remember(t); });
-  // A device removed or no longer working ends its results; chase distances and round changes re-sweep.
-  Hooks.on("updateItem", (item) => deviceChanged(item));
-  Hooks.on("deleteItem", (item) => deviceChanged(item, true));
+  // Equipment and vehicle changes that can change a range: devices, amplifiers, ports, Body, boosts, conditions.
+  const itemHook = (item, deleted = false) => {
+    const v = item.parent;
+    if (!isActiveGM() || !isRigger2() || v?.type !== "vehicle" || item.type !== "vehicle_mod") return;
+    const kind = KIND_BY_MODKEY[item.system?.modKey];
+    if (kind && (deleted || !WORKING.includes(item.system.custom?.state ?? "")))
+      vq(v.uuid, () => bump(v, [`device.${item.id}`])).catch(err => console.error("SR2E | ew device", err));
+    sweepAround(v);
+  };
+  Hooks.on("createItem", (item) => itemHook(item));
+  Hooks.on("updateItem", (item) => itemHook(item));
+  Hooks.on("deleteItem", (item) => itemHook(item, true));
+  Hooks.on("updateActor", (actor, changes) => {
+    if (actor.type !== "vehicle") return;
+    if (foundry.utils.hasProperty(changes, "system.body") || foundry.utils.hasProperty(changes, "system.sensor")
+      || foundry.utils.hasProperty(changes, "system.sensorInstalled")) sweepAround(actor);
+  });
+  // Chase distances and round changes.
   Hooks.on("updateCombat", (combat, changes) => {
-    if (!isActiveGM() || !isRigger2() || !foundry.utils.hasProperty(changes, "flags.sr2e.chase")) return;
+    if (!foundry.utils.hasProperty(changes, "flags.sr2e.chase")) return;
     for (const e of Object.values(combat.getFlag("sr2e", "chase")?.entries ?? {})) {
       const v = fromUuidSync(e.uuid);
-      if (v?.type === "vehicle") vq(v.uuid, () => sweepVehicle(v)).catch(() => {});
+      if (v?.type === "vehicle") sweepAround(v);
     }
   });
-}
-
-function deviceChanged(item, deleted = false) {
-  if (!isActiveGM() || !isRigger2()) return;
-  const v = item.parent;
-  if (v?.type !== "vehicle" || !(KIND_BY_MODKEY[item.system?.modKey] || ["rc-deck", "radio"].includes(item.flags?.sr2e?.rule))) return;
-  if (!deleted && WORKING.includes(item.system.custom?.state ?? "")) return;
-  vq(v.uuid, () => bump(v, [`device.${item.id}`])).catch(err => console.error("SR2E | ew device", err));
 }
 
 /* ── Client entry points ──────────────────────────────────────────────────────────────────────────────────── */
@@ -489,14 +597,15 @@ export async function promptSensorTest(vehicle) {
   if (!sensorOf(vehicle)) return ui.notifications.warn(`SR2E | ${vehicle.name} has no sensors.`);
   const target = [...(game.user.targets ?? [])][0]?.actor ?? null;
   const cb = (k, label) => `<label style="display:block"><input type="checkbox" name="${k}"> ${label}</label>`;
+  const gm = game.user.isGM;
   const res = await foundry.applications.api.DialogV2.prompt({
     window: { title: `Sensor Test: ${vehicle.name}` },
-    content: `<p>Target: <strong>${target ? esc(target.name) : "none targeted"}</strong>${target ? "" : " — target a token first, or enter a Signature."}</p>
-      ${target?.type === "vehicle" || target?.type === "character" ? "" : `<label>Signature (GM / critter table, R2 p.61): <input type="number" name="gmValue" style="width:60px"></label>`}
+    content: `<p>Target: <strong>${target ? esc(target.name) : "none targeted"}</strong>${target ? "" : " — target a token first" + (gm ? ", or enter a Signature" : "")}.</p>
+      ${gm && !(target?.type === "vehicle" || target?.type === "character") ? `<label>Signature (critter table, R2 p.61): <input type="number" name="gmValue" style="width:60px"></label>` : ""}
       ${cb("directLos", "Direct line of sight (−2)")}${cb("urban", "Urban setting (+1)")}${cb("weather", "Fog / smog / precipitation (+1)")}
       ${cb("restricted", "Restricted terrain (+1)")}${cb("tight", "Tight terrain (+2)")}
       <label>Concealed by a spirit, Force: <input type="number" name="spiritForce" value="0" min="0" style="width:50px"></label>
-      ${game.user.isGM ? `<label style="display:block">Distance if no tokens/chase (m): <input type="number" name="distance" style="width:80px"></label>` : ""}
+      ${gm ? `<label style="display:block">Distance if no tokens/chase (m): <input type="number" name="distance" style="width:80px"></label>` : ""}
       <p><small>A Complex Action (R2 p.58). Vehicle damage and any ECM/ED in play are added automatically.</small></p>`,
     ok: { label: "Roll", callback: (_e, b) => new foundry.applications.ux.FormDataExtended(b.form).object }
   }).catch(() => null);
@@ -504,7 +613,8 @@ export async function promptSensorTest(vehicle) {
   const n = (v) => (v === "" || v == null ? null : Number(v));
   const conditions = Object.fromEntries(["directLos", "urban", "weather", "restricted", "tight"].map(k => [k, !!res[k]]));
   return gmCall("sensorTest", { vehicleUuid: vehicle.uuid, targetUuid: target?.uuid ?? null, gmValue: n(res.gmValue), conditions,
-    spiritForce: n(res.spiritForce) ?? 0, distance: n(res.distance) }).catch(err => ui.notifications.warn(`SR2E | ${err.message ?? err}`));
+    spiritForce: n(res.spiritForce) ?? 0, distance: n(res.distance), eventId: foundry.utils.randomID(16) })
+    .catch(err => ui.notifications.warn(`SR2E | ${err.message ?? err}`));
 }
 
 /** Toggle an EW device (the panel). */

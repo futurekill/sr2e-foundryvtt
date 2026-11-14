@@ -18421,9 +18421,7 @@ export function registerSR2EQuenchTests() {
           await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
           assert.ok(S.lockOn(A, B), "locked");
           const tok = scene.tokens.find(t => t.actorId === B.id);
-          await tok.update({ x: 700 }); await new Promise(r => setTimeout(r, 400));
-          assert.ok(S.lockOn(A, B), "still locked after a short move");
-          await tok.update({ x: 11500 });   // 114 cells × 100 m > Flux 5 = 9 km
+          await tok.update({ x: 11500 });   // the token's FIRST move (no priming move): still checked   // 114 cells × 100 m > Flux 5 = 9 km
           for (let i = 0; i < 30 && S.lockOn(A, B); i++) await new Promise(r => setTimeout(r, 100));
           assert.notOk(S.lockOn(A, B), "lost out of range");
           await tok.update({ x: 700 }); await new Promise(r => setTimeout(r, 600));
@@ -18477,6 +18475,69 @@ export function registerSR2EQuenchTests() {
           assert.include(card.content, "the GM's TN");
           assert.notInclude(card.content, `TN ${r.tn}`);
           assert.ok(game.messages.contents.some(m => m.whisper.length && m.content.includes("Secret TN")), "the GM sees the TN");
+        });
+      });
+
+      describe("Code review fixes (Part 4a round 1)", function () {
+        it("ECCM switched on after a jam rolls its own layer and cancels", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const J = await mk("Quench Jam2", {}, [await catalog("Electronic Countermeasures (ECM)", 3)]);
+          const O = await mk("Quench Obs2", {}, [await catalog("Sensors (Vehicle Sensor System)", 3), await catalog("Electronic Counter-Countermeasures (ECCM)", 4)]);
+          await sceneWith([J, 100], [O, 300]);
+          await S.gmCall("ewToggle", { vehicleUuid: J.uuid, deviceId: S.transmitters(J).find(t => t.kind === "ecm").id, on: true });
+          await faces([FIVES, FIVES, FIVES, FIVES, FIVES, ONES, ONES, ONES, ONES, ONES, ONES, ONES, ONES], () =>
+            S.gmCall("sensorTest", { vehicleUuid: O.uuid, targetUuid: J.uuid }));
+          assert.equal(S.ewTermOf(O, J).ecm, 5);
+          await S.gmCall("ewToggle", { vehicleUuid: O.uuid, deviceId: S.transmitters(O).find(t => t.kind === "eccm").id, on: true });
+          // ECCM 4 dice of five vs TN 3 → 4; jammer 3 dice of ones → 0: cancels 4 of the 5; then the Sensor Test's dice.
+          await faces([FIVES, FIVES, FIVES, FIVES, ONES, ONES, ONES, ONES, ONES, ONES], () =>
+            S.gmCall("sensorTest", { vehicleUuid: O.uuid, targetUuid: J.uuid }));
+          assert.equal(S.ewTermOf(O, J).ecm, 1, "the original 5, less 4");
+        });
+        it("ECM counts when the sensors scan a character, and an unlinked token jammer counts", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const J = await mk("Quench Jam3", {}, [await catalog("Electronic Countermeasures (ECM)", 3)]);
+          const O = await mk("Quench Obs3", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]);
+          const pc = await Actor.create({ name: "Quench Sensor PC", type: "character" }); made.push(pc);
+          const scene = await Scene.create({ name: "Quench sensors", width: 6000, height: 1200, grid: { size: 100, distance: 100, units: "m" } }); scenes.push(scene);
+          await scene.createEmbeddedDocuments("Token", [{ actorId: J.id, actorLink: false, x: 100, y: 100, name: J.name },
+            { actorId: O.id, actorLink: true, x: 300, y: 100, name: O.name }, { actorId: pc.id, actorLink: true, x: 500, y: 100, name: pc.name }]);
+          const tokJ = scene.tokens.find(t => t.actorId === J.id).actor;   // the synthetic jammer
+          await S.gmCall("ewToggle", { vehicleUuid: tokJ.uuid, deviceId: S.transmitters(tokJ).find(t => t.kind === "ecm").id, on: true });
+          await faces([FIVES, FIVES, FIVES, FIVES, FIVES, ONES, ONES, ONES, ONES, ONES, ONES, ONES, ONES], () =>
+            S.gmCall("sensorTest", { vehicleUuid: O.uuid, targetUuid: pc.uuid }));
+          assert.equal(S.ewTermOf(O, pc).ecm, 5, "the token jammer's field covers the observer");
+        });
+        it("switching ECCM on shrinks the sensors' range and breaks a lock now out of range", async function () {
+          this.timeout(20000);
+          const S = await mods();
+          const A = await mk("Quench Range", {}, [await catalog("Sensors (Vehicle Sensor System)", 3), await catalog("Electronic Counter-Countermeasures (ECCM)", 2)]);
+          const B = await mk("Quench Range T");
+          await sceneWith([A, 100], [B, 100 + 80 * 100]);   // 8 km: inside Flux 5 (9 km), outside Flux 4 (6 km)
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          assert.ok(S.lockOn(A, B), "locked at 8 km");
+          await S.gmCall("ewToggle", { vehicleUuid: A.uuid, deviceId: S.transmitters(A).find(t => t.kind === "eccm").id, on: true });
+          for (let i = 0; i < 30 && S.lockOn(A, B); i++) await new Promise(r => setTimeout(r, 100));
+          assert.notOk(S.lockOn(A, B), "ECCM's Flux drain put it out of range");
+        });
+        it("fails closed without a distance, and a player's Signature override is ignored", async function () {
+          const S = await mods();
+          const A = await mk("Quench Closed", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]);
+          const B = await mk("Quench Closed T", { signature: 9 });
+          let err = null;
+          try { await S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /distance/);
+          const r = await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, distance: 100 }));
+          assert.equal(r.tn, 9, "the GM's stated distance; the target's own Signature");
+          // A player who owns the vehicle: the GM-only Signature override is ignored.
+          const player = game.users.find(u => !u.isGM);
+          if (!player) return;
+          await A.update({ [`ownership.${player.id}`]: 3 });
+          await sceneWith([A, 100], [B, 300]);
+          const r2 = await faces(FIVES, () => S.gmOpHandler("sensorTest")({ vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 2 }, player));
+          assert.equal(r2.tn, 9, "the target's own Signature, not the player's 2");
         });
       });
 

@@ -29,6 +29,13 @@
   </fieldset>
   {{else}}<p>No transmitters.</p>{{/each}}
 
+  {{#if ports.length}}<h3>Electronics Ports (p.30, p.139)</h3>
+  {{#each ports}}<div class="flexrow" style="gap:6px;align-items:center;">{{name}}:
+    <select data-port="{{id}}" {{#unless ../owner}}disabled{{/unless}}><option value="">— nothing connected —</option>
+      {{#each options}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</select>
+    {{#if ../owner}}<button type="button" data-action="port" data-port="{{id}}">Connect</button>{{/if}}</div>{{/each}}
+  <p><small>A device on a port may draw engine power for a Flux boost (the GM's Flux boosts).</small></p>{{/if}}
+
   {{#if hasSensors}}
   <h3>Sensor system (p.27–28)</h3>
   <p>Rating {{rating}}: {{#each components}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}; magnification {{magnification}}×.</p>

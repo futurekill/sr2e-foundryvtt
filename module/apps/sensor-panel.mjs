@@ -6,7 +6,7 @@
  */
 import { gmCall } from "../vehicle-play.mjs";
 import { transmitters, txFlux, componentsOf, lockOn, ewTermOf, edRuleOn, promptSensorTest, toggleEw, boostContext,
-  hasSensors, BUILTIN } from "../vehicle-sensors.mjs";
+  hasSensors, BUILTIN, portsOf } from "../vehicle-sensors.mjs";
 import { boostProblems } from "../rules/vehicle-sensor-rules.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -25,7 +25,7 @@ export class SensorPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     window: { title: "Sensors", icon: "fas fa-satellite-dish", resizable: true },
     position: { width: 620, height: 640 },
     actions: { test: SensorPanel.#test, toggle: SensorPanel.#toggle, condition: SensorPanel.#condition, boosts: SensorPanel.#boosts,
-      clear: SensorPanel.#clear, upgrade: SensorPanel.#upgrade }
+      clear: SensorPanel.#clear, upgrade: SensorPanel.#upgrade, port: SensorPanel.#port }
   };
   static PARTS = { body: { template: "systems/sr2e/templates/apps/sensor-panel.hbs", scrollable: [".sensor-body"] } };
 
@@ -80,7 +80,8 @@ export class SensorPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     return { gm, owner, rows, hasSensors: hasSensors(v), components: comp ? comp.components.map(k => COMPONENT_LABEL[k] ?? k) : [],
       magnification: comp?.magnification ?? 0, rating: v.system.effective?.sensor ?? v.system.sensor ?? 0,
       footage: { possible: (v.system.effective?.sensor ?? 0) >= 1, storage, enlarge: (v.system.effective?.sensor ?? 0) * 20 },
-      locks, affecting, boostIssues, edRule: edRuleOn(), builtin: rows.some(r => r.id === BUILTIN) };
+      locks, affecting, boostIssues, edRule: edRuleOn(), builtin: rows.some(r => r.id === BUILTIN),
+      ports: portsOf(v).map(p => ({ ...p, options: rows.filter(r => r.working).map(r => ({ id: r.id, name: r.name, selected: r.id === p.device })) })) };
   }
 
   static #test() { return promptSensorTest(this.vehicle); }
@@ -113,6 +114,10 @@ export class SensorPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       else (alloc[id].amplifiers ??= {})[amp] = n;
     }
     return gmCall("fluxBoost", { vehicleUuid: v.uuid, alloc }).catch(warn);
+  }
+  static #port(_e, el) {
+    const sel = this.element.querySelector(`select[data-port="${el.dataset.port}"]`);
+    return gmCall("portBind", { vehicleUuid: this.vehicle.uuid, portId: el.dataset.port, deviceId: sel?.value ?? "" }).catch(warn);
   }
   static #clear(_e, el) { return gmCall("ewClear", { vehicleUuid: this.vehicle.uuid, deviceId: el.dataset.device, recipientUuid: el.dataset.target }).catch(warn); }
   static async #upgrade() { return this.vehicle.sheet?.render?.(true) && ui.notifications.info("SR2E | Buy a \"Sensor Upgrade\" from the vehicle's Customize window (Rigger 2 p.27)."); }

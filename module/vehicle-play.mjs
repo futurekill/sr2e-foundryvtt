@@ -25,6 +25,8 @@ const pending = new Map();
 const GM_OPS = {};
 /** Register a GM op from another module (vehicle-overhead.mjs). */
 export function gmOp(name, fn) { GM_OPS[name] = fn; }
+/** A registered GM op's handler (Quench: calling it as a given user, to test its permission checks). */
+export const gmOpHandler = (name) => GM_OPS[name];
 /** This month's Stress so far (R2 p.18), raised by every Stress writer through stressPatch. */
 export const overheadCounter = (vehicle) => Number(vehicle.getFlag("sr2e", "overhead")?.stress) || 0;
 

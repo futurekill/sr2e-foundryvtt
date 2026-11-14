@@ -21,8 +21,8 @@ missiles, electronic warfare, drone networks). User ruling (2026-11-12): a world
   vehicles and magic.
 - **Part 4 — R2 gunnery and sensors** (p.27–32, p.56–61): sensor tests and ranges, ECM/ECCM, gunnery (manual,
   sensor-enhanced), missiles, signature. Plan APPROVED (Codex round 10); 4a and 4b to build.
-- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 8 below, in Codex review.
-- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 9 below, in Codex review.
+- **Part 5 — drones, EW, special operations** (p.16, p.33–36, p.62–72, p.77–80): draft 9 below, in Codex review.
+- **Part 6 — R2 advanced (optional) rules** (p.81–90), each behind its own world setting as VR2.0's options are: draft 10 below, in Codex review.
 Each part gets its own plan section + Codex review before code, and its own release.
 
 ## Part 1 — core rules audit (SR2 core p.84–85, p.104–109, p.183)
@@ -1189,7 +1189,7 @@ target hides; one jammer roll read at two observers' TNs; a boost allocation ref
 with the gunnery rows and no p.108; a missile launched mid-turn resolved at Phase 0 exactly once in a chase and in a
 non-chase combat; a stale card "not counted".
 
-## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 8 (2026-11-14, after Codex Part 5 rounds 1–7)
+## Part 5 — Rigger 2 drones, electronic warfare and special operations (R2 p.16, p.33–36, p.62–72, p.77–80), draft 9 (2026-11-14, after Codex Part 5 rounds 1–8)
 _Read from 110-dpi renders (PDF = book + 1); the scan's gutter clips the right edge of pp.64, 66, 78 and 80 (only
 words, no numbers, are lost; each reading is noted). Everything below applies only under `isRigger2()`; under core,
 Part 1's control model is untouched. **Four releases** (round 1 #22): **5a** Task Pool + remote-control networks,
@@ -1395,8 +1395,10 @@ Electronics).
   in mode `hardwired`. Authority for a networked entry is derived ONLY from the live network (`actingActorOf` uses
   `operatorOf` for every networked entry, never `entry.driver`), so a takeover or disconnect moves control at once;
   physical occupancy is recorded separately (`entry.aboard: [actorUuids]`, used by the occupant snapshot, passenger and
-  relocation checks). Onboard hardwired driving AUTHORITY (who drives) is separate from rigging ELIGIBILITY (round 6
-  #1): any operator aboard drives it, but the rigging benefits and rigger feedback keep the existing prerequisite — the
+  relocation checks). Passenger restrictions (`passengerLimit`, chase.mjs) exempt whoever is the vehicle's live
+  controller rigged into it — `controllerOf(v) === actor && riggedInto(actor, v)` — never `entry.driver === actor`, so a
+  hardwired operator aboard keeps the driver's exemption (round 8 #1). Onboard hardwired driving AUTHORITY (who drives)
+  is separate from rigging ELIGIBILITY (round 6 #1): any operator aboard drives it, but the rigging benefits and rigger feedback keep the existing prerequisite — the
   operator jacked in with a VCR (R2 p.16; hardwiring doesn't replace a VCR). So `riggedInto(rigger, v)` is true for a
   hardwired vehicle only when its aboard operator has an active VCR; then `drivingModes` offers "rigged" and
   `_vehicleSkill` / `rollDrivingTest` treat `hardwired` exactly as `rigged` (skill, pools, VCR bonuses, half-modifier
@@ -1599,7 +1601,7 @@ with no pools while a primary uses the rigger's; an NPC operator; a disconnect k
 step once; a frequency switch voids other intruders' intercepts; a contest takeover transfers the operator only; a
 lost carrier stays lost after regeneration until reconnected; MIJI refused against a CCSS; stale cards "not counted".
 
-## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 9 (2026-11-14, after Codex Part 6 rounds 1–8)
+## Part 6 — Rigger 2 advanced vehicle rules (R2 p.81–90), draft 10 (2026-11-14, after Codex Part 6 rounds 1–9)
 _Read from 120-dpi renders (book p.81 = PDF 82, p.82 = PDF 83; colour plates follow, so p.83 = PDF 92 … p.90 = PDF 99);
 the scan clips the right edge of pp.82, 86, 87, 88 and 90 (each clipped reading is noted; R6-1 was read from the user's
 printed copy). Every rule here is OPTIONAL (p.81) and has its OWN world setting (round 1 #1) — one per independently
@@ -1646,11 +1648,14 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   submission carries its covered interval `{ from, to, mode }` (round 3 #3): the `fuel` op trims it to `[cursor, to]`
   (a submission whose `to` ≤ the cursor is a no-op, receipted; a distance submission is pro-rated to the uncovered
   part), and a mode change is its own op that first settles the open interval in the old mode, then switches —
-  so a late chase debit after an idle debit can't double-bill. **Combat time** (round 8 #1): combat rounds don't
-  advance world time, so chase debits get explicit intervals: the first debit of a round persists
-  `fuelRounds.<combatId>.<round> = { from, to }` with `from` = the cursor and `to` = `from` + 3 s (a Combat Turn, core
-  p.80), reused by every later or replayed debit of that round (reload-safe); travel/idle intervals reconcile against
-  these mapped spans like any other. **Out-of-order arrival** (round 5 #1): intervals that
+  so a late chase debit after an idle debit can't double-bill. **One logical fuel clock** (round 8 #1, round 9 #1): fuel
+  accounting runs on a per-vehicle LOGICAL clock `fuelClock = { t, offset }`, never directly on world time. Outside
+  combat, logical time = world time + `offset`. Entering a combat records the entry point; each combat round advances
+  the logical clock by 3 s (a Combat Turn, core p.80) for that vehicle (`fuelRounds.<combatId>.<round>`, persisted,
+  reused on replay); leaving the combat records the exit and sets `offset` so the logical clock continues from where
+  combat left it as world time moves on (combat seconds don't vanish, and world time that didn't pass in combat isn't
+  re-billed). EVERY submission — travel, idle, chase — is translated onto this clock before the overlap check, so ten
+  rounds at an unchanged world time never push later idle/travel debits into the past. **Out-of-order arrival** (round 5 #1): intervals that
   start beyond the cursor are persisted as PENDING (`fuelPending.<eventId>`) and the cursor advances only across
   contiguous settled coverage, absorbing pending intervals as the gap fills; a mode change is deferred until the
   previous mode's movement up to the change time has arrived (or the GM settles the gap explicitly).
@@ -1659,11 +1664,12 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   actions (accelerate, boosts) while it lasts; speed falls 2 × Acceleration per Turn (applied once per processed Turn,
   resumable after a reload); coasting distance = (.75 × startSpeed²) ÷ Acceleration (Gray Ghost: 7,500 m); one Driving
   ("Vehicle") Test, the vehicle's Handling TN, Control Pool allowed, extends it by Acceleration per 2 successes (R6-4);
-  `stopped` at 0. **Coasting movement** (round 8 #2): during an episode the chase's closing stage does NOT move the
-  vehicle by its speed; instead the episode's receipt-backed ledger moves it `total ÷ turnsToStop` per Turn, where
-  `total` = the formula distance + any extension and `turnsToStop` = ⌈startSpeed ÷ (2 × Acceleration)⌉ (Gray Ghost:
-  7,500 m over 5 Turns = 1,500 m/Turn), each Turn's movement receipted once (`fuelOut.moved.<round>`); the cumulative
-  travelled distance is what an aircraft's early Crash Test uses. Refuelling ends the episode.
+  `stopped` at 0. **Coasting movement** (round 8 #2, round 9 #2; user ruling R6-9): during an episode the chase's
+  closing stage does NOT move the vehicle by its speed; the printed speed reduction stands (speed falls 2 ×
+  Acceleration per Turn), and the printed TOTAL (formula + any extension) is split across the Turns IN PROPORTION TO
+  EACH TURN'S SPEED (Gray Ghost 1,000/800/600/400/200 → 2,500/2,000/1,500/1,000/500 m = 7,500 m), each Turn's movement
+  receipted once (`fuelOut.moved.<round>`); the cumulative travelled distance is what an aircraft's early Crash Test
+  uses. Refuelling ends the episode.
 - **Aircraft** (p.82; round 1 #3–4): crossing below Stall Speed triggers ONE Crash Test (Part 3b crash record, `cause:
   "fuel"`, receipt in the episode). Success = an emergency landing at the end of the deceleration: the vehicle takes
   1D6 Stress (GM op `stress`) and resists 6L as a VEHICLE-ONLY resistance mode (no occupant step: "no damage occurs to
@@ -1896,7 +1902,7 @@ Gray Ghost example's per success); R6-5 VSTOL takeoff fuel ×.7 per the table (t
   Tests against remote-control networks.
 
 **User rulings (2026-11-13), continued:** R6-6 a Footprint reduction lasts until the GM clears it; R6-7 an
-extended-range missile's collision does its warhead damage; R6-8 an extended-range missile uses Part 3a's formulas
+extended-range missile's collision does its warhead damage; R6-9 coasting distance is split across Turns in proportion to each Turn's speed; R6-8 an extended-range missile uses Part 3a's formulas
 with its Intelligence for the driver's skill (Maneuver Score, Driving Tests), no pools, and may Ram once its fixed
 speed covers the remaining distance.
 
