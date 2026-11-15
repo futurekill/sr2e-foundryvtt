@@ -19434,10 +19434,12 @@ export function registerSR2EQuenchTests() {
           // c5a r3 #1: a default raises the TN — Military Theory alone is 6 dice at TN 8, never TN 5.
           const mt = await Actor.create({ name: "Quench MT only", type: "character" }); made.push(mt);
           await mt.createEmbeddedDocuments("Item", [{ name: "Military Theory", type: "skill", system: { rating: 6, category: "knowledge" } }]);
-          const card = (n, tn) => ({ tn, dice: Array.from({ length: n }, () => ({ sourceKey: "base" })) });
+          const card = (n, baseTn, tn = baseTn) => ({ tn, baseTn, dice: Array.from({ length: n }, () => ({ sourceKey: "base" })) });
           assert.deepEqual(RCN.ivisPaths(mt).map(p => [p.dice, p.tn]), [[RCN.ivisPaths(mt)[0].dice, 8]], "only the Military Theory path");
           assert.notOk(RCN.ivisCardLegal(mt, card(RCN.ivisPaths(mt)[0].dice, 5)), "its dice at TN 5 refused");
           assert.ok(RCN.ivisCardLegal(mt, card(RCN.ivisPaths(mt)[0].dice, 8)), "at TN 8 legal");
+          assert.notOk(RCN.ivisCardLegal(mt, card(RCN.ivisPaths(mt)[0].dice, 5, 8)), "c5a r4: base TN 5 + a wound's +3 isn't the default");
+          assert.notOk(RCN.ivisCardLegal(mt, { tn: 8, dice: card(1, 8).dice }), "no baseTn: can't prove its path");
           let err = null;
           for (const [k, re] of [["lowTn", /legal path/], ["tooMany", /legal path/], ["doubleDip", /more dice/]]) {
             err = null; try { await call("rcGroupOrder", { ...args, messageId: bad[k].testMessageId }); } catch (e) { err = e.message; }

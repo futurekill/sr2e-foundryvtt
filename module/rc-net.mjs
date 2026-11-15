@@ -291,8 +291,11 @@ export function ivisPaths(actor) {
   add("Military Theory (default, +3 TN)", gen, 8);
   return paths;
 }
-/** Is an IVIS Test card legal: its own dice and TN fit one path, with no situational misc dice? */
-export const ivisCardLegal = (actor, test) => !tookMisc(test) && ivisPaths(actor).some(p => ownDice(test) <= p.dice && num(test?.tn) >= p.tn);
+/** Is an IVIS Test card legal: its own dice and base TN fit one path, with no situational misc dice? */
+// The path's TN is checked against the card's BASE TN: a wound or other modifier in the effective TN can't stand in for
+// the Skill Web default (c5a r4). A card without baseTn (rolled before 0.156.0) can't prove its path: refused.
+export const ivisCardLegal = (actor, test) => !tookMisc(test) && test?.baseTn != null
+  && ivisPaths(actor).some(p => ownDice(test) <= p.dice && num(test.baseTn) >= p.tn);
 /** A test card's own dice (not Karma Pool dice) and whether it took situational misc dice. */
 const ownDice = (test) => (test?.dice ?? []).filter(d => d.sourceKey === "base").length;
 const tookMisc = (test) => (test?.dice ?? []).some(d => d.sourceKey === "misc");

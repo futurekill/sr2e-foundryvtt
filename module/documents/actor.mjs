@@ -657,6 +657,7 @@ export class SR2EActor extends Actor {
     const state = {
       actorUuid: this.uuid,
       tn: effectiveTN,
+      baseTn: targetNumber,   // before wound/sustain/etc. — a rules check on the card reads this (rc-net IVIS, c5a r4)
       label,
       tnNote,
       diceNote,
