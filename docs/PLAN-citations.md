@@ -93,6 +93,15 @@ field is dropped), so module `minimum` versions don't move. CHANGELOG + QA plan 
   critters aren't chosen at creation.
 - `offsets` stored but unused for citing (the "open my PDF" feature is later and optional).
 
+### Gap research (done 2026-11-15, before review)
+Every catalog item with no page anywhere in its text now has a row in its repo's
+`tools/data/citations/<repo>.tsv`, read from renders: SSC 95, Shadowrun Companion 84, the system 96 (17 GM-invented
+contacts are `none`), Rigger 2 32, Cyberpirates 10, Cybertechnology 8. Still open (named in no book searched): the
+system's **Subsonic** ammo, and the **Launch Weapons** and **Pilot** skills. Found on the way: the system's Ex-Explosive
+Rounds and Tracers are Fields of Fire p.51 (their notes say SSC); Cybertechnology's docs/COVERAGE.md already maps every
+entry to a page and agreed with the renders — a second source the backfill should cross-check. Items whose notes DO
+carry a page (Fields of Fire, CSH, Grimoire, Shadowtech, Neo-Anarchists and most of the rest) are left to the parser.
+
 ## Risks / open questions
 - Gap filling is large (≈ 600+ items without a parsable page) — batched per book; the validate gate per repo keeps
   partial work shippable.
