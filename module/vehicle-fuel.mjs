@@ -20,6 +20,20 @@ const round3 = (n) => Math.round(n * 1000) / 1000;
 export const fuelLeft = (v) => (v?.system?.fuelLevel == null ? Number(v?.system?.fuelSize) || 0 : Number(v.system.fuelLevel) || 0);
 export const fuelOutOf = (v) => v?.getFlag("sr2e", "fuelOut") ?? null;
 
+/**
+ * A Deadly engine hit (R2 p.87, subsystem damage): the vehicle loses power and decelerates 2 × Acceleration a Turn —
+ * the same coasting episode as running dry (`cause: "engine"`; no coax test, no Stall-Speed test). GM, idempotent.
+ */
+export async function engineOut(v, recordId) {
+  const { findEntry } = await import("./chase-state.mjs");
+  return vq(v.uuid, async () => {
+    if (fuelOutOf(v)) return;
+    const speed = findEntry(v.uuid)?.entry?.speed ?? v.system.effective?.speed ?? v.system.speed;
+    await v.update({ "flags.sr2e.fuelOut": { id: recordId, cause: "engine", startSpeed: Number(speed) || 0,
+      accel: Number(v.system.acceleration) || 0, turnsProcessed: 0, extra: 0, state: "coasting", moved: {} } });
+  });
+}
+
 function mayFuel(user, v, origin) {
   if (user.isGM) return true;
   if (origin === "leak") return false;   // the GM's subsystem damage only
@@ -73,7 +87,13 @@ export function registerFuel() {
     if (!mayFuel(user, v, "idle")) throw new Error("not allowed");
     if (!["off", "idle", "moving"].includes(mode)) throw new Error("unknown mode");
     await settleIdle(v, "mode");
-    await vq(v.uuid, () => v.update({ "flags.sr2e.fuelCursor": { at: logicalNow(v), mode } }));
+    // Movement coverage is kept apart from the mode cursor (Codex 6a r1 #10): leaving "moving" never marks movement not
+    // yet billed as covered — a late movement interval is trimmed against `movedTo` only.
+    await vq(v.uuid, () => {
+      const cur = v.getFlag("sr2e", "fuelCursor");
+      const movedTo = cur?.mode === "moving" ? Math.max(cur.movedTo ?? -Infinity, cur.at ?? -Infinity) : cur?.movedTo;
+      return v.update({ "flags.sr2e.fuelCursor": { at: logicalNow(v), mode, ...(Number.isFinite(movedTo) ? { movedTo } : {}) } });
+    });
     return mode;
   });
   // World time passing bills idle drones outside combat (GM).
@@ -116,7 +136,7 @@ export function registerFuel() {
     const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
     return vq(v.uuid, async () => {
       const o = fuelOutOf(v);
-      if (o?.state !== "coasting") throw new Error(`${v.name} isn't coasting`);
+      if (o?.state !== "coasting" || o.cause === "engine") throw new Error(`${v.name} isn't coasting out of fuel`);
       if (o.successes != null) throw new Error("the coasting test is already made");
       const n = testTotalSuccesses(test);
       await v.update({ "flags.sr2e.fuelOut.successes": n, "flags.sr2e.fuelOut.testMessageId": testMessageId });
@@ -141,19 +161,21 @@ export function registerFuel() {
       // { from, to } is trimmed to [cursor, to] (a span is billed once); one starting beyond the cursor waits as PENDING
       // until the gap fills; the cursor advances in the SAME update as the receipt.
       const iv = a.interval, cur = v.getFlag("sr2e", "fuelCursor");
+      // A movement span is trimmed against the movement coverage, an idle span against the cursor (r1 #10).
+      const edge = iv?.mode === "moving" ? (cur?.movedTo ?? cur?.at) : cur?.at;
       let frac = 1;
-      if (iv && cur?.at != null) {
+      if (iv && edge != null) {
         // Only an IDLE span can be missing (a moving drone between travels burns by distance, not time).
-        if (iv.from > cur.at + 1e-6 && cur.mode === "idle") {
+        if (iv.mode !== "moving" && iv.from > edge + 1e-6 && cur.mode === "idle") {
           await v.update({ [`flags.sr2e.fuelPending.${id}`]: { ...a, eventId: id } });
           return { pending: true };
         }
-        if (iv.to <= cur.at) {
+        if (iv.to <= edge) {
           const r = { origin, used: 0, level: left, note: "already covered" };
           await v.update({ [`flags.sr2e.vfuel.${id}`]: r });
           return r;
         }
-        frac = iv.to > iv.from ? (iv.to - Math.max(iv.from, cur.at)) / (iv.to - iv.from) : 1;
+        frac = iv.to > iv.from ? (iv.to - Math.max(iv.from, edge)) / (iv.to - iv.from) : 1;
       }
       if (origin === "travel" || origin === "chase") {
         const km = (origin === "chase" ? (Number(a.metres) || 0) / 1000 : Number(a.km) || 0) * frac;
@@ -175,10 +197,14 @@ export function registerFuel() {
       else if (origin === "edit") { level = a.level == null || a.level === "" ? size : Math.max(0, Math.min(size, Number(a.level) || 0)); note = "set by hand"; }
       else throw new Error(`unknown fuel origin ${origin}`);
       if (used) level = Math.max(0, left - used);
-      level = round3(level);
-      const receipt = { origin, used: round3(left - level), level, note };
+      // Full precision in the tank (Codex 6a r1 #12: a 3-second idle debit is ~0.0004 L); only the receipt is rounded.
+      const receipt = { origin, used: left - level, level: round3(level), note };
       const patch = { "system.fuelLevel": level >= size ? null : level, [`flags.sr2e.vfuel.${id}`]: receipt };
-      if (iv) patch["flags.sr2e.fuelCursor"] = { at: Math.max(iv.to, cur?.at ?? -Infinity), mode: cur?.mode ?? iv.mode ?? "idle" };
+      if (iv) {
+        const sameMode = !cur || cur.mode === iv.mode;
+        patch["flags.sr2e.fuelCursor"] = { at: sameMode ? Math.max(iv.to, cur?.at ?? -Infinity) : cur.at, mode: cur?.mode ?? iv.mode ?? "idle",
+          ...(iv.mode === "moving" ? { movedTo: Math.max(iv.to, cur?.movedTo ?? -Infinity) } : cur?.movedTo != null ? { movedTo: cur.movedTo } : {}) };
+      }
       if (a.pendingOf) patch[`flags.sr2e.fuelPending.-=${a.pendingOf}`] = null;
       // Running out of gas (p.81): ONE episode from the moment the tank reaches 0; refuelling ends it.
       const out = fuelOutOf(v);
@@ -186,7 +212,7 @@ export function registerFuel() {
         patch["flags.sr2e.fuelOut"] = { id, startSpeed: Number(a.speed ?? v.system.effective?.speed ?? v.system.speed) || 0,
           accel: Number(v.system.effective?.acceleration ?? v.system.acceleration) || 0, turnsProcessed: 0, extra: 0, state: "coasting", moved: {} };
       }
-      if (level > 0 && out) patch["flags.sr2e.-=fuelOut"] = null;
+      if (level > 0 && out && out.cause !== "engine") patch["flags.sr2e.-=fuelOut"] = null;   // fuel doesn't fix a dead engine
       await v.update(patch);
       if (a.card !== false) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: v }), content: `<div class="sr2e-damage-result">
         <strong>${esc(v.name)}: fuel</strong> — ${esc(note)}${receipt.used > 0 ? `: ${receipt.used} ${esc(v.system.fuelUnit || "units")} used` : ""};
@@ -211,7 +237,7 @@ export async function fuelDialog(v) {
   const grades = r2Option("r2FuelGrades");
   const cur = v.getFlag("sr2e", "fuelGrade") ?? { grade: "regular", custom: 0 };
   const res = await foundry.applications.api.DialogV2.prompt({ window: { title: `Fuel — ${v.name}` },
-    content: `<p>${left} / ${size} ${esc(unit)} left${fuelOutOf(v) ? " — <strong>out of fuel, coasting</strong>" : ""}. Economy ${v.system.effective?.economy ?? v.system.economy ?? 0} km/${esc(unit)} (Rigger 2 p.81–82).</p>
+    content: `<p>${round3(left)} / ${size} ${esc(unit)} left${fuelOutOf(v) ? " — <strong>out of fuel, coasting</strong>" : ""}. Economy ${v.system.effective?.economy ?? v.system.economy ?? 0} km/${esc(unit)} (Rigger 2 p.81–82).</p>
       <div class="form-group"><label>Do:</label><select name="op">
         ${r2Option("r2Fuel") ? `<option value="travel">Travel</option>` : ""}<option value="refuel">Refuel</option><option value="edit">Set the level</option>
         ${r2Option("r2Fuel") && v.system.vehicleType === "drone" ? `<option value="idle">Idle hours by hand (drone)</option>
@@ -230,6 +256,11 @@ export async function fuelDialog(v) {
   const [op, maneuver] = String(res.op).split(":");
   if (op === "mode") return gmCall("fuelMode", { vehicleUuid: v.uuid, mode: maneuver }).catch(err => ui.notifications.warn(`SR2E | ${err.message}`));
   const args = { vehicleUuid: v.uuid, origin: op };
+  // An operating drone's time is billed by its mode clock (r1 #10): manual idle hours would bill it twice, and a trip
+  // while it's stationary would overlap its idle billing — a trip needs the "moving" mode (distance, no idle time).
+  const dmode = v.system.vehicleType === "drone" ? (v.getFlag("sr2e", "fuelCursor")?.mode ?? "off") : "off";
+  if (op === "idle" && dmode !== "off") return ui.notifications.warn(`${v.name} is operating: its idle time is billed by its mode (switch it off to enter hours by hand).`);
+  if (op === "travel" && dmode === "idle") return ui.notifications.warn(`${v.name} is stationary: switch it to "operating, moving" first.`);
   if (op === "travel") { if (!(n > 0)) return; Object.assign(args, { km: n, band: res.band }); }
   if (op === "idle") { if (!(n > 0)) return; args.hours = n; }
   if (op === "refuel") args.amount = n;
@@ -244,13 +275,16 @@ export async function fuelDialog(v) {
  * chase moves; returns the chase entries' coasting metres to use instead of their speed.
  */
 export async function fuelChaseStage(combat, r) {
-  if (!r2Option("r2Fuel")) return {};
+  // Coasting also follows a Deadly engine hit (subsystem damage, R2 p.87), so the stage runs under either option; the
+  // fuel burn itself only under r2Fuel.
+  const fuelOn = r2Option("r2Fuel");
+  if (!fuelOn && !r2Option("r2Subsystems")) return {};
   const { chaseOf } = await import("./chase-state.mjs");
   const ch = chaseOf(combat), coast = {};
   // Every operating drone in this combat: its logical clock advances 3 s for this Turn, once (`fuelRounds`).
   const inCombat = new Map();
-  for (const c of combat.combatants) if (isDrone(c.actor)) inCombat.set(c.actor.uuid, c.actor);
-  for (const e of Object.values(ch?.entries ?? {})) { const v = e?.kind === "vehicle" ? fromUuidSync(e.uuid) : null; if (isDrone(v)) inCombat.set(v.uuid, v); }
+  if (fuelOn) for (const c of combat.combatants) if (isDrone(c.actor)) inCombat.set(c.actor.uuid, c.actor);
+  if (fuelOn) for (const e of Object.values(ch?.entries ?? {})) { const v = e?.kind === "vehicle" ? fromUuidSync(e.uuid) : null; if (isDrone(v)) inCombat.set(v.uuid, v); }
   const turnOf = {};
   for (const v of inCombat.values()) {
     if ((v.getFlag("sr2e", "fuelCursor")?.mode ?? "off") === "off") continue;
@@ -272,10 +306,14 @@ export async function fuelChaseStage(combat, r) {
     const ct = coastTurn(v);
     if (ct) { coast[eid] = ct.metres; continue; }
     const span = turnOf[v.uuid];
-    if ((Number(e.speed) || 0) > 0 && fuelLeft(v) > 0)
+    if (fuelOn && (Number(e.speed) || 0) > 0 && fuelLeft(v) > 0) {
       await gmCall("fuel", { vehicleUuid: v.uuid, origin: "chase", metres: Number(e.speed) || 0, speed: Number(e.speed) || 0,
         eventId: `chase-${combat.id}-${r}-${v.id}`, card: false, ...(span ? { interval: { ...span, mode: "moving" } } : {}) });
-    if (span) delete turnOf[v.uuid];
+      if (span) delete turnOf[v.uuid];   // billed as moving; a stationary drone stays for the idle loop (Codex 6a r1 #13)
+      // The burn that empties the tank starts coasting THIS Turn — the same answer a retried closing gets (r1 #11).
+      const now = coastTurn(fromUuidSync(e.uuid));
+      if (now) coast[eid] = now.metres;
+    }
   }
   // Drones in this combat not moving in the chase: an idle drone burns its Idle Economy for the Turn.
   for (const [uuid, span] of Object.entries(turnOf)) {
@@ -293,14 +331,14 @@ export async function fuelChaseStage(combat, r) {
  * Speed (p.82); at speed 0 it stops.
  */
 export async function fuelAdvanceStage(combat, r) {
-  if (!r2Option("r2Fuel")) return;
+  if (!r2Option("r2Fuel") && !r2Option("r2Subsystems")) return;
   const { chaseOf } = await import("./chase-state.mjs");
   const ch = chaseOf(combat);
   const vehicles = new Map();
   for (const e of Object.values(ch?.entries ?? {})) if (e?.kind === "vehicle") { const v = fromUuidSync(e.uuid); if (v) vehicles.set(v.uuid, v); }
   for (const c of combat.combatants) if (c.actor?.type === "vehicle") vehicles.set(c.actor.uuid, c.actor);
-  const { postCrashTestDue } = await import("./vehicle-play.mjs");
   for (const v of vehicles.values()) {
+    await deliverCoastStep(v, combat);   // a Turn whose effects an interrupted pass didn't deliver (Codex 6a r1 #9)
     const o = fuelOutOf(v);
     if (o?.state !== "coasting") continue;
     const key = `${combat.id}:${r}`;
@@ -313,20 +351,35 @@ export async function fuelAdvanceStage(combat, r) {
       const travelled = (live.travelled ?? 0) + (t?.metres ?? 0);
       const isAir = v.system.vehicleType === "aircraft";
       const stall = isAir ? stallTurn(sch, v.system.stallSpeed) : null;
-      const crashNow = isAir && stall != null && live.turnsProcessed + 1 >= stall && !live.crashDue;
+      // The Stall-Speed Crash Test is the out-of-fuel rule (p.82); a dead engine's Crash Test was already due (p.87).
+      const crashNow = isAir && live.cause !== "engine" && stall != null && live.turnsProcessed + 1 >= stall && !live.crashDue;
+      // The Turn's effects (the new speed, a Crash Test due, an emergency landing at the end of deceleration) are written
+      // WITH the Turn's receipt and delivered from it, so an interrupted pass delivers them next time (r1 #9).
+      const pending = { speed: next?.speed ?? 0, crash: crashNow, travelled, land: !next && !!live.landing };
       const patch = { [`flags.sr2e.fuelOut.moved.${key}`]: t?.metres ?? 0, "flags.sr2e.fuelOut.turnsProcessed": live.turnsProcessed + 1,
-        "flags.sr2e.fuelOut.travelled": travelled, ...(crashNow ? { "flags.sr2e.fuelOut.crashDue": true } : {}),
+        "flags.sr2e.fuelOut.travelled": travelled, "flags.sr2e.fuelOut.pending": pending, ...(crashNow ? { "flags.sr2e.fuelOut.crashDue": true } : {}),
         ...(!next ? { "flags.sr2e.fuelOut.state": "stopped" } : {}) };
       await v.update(patch);
-      return { next, crashNow, travelled, stopped: !next };
+      return true;
     });
-    if (!step) continue;
-    if (ch?.entries) {
-      const eid = Object.entries(ch.entries).find(([, e]) => e?.uuid === v.uuid)?.[0];
-      if (eid) await combat.update({ [`flags.sr2e.chase.entries.${eid}.speed`]: step.next?.speed ?? 0 });
-    }
-    if (step.crashNow) await postCrashTestDue(v, `ran out of fuel and fell to its Stall Speed (p.82; ${Math.round(step.travelled)} m coasted)`,
-      { ruleset: "rigger2", speed: Number(v.system.stallSpeed) || 0, cause: "fuel", fid: `fuel-${fuelOutOf(v)?.id ?? v.id}` });
+    if (step) await deliverCoastStep(v, combat);
   }
+}
+
+/** Deliver a coast Turn's recorded effects, each idempotent (a speed set; follow-ups keyed by the episode), then clear. */
+async function deliverCoastStep(v, combat) {
+  const o = fuelOutOf(v), p = o?.pending;
+  if (!p) return;
+  const { postCrashTestDue } = await import("./vehicle-play.mjs");
+  const { chaseOf } = await import("./chase-state.mjs");
+  const eid = Object.entries(chaseOf(combat)?.entries ?? {}).find(([, e]) => e?.uuid === v.uuid)?.[0];
+  if (eid && o.state !== "crashed") await combat.update({ [`flags.sr2e.chase.entries.${eid}.speed`]: p.speed });
+  const fid = `fuel-${o.id ?? v.id}`;
+  if (p.crash) await postCrashTestDue(v, `ran out of fuel and fell to its Stall Speed (p.82; ${Math.round(p.travelled)} m coasted)`,
+    { ruleset: "rigger2", speed: Number(v.system.stallSpeed) || 0, cause: "fuel", fid });
+  if (p.land && o.state !== "crashed") await gmCall("vfollowCrash", { vehicleUuid: v.uuid, kind: "impact", ruleset: "rigger2", speed: 0, fid: `${fid}:landing`,
+    why: "makes an emergency landing at the end of its deceleration (Rigger 2 p.82)",
+    impact: { power: 6, level: "L", source: "collision", stop: true, noOccupants: true, emergency: true } });
+  await vq(v.uuid, () => v.update({ "flags.sr2e.fuelOut.-=pending": null }));
 }
 

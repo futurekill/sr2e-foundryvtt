@@ -2168,7 +2168,7 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
     const { r2Option } = await import("../vehicle-mode.mjs");
     if (["r2Fuel", "r2FlightFuel", "r2FuelGrades"].some(r2Option)) {
       const F = await import("../vehicle-fuel.mjs");
-      context.r2Fuel = { left: F.fuelLeft(this.document), size: Number(this.document.system.fuelSize) || 0, out: !!F.fuelOutOf(this.document) };
+      context.r2Fuel = { left: Math.round(F.fuelLeft(this.document) * 100) / 100, size: Number(this.document.system.fuelSize) || 0, out: !!F.fuelOutOf(this.document) };
     }
     return context;
   }

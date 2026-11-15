@@ -469,7 +469,9 @@ export async function resistCombatSpell(actor, message) {
     if (!out.affected) await actor.update(receipt);
     // A vehicle's damage goes through the one vehicle commit (the GM's queue; its receipt is the same path).
     else if (vehicle) landed = (await commitVehicleDamage(actor, out.boxes, { source: "spell",
-      receipt: { path: `flags.sr2e.spellRes.${rid}.damaged`, value: out.boxes } })).landedBoxes;
+      receipt: { path: `flags.sr2e.spellRes.${rid}.damaged`, value: out.boxes },
+      attack: { power: state.force, powerAfterArmor: Math.max(0, state.force - (r2v ? Number(actor.system.effectiveArmor) || 0 : 0)),
+        level: { 1: "L", 3: "M", 6: "S", 10: "D" }[out.boxes] ?? null, sourceKind: "spell" } })).landedBoxes;
     else await commitDamage(actor, state.dmgType === "stun" ? "stun" : "physical", out.boxes, { extra: receipt, skipIf });
 
     // 6. The pending message becomes the outcome.

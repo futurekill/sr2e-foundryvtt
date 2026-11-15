@@ -125,10 +125,17 @@ export function overheadRefund(receipt = {}, superseded = new Set(), ledger = {}
   const cash = split(Math.max(0, Number(receipt.amount) || 0), cashOwed);
   const sup = rows.filter(r => superseded.has(r.key));
   const standingNeed = rows.filter(r => !superseded.has(r.key)).reduce((t, r) => t + kCover[r.i], 0);
-  // Karma points no standing bill needs: whole points of the coverage the superseded bills held.
-  const freeKarma = Math.max(0, Math.floor((karmaYen - standingNeed) / KARMA_NUYEN + 1e-9));
-  const want = { cash: sup.reduce((t, r) => t + cash[r.i], 0), credit: sup.reduce((t, r) => t + credit[r.i], 0), karma: freeKarma };
-  return { cash: Math.max(0, want.cash - (Number(ledger.cash) || 0)), credit: Math.max(0, want.credit - (Number(ledger.credit) || 0)),
+  // Karma points are indivisible (Codex 6a r1 #15): the standing bills keep as many whole points as their coverage
+  // needs, every other point spent comes back — a ¥200 bill paid with one point refunds that point when superseded.
+  const points = karmaYen > 0 ? Math.max(0, Math.floor(Number(receipt.karma) || 0)) : 0;
+  const freeKarma = Math.max(0, points - Math.ceil(standingNeed / KARMA_NUYEN - 1e-9));
+  // Credit comes back to ITS month (r1 #16), ledgered per month.
+  const creditByMonth = {};
+  for (const r of sup) if (credit[r.i]) creditByMonth[r.month] = (creditByMonth[r.month] ?? 0) + credit[r.i];
+  const dueCredit = {};
+  for (const [m, c] of Object.entries(creditByMonth)) { const d = Math.max(0, c - (Number(ledger.creditByMonth?.[m]) || 0)); if (d) dueCredit[m] = d; }
+  const want = { cash: sup.reduce((t, r) => t + cash[r.i], 0), credit: sup.reduce((t, r) => t + credit[r.i], 0), karma: freeKarma, creditByMonth };
+  return { cash: Math.max(0, want.cash - (Number(ledger.cash) || 0)), credit: Object.values(dueCredit).reduce((t, v) => t + v, 0), creditByMonth: dueCredit,
     karma: Math.max(0, want.karma - (Number(ledger.karma) || 0)), totals: want };
 }
 /** Split an integer total over weights so the parts sum exactly (largest remainder). */

@@ -13,7 +13,8 @@
  *   - Optempo charges are paid from the overhead dialog: the payer's money writer, `overheadReceipts.<tx>`, the GM settles.
  */
 import { enqueueAttack } from "./engagement.mjs";
-import { gmCall, gmOp, adjustStress } from "./vehicle-play.mjs";
+import { gmCall, gmOp } from "./vehicle-play.mjs";
+import { stressPatch } from "./rules/vehicle-overhead-rules.mjs";
 import { moneyWriterFor } from "./vehicle-customize.mjs";
 import { moneyQueue, adjustNuyen } from "./money.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
@@ -83,7 +84,15 @@ export function registerOptempo() {
       await saveAdventures(all);
       return all[id];
     });
-    if (!decided) return null;
+    // An adventure decided but not finished (a GM reload between the decision and its rows; Codex 6a r1 #14) replays.
+    return finishAdventure(id, decided ? null : adventures()[id]);
+  });
+
+  // The decision is saved first, then each row is applied idempotently; `applied` marks the end (the card once).
+  async function finishAdventure(id, again) {
+    const decided = again ?? adventures()[id];
+    if (!decided?.closed || decided.applied) return again ? null : decided;
+    const mode = decided.mode;
     for (const [uuid, r] of Object.entries(decided.rows)) {
       const v = fromUuidSync(uuid);
       if (!v) continue;
@@ -103,10 +112,18 @@ export function registerOptempo() {
       });
       if (r.replacesOverhead) for (const m of decided.months) await reconcileMonth(v, m);
     }
+    const applied = await enqueueAttack("optempo", async () => {
+      const all = adventures();
+      if (!all[id] || all[id].applied) return false;
+      all[id] = { ...all[id], applied: true };
+      await saveAdventures(all);
+      return true;
+    });
+    if (!applied) return decided;
     await ChatMessage.create({ whisper: game.users.filter(u => u.isGM).map(u => u.id), content: `<div class="sr2e-item-card"><strong>Adventure closed: ${esc(decided.name)}</strong>
       (optempo: ${esc(mode)}, Rigger 2 p.83–84)<br>${Object.entries(decided.rows).map(([u, r]) => `${esc(fromUuidSync(u)?.name)}: ${r.km} km × ${r.rate}¥ ${r.factor === 0.5 ? "× ½ " : ""}= ${r.amount.toLocaleString()}¥${r.optempo ? "" : " (standard overhead)"}`).join("<br>")}</div>` });
     return decided;
-  });
+  }
 
   // An optempo charge's receipt exists → paid (any client may ask; the receipt is the proof).
   gmOp("optempoSettle", async ({ vehicleUuid, id }) => {
@@ -135,6 +152,8 @@ export function registerOptempo() {
     payRefunds(a).catch(err => console.error("SR2E | optempo refund", err));
   });
   Hooks.once("ready", () => {
+    if (isActiveGM()) for (const [id, a] of Object.entries(adventures())) if (a?.closed && !a.applied)
+      finishAdventure(id).catch(err => console.error("SR2E | adventure close", err));
     for (const c of game.actors.filter(x => x.type === "character")) for (const u of c.system.linkedVehicles ?? []) {
       const v = fromUuidSync(u); if (v) payRefunds(v).catch(() => {});
     }
@@ -148,18 +167,22 @@ export function registerOptempo() {
  */
 export async function reconcileMonth(v, month) {
   if (!isActiveGM()) return;
-  let reverse = false, ev = null;
   await inVehicle(v, async () => {
     const r = ohOf(v).months?.[month], om = ohOf(v).optempoMonths?.[month];
     if (!r || !om?.replaces || r.superseded) return;
-    if (r.tx && !r.paid) { if (!r.supersedePending) await v.update({ [`flags.sr2e.overhead.months.${month}.supersedePending`]: true }); return; }
+    // A payment OR a Stress restoration under way: wait for it to settle or be released (re-run by overheadPass; r1 #17).
+    if ((r.tx && !r.paid) || r.restoreTx) { if (!r.supersedePending) await v.update({ [`flags.sr2e.overhead.months.${month}.supersedePending`]: true }); return; }
     const upd = { [`flags.sr2e.overhead.months.${month}.superseded`]: om.rev, [`flags.sr2e.overhead.months.${month}.-=supersedePending`]: null };
     if (r.paid && r.tx) upd[`flags.sr2e.overhead.months.${month}.refund`] = { state: "due", rev: om.rev };
-    if (r.missed && !r.restored) { reverse = true; ev = `ostress-rev:overhead-missed-${month}`; }
+    // The missed month's +1 Stress, reversed with its OWN receipt (round 6 #1) IN THE SAME update as the supersession
+    // (r1 #17: never lost between two writes), through the one Stress writer's patch like a restoration.
+    const ev = `ostress-rev:overhead-missed-${month}`;
+    if (r.missed && !r.restored && v.getFlag("sr2e", "vstress")?.[ev] == null) {
+      const before = v.system.stressRating ?? 0, after = Math.max(v.system.stressPermanent ?? 0, before - 1);
+      Object.assign(upd, { [`flags.sr2e.vstress.${ev}`]: after - before }, stressPatch({ before, after, counter: num(ohOf(v).stress) }));
+    }
     await v.update(upd);
   });
-  // The missed month's +1 Stress, reversed with its OWN receipt (round 6 #1), never the original key.
-  if (reverse) await adjustStress(v, -1, { eventId: ev, reason: "a superseded month's missed-payment Stress (Rigger 2 p.83, optempo)" });
 }
 
 /** The payer's money writer pays every refund this vehicle owes, once (ledger `overheadRefunds.<tx>`). */
@@ -171,7 +194,7 @@ async function payRefunds(v) {
     await moneyQueue(payer, async () => {
       const receipt = payer.getFlag("sr2e", "overheadReceipts")?.[r.tx];
       if (!receipt || receipt.released) return;
-      const led = payer.getFlag("sr2e", "overheadRefunds")?.[r.tx] ?? { cash: 0, credit: 0, karma: 0, done: [] };
+      const led = payer.getFlag("sr2e", "overheadRefunds")?.[r.tx] ?? { cash: 0, credit: 0, karma: 0, creditByMonth: {}, done: [] };
       const key = `${v.uuid}|${m}`;
       if (led.done?.includes(key)) return;
       // Every row of this receipt whose vehicle-month is now superseded (so shared credit/Karma come back only once).
@@ -181,8 +204,10 @@ async function payRefunds(v) {
       const due = overheadRefund(receipt, sup, led);
       const disc = payer.getFlag("sr2e", "overheadDiscount") ?? {};
       const upd = { "system.karma.current": num(payer.system.karma?.current) + due.karma,
-        [`flags.sr2e.overheadRefunds.${r.tx}`]: { cash: led.cash + due.cash, credit: led.credit + due.credit, karma: led.karma + due.karma, done: [...(led.done ?? []), key] } };
-      if (due.credit) upd[`flags.sr2e.overheadDiscount.${m}`] = Math.max(0, num(disc[m]) - due.credit);
+        [`flags.sr2e.overheadRefunds.${r.tx}`]: { cash: led.cash + due.cash, credit: led.credit + due.credit, karma: led.karma + due.karma,
+          creditByMonth: Object.fromEntries([...new Set([...Object.keys(led.creditByMonth ?? {}), ...Object.keys(due.creditByMonth)])]
+            .map(k => [k, num(led.creditByMonth?.[k]) + num(due.creditByMonth[k])])), done: [...(led.done ?? []), key] } };
+      for (const [cm, c] of Object.entries(due.creditByMonth)) upd[`flags.sr2e.overheadDiscount.${cm}`] = Math.max(0, num(disc[cm]) - c);
       await adjustNuyen(payer, due.cash, upd);
       await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: payer }), content: `<div class="sr2e-item-card"><strong>${esc(v.name)}, month ${m}: overhead
         superseded by optempo</strong> (Rigger 2 p.83) — refunded ${due.cash.toLocaleString()}¥${due.credit ? `, ${due.credit.toLocaleString()}¥ of Lifestyle credit` : ""}${due.karma ? `, ${due.karma} Good Karma` : ""}.</div>` });

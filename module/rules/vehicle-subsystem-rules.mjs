@@ -74,7 +74,14 @@ export function reducedBonus(value, level) {
 }
 /** With no bonus to reduce (Table 8): +1 (Light, R6-1) / +3 (Moderate) to Success Tests with the device. */
 export const NO_BONUS_TN = { L: 1, M: 3 };
-/** The worst of several levels (records for one target don't multiply; 6a.4). */
+/**
+ * Operability (plan 6.0; 6a.4): a damaged item's derived level on its vehicle (`system.subsysItems`, derived every
+ * preparation). Serious = inoperable, Deadly = destroyed — the item stays installed (CF/Load) but does nothing.
+ */
+export const subsysLevelOf = (item) => item?.parent?.system?.subsysItems?.[item.id] ?? null;
+export const itemOperable = (item) => !["S", "D"].includes(subsysLevelOf(item));
+/** A damaged device's rating (Table 8): Light −1, Moderate halved; inoperable → 0. */
+export const operableRating = (item, rating) => { const l = subsysLevelOf(item); return l ? reducedBonus(rating, l) : Number(rating) || 0; };
 /** A damaged subsystem's damage modifier on the weapons using it (Turret, Target Acquisition; p.86): L +1, M +2, S +3. */
 export const SUBSYS_DAMAGE_MOD = { L: 1, M: 2, S: 3 };
 /** The worst live level of records with this key on the vehicle (item or built-in), or null. */
@@ -123,5 +130,6 @@ export function applySubsystemEffects(eff, st, baseBody) {
   if (f) for (const k of ["acceleration", "speed", "load"]) if (eff[k] != null) eff[k] = Math.floor(eff[k] * f);
   if (st.armorLoss) eff.armor = Math.max(0, (Number(eff.armor) || 0) - st.armorLoss);
   eff.body = st.body ? aggravatedBody(baseBody, st.body) : baseBody;
+  if (st.autonav && eff.autonav != null) eff.autonav = reducedBonus(eff.autonav, st.autonav);
   return eff;
 }

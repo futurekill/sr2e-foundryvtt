@@ -270,7 +270,7 @@ gmOp("overheadRestoreReserve", async ({ vehicleUuid, month, rtx, payerUuid }, us
   if (v?.type !== "vehicle" || !mayPay(user, payer, v)) throw new Error("not allowed");
   return inVehicle(v, async () => {
     const r = ohOf(v).months?.[month];
-    if (!r?.paid || !r.missed || r.restored) return { ok: false, why: "nothing to restore" };
+    if (!r?.paid || !r.missed || r.restored || r.superseded != null) return { ok: false, why: "nothing to restore" };
     if (r.restoreTx) return { ok: false, why: "another attempt is under way" };
     if (payer.getFlag("sr2e", "overheadReceipts")?.[rtx]) return { ok: false, why: "that attempt id was used before" };
     await v.update({ [`flags.sr2e.overhead.months.${month}.restoreTx`]: rtx, [`flags.sr2e.overhead.months.${month}.restorePayer`]: payerUuid });

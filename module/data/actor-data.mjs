@@ -2191,6 +2191,9 @@ export class VehicleData extends SR2EDataModel {
     };
     // Built-in subsystem effects (Handling, engine, Body, Armor), derived — reassigned every preparation.
     if (subsys) applySubsystemEffects(this.effective, subsys, Number(this.body) || 0);
+    // Operability (plan 6.0): per item its worst live level; the Control Box's — reassigned every preparation.
+    this.subsysItems = subsys?.items ?? {};
+    this.subsysControlBox = subsys?.controlBox ?? null;
     // Usable Cargo and Load: the effective gross − the design options − every mod's consumption (the one capacity
     // rule, module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
     const cap = vehicleCapacity({ cargo: this.effective.cargo, load: this.effective.load, optionCf: this.design.optionCf,

@@ -1135,3 +1135,26 @@ Quench `sr2e.sensors` 28/28 (+5 tests), vehicle/combat batches 140/140; Vitest 1
 15. Refunds drop partially used Karma points.
 16. Multi-month refunds restore credit to the wrong month.
 17. Optempo Stress reversal ignores pending restorations; superseded before reversal; overhead counter untouched.
+
+### Claude's response — all taken
+1: operability is derived (`system.subsysItems`, `subsysControlBox`): `itemOperable` gates `hasWorkingMod` and every
+transmitter (ratings reduced by Table 8 via `operableRating`); a damaged vehicle weapon takes +1/+3 TN (R6-1) or can't
+fire; Autonav dice reduced. 2: a Deadly engine opens the coasting episode (`cause: "engine"`): 2 × Acceleration a Turn,
+no powered actions, not ended by refuelling, ended by `replaceEngine`; the stages run under either option. 3:
+`replaceEngine` bumps `subsysGen.engine` and retires its records (Quench now uses it). 4: a PASSED Crash Test (done, no
+outcome) no longer blocks a later automatic crash for that origin — it gets its own `<fid>-auto` record, once; a failed
+test now counts as crashed. 5: the subsystem follow-up carries its damage source; crash damage starts no further crash.
+6: the roll stores its hits with record ids in the same update; `consequencesDone` marks the end; the GM pass replays
+unfinished ones. 7: crash/impact (rams), collision, Body-0 destruction and combat-spell commits carry the attack
+context. 8: p.82 read again — the emergency landing comes "at the end of its deceleration": a passed fuel Crash Test
+records `fuelOut.landing`, the landing (6L, 1D6 Stress, no occupants) is delivered when the episode stops; a failed test
+or any crash ends the coasting. 9: a coast Turn's effects (speed, Crash Test due, landing) are written with its receipt
+(`fuelOut.pending`) and delivered from it, replayed on the next pass. 10: movement coverage (`movedTo`) is kept apart
+from the mode cursor, so a mode change never swallows unbilled movement; the dialog refuses manual idle hours for an
+operating drone and travel for a stationary one. 11: the burn that empties the tank uses the coasting share at once (as
+a retry does). 12: the tank keeps full precision; only receipts and displays round. 13: a stationary drone in a chase
+keeps its idle debit. 14: closing is a replayable transaction (`applied` after the rows; the GM finishes an unfinished
+one on ready). 15: Karma points are indivisible — standing bills keep ceil(coverage ÷ 500) points, the rest come back.
+16: credit is refunded and ledgered per month (`creditByMonth`). 17: a month with a restoration under way waits; the
+reversal lands in the same update as the supersession through `stressPatch`; a superseded month can't be restored.
+Quench `sr2e.r2-advanced` 13/13 (+3), vehicle/combat batches 128/128; Vitest 1690 (+2).

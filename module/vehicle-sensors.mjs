@@ -17,6 +17,7 @@
  *     the controlling player, idempotent by the caller's event id.
  */
 import { gmCall, gmOp, controllerOf, followId } from "./vehicle-play.mjs";
+import { itemOperable, operableRating } from "./rules/vehicle-subsystem-rules.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { isRigger2, r2Option } from "./vehicle-mode.mjs";
 import { activeChases, chaseOf } from "./chase-state.mjs";
@@ -53,7 +54,7 @@ export function allVehicles() {
 /* ── Transmitters ─────────────────────────────────────────────────────────────────────────────────────────── */
 
 const isPort = (i) => i.type === "vehicle_mod" && (i.system.modKey === "electronics-port" || /electronics port/i.test(i.name));
-const itemWorking = (i) => WORKING.includes(i.system.custom?.state ?? "");
+const itemWorking = (i) => WORKING.includes(i.system.custom?.state ?? "") && itemOperable(i);
 
 /** Is this device connected through an installed Electronics Port (R2 p.30, p.139)? Ports name their device. */
 export function ported(vehicle, deviceId) {
@@ -90,7 +91,7 @@ export function transmitters(vehicle) {
     const working = i.type === "vehicle_mod" ? itemWorking(i) && (kind !== "sensor" || i === sensorItem) : true;
     // Sensors, decks and radios are always on while working; ECM/ECCM/ED/ECD are toggled (Simple Actions, p.32).
     const toggled = ["ecm", "eccm", "ed", "ecd"].includes(kind);
-    out.push({ id: i.id, kind, rating: kind === "sensor" ? (working ? vehicle.system.effective?.sensor ?? i.system.rating : Number(i.system.rating) || 0) : Number(i.system.rating) || 0,
+    out.push({ id: i.id, kind, rating: kind === "sensor" ? (working ? vehicle.system.effective?.sensor ?? i.system.rating : Number(i.system.rating) || 0) : operableRating(i, i.system.rating),
       item: i, working, on: working && (!toggled || !!on[i.id]), ported: ported(vehicle, i.id) });
   }
   if (!sensorItem && hasSensors(vehicle))

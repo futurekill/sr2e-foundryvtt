@@ -59,9 +59,17 @@ function deliver(vehicle) {
 export async function escalateCrash(vehicle, fid, kind, why = "") {
   if (!game.users.activeGM?.isSelf) return;
   await vq(vehicle.uuid, async () => {
+    // A crash that actually happened (a failed test included) stops everything; a PASSED Crash Test (done, no outcome)
+    // doesn't stop a later automatic crash for the same origin — that one gets its own record (Codex 6a r1 #4).
+    const crashed = (c) => !!c && (["crashed", "resisting", "resolving"].includes(c.state) || (c.state === "done" && (c.kind !== "test" || !!c.outcome)));
+    const cr = crashOf(vehicle, fid), autoFid = `${fid}-auto`;
+    if (crashed(cr?.[1]) || crashed(crashOf(vehicle, autoFid)?.[1])) return;
+    if (cr?.[1].kind === "test" && cr[1].state === "done") {
+      if (kind === "auto" && !vehicle.getFlag("sr2e", "vfollow")?.[autoFid])
+        await vehicle.update({ [`flags.sr2e.vfollow.${autoFid}.crash`]: { kind: "auto", why, speed: findEntry(vehicle.uuid)?.entry?.speed ?? null, ruleset: "rigger2", state: "pending" } });
+      return;
+    }
     const f = vehicle.getFlag("sr2e", "vfollow")?.[fid] ?? {};
-    const cr = crashOf(vehicle, fid);
-    if (cr && ["crashed", "resisting", "resolving", "done"].includes(cr[1].state) && cr[1].kind !== "test") return;   // already crashed
     if (!f.crash) {
       await vehicle.update({ [`flags.sr2e.vfollow.${fid}.crash`]: { kind, why, speed: findEntry(vehicle.uuid)?.entry?.speed ?? null, ruleset: "rigger2", state: "pending" } });
     } else if (kind === "auto" && f.crash.kind === "test") {
@@ -81,7 +89,8 @@ async function openCrash(vehicle, fid, x) {
   if (crashOf(vehicle, fid)) return;
   // kind "impact" (a ram, a wall, a pedestrian): an explicit code, its damage source, whether it stops, who is aboard.
   const extra = x.kind === "impact" ? { power: x.power, level: x.level, source: x.source ?? "collision", stop: !!x.stop,
-    ...(x.occupants ? { occupants: x.occupants } : {}), restraintNegates: !!x.restraintNegates, ...(x.newSpeed != null ? { newSpeed: x.newSpeed } : {}) } : {};
+    ...(x.occupants ? { occupants: x.occupants } : {}), restraintNegates: !!x.restraintNegates, ...(x.newSpeed != null ? { newSpeed: x.newSpeed } : {}),
+    ...(x.noOccupants ? { noOccupants: true } : {}), ...(x.emergency ? { emergency: true } : {}) } : {};
   // Who is aboard is snapshotted NOW (Codex 3b R1 #13); a speed of null = not in a chase, entered on the card.
   await vehicle.update({ [`flags.sr2e.crashes.${foundry.utils.randomID(16)}`]: { fid, kind: x.kind, ruleset: x.ruleset ?? "core",
     speed: x.speed == null ? null : Number(x.speed) || 0, why: x.why ?? "", state: x.kind === "test" ? "open" : "crashed",
@@ -185,11 +194,14 @@ async function crashOp({ vehicleUuid, cid, step, op, attemptId = null, messageId
       if (step === "test") {
         // A Crash Test with no success crashes the vehicle (core p.107, Rigger 2 p.51).
         upd[`${base}.state`] = read > 0 ? "done" : "crashed";
-        // An aircraft out of fuel (R2 p.82, optional r2Fuel): success = an emergency landing at the end of its
-        // deceleration — the vehicle resists 6L and takes 1D6 Stress; "no damage occurs to passengers or cargo".
-        if (read > 0 && c.cause === "fuel") Object.assign(upd, { [`${base}.state`]: "crashed", [`${base}.kind`]: "impact",
-          [`${base}.power`]: 6, [`${base}.level`]: "L", [`${base}.stop`]: true, [`${base}.noOccupants`]: true,
-          [`${base}.why`]: "makes an emergency landing (Rigger 2 p.82)", [`${base}.emergency`]: true });
+        // An aircraft out of fuel (R2 p.82, optional r2Fuel): success = an emergency landing "at the end of its
+        // deceleration" — recorded on the episode, delivered by the fuel stage when it stops (6L, 1D6 Stress, no harm to
+        // passengers or cargo); failure = it crashes immediately, which ends the coasting (Codex 6a r1 #8).
+        const out = vehicle.getFlag("sr2e", "fuelOut");
+        if (c.cause === "fuel" && out?.state === "coasting") {
+          if (read > 0) upd["flags.sr2e.fuelOut.landing"] = c.fid;
+          else upd["flags.sr2e.fuelOut.state"] = "crashed";
+        }
       } else {
         const r2 = c.ruleset === "rigger2";
         const hit = c.kind === "impact" ? { power: c.power, level: c.level } : r2 ? r2Impact(c.speed) : impactDamage(c.speed);
@@ -218,14 +230,20 @@ async function applyCrash(vehicle, cid) {
   const hit = findEntry(vehicle.uuid);
   const to = c.kind !== "impact" || c.stop ? 0 : c.newSpeed ?? null;   // a wall broken through keeps the rest (p.52)
   if (hit && to != null && hit.entry.speed !== to) await gmCall("chaseSetSpeed", { combatId: hit.combat.id, eid: hit.eid, speed: to });
+  // The immutable attack context every damage commit carries (6a.4 subsystem damage: Control Box, compartment; r1 #7).
+  const crashArmor = Number(vehicle.system.effectiveArmor) || 0;
   if (o.vehicleLevel) await commitVehicleDamage(vehicle, BOXES[o.vehicleLevel], { source: c.kind === "impact" ? c.source : "crash", eventId: `${fid}:vehicle`,
-    woundLevel: o.vehicleLevel, ruleset: c.ruleset });
+    woundLevel: o.vehicleLevel, ruleset: c.ruleset,
+    attack: { power: o.power ?? 0, powerAfterArmor: Math.max(0, (o.power ?? 0) - crashArmor), level: o.vehicleLevel, sourceKind: c.kind === "impact" ? (c.source ?? "collision") : "crash" } });
   // An emergency landing out of fuel (R2 p.82): 1D6 Stress, once (the Stress op's receipt).
   if (c.emergency) await adjustStress(vehicle, (await new Roll("1d6").evaluate()).total, { eventId: `${fid}:emergency-stress`, reason: "emergency landing (Rigger 2 p.82)" });
   const tag = `${fid}:occupants`;
   if (!cardWith("vfollowId", tag)) await postOccupants(vehicle, c, tag);
   await vq(vehicle.uuid, async () => {
-    if (vehicle.getFlag("sr2e", "crashes")?.[cid]?.state === "resolving") await vehicle.update({ [`flags.sr2e.crashes.${cid}.state`]: "done" });
+    if (vehicle.getFlag("sr2e", "crashes")?.[cid]?.state !== "resolving") return;
+    // A vehicle that crashed while coasting out of fuel stops coasting (Codex 6a r1 #8).
+    const coasting = vehicle.getFlag("sr2e", "fuelOut")?.state === "coasting" && c.kind !== "impact" || (c.kind === "impact" && c.stop && vehicle.getFlag("sr2e", "fuelOut")?.state === "coasting");
+    await vehicle.update({ [`flags.sr2e.crashes.${cid}.state`]: "done", ...(coasting ? { "flags.sr2e.fuelOut.state": "crashed" } : {}) });
   });
   return r2;
 }
@@ -568,7 +586,9 @@ async function gmPass() {
     ...game.scenes.contents.flatMap(s => s.tokens.contents.filter(t => !t.actorLink && t.actor?.type === "vehicle").map(t => t.actor))];
   for (const v of vehicles) {
     try {
-      if (Object.values(v.getFlag("sr2e", "vfollow") ?? {}).some(f => f?.feedback?.state === "pending" || f?.crash?.state === "pending")) await deliver(v);
+      if (Object.values(v.getFlag("sr2e", "vfollow") ?? {}).some(f => f?.feedback?.state === "pending" || f?.crash?.state === "pending" || f?.subsystem?.state === "pending")) await deliver(v);
+      // Subsystem consequences a stopped client recorded but never ran (Codex 6a r1 #6).
+      await (await import("./vehicle-subsystems.mjs")).resumeSubsystems(v);
       for (const [cid, c] of Object.entries(v.getFlag("sr2e", "crashes") ?? {})) {
         if (c.state === "resolving") await applyCrash(v, cid);
         for (const step of ["test", "resist"]) {

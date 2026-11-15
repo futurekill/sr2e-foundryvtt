@@ -2386,7 +2386,8 @@ export class SR2EActor extends Actor {
       if (options.beforeRoll && !(await options.beforeRoll())) return null;
       // A Body-0 COMPONENT is destroyed; the vehicle only takes damage if the GM said so.
       const toVehicle = !component?.own || component.alsoVehicle;
-      if (toVehicle) await commitVehicleDamage(this, 10, { source: options.source ?? "weapon", eventId, woundLevel: "D", ruleset: "rigger2" });
+      if (toVehicle) await commitVehicleDamage(this, 10, { source: options.source ?? "weapon", eventId, woundLevel: "D", ruleset: "rigger2",
+        attack: { power, powerAfterArmor: Math.max(0, power - armor), level: "D", sourceKind: options.source ?? "weapon" } });
       return ChatMessage.create({ ...resolves, speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result"><strong>Destroyed:</strong> ${component ? `the ${foundry.utils.escapeHTML(component.name)}` : "the vehicle"} — Body 0, any success destroys it (Rigger 2 p.53).</div>` });
     }

@@ -239,7 +239,7 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
     const e = ch.entries[eid];
     if (e?.kind !== "vehicle") throw new Error("not a vehicle in this chase");
     // Out of fuel (R2 p.81, optional): no powered actions while it coasts.
-    if (["accelerate", "ram"].includes(kind) && fromUuidSync(e.uuid)?.getFlag("sr2e", "fuelOut")) throw new Error("out of fuel: it can only coast (Rigger 2 p.81)");
+    if (["accelerate", "ram"].includes(kind) && fromUuidSync(e.uuid)?.getFlag("sr2e", "fuelOut")) throw new Error("no power (out of fuel or a dead engine): it can only coast (Rigger 2 p.81)");
     const actor = kind === "relocate" ? actorUuid : e.driver;
     if (kind === "relocate" && !(e.driver === actor || (e.aboard ?? []).includes(actor))) throw new Error("the spotter must be aboard the pursuing vehicle");
     if (!owns(user, actor)) throw new Error(`${user?.name} may not act for that character`);
