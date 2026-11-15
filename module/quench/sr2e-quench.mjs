@@ -19448,6 +19448,10 @@ export function registerSR2EQuenchTests() {
           d.rollSuccessTest = (dice, tn, o) => { seen.push(dice); return orig(dice, tn, o); };
           try { await gun._rollWeaponAttack({ gunner: d, range: "short", _engage: { key: "quench-drone-gun", token: null } }); } finally { d.rollSuccessTest = orig; }
           assert.equal(seen[0], 3, "Pilot 3");
+          await d.update({ "system.design.traits": ["drone", "robot"], "system.threatRating": 2 });
+          seen.length = 0; d.rollSuccessTest = (dice, tn, o) => { seen.push(dice); return orig(dice, tn, o); };
+          try { await gun._rollWeaponAttack({ gunner: d, range: "short", _engage: { key: "quench-drone-gun-2", token: null } }); } finally { d.rollSuccessTest = orig; }
+          assert.equal(seen[0], 5, "a robot adds its Threat Rating 2");
           await call("rcJump", { deckUuid: deck.uuid, vehicleUuid: d.uuid });
           assert.equal(RCN.networkGunner(d).gunner, pc, "primary: the operator, rigged");
         });

@@ -801,7 +801,12 @@ export class SR2EItem extends Item {
     }
 
     // A drone firing on its own (R2 p.65, p.67; 5a.2): the Pilot Rating replaces the skill; no pools, no defaulting.
-    if (actor.type === "vehicle") { skillRating = actor.system.effective?.pilot ?? actor.system.pilot ?? 0; skillVariantNote = "Pilot"; }
+    // A robot adds its Threat Rating (R2 p.67; core p.187: permanent dice on any test).
+    if (actor.type === "vehicle") {
+      const threat = actor.system.isRobot ? Math.max(0, actor.system.threatRating ?? 0) : 0;
+      skillRating = (actor.system.effective?.pilot ?? actor.system.pilot ?? 0) + threat;
+      skillVariantNote = threat ? `Pilot + ${threat} Threat` : "Pilot";
+    }
 
     // Untrained: default to the skill's linked Attribute via the Skill Web
     // (SR2E p.69) — attribute dice at +CONFIG.SR2E.defaultingPenalty TN.

@@ -961,11 +961,13 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const scope = sys.learningPool?.scope ?? "";
   const learn = drone && o.learning > 0 && (!scope || o.inScope) ? await LP.spendLearning(vehicle, o.learning, { scope }) : { n: 0 };
   const ivis = drone && o.ivis > 0 ? await gmCall("rcIvisSpend", { vehicleUuid: vehicle.uuid, n: o.ivis }) : { n: 0 };
+  // A robot's Threat Rating: permanent extra dice on its own tests, as an NPC's (R2 p.67; core p.187). The GM sets 0 to waive.
+  const threat = drone && sys.isRobot ? Math.max(0, sys.threatRating ?? 0) : 0;
   const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;
   // A simsense interface (datajack, rig) is an electronic device: Computer Illiterate (p.15).
-  const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice + learn.n + ivis.n, tn, { label: label + (learn.n ? `, +${learn.n} Learning Pool${scope ? ` (declared: ${scope})` : ""}` : "")
-    + (ivis.n ? `, +${ivis.n} IVIS Pool` : ""),
+  const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice + learn.n + ivis.n + threat, tn, { label: label + (learn.n ? `, +${learn.n} Learning Pool${scope ? ` (declared: ${scope})` : ""}` : "")
+    + (ivis.n ? `, +${ivis.n} IVIS Pool` : "") + (threat ? `, +${threat} Threat` : ""),
     paidPoolDice: paid ? { control: paid } : undefined,
     ...(learn.n ? { flags: { sr2e: { learningSpend: { vehicleUuid: vehicle.uuid, eventId: learn.eventId, n: learn.n, scope } } } } : {}),
     tnContext: { kind: "skill", key: sk.key ?? "", skillCategory: "active", electronic: o.mode === "rigged" || o.mode === "datajack" },
