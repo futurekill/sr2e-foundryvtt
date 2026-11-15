@@ -80,6 +80,7 @@ export class SkillData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       category: new fields.StringField({ required: true, initial: "active", choices: {
         active: "SR2E.Skills.Active",
         build_repair: "SR2E.Skills.BuildRepair",
@@ -205,6 +206,7 @@ export class WeaponData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       weaponType: new fields.StringField({ required: true, initial: "firearm", choices: {
         melee: "SR2E.Weapons.Melee", projectile: "SR2E.Weapons.Projectile",
         throwing: "SR2E.Weapons.Throwing", firearm: "SR2E.Weapons.Firearm",
@@ -354,6 +356,7 @@ export class ArmorData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       ballistic: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
       impact: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
       concealability: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
@@ -382,6 +385,7 @@ export class SpellData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       category: new fields.StringField({ required: true, initial: "combat", choices: {
         combat: "SR2E.Spells.Combat", detection: "SR2E.Spells.Detection",
         health: "SR2E.Spells.Health", illusion: "SR2E.Spells.Illusion",
@@ -479,6 +483,7 @@ export class CyberwareData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       location: new fields.StringField({ initial: "bodyware", choices: {
         headware: "SR2E.Cyberware.Headware", bodyware: "SR2E.Cyberware.Bodyware",
         cyberlimb: "SR2E.Cyberware.Cyberlimb", other: "SR2E.Cyberware.Other"
@@ -807,6 +812,7 @@ export class BiowareData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       // Body system this bioware augments — sheet grouping + flavor, non-mechanical.
       bodySystem: new fields.StringField({ initial: "structural", choices: {
         circulatory: "SR2E.Bioware.System.Circulatory", dermal: "SR2E.Bioware.System.Dermal",
@@ -937,6 +943,7 @@ export class GearData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       category: new fields.StringField({ initial: "general" }),
       rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       quantity: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
@@ -1077,6 +1084,7 @@ export class ProgramData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       category: new fields.StringField({ initial: "persona", choices: {
         persona: "SR2E.Matrix.Persona", combat: "SR2E.Matrix.CombatUtility",
         defense: "SR2E.Matrix.DefenseUtility", sensor: "SR2E.Matrix.SensorUtility",
@@ -1180,6 +1188,7 @@ export class AdeptPowerData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       pointCost: new fields.NumberField({ required: true, initial: 0.25, min: 0 }),
       level: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
       maxLevel: new fields.NumberField({ integer: true, initial: 1, min: 1 }),
@@ -1216,6 +1225,7 @@ export class ContactData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       // Relationship tiers follow the SR Companion: Contact / Buddy / Friend For
       // Life (rising Loyalty), Follower (a hireling/dependent), and Enemy.
       contactType: new fields.StringField({ initial: "contact", choices: {
@@ -1242,6 +1252,7 @@ export class LifestyleData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       level: new fields.StringField({ initial: "low", choices: {
         streets: "SR2E.Lifestyle.Streets", squatter: "SR2E.Lifestyle.Squatter",
         low: "SR2E.Lifestyle.Low", middle: "SR2E.Lifestyle.Middle",
@@ -1278,6 +1289,7 @@ export class AmmoData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       ammoType: new fields.StringField({ initial: "regular" }),
       quantity: new fields.NumberField({ integer: true, initial: 10, min: 0 }),
       // Street Index: black-market price multiplier (street price = cost × SI)
@@ -1311,6 +1323,7 @@ export class FocusData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       focusType: new fields.StringField({ initial: "spell", choices: {
         spell: "SR2E.Focus.Spell", spirit: "SR2E.Focus.Spirit", power: "SR2E.Focus.Power",
         weapon: "SR2E.Focus.Weapon", spell_lock: "SR2E.Focus.SpellLock"
@@ -1391,6 +1404,7 @@ export class VehicleModData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       modType: new fields.StringField({ initial: "general" }),
       rating: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
       cost: new fields.NumberField({ initial: 0, min: 0 }),
@@ -1489,6 +1503,7 @@ export class RaceData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       // The canonical race key used to look up CONFIG.SR2E.racialModifiers etc.
       // Storing it here lets you override defaults per-item if needed.
       raceKey: new fields.StringField({ required: true, initial: "human", choices: {
@@ -1550,6 +1565,7 @@ export class TraditionData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       // Which magic archetype this tradition represents
       magicType: new fields.StringField({ required: true, initial: "full_magician", choices: {
         full_magician:   "SR2E.Magic.FullMagician",
@@ -1594,6 +1610,7 @@ export class QualityData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),
       kind: new fields.StringField({ initial: "flaw", choices: {
         edge: "SR2E.Quality.Edge", flaw: "SR2E.Quality.Flaw"
       }}),

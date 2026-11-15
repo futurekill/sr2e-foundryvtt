@@ -2058,6 +2058,7 @@ export class VehicleData extends SR2EDataModel {
   static defineSchema() {
     const fields = foundry.data.fields;
     return {
+      citation: SR2EDataModel.citationField(),   // chargen M1b: where the vehicle is printed
       vehicleType: new fields.StringField({ initial: "ground" }),
       // Rigger 2 Vehicle Points class (p.42; docs/PLAN-vehicles-phase2.md 3a.1); blank = derived (chase.mjs classOf).
       r2Class: new fields.StringField({ initial: "", blank: true, choices: ["", ...Object.keys(VEHICLE_POINTS)] }),

@@ -2,6 +2,7 @@ import { isRigger2 } from "../vehicle-mode.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
 
+import { BOOKS, NO_BOOK, citationLabel, citationTitle } from "../rules/books.mjs";
 import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
 import { SHARED_ACTIONS } from "./sheet-actions.mjs";
 import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
@@ -115,6 +116,11 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.item = item;
     context.system = item.system;
     context.isGM = game.user.isGM;
+    // Where it's printed (chargen M1b): the badge, and the GM's two fields.
+    const cite = item.system.citation ?? {};
+    context.citation = { label: citationLabel(cite), title: citationTitle(cite), book: cite.book ?? "", page: cite.page ?? "",
+      books: [["", "—"], [NO_BOOK, "Not in a book"], ...Object.entries(BOOKS).map(([id, b]) => [id, `${b.abbr} — ${b.title}`])]
+        .map(([id, label]) => ({ id, label, selected: id === (cite.book ?? "") })) };
     // What the form shows, so a whole-form submit can tell a real quantity edit from a
     // stale resend (see _processSubmitData).
     this._shownQuantity = item.system.quantity;

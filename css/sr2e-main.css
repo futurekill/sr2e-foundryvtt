@@ -4230,3 +4230,11 @@ body.sr2e-terminal-theme #chat-log::-webkit-scrollbar-thumb:hover { background: 
 .sr2e-chase .chase-add select, .sr2e-chase .chase-add input { width: auto; flex: none; }
 .sr2e-chase-open { flex: none; width: auto; margin: 2px 4px; padding: 0 8px; }
 .sr2e-passenger-limit { font-size: 0.8em; opacity: 0.85; }
+
+/* Citations (chargen M1b): the "SSC p.59" badge beside the item type; the GM's book/page fields. */
+.sr2e.sheet.item .sr2e-citation {
+  margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 3px;
+  font-size: 0.9em; opacity: 0.85; white-space: nowrap;
+}
+.sr2e.sheet.item .sr2e-citation-edit { gap: 4px; margin-top: 2px; }
+.sr2e.sheet.item .sr2e-citation-edit select { flex: 1 1 auto; min-width: 0; }

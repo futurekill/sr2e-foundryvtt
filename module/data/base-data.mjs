@@ -21,6 +21,18 @@ export class SR2EDataModel extends foundry.abstract.TypeDataModel {
   }
 
   /**
+   * Where the entry is printed (chargen M1b, docs/PLAN-citations.md): `{ book, page }` — `book` a books.mjs id (or
+   * "none"), `page` "59" or "59–60". Blank allowed (`blank: true`, or every existing document goes invalid).
+   */
+  static citationField() {
+    const fields = foundry.data.fields;
+    return new fields.SchemaField({
+      book: new fields.StringField({ required: true, initial: "", blank: true }),
+      page: new fields.StringField({ required: true, initial: "", blank: true })
+    });
+  }
+
+  /**
    * Helper to create a standard attribute field.
    */
   static attributeField(initial = 1) {

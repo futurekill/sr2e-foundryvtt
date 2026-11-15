@@ -4,6 +4,14 @@
   </div>
   <div class="header-info flexcol">
     <input type="text" name="name" value="{{item.name}}" placeholder="Item Name" />
-    <span class="item-type">{{type}}</span>
+    <span class="item-type">{{type}}
+      {{#if citation.label}}<span class="sr2e-citation" title="{{citation.title}}">{{citation.label}}</span>{{/if}}
+    </span>
+    {{#if isGM}}
+    <div class="sr2e-citation-edit flexrow" title="Where this is printed (book and page)">
+      <select name="system.citation.book">{{#each citation.books}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+      <input type="text" name="system.citation.page" value="{{citation.page}}" placeholder="page (59 or 59–60)" style="flex:0 0 120px">
+    </div>
+    {{/if}}
   </div>
 </section>
