@@ -10,6 +10,23 @@
   Level 2 / 3 / 4 gives 1 / 2 / 3 dice and a cerebral booster of Level 2 one more (they add). The sheet shows it beside
   the other pools; the skill-test dialog offers it on Technical (Biotech, Computer, Electronics), Knowledge and
   Build/Repair skill tests, at most the skill's rating; it refreshes with the other pools.
+- **Remote-control networks** (Rigger 2 p.62–67; Part 5a), under the Rigger 2 vehicle ruleset: an RC deck (Vehicles tab
+  → the deck's panel) subscribes up to 2 × Rating vehicles and affiliates up to Rating of them; Connect makes you its
+  operator. Each affiliated drone runs in **captain's chair** (its own Pilot, no pools), as your one **primary** (Jump in:
+  rigged, with your pools and rigger bonuses) or as a **secondary** while you're jumped elsewhere. **Command** rolls the
+  drone's Comprehension Test (Pilot + Non-Matrix Programming, the GM's Skill Success Table TN, +2 when you're jumped
+  into another drone) and records its standing order; **Group command** gives several drones one order and one test at
+  their lowest Pilot, with a **BattleTac IVIS** Test first (master unit on the deck, receivers on the drones) whose spare
+  successes become the group's shared IVIS Pool. Out-of-range drones hold their last order. Network drones in a chase
+  are acted for by their operator (a jump, return or disconnect makes a reserved roll "not counted"); captain's-chair
+  drones fire their weapons on their Pilot. **Hardwire** a deck carried by a rigger-adapted vehicle through an
+  Electronics Port. **Dump shock**: deleting a connected deck dumps its operator — +2 on all Success Tests for 10 Combat
+  Turns, (Rating + 4)S Stun resisted with Willpower, and a Willpower (4) Test to shorten it.
+- **Robots** (Rigger 2 p.65, p.67): a vehicle with the robot design trait rolls its own Initiative (Reaction 2 × Pilot,
+  Learning Pool + 1 dice, max 4); vehicles carry a **Learning Pool** (blank = Pilot for a robot; a printed scope like
+  "Search & Rescue" is declared on the test and the GM may veto it), refreshed each Combat Turn and each phase the
+  vehicle acts, offered on the drone's own Driving Test. A non-robot network drone can't be added to the combat tracker
+  by a player (it acts in its operator's phases).
 
 ## 0.155.0 — 2026-11-15
 
