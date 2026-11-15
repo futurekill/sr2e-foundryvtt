@@ -1214,3 +1214,65 @@ Quench `sr2e.r2-advanced` 16/16.
 "No material findings in the scoped fix. Engine replacement clears the refuelled dead-engine episode; versioned pending
 steps prevent an older delivery from deleting a late landing." Part 6a is APPROVED; released as sr2e 0.155.0 from
 release/0.155.0.
+
+## Part 5a code, round 1 — Codex
+
+Found material failures within 5.0/5a scope:
+
+1. **[P1] GM operations authorize against the GM’s ownership.** [rc-net.mjs:168](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:168): `mayRun` accepts `deck.isOwner`, which is true on the executing GM client regardless of the requesting player. `rcDeleteDeck` repeats this mistake. A player can disconnect or delete another character’s deck, causing dump shock.
+   **Fix:** Check ownership exclusively with `testUserPermission(user, "OWNER")`.
+
+2. **[P1] Affiliation permits two conflicting controllers.** [rc-net.mjs:264](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:264): affiliation/hardwiring check `controlledVehicles` but omit chase drivers. Affiliate a vehicle already driven by an NPC in a chase: `controllerOf` returns the network operator while `actingActorOf` still returns the crew driver. Chase driver writes also omit `rc-control`, allowing concurrent assignment.
+   **Fix:** Reject existing chase drivers and serialize driver assignment through `chase-membership → rc-control → chase:<id>`.
+
+3. **[P1] Jumping into a drone leaves direct-vehicle chase rigging active.** [chase.mjs:90](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:90): the crew branch of `riggedOf` checks only `rigging` and VCR. A rigger driving vehicle A can jump into drone B and retain A’s chase rigging benefits. A’s reservations also lack the operator stamp because `netStamp` returns empty for crew entries.
+   **Fix:** Use `riggedInto` for crew entries and stamp their driver’s network dependencies.
+
+4. **[P1] Reconnecting a vehicle-mounted deck can create two primaries.** [rc-net.mjs:272](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:272): `rcConnect` changes the operator without clearing or validating `primary`. Connect a deck with A’s primary to B while B already has a primary elsewhere; both records retain primaries, and mode selection becomes index-order dependent.
+   **Fix:** Clear the old primary on operator replacement and enforce the one-primary invariant during connection.
+
+5. **[P2] The affiliation-turn sit-out rule is cosmetic.** [rc-net.mjs:266](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:266): `since` is recorded and displayed, but action paths never check it. A drone affiliated this round can immediately fire, drive, and perform chase actions.
+   **Fix:** Enforce the affiliation-round restriction in a shared action-eligibility check used by all drone action paths.
+
+6. **[P1] Out-of-range drones still accept commands.** [rc-net.mjs:306](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:306): neither order operation nor `rcJump` checks reachability. Move a drone out of range, then issue a group command: its standing order is still replaced. Chase commits trust the cached range flag, and changes to amplifier/Flux equipment do not trigger a sweep.
+   **Fix:** Recheck live reachability under `rc-control` for commands, jumps, and chase commits, and refresh cached reachability when transmitter dependencies change.
+
+7. **[P2] Equipment eligibility changes leave stale network control.** [rc-net.mjs:323](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:323): only the jack-in toggle invokes `rcEligibility`. Switching off the VCR leaves `primary` set, so other drones remain secondary and new jumps are refused; unequipping an RC deck leaves its connection active.
+   **Fix:** Route VCR eligibility loss and deck availability changes through queued transitions that clear the primary or disconnect and bump revisions.
+
+8. **[P2] Hardwired onboard driving becomes Pilot-only in chases.** [chase.mjs:97](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:97): `pilotOnly` includes every non-jumped network operator, including an onboard hardwired driver. A legal Pilot-0 hardwired vehicle therefore rolls zero Pilot dice instead of its driver’s skill.
+   **Fix:** Distinguish onboard hardwired manual/datajack driving from remote captain/secondary operation when deriving chase dice.
+
+9. **[P2] Non-robot drone weapons lose their combat-phase identity.** [item.mjs:585](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/item.mjs:585): firing now passes the drone as gunner, but `phaseKey` only searches combatants for that actor or a different weapon parent. Network drones normally have no combatant, so their key remains `free:…` across operator phases, carrying engagement/target penalties forward.
+   **Fix:** Supply the operator’s phase identity for non-robot network drones while retaining the drone as dice source.
+
+10. **[P2] Learning/IVIS pools are missing from eligible attacks and chase tests.** [vehicle-play.mjs:962](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:962): the pools are integrated only into standalone Driving Tests. An IVIS-group drone cannot spend its shared pool when firing; a robot cannot use Learning Pool on an attack or chase Driving Test.
+    **Fix:** Add scoped Learning and shared IVIS allocation/spending to the eligible weapon and chase test paths.
+
+11. **[P1] Learning Pool spending is not serialized across clients.** [learning-pool.mjs:39](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/learning-pool.mjs:39): `spendLearning` uses a client-local queue without enforcing `isPoolClient`. A GM and owner can simultaneously read three available dice, each spend three, and both roll them.
+    **Fix:** Route spending through one authoritative queue or enforce and route to the designated pool client.
+
+12. **[P2] Learning refresh excludes synthetic vehicles and crosses combats.** [learning-pool.mjs:84](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/learning-pool.mjs:84): refresh iterates only world actors, while every new round refreshes all of them regardless of combat membership. An unlinked robot without a persisted key gets a full pool on every test; advancing an unrelated combat refreshes another robot’s spent pool.
+    **Fix:** Resolve world and synthetic participants and advance keys only for vehicles belonging to the qualifying combat.
+
+13. **[P1] Command and IVIS results are unvalidated and replayable.** [rc-net.mjs:395](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:395): any test card is accepted as Comprehension, and `ivis.pool` is trusted without reading its purported IVIS test. A request can grant an arbitrary pool; replaying a valid group-order request replaces the group with fresh, unspent dice.
+    **Fix:** Bind cards to reserved command inputs, derive the IVIS allocation from the verified result, and receipt each command once.
+
+14. **[P2] Interrupted deck deletion requires another reload to apply dump shock.** [rig-dump.mjs:53](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rig-dump.mjs:53): when recovery finds the intended deck still present, it deletes it and immediately `continue`s. No subsequent reconcile is scheduled, leaving the dump pending without its effect or resistance card.
+    **Fix:** After successful deletion, verify absence and continue opening that same event during the current reconciliation.
+
+Inspected the listed commits, treating the repeated `0497a4e8` once. No files changed. Vitest could not execute under the read-only sandbox because it requires temporary files; Quench was inspected but not run.
+
+VERDICT: REVISE
+
+### Claude's response (commit 5b379268) — all 14 taken
+1 requesting user's OWNER only. 2 affiliation/hardwire take chase-membership then rc-control and refuse a chase driver (chase
+driver writes already refuse affiliated vehicles under chase-membership). 3 crew entries use riggedInto; their stamp carries
+the driver's operator decks. 4 rcConnect clears the primary on a new operator or a primary elsewhere. 5 sitsOut(vehicle,
+combat) on chase DP/actions, the drone Driving Test and network gunnery. 6 live reachable() in rcOrder/rcGroupOrder/rcJump;
+rcValidate re-sweeps when the holder or its items change. 7 rcValidate clears the primary when the operator loses an active
+VCR and disconnects an uninstalled implanted deck — a carried gear deck's `equipped` (default false) is not treated as
+availability. 8 pilotOnly excludes the operator aboard a hardwired vehicle. 9 phaseKey maps a non-robot network drone to
+its operator. 10 askDronePools on drone attacks and chase rolls. 11 learningSpend GM op. 12 refresh only vehicles of that
+combat (combatant actors incl. tokens, operators' affiliated drones). 13 cards bound to deck + drones, IVIS Pool derived
+from the IVIS card less ivisToTest, usedCards ledger. 14 reconcile re-checks absence after the retried deletion.

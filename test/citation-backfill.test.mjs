@@ -29,6 +29,11 @@ describe("citation backfill: the parsing rule (docs/PLAN-citations.md §3)", () 
     expect(proposeCitation("Range is printed Extended (Grimoire p.123). Grimoire (2nd ed.) p.128.", "grim").pick).toEqual({ book: "grim", page: "128" });
     expect(proposeCitation("Like background count (p.89), it raises the TN. Grimoire (2nd ed.) p.131.", "grim").pick).toEqual({ book: "grim", page: "131" });
   });
+  it("a table page or a page inside the description's range is no rival", () => {
+    const r = proposeCitation("Speed 15. Rigger 2 p.140–141. (Design specifications p.140.)", "r2");
+    expect(r.multi).toBe(false);
+    expect(proposeCitation("Body +1. (Cybertechnology, table p.98, p.31.)", "ct").multi).toBe(false);
+  });
   it("no page → no pick", () => {
     expect(proposeCitation("A heavy fighting knife. SSC.", "ssc").pick).toBe(null);
   });

@@ -100,7 +100,12 @@ export function proposeCitation(text, own) {
 }
 const BOOK_RES = [[/\b(SR2E|SR2|SRII|SSC|SRComp|R2|RBB|FoF|CSH|NAGRL|VR2(?:\.0)?)\b/g], [/\b(Street Samurai Catalog|Shadowrun Companion|SR Companion|Grimoire(?: II)?|Rigger 2|Rigger Black Book|Shadowtech|Cybertechnology|Fields of Fire|Corporate Security Handbook|Cyberpirates|Virtual Realities|core (?:book|rules|rulebook)|basic rules|Shadowrun,? Second Edition)\b/gi]];
 function finish(pick, cands, why, uncertain = false) {
-  const distinct = [...new Set(cands.filter(c => !pick || c.book === pick.book).map(c => c.page))];
+  // A table page beside its description page isn't a rival: the rule already picks the description (plan §3).
+  // Nor is a page inside another candidate's range ("Rigger 2 p.140–141. (Design specifications p.140.)").
+  const span = (pg) => { const [a, b = a] = String(pg).split("–").map(Number); return [a, b]; };
+  const pages = [...new Set(cands.filter(c => (!pick || c.book === pick.book) && !c.table).map(c => c.page))];
+  const distinct = pages.filter(pg => { const [a, b] = span(pg);
+    return !pages.some(o => o !== pg && span(o)[0] <= a && b <= span(o)[1]); });
   return { pick, candidates: cands, why, uncertain, multi: distinct.length > 1 };
 }
 
