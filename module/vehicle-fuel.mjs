@@ -27,7 +27,9 @@ export const fuelOutOf = (v) => v?.getFlag("sr2e", "fuelOut") ?? null;
 export async function engineOut(v, recordId) {
   const { findEntry } = await import("./chase-state.mjs");
   return vq(v.uuid, async () => {
-    if (fuelOutOf(v)) return;
+    // Already out of fuel (coasting or stopped): the dead engine is recorded on that episode, so refuelling can't end the
+    // loss of power (Codex 6a r2 #2).
+    if (fuelOutOf(v)) { if (!fuelOutOf(v).engineDead) await v.update({ "flags.sr2e.fuelOut.engineDead": recordId }); return; }
     const speed = findEntry(v.uuid)?.entry?.speed ?? v.system.effective?.speed ?? v.system.speed;
     await v.update({ "flags.sr2e.fuelOut": { id: recordId, cause: "engine", startSpeed: Number(speed) || 0,
       accel: Number(v.system.acceleration) || 0, turnsProcessed: 0, extra: 0, state: "coasting", moved: {} } });
@@ -201,8 +203,9 @@ export function registerFuel() {
       const receipt = { origin, used: left - level, level: round3(level), note };
       const patch = { "system.fuelLevel": level >= size ? null : level, [`flags.sr2e.vfuel.${id}`]: receipt };
       if (iv) {
-        const sameMode = !cur || cur.mode === iv.mode;
-        patch["flags.sr2e.fuelCursor"] = { at: sameMode ? Math.max(iv.to, cur?.at ?? -Infinity) : cur.at, mode: cur?.mode ?? iv.mode ?? "idle",
+        // Any billed interval is covered for idle accounting too (Codex 6a r2 #6: chase movement of an idle-mode drone
+        // must not be billed again as idle); `movedTo` keeps movement coverage apart for late movement submissions.
+        patch["flags.sr2e.fuelCursor"] = { at: Math.max(iv.to, cur?.at ?? -Infinity), mode: cur?.mode ?? iv.mode ?? "idle",
           ...(iv.mode === "moving" ? { movedTo: Math.max(iv.to, cur?.movedTo ?? -Infinity) } : cur?.movedTo != null ? { movedTo: cur.movedTo } : {}) };
       }
       if (a.pendingOf) patch[`flags.sr2e.fuelPending.-=${a.pendingOf}`] = null;
@@ -212,7 +215,8 @@ export function registerFuel() {
         patch["flags.sr2e.fuelOut"] = { id, startSpeed: Number(a.speed ?? v.system.effective?.speed ?? v.system.speed) || 0,
           accel: Number(v.system.effective?.acceleration ?? v.system.acceleration) || 0, turnsProcessed: 0, extra: 0, state: "coasting", moved: {} };
       }
-      if (level > 0 && out && out.cause !== "engine") patch["flags.sr2e.-=fuelOut"] = null;   // fuel doesn't fix a dead engine
+      // Fuel doesn't fix a dead engine (its own episode, or one recorded on a fuel episode): the episode then stays.
+      if (level > 0 && out && out.cause !== "engine" && !out.engineDead) patch["flags.sr2e.-=fuelOut"] = null;
       await v.update(patch);
       if (a.card !== false) await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: v }), content: `<div class="sr2e-damage-result">
         <strong>${esc(v.name)}: fuel</strong> — ${esc(note)}${receipt.used > 0 ? `: ${receipt.used} ${esc(v.system.fuelUnit || "units")} used` : ""};
@@ -367,7 +371,7 @@ export async function fuelAdvanceStage(combat, r) {
 }
 
 /** Deliver a coast Turn's recorded effects, each idempotent (a speed set; follow-ups keyed by the episode), then clear. */
-async function deliverCoastStep(v, combat) {
+export async function deliverCoastStep(v, combat) {
   const o = fuelOutOf(v), p = o?.pending;
   if (!p) return;
   const { postCrashTestDue } = await import("./vehicle-play.mjs");

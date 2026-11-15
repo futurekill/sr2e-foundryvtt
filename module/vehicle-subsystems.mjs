@@ -130,10 +130,11 @@ export function postSubsystemCard(v, fid, x, tag) {
  */
 async function consequences(v, hits, origin, source = null) {
   const { escalateCrash } = await import("./vehicle-damage.mjs");
-  // Damage taken DURING a crash never starts another crash (the writer's crash-on-crash rule; Codex 6a r1 #5).
-  if (source === "crash") hits = hits.filter(h => !["handling", "body", "fuelTank", "engine"].includes(h.key) || h.level !== "D");
-  const auto = hits.some(h => (h.key === "handling" || h.key === "body") && h.level === "D");
-  const test = hits.some(h => (h.key === "fuelTank" || h.key === "engine") && h.level === "D");
+  // Damage taken DURING a crash never starts another crash (the writer's crash-on-crash rule; Codex 6a r1 #5) — only
+  // the crash escalation is suppressed; the hits' other effects (a dead engine's loss of power) still apply (r2 #3).
+  const crashing = source === "crash";
+  const auto = !crashing && hits.some(h => (h.key === "handling" || h.key === "body") && h.level === "D");
+  const test = !crashing && hits.some(h => (h.key === "fuelTank" || h.key === "engine") && h.level === "D");
   // ONE crash per originating event (the damage writer's own follow-up id), an automatic crash taking precedence.
   if (auto) await escalateCrash(v, origin, "auto", "a Deadly subsystem hit (Rigger 2 p.86–87)");
   else if (test) await escalateCrash(v, origin, "test", "a Deadly engine or fuel-tank hit (Rigger 2 p.87)");

@@ -19108,6 +19108,34 @@ export function registerSR2EQuenchTests() {
             assert.notOk(V.getFlag("sr2e", "fuelOut"), "a new engine does");
           } finally { ON.delete("r2Subsystems"); }
         });
+        it("6a r2: a dead engine on a vehicle already out of fuel survives refuelling; destroyed sensors/APPS stop; chase movement covers idle time", async function () {
+          this.timeout(20000);
+          ON.add("r2Subsystems");
+          try {
+            const M = await F();
+            const V = await mk("Quench Dry Dead", { speed: 100, acceleration: 20, fuelSize: 1, economy: 1 });
+            await call("fuel", { vehicleUuid: V.uuid, origin: "travel", km: 5, band: "below", speed: 100 });
+            assert.equal(V.getFlag("sr2e", "fuelOut")?.state, "coasting", "out of fuel");
+            await M.engineOut(V, "q-dead");
+            assert.equal(V.getFlag("sr2e", "fuelOut").engineDead, "q-dead", "the dead engine is recorded on the fuel episode (#2)");
+            await call("fuel", { vehicleUuid: V.uuid, origin: "refuel" });
+            assert.ok(V.getFlag("sr2e", "fuelOut"), "refuelling doesn't revive a dead engine");
+            const W = await mk("Quench Subsys Equip", {});
+            const [sens, apps] = await W.createEmbeddedDocuments("Item", [{ name: "Quench Sensors", type: "vehicle_mod", system: { modKey: "sensors", rating: 3 } },
+              { name: "APPS", type: "vehicle_mod", system: {} }]);
+            const S = await import("../vehicle-sensors.mjs"), D = await import("../vehicle-damage.mjs");
+            assert.ok(S.sensorOf(W) && D.hasApps(W), "working");
+            await W.update({ "flags.sr2e.subsystems": { s1: { target: { kind: "item", id: sens.id }, key: "sensors", label: "Sensors", level: "D", state: "active", origin: "q" },
+              s2: { target: { kind: "item", id: apps.id }, key: "apps", label: "APPS", level: "S", state: "active", origin: "q" } } });
+            assert.notOk(S.sensorOf(W), "destroyed sensors aren't replaced by stock ones (#4)");
+            assert.notOk(D.hasApps(W), "an inoperable APPS protects nobody (#5)");
+            const Dr = await mk("Quench Idle Mover", { vehicleType: "drone", economy: 10, economyIdle: "1 hour/liter", fuelSize: 2 });
+            await call("fuelMode", { vehicleUuid: Dr.uuid, mode: "idle" });
+            const at0 = Dr.getFlag("sr2e", "fuelCursor").at;
+            await call("fuel", { vehicleUuid: Dr.uuid, origin: "chase", metres: 50, speed: 50, eventId: "q-chase-idle", interval: { from: at0, to: at0 + 3, mode: "moving" } });
+            assert.equal(Dr.getFlag("sr2e", "fuelCursor").at, at0 + 3, "chase movement covers the idle cursor too (#6)");
+          } finally { ON.delete("r2Subsystems"); }
+        });
         it("an automatic crash after a PASSED Crash Test for the same event still happens (r1 #4)", async function () {
           this.timeout(20000);
           const V = await mk("Quench Passed Test", { handling: 4, speed: 100, body: 4 });

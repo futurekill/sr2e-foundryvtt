@@ -742,7 +742,8 @@ GM_OPS.replaceEngine = async ({ vehicleUuid }, user) => {
     if (items.length) await vehicle.deleteEmbeddedDocuments("Item", items);
     // A new engine is a new instance (6a.4, Codex 6a r1 #3): its subsystem records go inert and are retired.
     const engineGen = { "flags.sr2e.subsysGen.engine": (Number(vehicle.getFlag("sr2e", "subsysGen")?.engine) || 0) + 1,
-      ...(vehicle.getFlag("sr2e", "fuelOut")?.cause === "engine" ? { "flags.sr2e.-=fuelOut": null } : {}) };
+      ...(vehicle.getFlag("sr2e", "fuelOut")?.cause === "engine" ? { "flags.sr2e.-=fuelOut": null }
+        : vehicle.getFlag("sr2e", "fuelOut")?.engineDead ? { "flags.sr2e.fuelOut.-=engineDead": null } : {}) };
     for (const [id, r] of Object.entries(vehicle.getFlag("sr2e", "subsystems") ?? {}))
       if (r?.target?.kind === "builtin" && r.target.id === "engine" && r.state === "active") engineGen[`flags.sr2e.subsystems.${id}.state`] = "retired";
     await vehicle.update({ ...designUpdate, ...engineGen, "flags.sr2e.-=engineStress": null,

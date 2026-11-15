@@ -94,7 +94,11 @@ export function transmitters(vehicle) {
     out.push({ id: i.id, kind, rating: kind === "sensor" ? (working ? vehicle.system.effective?.sensor ?? i.system.rating : Number(i.system.rating) || 0) : operableRating(i, i.system.rating),
       item: i, working, on: working && (!toggled || !!on[i.id]), ported: ported(vehicle, i.id) });
   }
-  if (!sensorItem && hasSensors(vehicle))
+  // An installed Sensors item put out of action by subsystem damage is NOT replaced by working stock sensors (Codex 6a r2
+  // #4): the stock fallback is only for a vehicle with no installed Sensors item at all.
+  const disabledSensors = vehicle.items.some(i => i.type === "vehicle_mod" && i.system.modKey === "sensors"
+    && WORKING.includes(i.system.custom?.state ?? "") && !itemOperable(i));
+  if (!sensorItem && !disabledSensors && hasSensors(vehicle))
     out.unshift({ id: BUILTIN, kind: "sensor", rating: vehicle.system.effective?.sensor ?? vehicle.system.sensor ?? 0, item: null,
       working: true, on: true, ported: ported(vehicle, BUILTIN) });
   return out;
