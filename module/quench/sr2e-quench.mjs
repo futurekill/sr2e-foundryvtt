@@ -19534,6 +19534,65 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Electronic warfare against networks (Part 5b-1, R2 p.68–72)", function () {
+        it("intercept (named channels, cards once), meaconing degrades a drone's own test, regeneration clears, a detected read voids the intercept, a lost carrier blocks orders until reconnected", async function () {
+          this.timeout(40000);
+          const RCN = await import("../rc-net.mjs"), EWX = await import("../ew.mjs");
+          const skills = [{ name: "Electronics", type: "skill", system: { rating: 5, category: "active", concentration: { name: "Control Systems", rating: 6 } } }];
+          const A = await Actor.create({ name: "Quench EW Target", type: "character" }); made.push(A);
+          const B = await Actor.create({ name: "Quench EW Intruder", type: "character" }); made.push(B);
+          await A.createEmbeddedDocuments("Item", skills); await B.createEmbeddedDocuments("Item", skills);
+          const madeA = await A.createEmbeddedDocuments("Item", [{ name: "Quench Target Deck", type: "gear", system: { rating: 1 }, flags: { sr2e: { rule: "rc-deck" } } },
+            { name: "Quench ECCM", type: "gear", system: { rating: 4 }, flags: { sr2e: { rule: "rc-eccm" } } }]);
+          const madeB = await B.createEmbeddedDocuments("Item", [{ name: "Quench Intruder Deck", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "rc-deck" } } },
+            { name: "Quench PE", type: "gear", system: { rating: 3 }, flags: { sr2e: { rule: "protocol-emulation" } } }]);
+          const dA = madeA.find(i => i.flags.sr2e.rule === "rc-deck"), dB = madeB.find(i => i.flags.sr2e.rule === "rc-deck");   // creates return out of order
+          const drone = await mk("Quench EW Drone", { vehicleType: "drone", pilot: 2 });
+          await call("rcSubscribe", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, on: true });
+          await call("rcAffiliate", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, on: true });
+          await call("rcConnect", { deckUuid: dA.uuid, operatorUuid: A.uuid });
+          await call("rcConnect", { deckUuid: dB.uuid, operatorUuid: B.uuid });
+          const orig = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => 0.2;   // every die a 5 (never all sixes)
+          const roll = (actor, kind, dice, tn) => actor.rollSuccessTest(dice, tn, { label: `Quench ${kind}`, flags: { sr2e: { ew: { kind } } } }).then(r => r.testMessageId);
+          try {
+            // Interception: deck rating 2 dice vs 1 + 3 = TN 4 → 2 successes → the two named channels.
+            const ic = await roll(B, "intercept", 2, 4);
+            const res = await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: ["command", "system"], messageId: ic });
+            assert.deepEqual(res.channels, ["command", "system"]);
+            let err = null; try { await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: [], messageId: ic }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /already been applied/, "a card settles once");
+            err = null; try { await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: [], messageId: await roll(B, "intercept", 2, 3) }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /rules say/, "a card below the TN is refused");
+            // Meaconing on the command channel; the GM closes it unresisted.
+            const { aid, tns } = await call("ewMijiStart", { op: "meaconing", intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "command" });
+            assert.equal(tns.defender, 3, "the defender resists vs the protocol emulation rating");
+            const x = RCN.netOf(dA).ew[aid];
+            await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid, side: "intruder", messageId: await roll(B, "miji", x.intruderFlux, tns.intruder) });
+            const out = await call("ewMijiResolve", { targetDeckUuid: dA.uuid, aid });
+            assert.equal(out.boxes, Math.min(10, x.intruderFlux), "net successes become boxes");
+            assert.isAbove(EWX.droneTestMod(drone), 0, "meaconing raises the drone's own test TN");
+            // Regeneration: ECCM 4 dice vs 2 + 3 = TN 5 → 4 successes → 2 boxes cleared.
+            const before = EWX.channelBoxesOf(RCN.netOf(dA), "command");
+            const rg = await call("ewRegen", { deckUuid: dA.uuid, channel: "command", attackerKey: dB.uuid, messageId: await roll(A, "regen", 4, 5) });
+            assert.equal(rg.cleared, Math.min(2, before));
+            // Reading: the network's detection (1 die vs TN = the intruder's EW 5) succeeds → frequencies switch.
+            const rd = await call("ewRead", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "system" });
+            assert.ok(rd.detected);
+            assert.equal(EWX.interceptOf(dB, dA), null, "the intercept is void after a frequency switch");
+            err = null; try { await call("ewMijiStart", { op: "meaconing", intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "command" }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /intercept/, "no MIJI without a live intercept");
+            // A lost command carrier: no orders until reconnected (Control Systems 6 vs 4 + 1 = 5; 6 > 1 box).
+            await dA.update({ "flags.sr2e.rcNet.carriers": { command: "lost" }, "flags.sr2e.rcNet.monitors.command.entries": { q: { op: "jamming", attackerKey: dB.uuid, attackerRating: 2, boxes: 1, at: 1 } } });
+            const cmd = await drone.rollSuccessTest(2, 4, { label: "Quench Comprehension", flags: { sr2e: { rcCommand: { deckUuid: dA.uuid, vehicleUuids: [drone.uuid] } } } });
+            err = null; try { await call("rcOrder", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "x", messageId: cmd.testMessageId }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /command carrier is lost/);
+            const rc2 = await call("ewReconnect", { deckUuid: dA.uuid, channel: "command", messageId: await roll(A, "reconnect", 6, 5) });
+            assert.ok(rc2.ok);
+            assert.notOk(EWX.carrierLost(RCN.netOf(dA), "command"), "carrier back");
+          } finally { CONFIG.Dice.randomUniform = orig; }
+        });
+      });
+
       describe("Part 5a review fixes (c5a r2)", function () {
         it("a player can't delete another character's deck (r2 #1); chase cards carry the veto flag (r2 #3) and withhold a scoped pool from non-GM rollers (r3 #2)", async function () {
           this.timeout(30000);

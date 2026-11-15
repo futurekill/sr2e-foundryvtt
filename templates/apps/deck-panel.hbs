@@ -53,6 +53,43 @@
     {{/each}}
   </section>
   {{/if}}
+  {{#if connected}}
+  <section class="deck-ew">
+    <h4>Electronic warfare <small>(Rigger 2 p.68–72)</small></h4>
+    {{#if ew.any}}
+    <table class="deck-table">
+      <thead><tr><th>Channel</th><th>Signal</th><th>Intruders</th><th></th></tr></thead>
+      <tbody>
+        {{#each ew.channels}}
+        <tr>
+          <td>{{ch}}</td>
+          <td>{{boxes}}/10 · {{band}}{{#if lost}} · <strong>carrier lost</strong>{{/if}}</td>
+          <td>{{#each attackers}}{{name}}: {{n}} <button type="button" data-action="ewRegen" data-channel="{{../ch}}" data-key="{{key}}" title="Complex Action: ECCM rating vs their rating + 3; 2 successes clear a box (p.72)">Regenerate</button><br>{{/each}}</td>
+          <td>{{#if lost}}<button type="button" data-action="ewReconnect" data-channel="{{ch}}" title="Control Systems vs TN 4 + the band + damage; successes must exceed the filled boxes (p.72)">Reconnect</button>{{/if}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{#each ew.bogus}}
+      <p>Bogus object on the {{channel}} channel ({{by}}) — {{cancelled}}/{{net}} cancelled
+        <button type="button" data-action="ewBlock" data-eid="{{eid}}" title="ECCM vs their protocol emulation (p.71, p.31)">Block</button></p>
+    {{/each}}
+    {{else}}<p><em>All channels clear.</em></p>{{/if}}
+    {{#if ew.alert}}<p><em>Alerted {{ew.alert}}× — every interception against this network is +{{ew.alert}}×2 TN (p.69).</em></p>{{/if}}
+    {{#if ew.targets.length}}
+    <p><strong>Other networks</strong></p>
+    {{#each ew.targets}}
+      <p>{{name}}{{#if encrypted}} <i class="fas fa-lock" title="Encrypted"></i>{{/if}} —
+        {{#if intercepted}}intercepted: {{#each channels}}{{this}} <button type="button" data-action="ewRead" data-uuid="{{../uuid}}" data-channel="{{this}}" title="Complex Action: read it; they may detect you (p.69)">Read</button> {{/each}}
+          <button type="button" data-action="ewMiji" data-uuid="{{uuid}}" title="Meaconing, intrusion or jamming (p.69–72)">MIJI…</button>
+        {{else}}not intercepted{{/if}}
+        {{#if gmChooses}}{{#if ../gm}}<button type="button" data-action="ewChoose" data-uuid="{{uuid}}">Choose {{gmChooses}} channel(s)</button>{{else}}<em>(the GM chooses {{gmChooses}} more)</em>{{/if}}{{/if}}
+        {{#if encrypted}}<button type="button" data-action="ewDecrypt" data-uuid="{{uuid}}" title="Electronic Warfare + decryption vs encryption + 4 (p.69)">Break encryption</button>{{/if}}
+        <button type="button" data-action="ewIntercept" data-uuid="{{uuid}}" title="Complex Action: deck rating vs their rating + 3 (p.68)">Intercept</button></p>
+    {{/each}}
+    {{/if}}
+  </section>
+  {{/if}}
   <p class="deck-add">
     <select name="newSub"><option value="">— targeted vehicles —</option>{{#each linked}}<option value="{{uuid}}">{{name}}</option>{{/each}}</select>
     <button type="button" data-action="subscribe"><i class="fas fa-plus"></i> Subscribe</button>

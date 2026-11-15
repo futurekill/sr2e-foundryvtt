@@ -5,6 +5,7 @@
 import * as LP from "./learning-pool.mjs";
 import { itemOperable } from "./rules/vehicle-subsystem-rules.mjs";
 import * as RC from "./rc-net.mjs";
+import * as EWM from "./ew.mjs";
 import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
@@ -83,7 +84,7 @@ export function controllerOf(vehicle) {
 
 /** The worst damage Initiative modifier among the vehicles this character controls (p.106, p.109). */
 export function worstControlledInitMod(character) {
-  let mod = 0;
+  let mod = -EWM.riggerSimsenseMod(character);   // simsense jamming on a remotely rigged drone, like damage (R2 p.72; 5b.3)
   for (const uuid of character?.system?.controlledVehicles ?? []) {
     const m = globalThis.fromUuidSync?.(uuid)?.system?.damageInitMod ?? 0;
     if (m < mod) mod = m;
@@ -949,7 +950,8 @@ export async function rollDrivingTest(driver, vehicle, o) {
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);
   const { tn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
     terrain: o.terrain, combat: o.combat, mode: o.mode, vcr: driver?.system.vehicleControlRig ?? 0, damageMod: sys.damageTnMod ?? 0, empathy,
-    otherMod: (o.otherMod ?? 0) + sk.penalty + guidanceDrivingMod(vehicle) });   // continuous missile lock +2 (R2 p.59)
+    otherMod: (o.otherMod ?? 0) + sk.penalty + guidanceDrivingMod(vehicle)    // continuous missile lock +2 (R2 p.59)
+      + (drone ? EWM.droneTestMod(vehicle) : 0) });                             // meaconing on its network (R2 p.70; 5b.3)
   const autonav = Math.max(0, sys.effective?.autonav ?? sys.autonav ?? 0);
   const paid = o.mode === "rigged" && driver ? await driver._payControl(o.control, sk.cap) : 0;
   const push = drone ? { dice: 0, stress: 0 } : stressDice(o.stressDice, sys.effective?.body ?? sys.body);

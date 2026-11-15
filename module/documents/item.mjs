@@ -1144,6 +1144,9 @@ export class SR2EItem extends Item {
       const dp = await (await import("../learning-pool.mjs")).askDronePools(actor);
       if (dp === null) return;
       dicePool += dp.n; label += dp.label; if (Object.keys(dp.flags).length) droneFlags = { sr2e: dp.flags };
+      // Meaconing on its network's command/system channel (R2 p.70; 5b.3): a drone's own Gunnery on its Pilot.
+      const ew = (await import("../ew.mjs")).droneTestMod(actor);
+      if (ew) { targetNumber += ew; label += `, +${ew} TN signal degradation`; }
     }
     const queuedSpend = isRanged && !isThrown && ammoQueued(this);
     // A Phase 0 missile whose client stopped after its test card (4b r2 #3): finish the SAME attack from that test —

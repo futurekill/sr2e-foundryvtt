@@ -103,6 +103,7 @@ import { registerChase, onChaseSocket, bindChaseCard } from "./chase.mjs";
 import { registerChasePanel } from "./apps/chase-panel.mjs";
 import { registerVehicleDamage, bindVehicleDamageCard } from "./vehicle-damage.mjs";
 import { registerRigDump, bindRigDumpCard } from "./rig-dump.mjs";
+import { registerEw, bindEwCard } from "./ew.mjs";
 import { registerLearningPool, bindLearningCard } from "./learning-pool.mjs";
 import { registerVehicleSensors } from "./vehicle-sensors.mjs";
 import { registerAmmoQueue } from "./vehicle-ammo.mjs";
@@ -546,6 +547,7 @@ Hooks.once("init", async () => {
   registerSubsystems();
   registerRcNet();
   registerRigDump();
+  registerEw();
   registerLearningPool();
   registerOptempo();
   game.sr2e = Object.assign(game.sr2e ?? {}, { hiddenStress: { reveal: revealHiddenStress, left: hiddenStressLeft } });
@@ -3039,6 +3041,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   bindChaseCard(message, html);
   bindVehicleDamageCard(message, html);
   bindRigDumpCard(message, html);
+  bindEwCard(message, html);
   bindLearningCard(message, html);
 
   // Opposed melee: Defend rolls the defender's Combat Skill test and

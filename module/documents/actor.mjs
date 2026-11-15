@@ -63,6 +63,7 @@ import { r2VehicleHit, terrainControlCap, passengerShotPower } from "../rules/ve
 import { spendStep } from "../vehicle-damage.mjs";
 const eventKey = (id) => String(id).replace(/[^\w-]/g, "_");
 const stages0 = ["L", "M", "S", "D"];
+import { riggerSimsenseMod } from "../ew.mjs";
 import { gmCall, controllerOf, riggedInto, commitVehicleDamage, resolveCrash, spendPool, spendPosition, positionReserved, renderVehicleRamCard, worstControlledInitMod, isPoolClient } from "../vehicle-play.mjs";
 import { vehicleOperationMod, vehicleSkillDice, positionOutcomes, manipulationVsVehicle } from "../rules/vehicle-play-rules.mjs";
 /** An attribute's display name ("Quickness"); Reaction isn't in the attribute list. */
@@ -438,6 +439,9 @@ export class SR2EActor extends Actor {
     // the GM's, so EVERY character modifier is zeroed, including wounds, CDS and phobia.
     const equipment = policy === "equipment";
     const woundPenalty = options.isResistance || policy === "table" || equipment ? 0 : (this.system.woundPenalty ?? 0);
+    // A remotely rigged drone's simsense jamming (R2 p.72; 5b.3): "like a standard damage modifier" — on every Success
+    // Test of the rigger, under the Injury Modifier's own exemptions.
+    const ewTN = options.isResistance || policy === "table" || equipment ? 0 : riggerSimsenseMod(this);
     const sustainPenalty = policy ? 0 : (this.system.sustainPenalty ?? 0);
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
     // Core only: VR2.0 dump shock is Stun damage instead (p.124); the flag is kept for a switch back.
@@ -476,11 +480,11 @@ export class SR2EActor extends Actor {
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
     const centeringReduction = inAnimalForm(this.type, this.system) ? 0 : Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN);
+      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN + ewTN);
     const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
-      + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN - centeringReduction;
+      + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN + ewTN - centeringReduction;
     return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
-             coordinationTN, socialTN, cdsTN, phobiaTN, riggerParts, centeringReduction, total };
+             coordinationTN, socialTN, cdsTN, phobiaTN, riggerParts, ewTN, centeringReduction, total };
   }
 
   /** Willpower when resisting neural damage: Sensitive Neural Structure / Spike Resistance (Rigger 2 p.15). */
@@ -552,7 +556,7 @@ export class SR2EActor extends Actor {
     // (SR2E p.112: "except those involving attempts to resist damage or avoid
     // damage"). Resistance callers pass options.isResistance to suppress it.
     // The sustain penalty is not granted that exemption, so it still applies.
-    const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
+    const { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty, ewTN,
             coordinationTN, socialTN, cdsTN, phobiaTN, riggerParts, centeringReduction, total } = this.testTnModifiers(options);
     const effectiveTN = targetNumber + total;
     const label = foundry.utils.escapeHTML(options.label || "Success Test");
@@ -625,6 +629,7 @@ export class SR2EActor extends Actor {
     if (mpcpOverload > 0) tnParts.push(`+${mpcpOverload} MPCP overload`);
     if (extraTN > 0) tnParts.push(`+${extraTN} ${options.extraTNLabel ?? "modifier"}`);
     if (dumpShock > 0)      tnParts.push(`+${dumpShock} ${i18n.localize("SR2E.Roll.DumpShock")}`);
+    if (ewTN > 0)           tnParts.push(`+${ewTN} simsense jamming`);
     if (drugTN > 0)         tnParts.push(`+${drugTN} drugs`);
     if (addictionTN > 0)    tnParts.push(`+${addictionTN} ${addictionPenalty}`);
     if (coordinationTN > 0) tnParts.push(`+${coordinationTN} ${game.i18n.localize("SR2E.Limb.Coordination")}`);

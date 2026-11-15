@@ -55,7 +55,7 @@ export function registerRcIndexHooks() {
 
 /* ── Derived reads ─────────────────────────────────────────────────────────────────────────────────────────────── */
 
-const deckActor = (deck) => deck?.parent ?? null;
+export const deckActor = (deck) => deck?.parent ?? null;
 /** The deck's transmitter Flux (p.30; 5a.1): an RC deck is Flux 2, raised by a signal amplifier bound to it (R2 p.99). */
 export function deckFlux(deck) {
   const owner = deckActor(deck);
@@ -66,7 +66,7 @@ export function deckFlux(deck) {
     .reduce((m, i) => Math.max(m, num(i.system.rating)), 0);
   return baseFlux("rcDeck", num(deck?.system?.rating)) + amp;
 }
-const soleDeckId = (actor) => { const d = (actor?.items ?? []).filter(isRcDeck); return d.length === 1 ? d[0].id : null; };
+export const soleDeckId = (actor) => { const d = (actor?.items ?? []).filter(isRcDeck); return d.length === 1 ? d[0].id : null; };
 
 /** Reachability (5a.1): the vehicle within the deck's range from its holder; an unknown distance counts as reachable. */
 export async function reachable(deck, vehicle) {
@@ -184,16 +184,16 @@ export function sitsOut(vehicle, c = game.combat) {   // c = the combat the dron
 }
 export const SIT_OUT = "affiliated this Combat Turn: it can't act until the next (ruling R5-1, Rigger 2 p.64)";
 /** A card may settle one command only (c5a r1 #13). */
-function useCard(net, ...ids) {
+export function useCard(net, ...ids) {
   net.usedCards ??= {};
   for (const id of ids.filter(Boolean)) {
     if (net.usedCards[id]) throw new Error("that card has already been applied");
     net.usedCards[id] = true;
   }
 }
-const freshNet = (deck) => foundry.utils.deepClone(netOf(deck) ?? { rev: 0, operator: null, connection: { state: "disconnected", gen: 0 },
+export const freshNet = (deck) => foundry.utils.deepClone(netOf(deck) ?? { rev: 0, operator: null, connection: { state: "disconnected", gen: 0 },
   subscribers: [], affiliated: {}, primary: null, standingOrders: {} });
-async function save(deck, net) {
+export async function save(deck, net) {
   net.rev = num(net.rev) + 1;
   await deck.update({ "flags.sr2e.==rcNet": net });
   invalidate();
@@ -394,6 +394,7 @@ export function registerRcNet() {
     if (v?.type !== "vehicle") throw new Error("not a vehicle");
     const net = freshNet(deck), k = vKey(v.uuid);
     if (net.connection?.state !== "connected" || !net.operator) throw new Error("connect the deck first");
+    if (net.carriers?.simsense === "lost") throw new Error("the simsense carrier is lost: reconnect it first (Rigger 2 p.72)");
     if (!net.affiliated[k]) throw new Error("affiliate the drone first");
     if (!(await reachable(deck, v))) throw new Error(`${v.name} is out of the deck's range (Rigger 2 p.64)`);
     const op = fromUuidSync(net.operator);
@@ -410,6 +411,7 @@ export function registerRcNet() {
     if (v?.type !== "vehicle") throw new Error("not a vehicle");
     const net = freshNet(deck), k = vKey(v.uuid);
     if (net.connection?.state !== "connected" || !net.affiliated[k]) throw new Error("the drone must be affiliated with a connected network");
+    if (net.carriers?.command === "lost") throw new Error("the command carrier is lost: the drones keep their last orders until you reconnect (Rigger 2 p.71–72)");
     if (net.primary === k) throw new Error("you're jumped into it: the primary needs no command (Rigger 2 p.65)");
     if (!(await reachable(deck, v))) throw new Error(`${v.name} is out of the deck's range: it acts on its last order or holds (Rigger 2 p.64)`);
     const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test, cmd = msg?.flags?.sr2e?.rcCommand;
@@ -491,6 +493,7 @@ export function registerRcNet() {
   gmOp("rcGroupOrder", ({ deckUuid, vehicleUuids = [], text = "", messageId }, user) => rcQueue(async () => {
     const deck = load(deckUuid, user), net = freshNet(deck);
     if (net.connection?.state !== "connected") throw new Error("connect the deck first");
+    if (net.carriers?.command === "lost") throw new Error("the command carrier is lost: the drones keep their last orders until you reconnect (Rigger 2 p.71–72)");
     const vs = vehicleUuids.map(u => fromUuidSync(u));
     if (!vs.length || vs.some(v => v?.type !== "vehicle")) throw new Error("choose the group's drones");
     const keys = vs.map(v => vKey(v.uuid));
