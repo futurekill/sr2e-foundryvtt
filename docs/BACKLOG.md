@@ -3,12 +3,13 @@
 Deferred ideas, captured so they aren't lost. Not prioritized; pull from here
 when there's appetite. Nothing here blocks a release.
 
-Last reviewed 2026-07-26 (system 0.64.0).
+Last reviewed 2026-11-15 (system 0.156.0): stale entries struck through with what closed them.
 
 ## Broken / needs a live session
 
 - **Player-reported: dropping a skillsoft does nothing (NOT reproducible by the
-  GM).** Investigated 2026-07-28 and parked — the purchase path was proven
+  GM).** (2026-11-15: both defects below are fixed — `readDrop` warns, a Buy
+  dialog failure throws — so the next report will say what failed.) Investigated 2026-07-28 and parked — the purchase path was proven
   working end-to-end on the GM client (correct item, correct 300¥ for a Rating-2
   LinguaSoft), so there is nothing to fix blind. Ruled out: the data model
   (validation and create both succeed), the item's own data, missing access
@@ -35,9 +36,9 @@ Last reviewed 2026-07-26 (system 0.64.0).
 - ~~Skillsofts ship as blank chips~~ — **done 2026-09-25**
   (docs/archive/plans/PLAN-skillsoft-purchase.md): the Buy dialog asks for the skill, sets its
   attribute, and slots it. The two error-swallowing spots below are fixed too
-  (unreadable drops warn, and dialog failures are errors, not Cancel). Still
-  open: the item sheet's skill picker lists Build/Repair skills for an
-  ActiveSoft, which the chip's category can't represent.
+  (unreadable drops warn, and dialog failures are errors, not Cancel). The item
+  sheet's skill picker now lists only the chip's own category (checked
+  2026-11-15), so nothing is left open here.
 - ~~Player-triggered summoning does not work.~~ **Not a bug — resolved
   2026-07-27.** The socket relay was removed deliberately; `canCreateActor()`
   now gates on the `ACTOR_CREATE` permission *before* the roll and drain, and
@@ -79,7 +80,9 @@ Last reviewed 2026-07-26 (system 0.64.0).
 
 ## Art campaign
 
-All three priority modules are done. Remaining, in the user's stated order:
+~~Remaining modules~~ — **DONE 2026-10-19**: no top-level compendium document in any repo uses stock art (macros and
+roll tables excepted); 2026-10-23 the system's last placeholders got icons. Still open: **Mist and Storm spirit
+portraits** (see Broken above; `SR2E.spiritPortraitVariants`). The table below is the July plan, kept for history:
 
 | Module | Docs missing art |
 |---|---|
@@ -100,11 +103,10 @@ recipe and the `codex exec -i` stdin gotcha.
   (`_bodyTestOpts`, `biowareHealingTnMod`); entry was stale (checked 2026-09-24).
 - ~~Drug / gene-tech active effects~~: **done 2026-09-25 (lean core,
   docs/archive/plans/PLAN-drugs.md)**: Use a dose, attribute effects, toxin damage, and the
-  addiction tests. Gene-tech has no stat effects in the book. Still manual (card
-  notes): Kamikaze absorption and wasting, Hyper overload and TNs, Atropine
-  skill TNs, overuse, and the adrenal pump.
-- **Body Index on NPC/critter actors** — scoped to `character` only, consistent
-  with how cyberware already behaves on NPCs.
+  addiction tests. Gene-tech has no stat effects in the book. The "still manual"
+  list (Kamikaze absorption, Hyper overload and TNs, Atropine skill TNs, overuse, the adrenal pump) was automated
+  afterwards (docs/archive/plans/PLAN-drugs-full.md, PLAN-addiction.md; the pump in Cybertechnology phase 3b).
+- ~~Body Index on NPC/critter actors~~ — **done** (NPCData carries `bodyIndex`, max = Body; checked 2026-11-15).
 - ~~Cultured bioware ×4 nuyen~~: **stale, checked 2026-09-25.** ×4 was
   already applied at purchase and on a grade change (verified live). The real
   bug was neural bioware (always cultured, p.7) getting ×4 and ×0.75 again;
@@ -122,17 +124,14 @@ recipe and the `codex exec -i` stdin gotcha.
   flat. Split only for visual symmetry.
 - **Deeper per-theme skinning** beyond the palette (fonts, sidebar, chat cards),
   the way the Terminal theme does it.
-- **Roll labels are still English** — the TN/dice breakdown is localized
-  (`SR2E.Roll.*`) but labels like "X Test — defaulting to Y" are not. Low
-  priority for a single-language project.
+- ~~Roll labels are still English~~ — **done in 0.116.1–2** (`SR2E.RollLabel.*` via `RL()`/`AL()`); only the
+  modifier fragments callers pass in stay English.
 
 ## Larger, needs a go-ahead
 
-- **Virtual Realities 2.0 (FASA7904)** — the VR2.0 Matrix ruleset as an optional
-  alternative to the implemented core Matrix. See `AUDIT-VR2.md`.
-- **Foundry v14 compatibility.** Static deprecation audit is clean and
-  `compatibility.verified` is at 14; a deeper pass on a real v14 build is worth
-  doing if issues surface.
+- ~~Virtual Realities 2.0 (FASA7904)~~ — **done** (optional `matrixRuleset`, parts 1–7 and upgrading, 0.126.0–0.141.0).
+- ~~Foundry v14 compatibility~~ — **verified on a real v14 build**; v16 preparation done (areas.mjs /
+  effects-compat.mjs adapters).
 - **Rulings backfill (wiki Rulings page).** The page's first version (2026-11-15) was built from what was written
   down: the plans' "User rulings" blocks, the R-series vehicle rulings, module rulings files and NEEDS-CAPTURE notes.
   Judgement calls made earlier in conversation and only implemented (in code comments, item notes or CHANGELOG lines,
