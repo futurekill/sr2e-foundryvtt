@@ -25,6 +25,10 @@ describe("citation backfill: the parsing rule (docs/PLAN-citations.md §3)", () 
     expect(proposeCitation("The reverse of increase reflexes (SR2 p.155): loses 2 dice. Grimoire (2nd ed.) p.129.", "grim").pick)
       .toEqual({ book: "grim", page: "129" });
   });
+  it("a closing own-book source line wins over earlier own-book parentheticals", () => {
+    expect(proposeCitation("Range is printed Extended (Grimoire p.123). Grimoire (2nd ed.) p.128.", "grim").pick).toEqual({ book: "grim", page: "128" });
+    expect(proposeCitation("Like background count (p.89), it raises the TN. Grimoire (2nd ed.) p.131.", "grim").pick).toEqual({ book: "grim", page: "131" });
+  });
   it("no page → no pick", () => {
     expect(proposeCitation("A heavy fighting knife. SSC.", "ssc").pick).toBe(null);
   });

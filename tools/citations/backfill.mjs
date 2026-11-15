@@ -36,6 +36,16 @@ function textOf(doc) {
  */
 export function proposeCitation(text, own) {
   const cands = [];
+  // 0. A closing source line naming the own book ("… Grimoire (2nd ed.) p.128.") is the entry's own citation.
+  const all = [...text.matchAll(PG)], last = all.at(-1);
+  if (last && /^[\s.)]*$/.test(text.slice(last.index + last[0].length))) {
+    const clause = text.slice(0, last.index).split(/[.;]\s(?![^(]*\))/).at(-1);
+    const before = text.slice(0, last.index), open = (before.match(/\(/g) ?? []).length - (before.match(/\)/g) ?? []).length;
+    if (open === 0 && bookOf(clause) === own) {   // outside any parenthetical (those are step 1's)
+      for (const m of all) cands.push({ book: own, page: normalizePage(m[2]), table: !!m[1] });
+      return { pick: { book: own, page: normalizePage(last[2]) }, candidates: cands, why: "closing", uncertain: false, multi: false };
+    }
+  }
   // 1. Source parentheticals: only book names, "table", pages and punctuation inside.
   const sources = [];
   for (const m of text.matchAll(/\(([^()]{0,100})\)/g)) {
