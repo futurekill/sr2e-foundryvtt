@@ -359,7 +359,7 @@ export async function fuelAdvanceStage(combat, r) {
       const crashNow = isAir && live.cause !== "engine" && stall != null && live.turnsProcessed + 1 >= stall && !live.crashDue;
       // The Turn's effects (the new speed, a Crash Test due, an emergency landing at the end of deceleration) are written
       // WITH the Turn's receipt and delivered from it, so an interrupted pass delivers them next time (r1 #9).
-      const pending = { speed: next?.speed ?? 0, crash: crashNow, travelled, land: !next && !!live.landing };
+      const pending = { v: foundry.utils.randomID(12), speed: next?.speed ?? 0, crash: crashNow, travelled, land: !next && !!live.landing };
       const patch = { [`flags.sr2e.fuelOut.moved.${key}`]: t?.metres ?? 0, "flags.sr2e.fuelOut.turnsProcessed": live.turnsProcessed + 1,
         "flags.sr2e.fuelOut.travelled": travelled, "flags.sr2e.fuelOut.pending": pending, ...(crashNow ? { "flags.sr2e.fuelOut.crashDue": true } : {}),
         ...(!next ? { "flags.sr2e.fuelOut.state": "stopped" } : {}) };
@@ -384,6 +384,7 @@ export async function deliverCoastStep(v, combat) {
   if (p.land && o.state !== "crashed") await gmCall("vfollowCrash", { vehicleUuid: v.uuid, kind: "impact", ruleset: "rigger2", speed: 0, fid: `${fid}:landing`,
     why: "makes an emergency landing at the end of its deceleration (Rigger 2 p.82)",
     impact: { power: 6, level: "L", source: "collision", stop: true, noOccupants: true, emergency: true } });
-  await vq(v.uuid, () => v.update({ "flags.sr2e.fuelOut.-=pending": null }));
+  // Clear ONLY the step delivered (Codex 6a r3 #2): a newer step written meanwhile (a late landing) is left for its own delivery.
+  await vq(v.uuid, async () => { if (fuelOutOf(v)?.pending?.v === p.v) await v.update({ "flags.sr2e.fuelOut.-=pending": null }); });
 }
 

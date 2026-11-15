@@ -206,7 +206,7 @@ async function crashOp({ vehicleUuid, cid, step, op, attemptId = null, messageId
         } else if (c.cause === "fuel" && out?.state === "stopped" && read > 0 && c.fid === `fuel-${out.id}` && !out.landing) {
           // Resolved after the deceleration already ended (Codex 6a r2 #1): the landing is due now, through the same
           // recoverable pending step the fuel stage delivers.
-          Object.assign(upd, { "flags.sr2e.fuelOut.landing": c.fid, "flags.sr2e.fuelOut.pending": { speed: 0, crash: false, travelled: out.travelled ?? 0, land: true } });
+          Object.assign(upd, { "flags.sr2e.fuelOut.landing": c.fid, "flags.sr2e.fuelOut.pending": { v: foundry.utils.randomID(12), speed: 0, crash: false, travelled: out.travelled ?? 0, land: true } });
           landNow = true;
         }
       } else {

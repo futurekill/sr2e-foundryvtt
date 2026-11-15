@@ -19120,6 +19120,8 @@ export function registerSR2EQuenchTests() {
             assert.equal(V.getFlag("sr2e", "fuelOut").engineDead, "q-dead", "the dead engine is recorded on the fuel episode (#2)");
             await call("fuel", { vehicleUuid: V.uuid, origin: "refuel" });
             assert.ok(V.getFlag("sr2e", "fuelOut"), "refuelling doesn't revive a dead engine");
+            await call("replaceEngine", { vehicleUuid: V.uuid });
+            assert.notOk(V.getFlag("sr2e", "fuelOut"), "a new engine with fuel in the tank ends the episode (r3 #1)");
             const W = await mk("Quench Subsys Equip", {});
             const [sens, apps] = await W.createEmbeddedDocuments("Item", [{ name: "Quench Sensors", type: "vehicle_mod", system: { modKey: "sensors", rating: 3 } },
               { name: "APPS", type: "vehicle_mod", system: {} }]);
