@@ -13,7 +13,8 @@ import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
 import { gmCall, gmOp, isPoolClient, adjustStress, r2SpeedOf, spendPosition, setChaseRoute, riggedInto } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
-import { chaseOf, findEntry, findAboard, activeChases, actionOf, poolsLocked, chaseUnion } from "./chase-state.mjs";
+import { chaseOf, findEntry, findAboard, activeChases, actionOf, poolsLocked, chaseUnion, actingActorOf, operatorOf } from "./chase-state.mjs";
+import * as RCN from "./rc-net.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { VEHICLE_POINTS, TERRAIN_POINTS, r2ClassFor, speedPoints, maneuverScore, accelerateTN, positioningTN, hidingTN,
@@ -62,7 +63,20 @@ export function vehicleStats(doc) {
            armor: s.effectiveArmor ?? s.armor ?? 0, signature: s.effective?.signature ?? s.signature ?? 0, damageLevel: s.damageLevel ?? "Undamaged",
            damageTn: s.damageTnMod ?? 0 };
 }
-const stampOf = (entry) => ({ driver: entry.driver ?? "", ...vehicleStats(fromUuidSync(entry.uuid)) });
+/**
+ * The dependency stamp of an entry (Part 3a; Part 5.0): its acting actor and stats — and for a NETWORKED vehicle the
+ * network's rev, the operator stamp (every deck that operator runs, with its rev) and its reachability, so a jump,
+ * return, connect, disconnect, takeover or range change makes a reserved action "not counted".
+ */
+const stampOf = (entry) => ({ driver: actingActorOf(entry) ?? "", ...vehicleStats(fromUuidSync(entry.uuid)), net: netStamp(entry) });
+function netStamp(entry) {
+  if (entry?.kind !== "vehicle" || entry.driver) return "";
+  const v = fromUuidSync(entry.uuid), deck = v ? RCN.networkOf(v) : null;
+  if (!deck) return "";
+  const op = RCN.netOf(deck)?.operator ?? "";
+  const opDecks = (RCN.rcIndex().byOperator.get(op) ?? []).map(d => `${d.uuid}:${RCN.netOf(d)?.rev ?? 0}`).sort().join(",");
+  return `${deck.uuid}:${RCN.netOf(deck)?.rev ?? 0}|${opDecks}|${RCN.netOf(deck)?.unreachable?.[RCN.vKey(v.uuid)] ? "out" : "in"}`;
+}
 const sameStamp = (a, b) => Object.keys(a ?? {}).every(k => a[k] === b?.[k]);
 
 /** The Vehicle Points class of a vehicle document (null = no class: a drone, Part 5). */
@@ -73,10 +87,15 @@ export function classOf(doc) {
 
 /** Is the entry's driver jacked into it through a VCR (the rigger, p.44/p.49)? Derived at action time. */
 function riggedOf(entry) {
+  // A networked vehicle is rigged only as its operator's live primary (5a.7 dispatch).
+  if (entry?.kind === "vehicle" && !entry.driver && operatorOf(entry)) return riggedInto(fromUuidSync(operatorOf(entry)), fromUuidSync(entry.uuid));
   const d = entry?.driver ? fromUuidSync(entry.driver) : null;
   return !!(d?.system?.rigging && (d.system.vehicleControlRig ?? 0) > 0);
 }
-const vcrOf = (entry) => (riggedOf(entry) ? fromUuidSync(entry.driver).system.vehicleControlRig : 0);
+const vcrOf = (entry) => (riggedOf(entry) ? fromUuidSync(actingActorOf(entry)).system.vehicleControlRig : 0);
+/** A networked drone not rigged (secondary / captain): its own Pilot, no pools (5a.2). */
+const pilotOnly = (entry) => !entry?.driver && !!operatorOf(entry) && !riggedOf(entry);
+const pilotSkill = (vehicle) => ({ dice: vehicle?.system?.effective?.pilot ?? vehicle?.system?.pilot ?? 0, penalty: 0, note: " (Pilot)" });
 const isNpc = (actor) => actor?.type === "npc";
 
 /** An entry's group: [eid…] and the representative (the fastest member, p.49). */
@@ -195,21 +214,23 @@ async function dpStart({ combatId, round, eid, control = 0 }, user) {
     liveRound(combat, ch, round);
     const e = ch.entries[eid];
     if (e?.kind !== "vehicle") throw new Error("not a vehicle in this chase");
-    if (!owns(user, e.driver)) throw new Error(`${user?.name} doesn't drive this vehicle`);
+    if (!owns(user, actingActorOf(e))) throw new Error(`${user?.name} doesn't drive this vehicle`);
     const { rep } = groupOf(ch, eid);
     if (rep !== eid) throw new Error("the group rolls once, with its fastest vehicle");
     const t = ch.turns?.[round]?.[eid];
     if (!t || (e.joinedRound ?? 1) > round) throw new Error("this vehicle joins at the next Combat Turn");
     if (t.dp != null) throw new Error("Driver Points are already recorded this turn");
     if (t.dpSlot && ch.actions?.[t.dpSlot]?.state !== "cancelled") throw new Error("Driver Points are being rolled");
-    const driver = fromUuidSync(e.driver), vehicle = fromUuidSync(e.uuid);
+    const driver = fromUuidSync(actingActorOf(e)), vehicle = fromUuidSync(e.uuid);
     if (!driver || !vehicle) throw new Error("driver or vehicle missing");
-    const sk = driver._vehicleSkill(vehicle, { mode: riggedOf(e) ? "rigged" : "manual" });
+    const drone = pilotOnly(e);
+    const sk = drone ? pilotSkill(vehicle) : driver._vehicleSkill(vehicle, { mode: riggedOf(e) ? "rigged" : "manual" });
     const npc = isNpc(driver);
-    const inputs = { skill: sk.dice, note: sk.note ?? "", pr: npc ? (driver.system.professionalRating ?? 0) : 0,
-                     control: npc ? 0 : Math.max(0, Math.min(Math.floor(Number(control) || 0), sk.dice)) };
+    const inputs = { skill: sk.dice, note: sk.note ?? "", pr: npc && !drone ? (driver.system.professionalRating ?? 0) : 0,
+                     control: npc || drone ? 0 : Math.max(0, Math.min(Math.floor(Number(control) || 0), sk.dice)) };
     const aid = foundry.utils.randomID(16);
-    await write(combat, { [`actions.${aid}`]: { kind: "dp", eid, round, actor: e.driver, user: user.id, state: "rolling", inputs },
+    await write(combat, { [`actions.${aid}`]: { kind: "dp", eid, round, actor: actingActorOf(e), user: user.id, state: "rolling", inputs,
+                                                   ...(operatorOf(e) ? { stamps: { [eid]: stampOf(e) } } : {}) },
                           [`turns.${round}.${eid}.dpSlot`]: aid });
     return { aid, inputs };
   });
@@ -240,7 +261,7 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
     if (e?.kind !== "vehicle") throw new Error("not a vehicle in this chase");
     // Out of fuel (R2 p.81, optional): no powered actions while it coasts.
     if (["accelerate", "ram"].includes(kind) && fromUuidSync(e.uuid)?.getFlag("sr2e", "fuelOut")) throw new Error("no power (out of fuel or a dead engine): it can only coast (Rigger 2 p.81)");
-    const actor = kind === "relocate" ? actorUuid : e.driver;
+    const actor = kind === "relocate" ? actorUuid : actingActorOf(e);
     if (kind === "relocate" && !(e.driver === actor || (e.aboard ?? []).includes(actor))) throw new Error("the spotter must be aboard the pursuing vehicle");
     if (!owns(user, actor)) throw new Error(`${user?.name} may not act for that character`);
     const { members, rep } = groupOf(ch, eid);
@@ -298,7 +319,7 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
       const dj = riggedInto(actorDoc, vehicle) ? actorDoc.improvedDatajackDice?.() ?? 0 : 0;
       if (dj) { dice += dj; note = ` + ${dj} improved datajack (R2 p.17)`; }
     } else {
-      const sk = actorDoc._vehicleSkill(vehicle, { mode: vcr ? "rigged" : "manual" });
+      const sk = pilotOnly(e) ? pilotSkill(vehicle) : actorDoc._vehicleSkill(vehicle, { mode: vcr ? "rigged" : "manual" });
       const oppMs = opponents.length ? highestMs(ch, round, opponents) : t.ms;
       const fleeing = pairs.filter(([, p]) => members.includes(p.quarry)).length;
       const common = { handling: stats.handling, over, autonav, terrain: e.terrain, vcr, damageTn: stats.damageTn, groupExtra: g };
@@ -314,14 +335,14 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
       note = sk.note ?? "";
     }
     tn = { ...tn, tn: Math.max(2, tn.tn) };
-    if (isNpc(actorDoc)) dice += actorDoc.system.professionalRating ?? 0;
+    if (isNpc(actorDoc) && !pilotOnly(e)) dice += actorDoc.system.professionalRating ?? 0;
     const revs = Object.fromEntries([...members.map(m => [m, ch.entries[m].rev ?? 0]),
                                      ...pairs.map(([pid, p]) => [`p:${pid}`, p.rev ?? 0])]);
     const stamps = Object.fromEntries(members.map(m => [m, stampOf(ch.entries[m])]));
     if (targetEid) stamps[targetEid] = stampOf(ch.entries[targetEid]);
     const aid = foundry.utils.randomID(16);
     const inputs = { dice, tn: tn.tn, base: tn.base, parts: tn.parts, note, members, stopDistance: kind === "position" ? stopDistance : null,
-                     controlCap: kind === "relocate" || isNpc(actorDoc) ? 0 : dice };
+                     controlCap: kind === "relocate" || isNpc(actorDoc) || pilotOnly(e) ? 0 : dice };
     await write(combat, { [`actions.${aid}`]: { kind, eid, round, actor, user: user.id, target, targetEid, state: "rolling",
                                                  inputs, revs, stamps } });
     return { aid, inputs };
@@ -373,7 +394,10 @@ async function resolve({ combatId, aid, messageId }, user) {
   if (!pre) throw new Error("no such step");
   if (!user.isGM && pre.user !== user.id && !owns(user, pre.actor)) throw new Error("not your roll");
   const read = pre.state === "publishing" ? await readCard(message, pre) : null;
-  const out = await cq(combatId, async () => {
+  // Lock order chase-membership → rc-control → chase:<combatId> (5.0): an action of a networked vehicle commits under the
+  // network queue too, so no jump/takeover can interleave between its stamp check and its commit.
+  const networked = (pre.inputs?.members ?? [pre.eid]).some(m => operatorOf(chaseOf(combat)?.entries?.[m]));
+  const out = await (networked ? (fn) => RCN.rcQueue(() => cq(combatId, fn)) : (fn) => cq(combatId, fn))(async () => {
     const ch = chaseOf(combat);
     const a = ch.actions?.[aid];
     if (a.state === "cancelled") return { refused: "cancelled — not counted" };
@@ -692,6 +716,8 @@ async function addEntry({ combatId, kind = "vehicle", uuid, driver = "", speed =
     if (!doc) throw new Error("not found");
     if (kind === "vehicle" && doc.type !== "vehicle") throw new Error("not a vehicle");
     if (inAnyChase(uuid)) throw new Error(`${doc.name} is already in a chase`);
+    // An affiliated vehicle is acted for by its network operator (5.0): no crew driver.
+    if (kind === "vehicle" && driver && RCN.isAffiliated(doc)) throw new Error(`${doc.name} is on a remote-control network: its operator drives it`);
     const crew = [...new Set([driver, ...aboard].filter(Boolean))];
     for (const u of crew) if (inAnyChase(u)) throw new Error(`${fromUuidSync(u)?.name ?? u} is already aboard a chase vehicle`);
     const r = combat.round ?? 0;
@@ -718,7 +744,7 @@ async function editEntry({ combatId, eid, patch = {} }, user) {
     const ch = chaseOf(combat), e = ch?.entries?.[eid];
     if (!e) throw new Error("no such entry");
     const allowed = user.isGM ? ["speed", "terrain", "driver", "aboard", "group", "autonav"]
-      : (owns(user, e.driver) && !ch.opened?.[e.joinedRound ?? 1]) ? ["speed"] : [];
+      : (owns(user, actingActorOf(e)) && !ch.opened?.[e.joinedRound ?? 1]) ? ["speed"] : [];
     const keys = Object.keys(patch).filter(k => allowed.includes(k));
     if (!keys.length) throw new Error("not allowed");
     if (Object.values(ch.actions ?? {}).some(a => LIVE.has(a.state) && involves(a, [eid])) && keys.some(k => k !== "aboard"))
@@ -727,6 +753,7 @@ async function editEntry({ combatId, eid, patch = {} }, user) {
     for (const k of keys) {
       let v = patch[k];
       if (k === "speed") v = Math.max(0, Number(v) || 0);
+      if (k === "driver" && v && RCN.isAffiliated(fromUuidSync(e.uuid))) throw new Error("this vehicle is on a remote-control network: its operator drives it");
       if (k === "driver" || k === "aboard") {
         const others = new Set([...(k === "driver" ? [v] : v)].filter(Boolean));
         for (const u of others) {
@@ -823,7 +850,7 @@ async function autonav({ combatId, eid, on }, user) {
   return cq(combatId, async () => {
     const ch = chaseOf(combat), e = ch?.entries?.[eid];
     if (!e) throw new Error("no such entry");
-    if (!owns(user, e.driver)) throw new Error("not your vehicle");
+    if (!owns(user, actingActorOf(e))) throw new Error("not your vehicle");
     if (Object.values(ch.actions ?? {}).some(a => LIVE.has(a.state) && involves(a, [eid]))) throw new Error("an action of this vehicle is being resolved");
     await write(combat, { [`entries.${eid}.autonav`]: !!on, [`entries.${eid}.rev`]: (e.rev ?? 0) + 1 });
     return riggedOf(e) ? "Free Action" : "Simple Action";
@@ -1032,9 +1059,9 @@ async function askControl(title, html, cap) {
 export async function rollDriverPoints(combat, eid) {
   try {
     const ch = chaseOf(combat), e = ch.entries[eid];
-    const driver = fromUuidSync(e.driver);
-    if (!driver) throw new Error("set a driver on the chase panel first");
-    const cap = isNpc(driver) ? 0 : Math.min(driver.system.dicePools?.control?.value ?? 0, driver._vehicleSkill(fromUuidSync(e.uuid)).dice);
+    const driver = fromUuidSync(actingActorOf(e));
+    if (!driver) throw new Error("set a driver on the chase panel first (or connect its network)");
+    const cap = isNpc(driver) || pilotOnly(e) ? 0 : Math.min(driver.system.dicePools?.control?.value ?? 0, driver._vehicleSkill(fromUuidSync(e.uuid)).dice);
     const control = await askControl(`${driver.name}: Driver Points`, `<p>Open Test: vehicle skill dice${isNpc(driver) ? " + Professional Rating" : " + Control Pool dice you allocate (held for the rest of the turn)"}; keep the highest die, sixes re-rolled and added (R2 p.42).</p>`, cap);
     if (control === null) return;
     if (control > 0 && !isPoolClient(driver)) throw new Error(`${driver.name}'s Control Pool is spent on their player's client`);
@@ -1061,7 +1088,7 @@ export async function chaseAction(combat, eid, kind, { target = null, actorUuid 
     const expectRevs = { [eid]: e.rev ?? 0 };
     for (const [pid, p] of Object.entries(ch.pairs ?? {})) if (members.includes(p.pursuer) || members.includes(p.quarry)) expectRevs[`p:${pid}`] = p.rev ?? 0;
     const { aid, inputs } = await gmCall("chaseBegin", { combatId: combat.id, round: combat.round, eid, kind, actorUuid, target, expectRevs, stopDistance });
-    const actor = fromUuidSync(kind === "relocate" ? actorUuid : e.driver);
+    const actor = fromUuidSync(kind === "relocate" ? actorUuid : actingActorOf(e));
     const parts = inputs.parts.map(([l, v]) => `${esc(l)} ${v > 0 ? "+" : ""}${v}`).join(", ");
     const kindNote = kind === "relocate" ? "Perception Test (Intelligence) against the hiding vehicle's Signature" : "Driving Test against Handling";
     const cap = Math.min(inputs.controlCap, actor.system.dicePools?.control?.value ?? 0);
@@ -1071,7 +1098,9 @@ export async function chaseAction(combat, eid, kind, { target = null, actorUuid 
     if (control > 0 && !isPoolClient(actor)) throw new Error(`${actor.name}'s Control Pool is spent on their player's client`);
     const paid = control ? await spendChase(actor, control, combat.id, aid) : 0;
     await gmCall("chaseArm", { combatId: combat.id, aid });
-    await actor.rollSuccessTest(inputs.dice, inputs.tn, {
+    // A pilot-only drone rolls its own test: none of its operator's modifiers (5.0 droneCtx).
+    const roller = kind !== "relocate" && pilotOnly(e) ? fromUuidSync(e.uuid) : actor;
+    await roller.rollSuccessTest(inputs.dice, inputs.tn, {
       label: `${KIND_LABEL[kind]} (R2 p.${{ accelerate: 45, brake: 45, position: 47, hide: 48, relocate: 49, ram: 47 }[kind]})`,
       sourceLabel: kind === "relocate" ? "Intelligence" : "Driving",
       ...(paid ? { paidPoolDice: { control: paid } } : {}),

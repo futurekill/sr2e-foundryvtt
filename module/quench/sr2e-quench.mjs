@@ -19246,6 +19246,47 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Remote-control networks in a chase (Part 5.0)", function () {
+        it("a networked drone is acted for by its operator on its own Pilot; no crew driver; a jump makes a reserved roll stale", async function () {
+          this.timeout(30000);
+          const CS = await import("../chase-state.mjs");
+          const pc = await Actor.create({ name: "Quench Chase Rigger", type: "character", system: { rigging: true, vehicleControlRig: 1 } }); made.push(pc);
+          const [deck] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Chase Deck", type: "gear", system: { rating: 1 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          const d = await mk("Quench Chase Drone", { vehicleType: "drone", pilot: 3, handling: 4, speed: 100, acceleration: 10 });
+          await pc.update({ "system.linkedVehicles": [d.uuid] });
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+          await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
+          const combat = await Combat.create({ scene: null, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: pc.id }]);
+          await call("chaseSetup", { combatId: combat.id });
+          let err = null;
+          try { await call("chaseAddEntry", { combatId: combat.id, uuid: d.uuid, driver: pc.uuid, speed: 50 }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /remote-control network/, "no crew driver for an affiliated drone");
+          const { eid } = await call("chaseAddEntry", { combatId: combat.id, uuid: d.uuid, speed: 50 });
+          await combat.startCombat();
+          const entry = () => combat.getFlag("sr2e", "chase").entries[eid];
+          assert.equal(CS.operatorOf(entry()), pc.uuid);
+          assert.equal(CS.actingActorOf(entry()), pc.uuid);
+          assert.include(CS.chaseUnion(combat.getFlag("sr2e", "chase")), pc.uuid, "the operator is refreshed with the chase");
+          // Captain's chair (a secondary): the drone's Pilot 3, no pools, the operator's action.
+          const { aid, inputs } = await call("chaseDPStart", { combatId: combat.id, round: combat.round, eid });
+          assert.equal(inputs.skill, 3, "Pilot");
+          assert.equal(inputs.control, 0);
+          assert.equal(combat.getFlag("sr2e", "chase").actions[aid].actor, pc.uuid);
+          await call("chaseArm", { combatId: combat.id, aid });
+          // Jumping in changes who drives and how: the reserved roll is not counted.
+          await call("rcJump", { deckUuid: deck.uuid, vehicleUuid: d.uuid });
+          const roll = await new Roll("{1d6x6,1d6x6,1d6x6}kh").evaluate();
+          const msg = await roll.toMessage({ flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } });
+          const out = await call("chaseResolve", { combatId: combat.id, aid, messageId: msg.id });
+          assert.match(out?.refused ?? "", /changed/, "stale after the jump");
+          assert.equal(combat.getFlag("sr2e", "chase").actions[aid].state, "stale");
+          await call("rcDisconnect", { deckUuid: deck.uuid });
+          assert.equal(CS.actingActorOf(entry()), null, "disconnected: nobody acts for it");
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

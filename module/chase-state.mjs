@@ -2,6 +2,7 @@
  * Read-only lookups over Rigger 2 chases (docs/PLAN-vehicles-phase2.md 3.0). Kept apart from chase.mjs so
  * vehicle-play.mjs and actor.mjs can read chase state without an import cycle. Writes live in chase.mjs (GM only).
  */
+import * as RCN from "./rc-net.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 
 /** A combat's chase record, or null. */
@@ -44,6 +45,19 @@ export function chaseDriverUuid(vehicle) {
   return findEntry(vehicle?.uuid)?.entry?.driver ?? null;
 }
 
+/**
+ * Rigger 2 networks (Part 5.0 chase integration): a networked vehicle's entry has no crew driver; its ACTION AUTHORITY
+ * and dice come from the live network operator — read every time, never cached in the chase, so a takeover or a
+ * disconnect is seen at once. Physical reads (who is aboard, occupant snapshots) keep `entry.driver` / `entry.aboard`.
+ */
+export function operatorOf(entry) {
+  if (entry?.kind !== "vehicle" || entry.driver) return null;
+  const v = fromUuidSync(entry.uuid);
+  return (v && RCN.networkControllerOf(v)?.uuid) || null;
+}
+/** Who acts for a chase entry: its crew driver, else the network operator (5.0 `actingActorOf`). */
+export const actingActorOf = (entry) => entry?.driver || operatorOf(entry);
+
 /** Every actor uuid a chase's round change refreshes (p.42): drivers, aboard characters, pedestrians. */
 export function chaseUnion(chase) {
   const set = new Set();
@@ -51,6 +65,8 @@ export function chaseUnion(chase) {
     if (!e) continue;
     if (e.kind === "pedestrian") set.add(e.uuid);
     if (e.driver) set.add(e.driver);
+    const op = operatorOf(e);   // a network operator, once however many vehicles they run (Set)
+    if (op) set.add(op);
     for (const u of e.aboard ?? []) set.add(u);
   }
   return [...set];
