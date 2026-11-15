@@ -31,6 +31,24 @@
   - NPC targets get their **Signature** automatically: the Critter Signature Ratings Table by name, else 6 for a
     metahuman (p.61). An **improved datajack** (Level 2+) adds Level − 1 dice to the chase's relocation Perception Test
     while rigging (p.17).
+- **Rigger 2 fuel** (optional settings "Rigger 2: variable fuel consumption", "aircraft maneuver fuel", "fuel grades"; R2
+  p.81–83; Part 6a.1): a **Fuel** button on the vehicle sheet — travel (by the Economy Rating Table), refuel, set the
+  level, STOL/VSTOL/VTOL maneuvers, a drone's operating mode, and the fuel grade (cheap/regular/premium/custom change
+  Acceleration, Economy and Maintenance). Chases burn fuel each Turn at the vehicle-combat Economy; drones burn their Idle
+  Economy the whole time they operate (on a logical clock: 3 s per Combat Turn, world time outside combat, nothing billed
+  twice). **Running dry**: the vehicle coasts — speed falls 2 × Acceleration a Turn and the chase moves it by its share
+  of the printed coasting distance (Gray Ghost: 2,500 / 2,000 / 1,500 / 1,000 / 500 m); one Vehicle Test coaxes more
+  (+ Acceleration per 2 successes); no accelerating, ramming or engine boosts; an aircraft makes ONE Crash Test at its
+  Stall Speed — success is an emergency landing (6L to the vehicle only, 1D6 Stress, passengers unhurt).
+- **Rigger 2 subsystem damage** (optional setting "Rigger 2: subsystem damage"; R2 p.85–87; Part 6a.4): Moderate or worse
+  damage from one source posts a **Roll subsystem damage** card (Tables 1–8). Damaged mods lose bonuses (Light −1,
+  Moderate half, Serious/Deadly stop — factory ones too); Handling +1/+2/+3, the engine cuts Acceleration/Speed/Load,
+  Aggravated Body lowers the vehicle's Body everywhere it's used, Armor-Defeating Hits are cumulative; a leaking tank
+  loses fuel each Turn; a damaged turret or target-acquisition system penalizes its weapons (Deadly: frozen / no smart
+  weapons or locks); the Rigger Control Box's ASIST backlash and passenger-compartment shrapnel are resistance buttons;
+  a Deadly Handling/Body hit crashes the vehicle and a Deadly engine/fuel-tank hit needs a Crash Test — one crash per
+  attack. Repairs: the Repair button lists the damaged parts (priced from the part, p.87); Deadly parts are replaced and
+  armor lost to an Armor-Defeating Hit only by replacing the armor.
 - **Rigger 2 Quality Factors** (optional setting "Rigger 2: Quality Factors"; R2 p.84–85; Part 6a.3): choose them in the
   Workshop's price step (Mark-Up added before the special-design multipliers; at most two; never below .1); they change
   Maintenance, the Stress Test, every Build/Repair Test on the vehicle, Custom Built customization prices and times, and

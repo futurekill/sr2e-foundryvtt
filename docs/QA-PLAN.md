@@ -1255,3 +1255,21 @@ GM Stress Test → the card names the Ruggedness modifier; Customize a Custom Bu
 a crash → occupants' resistance TN −1 with Safety Certified. Prototype: saving the design whispers the GM 1D6 hidden
 Stress; push a Driving Test with Stress dice → the GM gets "Reveal all / Reveal 1"; reveal → Stress rises once
 (reload mid-reveal: it finishes). Option off: the Workshop shows the factors read-only and nothing changes in play.
+
+## Rigger 2 fuel (options r2Fuel / r2FlightFuel / r2FuelGrades; Part 6a.1) — `sr2e.r2-advanced` batch
+Automated: travel by the Economy Rating Table, receipted once, refuel fills; running dry opens one coasting episode the
+chase moves by its share Turn by Turn until it stops; an idle drone in combat burns 3 s per Turn once, its logical clock
+carried out of the combat; an aircraft gets ONE fuel Crash Test at its Stall Speed; fuel grades derive Acceleration and
+Economy both ways. Vitest: the tables and the Gray Ghost / Mistral examples.
+Manual: Fuel → Travel 80 km below the Speed Rating (Economy 4: 20 used); run a car dry in a chase and watch it coast; pass
+the coax test; set a drone to "operating, stationary" and advance world time (GM) → idle fuel billed; VSTOL takeoff on an
+aircraft (×.7); pick premium fuel → Acceleration +2.
+
+## Rigger 2 subsystem damage (option r2Subsystems; Part 6a.4) — `sr2e.r2-advanced` batch
+Automated: records derive Handling/engine/Body/Armor and go inert when their instance is replaced; a Moderate hit records
+the follow-up in the damage update; an automatic crash upgrades a pending Crash Test of the same event (one record); a
+subsystem repair is priced from the part and repairs that record only; Armor-Defeating Hits can't be repaired. Vitest:
+Tables 1–8 resolution, counts, severity, damaged mods in the effect pass.
+Manual: shoot a vehicle for Moderate damage → Roll subsystem damage; a Control Box hit → the rigger's resist button
+(Power = the attack's after armour); a Passenger Compartment hit → passengers' buttons; repair a Moderate fuel tank.
+
