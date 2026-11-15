@@ -19234,6 +19234,11 @@ export function registerSR2EQuenchTests() {
           d2.rollSuccessTest = (n, tn, o) => { seen.push(n); return orig(n, tn, o); };
           try { await VP.rollDrivingTest(pc, d2, { mode: "drone", tn: 4, terrain: "normal" }); } finally { d2.rollSuccessTest = orig; }
           assert.equal(seen[0], 2, "Pilot 2, the drone rolls");
+          // Jacking out is a control transition (5a.7): the primary returns to the captain's chair.
+          await call("rcEligibility", { operatorUuid: pc.uuid, rigging: false });
+          assert.equal(RCN.netOf(deck).primary, null, "jacked out: no primary");
+          assert.equal(RCN.droneModeOf(d1), "captain");
+          await call("rcEligibility", { operatorUuid: pc.uuid, rigging: true });
           await call("rcDisconnect", { deckUuid: deck.uuid });
           assert.equal(VP.controllerOf(d1), null, "disconnected: it holds");
           assert.equal(RCN.netOf(deck).primary, null, "the primary cleared");

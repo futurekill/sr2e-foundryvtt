@@ -254,6 +254,22 @@ export function registerRcNet() {
     return save(deck, net);
   }));
 
+  // Eligibility loss is a control transition (5a.7, round 14 #2): jacking in or out runs here, so the primary is cleared
+  // (a return to the captain's chair — a voluntary jack-out is never a dump, p.64) in the same queue as every jump.
+  gmOp("rcEligibility", ({ operatorUuid, rigging }, user) => rcQueue(async () => {
+    const op = fromUuidSync(operatorUuid);
+    if (!op || !["character", "npc"].includes(op.type)) throw new Error("not a character");
+    if (!user.isGM && !op.testUserPermission(user, "OWNER")) throw new Error("not your character");
+    if (!rigging) for (const deck of rcIndex().byOperator.get(op.uuid) ?? []) {
+      const net = freshNet(deck);
+      if (!net.primary) continue;
+      net.primary = null;
+      await save(deck, net);
+    }
+    await op.update({ "system.rigging": !!rigging });
+    return true;
+  }));
+
   gmOp("rcReturn", ({ deckUuid }, user) => rcQueue(async () => {
     const deck = load(deckUuid, user), net = freshNet(deck);
     if (!net.primary) return net;

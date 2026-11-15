@@ -4358,6 +4358,12 @@ const SHARED_ACTIONS = {
 
   toggleRigging: async function(event, target) {
     event.preventDefault();
+    // Rigger 2: an operator of a remote-control network jacks in/out through the network queue (Part 5a.7), so a
+    // jumped-in drone is released in the same step.
+    const RC = await import("../rc-net.mjs");
+    if ((RC.rcIndex().byOperator.get(this.document.uuid) ?? []).length)
+      return RC.rc("rcEligibility", { operatorUuid: this.document.uuid, rigging: !this.document.system.rigging })
+        .catch(err => ui.notifications.warn(`SR2E | ${err.message}`));
     return this.document.update({ "system.rigging": !this.document.system.rigging });
   },
 
