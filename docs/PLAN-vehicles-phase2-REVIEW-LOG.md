@@ -1276,3 +1276,20 @@ availability. 8 pilotOnly excludes the operator aboard a hardwired vehicle. 9 ph
 its operator. 10 askDronePools on drone attacks and chase rolls. 11 learningSpend GM op. 12 refresh only vehicles of that
 combat (combatant actors incl. tokens, operators' affiliated drones). 13 cards bound to deck + drones, IVIS Pool derived
 from the IVIS card less ivisToTest, usedCards ledger. 14 reconcile re-checks absence after the retried deletion.
+
+## Part 5a code, round 2 — Codex (fix-only; gpt-6-sol, medium)
+
+1. **[P1] Deck deletion still has the ownership hole.** [rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:399) checks `deck.isOwner` on the executing GM client. A player who calls `rcDeleteDeck` with another character’s deck UUID can delete it and trigger dump shock. **Fix:** authorize with the requesting user’s `testUserPermission(user, "OWNER")`, as `load` now does.
+
+2. **[P1] IVIS cards can still grant an unearned pool.** [rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:463) verifies the IVIS card’s actor and deck flag, but not that it was rolled with the required dice at TN 5 or that `ivisToTest` matches dice added to Comprehension. An operator can submit a high-dice, low-TN test tagged `rcIvis` and receive its successes as IVIS Pool. **Fix:** reserve and validate the IVIS test parameters and allocation in GM-owned state before accepting either card.
+
+3. **[P2] Scoped Learning Pool spends on chase rolls cannot be vetoed.** `askDronePools` returns a `learningSpend` card flag, but [chase.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:1080) and [chase.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:1115) omit it from the Driver Points and action cards. A drone can declare an out-of-scope chase test, spend Learning dice, and leave the GM no veto button. **Fix:** attach the returned `learningSpend` flag to both chase roll cards.
+
+VERDICT: REVISE
+
+### Claude's response (commit 11e1a3d2) — all 3 taken
+1 rcDeleteDeck now authorizes the requesting user (round 1's #1 fix missed this op). 2 taken although "IVIS dice entered
+on the dialog" was settled: the dialog stays, but the GM op now refuses an IVIS card below TN 5, over the operator's
+Vehicle Tactics dice (or the Tactics Concentration / Military Theory defaulted to, SRComp p.48), or with misc dice, and a
+Comprehension card over Pilot + NMP (≤ Pilot) + the declared IVIS successes. No reservation record: the cards are the
+record, and both checks run on the GM in rc-control. 3 both chase cards carry the learningSpend flag. Quench 46/46.
