@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- **Citations** (for the character generator; docs/PLAN-citations.md): every item type and vehicle can record where it's
+  printed — `book` and `page` — shown as a badge on the item sheet ("SSC p.59", the full title on hover); the GM edits
+  them in the sheet header. The compendia are backfilled book by book.
 - **Task Pool** (Rigger 2 p.16; Shadowtech pp.23, 49; Part 5a.0), under the Rigger 2 vehicle ruleset: an encephalon of
   Level 2 / 3 / 4 gives 1 / 2 / 3 dice and a cerebral booster of Level 2 one more (they add). The sheet shows it beside
   the other pools; the skill-test dialog offers it on Technical (Biotech, Computer, Electronics), Knowledge and
