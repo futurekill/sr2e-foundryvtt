@@ -1,5 +1,5 @@
 # Plan: structured citations (chargen milestone M1b)
-_Draft 1 (2026-11-15). Implements milestone **M1b Citations** of the standalone character generator
+_Draft 2 (2026-11-15), after Codex round 1 (7 findings, all taken). Implements milestone **M1b Citations** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Citations (U19)", decision D8). Independent of M1
 (docs/PLAN-portable.md): a citation is plain item data, carried as is by the portable bundle (§1.4 kind `data`)._
 
@@ -47,7 +47,9 @@ Foundry and the chargen (D1: the system is the shared package).
 
 ### 3. The backfill tool (system `tools/citations/`, run per repo)
 `node tools/citations/backfill.mjs <repo> [--write]`:
-- Reads the repo's `packs-src` items AND the items embedded in its actors (pregens, NPCs, vehicles' factory items).
+- Reads the repo's `packs-src` items, the items embedded in its actors (pregens, NPCs, vehicles' factory items) AND its
+  top-level **vehicle actors** (round 1 #4: the schema covers vehicles, so parsing, overrides, the coverage report and
+  validation all include them).
 - Parses `notes`, `description` (HTML stripped) and qualities' `source`: `(<book>? p.N[–M])`, bare `p.N` / `pp.N–M`,
   `<book> p.N`; a page with no recognised book belongs to the repo's OWN book (the module → book map in the table);
   section words before `p.` ("Design specifications p.110", "Cyberware Rules p.12") don't name a book.
@@ -57,11 +59,15 @@ Foundry and the chargen (D1: the system is the shared package).
   1. a **source parenthetical** — one whose content is only book names, pages and the word "table" — preferring the
      repo's own book, the LAST such one in the text; inside it the **description page** wins over a `table p.N` page
      (the citation is where the rules are; the price table only when the item has no other entry);
-  2. else the first page reference with no other book named just before it and not inside a "see …"/"(p.N)"
-     cross-reference — attributed to the repo's own book.
+  2. else the first page reference with no other book named in the SAME CLAUSE before it (round 1 #1: the book context
+     carries across a clause — "the core book Sourcebook Updates table, p.280" is core, not SSC; "core book", "basic
+     rules", "SRII" are core aliases) and not inside a "see …"/"(p.N)" cross-reference — attributed to the repo's own
+     book. An attribution the parser can't make with certainty (a book-like phrase it doesn't know) is reported, never
+     written.
   Coverage of this rule over the current notes: 1,127 items placed (source parentheticals 457, first references
-  670), the rest are the gaps the overrides fill. Several candidate pages with no source parenthetical → reported as
-  ambiguous, nothing written.
+  670), the rest are the gaps the overrides fill. **Every item with more than one distinct candidate page is reported**
+  (round 1 #2), with the rule's proposed pick; nothing is written for it until a human confirms it — `--accept <report>`
+  turns the reviewed rows into override rows (`checked: reviewed proposal`).
 - **Description page, not table page** is the convention throughout (overrides included). A repo with its own
   coverage map (Cybertechnology `docs/COVERAGE.md`, which lists the TABLE page for tabled entries) is cross-checked:
   disagreements are listed in the report for a human look, never auto-resolved.
@@ -69,7 +75,8 @@ Foundry and the chargen (D1: the system is the shared package).
 - **Overrides** `tools/data/citations/<repo>.tsv` (`name`, `_id`, `book`, `page`, `checked` = how it was verified)
   win over parsing; they are how gaps get filled.
 - Without `--write`: a report (cited / ambiguous / missing, per type) and a gaps TSV to fill. With `--write`: writes
-  `system.citation` only where it is blank (never overwrites), then `npm run build-packs` is the repo's own step.
+  `system.citation` where it is blank; an OVERRIDE row replaces an existing citation (round 1 #3), printing the
+  before/after diff. Then `npm run build-packs` is the repo's own step.
 
 ### 4. Filling the gaps (per book, from renders)
 For every item the parser can't place, the page is found in the book from **page renders** (`pdftoppm`), never the
@@ -80,9 +87,12 @@ generic `Service: …` entries, a macro-made item) cite the RULE page they imple
 gets `book: "none"` with a reason in the TSV — the validator accepts only those listed.
 
 ### 5. Enforcement
-Each content repo's `npm run validate` (and the system's packs check in `npm test`) fails on a catalog item with a
-blank `citation.book` or `citation.page`, an unknown book id, or a page that isn't `N` / `N–M` (`book: "none"`
-only when its TSV row says so). Turned on per repo once its backfill is complete, so repos can land one at a time.
+Each content repo's `npm run validate` (and the system's packs check in `npm test`) fails on a catalog item or vehicle
+with a blank `citation.book` or `citation.page`, an unknown book id, a page that isn't `N` / `N–M`, a citation that
+DISAGREES with its override row (round 1 #3), or an override row whose `status` is `unresolved` (round 1 #5: the TSV
+has a `status` column — `cited`, `none` (confirmed: no printed source, with the reason) or `unresolved` (research
+pending; fails the gate)). **Validate is a release gate** (round 1 #6): every affected repo's release workflow runs
+`npm run validate` before `build-packs` and packaging. Turned on per repo once its backfill is complete, so repos can land one at a time.
 
 ### 6. Showing it
 - Foundry item sheets: a badge in the header (`citationLabel`, `citationTitle` on hover), editable by the GM in the
@@ -92,8 +102,9 @@ only when its TSV row says so). Turned on per repo once its backfill is complete
 
 ### 7. Releases
 System first (schema, table, helpers, sheet badge, tool, the system's own backfill + gaps), then each content module
-as its backfill and gaps complete (its validate rule on). Content data is harmless on an older system (the unknown
-field is dropped), so module `minimum` versions don't move. CHANGELOG + QA plan + wiki (the badge) per release.
+as its backfill and gaps complete (its validate rule on). An older system drops the unknown field on import and nothing
+recovers it later (round 1 #7), so every citation-bearing module release raises its `minimum` system version to the
+schema release. CHANGELOG + QA plan + wiki (the badge) per release.
 
 ## Key decisions & tradeoffs
 - **Data, not parsing at runtime**: the notes are inconsistent (several books, cross-references, no page at all);

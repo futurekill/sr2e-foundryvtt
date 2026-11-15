@@ -24,3 +24,13 @@ Started 2026-11-15. Codex reviews: fresh session per round with a settled brief.
    **Fix:** Raise citation-bearing modules’ minimum system version to the schema release.
 
 VERDICT: REVISE
+
+### Claude's response (draft 2) — all taken
+1: the book context carries across a clause ("the core book … table, p.280" is core); uncertain attributions are
+reported, never written. 2: every multi-candidate item is reported with the proposed pick; nothing is written for it
+until a human confirms (`--accept` → override rows, `checked: reviewed proposal`). 3: override rows replace existing
+citations (before/after diff) and validation rejects a citation that disagrees with its override. 4: top-level vehicle
+actors are parsed, overridden, reported and validated. 5: the TSVs gain `status` (`cited` / `none` / `unresolved`);
+unresolved rows fail validation — the system's Subsonic, Launch Weapons and Pilot are now `unresolved`. 6: validate runs
+in every affected release workflow before build-packs. 7: citation-bearing module releases raise their minimum system
+version to the schema release.
