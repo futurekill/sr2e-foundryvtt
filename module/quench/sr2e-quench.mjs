@@ -18647,7 +18647,7 @@ export function registerSR2EQuenchTests() {
           const A = await mk("Quench SGun A", {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]), B = await mk("Quench SGun B");
           const scene = await sceneWith([A, 100], [B, 600]);
           const pc = await Actor.create({ name: "Quench SGunner", type: "character" }); made.push(pc);
-          await pc.createEmbeddedDocuments("Item", [{ name: "Firearms", type: "skill", system: { rating: 3, category: "active" } }]);
+          await pc.createEmbeddedDocuments("Item", [{ name: "Gunnery", type: "skill", system: { rating: 3, category: "active" } }]);
           const gun = await gunFor(A), sp = spyTN(pc);
           const opts = { gunner: pc, gunneryMode: "sensor", range: "short", r2: { los: "direct", urban: true },
             _engage: { key: "quench-sgun", token: { uuid: scene.tokens.find(t => t.actorId === B.id).uuid } } };
@@ -18658,7 +18658,7 @@ export function registerSR2EQuenchTests() {
             await gun._rollWeaponAttack(opts);
           } finally { sp.off(); }
           assert.equal(sp.seen[0]?.[1], 4 + 2 - 3, "Signature 4, urban +2, direct LOS −3");
-          assert.equal(sp.seen[0]?.[0], 3 + 1, "Firearms 3 + ⌊3 ÷ 2⌋");
+          assert.equal(sp.seen[0]?.[0], 3 + 1, "Gunnery 3 + ⌊3 ÷ 2⌋");
         });
       });
 
@@ -18762,6 +18762,102 @@ export function registerSR2EQuenchTests() {
           await combat.advanceRound(1);
           await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
           assert.equal(M.launchesOf(A)[l.id].state, "lost", "continuous contact was broken");
+        });
+      });
+
+      describe("Missile review fixes (Part 4b code round 2)", function () {
+        const until = async (fn, n = 60) => { for (let i = 0; i < n && !fn(); i++) await new Promise(r => setTimeout(r, 100)); return fn(); };
+        const setup = async (tag, { blast = false, skill = { name: "Gunnery", rating: 4 } } = {}) => {
+          const S = await mods(), M = await import("../vehicle-missiles.mjs");
+          const A = await mk(`Quench R2 Launcher ${tag}`, {}, [await catalog("Sensors (Vehicle Sensor System)", 3)]), B = await mk(`Quench R2 Target ${tag}`);
+          const scene = await sceneWith([A, 100], [B, 600]);
+          const pc = await Actor.create({ name: `Quench R2 Gunner ${tag}`, type: "character" }); made.push(pc);
+          await pc.createEmbeddedDocuments("Item", [{ name: skill.name, type: "skill", system: { rating: skill.rating, category: "active" } }]);
+          const src = blast ? (await game.packs.get("sr2e.weapons").getDocuments()).find(d => d.name === "Anti-Vehicle Missile").toObject()
+            : { name: `Quench R2 AVM ${tag}`, type: "weapon", system: { weaponType: "heavy", skill: "gunnery", damageCode: "16D",
+              ammo: { max: 1, current: 1, type: "missile", guided: { kind: "missile", intelligence: 4, sensor: 0 } }, firingModes: { ss: true } } };
+          const [gun] = await A.createEmbeddedDocuments("Item", [src]);
+          const combat = await Combat.create({ scene: scene.id, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: A.id, tokenId: scene.tokens.find(t => t.actorId === A.id).id, sceneId: scene.id }]);
+          await combat.update({ round: 1 });
+          await faces(FIVES, () => S.gmCall("sensorTest", { vehicleUuid: A.uuid, targetUuid: B.uuid, gmValue: 4 }));
+          await gun._rollWeaponAttack({ gunner: pc, gunneryMode: "launch", launchMode: "fireAndForget", r2: {},
+            _engage: { key: `quench-r2-${tag}`, token: { uuid: scene.tokens.find(t => t.actorId === B.id).uuid } } });
+          const [l] = Object.values(M.launchesOf(A));
+          await combat.advanceRound(1);
+          return { S, M, A, B, pc, combat, l };
+        };
+        const depOf = (M, A, id) => game.messages.find(m => ["blastLaunch", "rangedDamage", "spreadLaunch"].some(k => m.getFlag("sr2e", k)?.testMessageId === M.launchesOf(A)[id].messageId));
+
+        it("a blast waits for every target row on its outcome card (r2 #1)", async function () {
+          this.timeout(30000);
+          const { M, A, combat, l } = await setup("blast", { blast: true });
+          await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
+          const dep = depOf(M, A, l.id);
+          const out = await ChatMessage.create({ content: `<button class="sr2e-resist-btn" data-power="9"></button><button class="sr2e-resist-btn" data-power="7"></button>`,
+            flags: { sr2e: { resolves: dep.id } } });
+          await combat.resumeRound();
+          assert.equal(combat.round, 1, "launched, but neither target has resisted");
+          await ChatMessage.create({ content: "row 0", flags: { sr2e: { resolvesRow: `${out.id}#0` } } });
+          await combat.resumeRound();
+          assert.equal(combat.round, 1, "one row still open");
+          await ChatMessage.create({ content: "row 1", flags: { sr2e: { resolvesRow: `${out.id}#1` } } });
+          await combat.resumeRound();
+          assert.ok(await until(() => combat.round === 2), "every row resisted: the Turn ends");
+          assert.equal(M.launchesOf(A)[l.id].state, "resolved");
+        });
+
+        it("a non-blast miss is finalized and its test closed; the Turn ends (r2 #2)", async function () {
+          this.timeout(30000);
+          const { M, A, combat, l } = await setup("miss");
+          await faces(ONES, () => M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 }));
+          assert.equal(M.launchesOf(A)[l.id].state, "struck");
+          await combat.resumeRound();
+          assert.ok(await until(() => combat.round === 2), "a miss doesn't hold the Turn");
+          const { isTestClosed } = await import("../astral-combat.mjs");
+          assert.ok(isTestClosed(M.launchesOf(A)[l.id].messageId), "closed to later Karma");
+        });
+
+        it("a client stopped after the test card: the retry posts the damage card from that test, rolling nothing (r2 #3)", async function () {
+          this.timeout(30000);
+          const { M, A, pc, l } = await setup("resume");
+          const spy = []; const orig = pc.rollSuccessTest.bind(pc);
+          pc.rollSuccessTest = (d, tn, o) => { spy.push(d); return orig(d, tn, o); };
+          const create = ChatMessage.create; let cut = true;
+          ChatMessage.create = function (data, ...rest) {
+            if (cut && data?.flags?.sr2e?.rangedDamage) { cut = false; throw new Error("Quench: client stopped"); }
+            return create.call(this, data, ...rest);
+          };
+          try {
+            let err = null;
+            try { await faces(FIVES, () => M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 })); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /client stopped/);
+            assert.equal(M.launchesOf(A)[l.id].state, "rolling", "no damage card: not struck");
+            await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 });
+          } finally { ChatMessage.create = create; pc.rollSuccessTest = orig; }
+          assert.equal(spy.length, 1, "rolled once");
+          assert.equal(M.launchesOf(A)[l.id].state, "struck");
+          assert.ok(depOf(M, A, l.id)?.getFlag("sr2e", "rangedDamage")?.successes > 0, "the damage card carries the test's successes");
+        });
+
+        it("another client can't run the same attempt while its runner holds it (r2 #4)", async function () {
+          this.timeout(30000);
+          const { S, M, A, l } = await setup("runner");
+          await S.gmCall("missileArm", { holderUuid: A.uuid, launchId: l.id, runner: "quench-runner-a" });
+          let err = null;
+          try { await S.gmCall("missileArm", { holderUuid: A.uuid, launchId: l.id, runner: "quench-runner-b" }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /another client/);
+          const again = await S.gmCall("missileArm", { holderUuid: A.uuid, launchId: l.id, runner: "quench-runner-a" });
+          assert.equal(again.attempt, M.launchesOf(A)[l.id].attempt, "the runner retries the same attempt");
+        });
+
+        it("Gunnery only: a gunner with Firearms 6 and no Gunnery defaults (r2 #6)", async function () {
+          this.timeout(30000);
+          const { M, A, pc, l } = await setup("skill", { skill: { name: "Firearms", rating: 6 } });
+          const spy = []; const orig = pc.rollSuccessTest.bind(pc);
+          pc.rollSuccessTest = (d, tn, o) => { spy.push(o.label ?? ""); return orig(d, tn, o); };
+          try { await M.rollPhase0({ holderUuid: A.uuid, launchId: l.id }, { pool: 0 }); } finally { pc.rollSuccessTest = orig; }
+          assert.match(spy[0], /default/i, "Firearms counts only by defaulting to Gunnery (SR2E p.69), never as the test's own skill");
         });
       });
 

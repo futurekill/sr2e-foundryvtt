@@ -730,12 +730,14 @@ export class SR2EItem extends Item {
     // then the weapon-type default. Vehicle-mounted weapons use Gunnery
     // (SR2E p.105). Empty strings are filtered out.
     const typeFallback = WEAPON_TYPE_DEFAULT_SKILLS[this.system.weaponType] ?? "";
-    const skillKeys = [
-      // Mounted weapons, and every Rigger 2 sensor/indirect/missile attack, roll Gunnery (R2 p.58–60; r1 #12).
-      this.parent?.type === "vehicle" || (isRigger2() && ["sensor", "indirect", "missile"].includes(options.gunneryMode)) ? "gunnery" : "",
+    // Every Rigger 2 sensor/indirect/missile attack rolls Gunnery ONLY — Gunnery or its defaulting, never the weapon's own
+    // skill (R2 p.58–60; 4b r1 #12, r2 #6). Mounted weapons prefer Gunnery (SR2E p.105).
+    const gunneryOnly = isRigger2() && ["sensor", "indirect", "missile"].includes(options.gunneryMode);
+    const skillKeys = (gunneryOnly ? ["gunnery"] : [
+      this.parent?.type === "vehicle" ? "gunnery" : "",
       normalize(this.system.skill ?? ""),
       normalize(typeFallback)
-    ].filter(k => k !== "");
+    ]).filter(k => k !== "");
     tnContext.key = skillKeys[0] ?? "";    // the skill this attack rolls (mounted: Gunnery)
 
     let skillRating = 0;
@@ -770,7 +772,7 @@ export class SR2EItem extends Item {
     // an "Edged Weapons" skill, or "Armed Combat" with a matching spec) — match
     // by the weapon's name against concentration/specialization names and roll
     // that rating so the attack isn't stuck defaulting to an attribute.
-    if (skillRating <= 0) {
+    if (skillRating <= 0 && !gunneryOnly) {
       const wname = normalize(this.name);
       for (const item of actor.items) {
         if (item.type !== "skill") continue;
@@ -1122,11 +1124,16 @@ export class SR2EItem extends Item {
     // Rigger 2 (4b.4): the rounds are spent through the GM's ammunition queue BEFORE the roll; a refusal (a reload in
     // progress, the clip emptied by another attack) aborts without rolling.
     const queuedSpend = isRanged && !isThrown && ammoQueued(this);
-    if (queuedSpend) {
+    // A Phase 0 missile whose client stopped after its test card (4b r2 #3): finish the SAME attack from that test —
+    // nothing is spent, rolled or recoiled again; only the dependent damage card is posted.
+    const resumed = options.resumeTest ? game.messages.get(options.resumeTest) : null;
+    if (options.resumeTest && !resumed?.flags?.sr2e?.test) return ui.notifications.warn(`${this.name}: the attack test is gone.`);
+    if (queuedSpend && !resumed) {
       try { await spendRounds(this, eng.walked + rounds); }
       catch (err) { return ui.notifications.warn(`${this.name}: ${err.message}`); }
     }
-    const result = await actor.rollSuccessTest(dicePool, targetNumber, {
+    const result = resumed ? { successes: testTotalSuccesses(resumed.flags.sr2e.test), testMessageId: resumed.id, resumed: true }
+      : await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
       flags: options.testFlags ? foundry.utils.mergeObject(sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null) ?? {}, options.testFlags, { inplace: false }) : sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null),
       // Short caption for the dice-provenance groups. Without this the group
@@ -1137,7 +1144,7 @@ export class SR2EItem extends Item {
     });
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
-    if (isRanged && ["firearm", "heavy"].includes(this.system.weaponType)) {
+    if (isRanged && !resumed && ["firearm", "heavy"].includes(this.system.weaponType)) {
       playCombatFx("gunshot", (canvas?.ready ? targetTokens() : []));
     }
 
@@ -1162,7 +1169,7 @@ export class SR2EItem extends Item {
     // key captured when the attack began: a commit that lands after the phase
     // moved on is written as already stale and changes nothing (engagement.mjs).
     // Engaging = attacking, hit or miss. Walked rounds are fired too.
-    if (isRanged) {
+    if (isRanged && !resumed) {
       const spent = eng.walked + rounds;
       if (engage) {
         const prior = engagedRecord(actor);

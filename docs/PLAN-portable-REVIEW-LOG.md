@@ -50,3 +50,13 @@ kind `sequence`) and the sequencer counter advanced under its barrier. 5: an act
 honours. 6: one pinned clock/settings context per snapshot (folds take `now`), re-checked at validation. 7: the
 inventory resolves dynamic registrations by constant folding, covers document lifecycle overrides, requires
 annotations otherwise. 8: failure-injection/multi-client tests gate M1b, overwrite/deletion/rollback gate M1c.
+
+## Round 3 — Codex (draft 3 + reader-audit additions, fresh session): REVISE, 6 findings
+1. Recovery takeover still relies on the epoch pre-hook; a stalled owner's in-flight write can land after takeover; the
+   "no drain protocol" key decision contradicts the barrier.
+2. `sr2eImport` is `{ importId, epoch }` in §2.4 but `importId` in §2.6.
+3. `substanceReported` keys derive from time + payload hash — a rebase without rebuilding them re-announces losses.
+4. The month adapter misses receipts' `rows[].month`, `discount` keys, restore `month`, `overheadRefunds.<tx>.done[]`
+   (`<vehicleUuid>|<month>`); unsettled reservations/refunds need quiescence.
+5. Dropping VR2 session flags doesn't end the connection: `liveOpen` rebuilds it from durable connOpen/connEnd facts.
+6. `drugsInForce` orders by `_stats.createdTime` (absorption order) — the journal ignores `_stats`.
