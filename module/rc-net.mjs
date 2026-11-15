@@ -9,7 +9,7 @@
  *     each op writes ONE deck update and bumps `rev`.
  */
 import { gmOp, gmCall, followId } from "./vehicle-play.mjs";
-import { enqueueAttack } from "./engagement.mjs";
+import { enqueueAttack, setPhaseOwner } from "./engagement.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 import { rcRuleOf, deckLimits, networkCapable, droneMode, poolBalance } from "./rules/drone-rules.mjs";
 import { baseFlux, fluxRange } from "./rules/vehicle-sensor-rules.mjs";
@@ -133,6 +133,7 @@ function leaveGroups(net, keys) {
 export function networkGunner(vehicle) {
   const op = networkControllerOf(vehicle);
   if (!op) return null;
+  if (sitsOut(vehicle) && !game.user.isGM) return { refused: `${vehicle.name}: ${SIT_OUT}` };
   const mode = droneModeOf(vehicle);
   if (mode === "primary") return { gunner: op, note: "" };
   if (mode === "secondary" && !netOf(networkOf(vehicle))?.standingOrders?.[vKey(vehicle.uuid)]?.obeyed && !game.user.isGM)
@@ -165,8 +166,31 @@ export const rigEligible = (actor) => !!actor?.system?.rigging && num(actor.syst
 
 /* ── The ops (GM, queue `rc-control`) ──────────────────────────────────────────────────────────────────────────── */
 
-const mayRun = (user, deck) => !!(user?.isGM || deck?.isOwner || deckActor(deck)?.testUserPermission?.(user, "OWNER")
+// The REQUESTING user's permission (ops run on the GM's client, where `isOwner` is always true — c5a r1 #1).
+const mayRun = (user, deck) => !!(user?.isGM || deck?.testUserPermission?.(user, "OWNER") || deckActor(deck)?.testUserPermission?.(user, "OWNER")
   || (netOf(deck)?.operator && fromUuidSync(netOf(deck).operator)?.testUserPermission?.(user, "OWNER")));
+/** Lock order chase-membership → rc-control (5.0): affiliation and chase driver assignment can't interleave (c5a r1 #2). */
+const membership = (fn) => enqueueAttack("chase-membership", fn);
+/** A vehicle already has a crew controller: Part 1 control, or a chase entry with a driver (c5a r1 #2). */
+async function crewControlled(v) {
+  if (game.actors.some(a => a.type === "character" && (a.system.controlledVehicles ?? []).includes(v.uuid))) return true;
+  const { findEntry } = await import("./chase-state.mjs");
+  return !!findEntry(v.uuid)?.entry?.driver;
+}
+/** R5-1: a drone affiliated during THIS Combat Turn sits the rest of it out (c5a r1 #5: every drone action path asks). */
+export function sitsOut(vehicle, c = game.combat) {   // c = the combat the drone acts in (a chase's own)
+  const a = netOf(networkOf(vehicle))?.affiliated?.[vKey(vehicle.uuid)];
+  return !!(a?.since && c?.started && a.since.combatId === c.id && a.since.round === c.round);
+}
+export const SIT_OUT = "affiliated this Combat Turn: it can't act until the next (ruling R5-1, Rigger 2 p.64)";
+/** A card may settle one command only (c5a r1 #13). */
+function useCard(net, ...ids) {
+  net.usedCards ??= {};
+  for (const id of ids.filter(Boolean)) {
+    if (net.usedCards[id]) throw new Error("that card has already been applied");
+    net.usedCards[id] = true;
+  }
+}
 const freshNet = (deck) => foundry.utils.deepClone(netOf(deck) ?? { rev: 0, operator: null, connection: { state: "disconnected", gen: 0 },
   subscribers: [], affiliated: {}, primary: null, standingOrders: {} });
 async function save(deck, net) {
@@ -206,9 +230,38 @@ export async function rangeSweep(actor) {
 }
 
 let TX = null;   // vehicle-sensors.mjs, loaded once (it imports the play layer; a static import would be circular)
+/**
+ * Eligibility and availability after any change to an actor or its items (c5a r1 #6, #7), on the active GM in
+ * `rc-control`: an operator who lost an active VCR or jacked out returns to the captain's chair (primary cleared); an
+ * implanted deck no longer installed disconnects (records kept); a changed transmitter re-runs the range sweep.
+ * (A carried gear deck's `equipped` is not availability — it defaults to false for every carried item.)
+ */
+export async function rcValidate(actor) {
+  if (!game.users.activeGM?.isSelf || !isRigger2() || !actor) return;
+  const asOperator = rcIndex().byOperator.get(actor.uuid) ?? [];
+  const held = rcIndex().decks.filter(d => deckActor(d) === actor);
+  if (!asOperator.length && !held.length) return;
+  await rcQueue(async () => {
+    for (const deck of asOperator) {
+      if (!netOf(deck)?.primary || rigEligible(actor)) continue;
+      const net = freshNet(deck); net.primary = null; await save(deck, net);
+    }
+    for (const deck of held) {
+      if (deck.type !== "cyberware" || deck.system.installed !== false || netOf(deck)?.connection?.state !== "connected") continue;
+      const net = freshNet(deck); net.connection = { state: "disconnected", gen: num(net.connection.gen) + 1 }; net.primary = null;
+      await save(deck, net);
+    }
+  });
+  if (held.length) await rangeSweep(actor);
+}
+
 export function registerRcNet() {
+  const validate = (a) => rcValidate(a).catch(err => console.error("SR2E | rc validate", err));
+  Hooks.on("updateActor", (a) => validate(a));
+  for (const h of ["createItem", "updateItem", "deleteItem"]) Hooks.on(h, (i) => { if (i.parent instanceof Actor) validate(i.parent); });
   registerRcIndexHooks();
   import("./vehicle-sensors.mjs").then(m => { TX = m; });
+  setPhaseOwner((v) => networkControllerOf(v));
   // A non-robot network drone has no Initiative (p.65; 5a.4): it acts in its operator's phases. Players are refused;
   // the GM is warned and may add it anyway.
   Hooks.on("preCreateCombatant", (cb, data, options, userId) => {
@@ -243,7 +296,7 @@ export function registerRcNet() {
 
   // Affiliate / disaffiliate (p.64): a Simple Action each; ≤ rating; network-capable; one network per vehicle; never a
   // vehicle under Part 1 crew control; R5-1 — affiliated this Combat Turn, it sits out the rest of the Turn.
-  gmOp("rcAffiliate", ({ deckUuid, vehicleUuid, on }, user) => rcQueue(async () => {
+  gmOp("rcAffiliate", ({ deckUuid, vehicleUuid, on }, user) => membership(() => rcQueue(async () => {
     const deck = load(deckUuid, user), v = fromUuidSync(vehicleUuid);
     if (v?.type !== "vehicle") throw new Error("not a vehicle");
     const net = freshNet(deck), k = vKey(v.uuid);
@@ -261,11 +314,11 @@ export function registerRcNet() {
     if (!networkCapable({ adapted: riggerAdapted(v), pilot: v.system.effective?.pilot ?? v.system.pilot })) throw new Error(`${v.name} isn't network-capable: it needs rigger adaptation and a Pilot Rating (Rigger 2 p.65)`);
     const other = networkOf(v);
     if (other && other !== deck) throw new Error(`${v.name} is already affiliated with another network`);
-    if (game.actors.some(a => a.type === "character" && (a.system.controlledVehicles ?? []).includes(v.uuid))) throw new Error(`${v.name} is under a crew's control (Rigger 2 p.64)`);
+    if (await crewControlled(v)) throw new Error(`${v.name} is under a crew's control or has a chase driver (Rigger 2 p.64)`);
     if (!(await reachable(deck, v))) throw new Error(`${v.name} is out of the deck's range (Rigger 2 p.64)`);
     net.affiliated[k] = { since: combatNow(), at: Date.now(), hardwired: false, uuid: v.uuid };
     return save(deck, net);
-  }));
+  })));
 
   // Connect / disconnect (5.0): the only operator transitions. A disconnect keeps subscribers and affiliations and
   // clears the primary (the drones act on their last order or hold).
@@ -276,6 +329,9 @@ export function registerRcNet() {
     const holder = deckActor(deck);
     if (holder?.type !== "vehicle" && holder !== op) throw new Error("only its owner runs a carried or implanted deck");
     const net = freshNet(deck);
+    // A new operator never inherits the old one's primary; one primary per rigger stays true (c5a r1 #4).
+    const primaryElsewhere = (rcIndex().byOperator.get(op.uuid) ?? []).some(d => d !== deck && netOf(d)?.primary);
+    if (net.operator !== op.uuid || primaryElsewhere) net.primary = null;
     net.operator = op.uuid; net.connection = { state: "connected", gen: num(net.connection?.gen) + 1 };
     return save(deck, net);
   }));
@@ -294,6 +350,7 @@ export function registerRcNet() {
     const net = freshNet(deck), k = vKey(v.uuid);
     if (net.connection?.state !== "connected" || !net.operator) throw new Error("connect the deck first");
     if (!net.affiliated[k]) throw new Error("affiliate the drone first");
+    if (!(await reachable(deck, v))) throw new Error(`${v.name} is out of the deck's range (Rigger 2 p.64)`);
     const op = fromUuidSync(net.operator);
     if (!rigEligible(op)) throw new Error(`${op?.name} must be jacked in with a vehicle control rig to jump in (Rigger 2 p.65)`);
     const elsewhere = (rcIndex().byOperator.get(op.uuid) ?? []).find(d => d !== deck && netOf(d)?.primary);
@@ -309,8 +366,11 @@ export function registerRcNet() {
     const net = freshNet(deck), k = vKey(v.uuid);
     if (net.connection?.state !== "connected" || !net.affiliated[k]) throw new Error("the drone must be affiliated with a connected network");
     if (net.primary === k) throw new Error("you're jumped into it: the primary needs no command (Rigger 2 p.65)");
-    const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test;
-    if (!test) throw new Error("no Comprehension Test card");
+    if (!(await reachable(deck, v))) throw new Error(`${v.name} is out of the deck's range: it acts on its last order or holds (Rigger 2 p.64)`);
+    const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test, cmd = msg?.flags?.sr2e?.rcCommand;
+    // The card must be THIS drone's Comprehension Test for THIS deck, used once (c5a r1 #13).
+    if (!test || test.actorUuid !== v.uuid || cmd?.deckUuid !== deck.uuid) throw new Error("that isn't this drone's Comprehension Test card");
+    useCard(net, messageId);
     const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
     const successes = testTotalSuccesses(test);
     net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1 };
@@ -352,7 +412,7 @@ export function registerRcNet() {
   // Hardwiring (R2 p.64; 5a.7): a deck carried BY a rigger-adapted vehicle, connected through one of its Electronics
   // Ports, is permanently subscribed and affiliated with it (counted against both limits; never disaffiliated). The GM's
   // un-hardwire (or deleting the deck) ends it.
-  gmOp("rcHardwire", ({ deckUuid, on = true }, user) => rcQueue(async () => {
+  gmOp("rcHardwire", ({ deckUuid, on = true }, user) => membership(() => rcQueue(async () => {
     const deck = load(deckUuid, user), v = deckActor(deck);
     if (v?.type !== "vehicle") throw new Error("hardwire a deck installed in the vehicle itself (Rigger 2 p.64)");
     const net = freshNet(deck), k = vKey(v.uuid);
@@ -369,7 +429,7 @@ export function registerRcNet() {
     if (!ported(v, deck.id)) throw new Error(`connect the deck through one of ${v.name}'s Electronics Ports first (Rigger 2 p.64, p.139)`);
     const other = networkOf(v);
     if (other && other !== deck) throw new Error(`${v.name} is already affiliated with another network`);
-    if (game.actors.some(a => a.type === "character" && (a.system.controlledVehicles ?? []).includes(v.uuid))) throw new Error(`${v.name} is under a crew's control (Rigger 2 p.64)`);
+    if (await crewControlled(v)) throw new Error(`${v.name} is under a crew's control or has a chase driver (Rigger 2 p.64)`);
     const lim = deckLimits(deck.system.rating);
     if (!net.subscribers.includes(v.uuid)) {
       if (net.subscribers.length >= lim.subscribers) throw new Error(`a Rating ${num(deck.system.rating)} deck holds ${lim.subscribers} subscribers (Rigger 2 p.62)`);
@@ -378,12 +438,12 @@ export function registerRcNet() {
     if (!net.affiliated[k] && Object.keys(net.affiliated).length >= lim.affiliated) throw new Error(`a Rating ${num(deck.system.rating)} deck affiliates ${lim.affiliated} vehicles at once (Rigger 2 p.64)`);
     net.affiliated[k] = { ...(net.affiliated[k] ?? { since: combatNow(), at: Date.now() }), hardwired: true, uuid: v.uuid };
     return save(deck, net);
-  }));
+  })));
 
   // A group command (p.66–67; 5a.3/5a.5): ONE Comprehension Test card for an identical command to several drones, its
   // result each drone's standing order; with an IVIS Test card, the unassigned successes become the group's IVIS Pool
   // and the drones a new group (any earlier group membership ends; a new task ends the old group).
-  gmOp("rcGroupOrder", ({ deckUuid, vehicleUuids = [], text = "", messageId, ivis = null }, user) => rcQueue(async () => {
+  gmOp("rcGroupOrder", ({ deckUuid, vehicleUuids = [], text = "", messageId }, user) => rcQueue(async () => {
     const deck = load(deckUuid, user), net = freshNet(deck);
     if (net.connection?.state !== "connected") throw new Error("connect the deck first");
     const vs = vehicleUuids.map(u => fromUuidSync(u));
@@ -392,10 +452,23 @@ export function registerRcNet() {
     if (keys.some(k => !net.affiliated[k])) throw new Error("every drone must be affiliated with this network");
     if (keys.includes(net.primary)) throw new Error("the primary needs no command (Rigger 2 p.65)");
     if (keys.length > num(deck.system.rating)) throw new Error(`a group is at most ${num(deck.system.rating)} drones (the deck's rating)`);
-    const test = game.messages.get(messageId)?.flags?.sr2e?.test;
-    if (!test) throw new Error("no Comprehension Test card");
+    for (const v of vs) if (!(await reachable(deck, v))) throw new Error(`${v.name} is out of the deck's range (Rigger 2 p.64)`);
+    // The card is bound to this deck and exactly these drones; the IVIS Pool is DERIVED from the operator's verified IVIS
+    // Test card less what was put on this test — never a requested number — and each card settles once (c5a r1 #13).
+    const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test, cmd = msg?.flags?.sr2e?.rcCommand;
+    if (!test || cmd?.deckUuid !== deck.uuid || !vs.some(v => v.uuid === test.actorUuid)
+      || [...(cmd.vehicleUuids ?? [])].sort().join() !== vs.map(v => v.uuid).sort().join()) throw new Error("that isn't this group's Comprehension Test card");
     const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
     const successes = testTotalSuccesses(test);
+    let ivis = null;
+    if (cmd.ivisMessageId) {
+      const im = game.messages.get(cmd.ivisMessageId), it = im?.flags?.sr2e?.test;
+      if (!it || im.flags.sr2e.rcIvis?.deckUuid !== deck.uuid || it.actorUuid !== net.operator) throw new Error("that isn't the operator's IVIS Test card");
+      const toTest = Math.max(0, num(cmd.ivisToTest)), s = testTotalSuccesses(it);
+      if (toTest > s) throw new Error("more IVIS successes on the test than the IVIS Test rolled");
+      ivis = { pool: s - toTest, messageId: cmd.ivisMessageId };
+    }
+    useCard(net, messageId, cmd.ivisMessageId);
     for (const k of keys) net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1, group: true };
     net.ivis ??= {};
     leaveGroups(net, keys);

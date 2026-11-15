@@ -112,7 +112,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!group.length) return warn("choose at least one drone");
     let split = { test: 0, pool: 0 }, ivisMsg = "";
     if (ivisOk && Number(res.ivis) > 0) {
-      const t = await op.rollSuccessTest(Number(res.ivis), 5, { label: "IVIS Test (Rigger 2 p.66)", tnContext: { kind: "skill", key: "tactics", skillCategory: "knowledge" } });
+      const t = await op.rollSuccessTest(Number(res.ivis), 5, { label: "IVIS Test (Rigger 2 p.66)", tnContext: { kind: "skill", key: "tactics", skillCategory: "knowledge" },
+        flags: { sr2e: { rcIvis: { deckUuid: this.deck.uuid } } } });
       if (!t) return;
       ivisMsg = t.testMessageId;
       const s = t.successes ?? 0;
@@ -128,10 +129,11 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const pilot = groupPilot(group.map(v => v.system.effective?.pilot ?? v.system.pilot ?? 0));
     const jumpedElsewhere = !!primaryOf(op.uuid);   // jumped into a primary, commanding secondaries (p.65)
     const c = comprehensionTest({ pilot, specDice: nmpDice(op), ivis: split.test, tableTn: Number(res.tn) || 4, jumpedCommandingSecondary: jumpedElsewhere });
-    const roll = await lead.rollSuccessTest(c.dice, c.tn, { label: `Group Comprehension Test: "${esc(res.text || "command")}" (${group.length} drones, Pilot ${pilot}${split.test ? `, +${split.test} IVIS` : ""}; Rigger 2 p.66)` });
+    const roll = await lead.rollSuccessTest(c.dice, c.tn, { label: `Group Comprehension Test: "${esc(res.text || "command")}" (${group.length} drones, Pilot ${pilot}${split.test ? `, +${split.test} IVIS` : ""}; Rigger 2 p.66)`,
+      flags: { sr2e: { rcCommand: { deckUuid: this.deck.uuid, vehicleUuids: group.map(v => v.uuid), ivisMessageId: ivisMsg || "", ivisToTest: split.test } } } });
     if (!roll) return;
-    return rc("rcGroupOrder", { deckUuid: this.deck.uuid, vehicleUuids: group.map(v => v.uuid), text: res.text ?? "", messageId: roll.testMessageId,
-      ivis: split.pool ? { pool: split.pool, messageId: ivisMsg } : null }).catch(warn);
+    // The op derives the IVIS Pool from the IVIS card itself (c5a r1 #13).
+    return rc("rcGroupOrder", { deckUuid: this.deck.uuid, vehicleUuids: group.map(v => v.uuid), text: res.text ?? "", messageId: roll.testMessageId }).catch(warn);
   }
 
   static async #command(_e, el) {
@@ -149,7 +151,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       ok: { label: "Roll Comprehension", callback: (_e2, b) => new foundry.applications.ux.FormDataExtended(b.form).object } }).catch(() => null);
     if (!res) return;
     const t = comprehensionTest({ pilot, specDice: spec, tableTn: Number(res.tn) || 4, jumpedCommandingSecondary: jumpedElsewhere });
-    const roll = await v.rollSuccessTest(t.dice, t.tn, { label: `Comprehension Test: "${esc(res.text || "command")}" (Rigger 2 p.66)`, isResistance: false });
+    const roll = await v.rollSuccessTest(t.dice, t.tn, { label: `Comprehension Test: "${esc(res.text || "command")}" (Rigger 2 p.66)`, isResistance: false,
+      flags: { sr2e: { rcCommand: { deckUuid: this.deck.uuid, vehicleUuids: [v.uuid] } } } });
     if (!roll) return;
     return rc("rcOrder", { deckUuid: this.deck.uuid, vehicleUuid: v.uuid, text: res.text ?? "", messageId: roll.testMessageId }).catch(warn);
   }

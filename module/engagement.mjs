@@ -28,7 +28,12 @@ function combatFor(actor) {
  * @param {Actor} actor  - the gunner
  * @param {Item} [weapon]
  */
+/** Set by rc-net (no import cycle): the actor whose phases a network drone acts in, or null. */
+let PHASE_OWNER = null;
+export const setPhaseOwner = (fn) => { PHASE_OWNER = fn; };
 export function phaseKey(actor, weapon) {
+  // A non-robot network drone firing on its Pilot acts in its OPERATOR's phase (5a.2 droneCtx; c5a r1 #9).
+  if (actor?.type === "vehicle" && !actor.system?.isRobot && PHASE_OWNER) { const op = PHASE_OWNER(actor); if (op) actor = op; }
   const vehicle = weapon?.parent && weapon.parent !== actor ? weapon.parent : null;
   const combat = combatFor(actor) ?? combatFor(vehicle);
   const reset = Number(actor?.getFlag?.("sr2e", "resetSeq")) || 0;

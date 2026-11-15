@@ -19220,8 +19220,13 @@ export function registerSR2EQuenchTests() {
           assert.equal(RCN.droneModeOf(d2), "secondary", "another drone while jumped");
           assert.notOk(VP.riggedInto(pc, d2), "a secondary isn't rigged");
           // A command (5a.3): the drone's Comprehension Test card becomes its standing order; the primary needs none.
-          const roll = await d2.rollSuccessTest(2, 4, { label: "Quench Comprehension" });
+          const roll = await d2.rollSuccessTest(2, 4, { label: "Quench Comprehension", flags: { sr2e: { rcCommand: { deckUuid: deck.uuid, vehicleUuids: [d2.uuid] } } } });
           await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, text: "hold the alley", messageId: roll.testMessageId });
+          err = null; try { await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, text: "again", messageId: roll.testMessageId }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /already been applied/, "a card settles one command (c5a r1 #13)");
+          const stray = await d2.rollSuccessTest(2, 4, { label: "Quench unrelated test" });
+          err = null; try { await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, text: "x", messageId: stray.testMessageId }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /Comprehension Test card/, "an unrelated card isn't a command");
           const order = RCN.netOf(deck).standingOrders[RCN.vKey(d2.uuid)];
           assert.equal(order?.text, "hold the alley");
           assert.equal(order.successes, roll.successes);
@@ -19408,8 +19413,12 @@ export function registerSR2EQuenchTests() {
             await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
           }
           await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
-          const roll = await d2.rollSuccessTest(2, 4, { label: "Quench group Comprehension" });
-          const args = { deckUuid: deck.uuid, vehicleUuids: [d1.uuid, d2.uuid], text: "sweep the lot", messageId: roll.testMessageId, ivis: { pool: 3 } };
+          const iv = await pc.rollSuccessTest(5, 2, { label: "Quench IVIS", flags: { sr2e: { rcIvis: { deckUuid: deck.uuid } } } });
+          const pool = iv.successes - 1;
+          const roll = await d2.rollSuccessTest(3, 4, { label: "Quench group Comprehension", flags: { sr2e: { rcCommand: { deckUuid: deck.uuid,
+            vehicleUuids: [d1.uuid, d2.uuid], ivisMessageId: iv.testMessageId, ivisToTest: 1 } } } });
+          const args = { deckUuid: deck.uuid, vehicleUuids: [d1.uuid, d2.uuid], text: "sweep the lot", messageId: roll.testMessageId };
+          assert.isAbove(pool, 0, "TN 2: the IVIS Test succeeds");
           let err = null; try { await call("rcGroupOrder", args); } catch (e) { err = e.message; }
           assert.match(err ?? "", /master unit/, "no master unit");
           await pc.createEmbeddedDocuments("Item", [{ name: "BattleTac IVIS Master Unit", type: "gear", system: {}, flags: { sr2e: { rule: "ivis-master" } } }]);
@@ -19420,10 +19429,12 @@ export function registerSR2EQuenchTests() {
           const net = RCN.netOf(deck);
           assert.equal(net.standingOrders[RCN.vKey(d1.uuid)].successes, roll.successes);
           assert.equal(net.standingOrders[RCN.vKey(d2.uuid)].successes, roll.successes, "one result for the group");
-          assert.equal(RCN.ivisBalance(d1), 3);
-          assert.equal(RCN.ivisBalance(d2), 3, "shared");
-          assert.equal((await call("rcIvisSpend", { vehicleUuid: d1.uuid, n: 5 })).n, 3, "never more than the pool");
-          const r1 = await d1.rollSuccessTest(2, 4, { label: "Quench solo Comprehension" });
+          assert.equal(RCN.ivisBalance(d1), pool, "the pool is the IVIS card's successes less those put on the test");
+          assert.equal(RCN.ivisBalance(d2), pool, "shared");
+          err = null; try { await call("rcGroupOrder", args); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /already been applied/, "a replayed group order can't refill the pool");
+          assert.equal((await call("rcIvisSpend", { vehicleUuid: d1.uuid, n: 99 })).n, pool, "never more than the pool");
+          const r1 = await d1.rollSuccessTest(2, 4, { label: "Quench solo Comprehension", flags: { sr2e: { rcCommand: { deckUuid: deck.uuid, vehicleUuids: [d1.uuid] } } } });
           await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d1.uuid, text: "come back", messageId: r1.testMessageId });
           assert.equal(RCN.ivisGroupOf(d1), null, "a new order takes it out of the group");
           assert.ok(RCN.ivisGroupOf(d2), "the rest of the group continues");
@@ -19448,12 +19459,52 @@ export function registerSR2EQuenchTests() {
           d.rollSuccessTest = (dice, tn, o) => { seen.push(dice); return orig(dice, tn, o); };
           try { await gun._rollWeaponAttack({ gunner: d, range: "short", _engage: { key: "quench-drone-gun", token: null } }); } finally { d.rollSuccessTest = orig; }
           assert.equal(seen[0], 3, "Pilot 3");
-          await d.update({ "system.design.traits": ["drone", "robot"], "system.threatRating": 2 });
+          await d.update({ "system.design.traits": ["drone", "robot"], "system.threatRating": 2, "system.learningPool.dice": 0 });
           seen.length = 0; d.rollSuccessTest = (dice, tn, o) => { seen.push(dice); return orig(dice, tn, o); };
           try { await gun._rollWeaponAttack({ gunner: d, range: "short", _engage: { key: "quench-drone-gun-2", token: null } }); } finally { d.rollSuccessTest = orig; }
           assert.equal(seen[0], 5, "a robot adds its Threat Rating 2");
           await call("rcJump", { deckUuid: deck.uuid, vehicleUuid: d.uuid });
           assert.equal(RCN.networkGunner(d).gunner, pc, "primary: the operator, rigged");
+        });
+      });
+
+      describe("Part 5a review fixes (c5a r1)", function () {
+        it("a new operator doesn't inherit a primary (#4); a drone affiliated this Turn sits it out (#5); a crew driver blocks affiliation (#2)", async function () {
+          this.timeout(30000);
+          const RCN = await import("../rc-net.mjs");
+          const a = await Actor.create({ name: "Quench Op A", type: "character", system: { rigging: true, vehicleControlRig: 1 } }); made.push(a);
+          const b = await Actor.create({ name: "Quench Op B", type: "npc" }); made.push(b);
+          const van = await mk("Quench Fix Van", { vehicleType: "drone", pilot: 2 });
+          const [deck] = await van.createEmbeddedDocuments("Item", [{ name: "Quench Fix Deck", type: "gear", system: { rating: 3 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          const d = await mk("Quench Fix Drone", { vehicleType: "drone", pilot: 2 });
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+          await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: a.uuid });
+          await call("rcJump", { deckUuid: deck.uuid, vehicleUuid: d.uuid });
+          assert.equal(RCN.droneModeOf(d), "primary");
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: b.uuid });
+          assert.equal(RCN.netOf(deck).primary, null, "B takes over in the captain's chair");
+          // R5-1 in a started combat
+          const combat = await Combat.create({ scene: null, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: b.id }]);
+          const prevActive = game.combats.filter(c => c.active && c !== combat);
+          await combat.startCombat(); await combat.activate();
+          try {
+          const d2 = await mk("Quench Fix Drone 2", { vehicleType: "drone", pilot: 2 });
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true });
+          await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true });
+          assert.ok(RCN.sitsOut(d2), "affiliated this Turn");
+          await call("chaseSetup", { combatId: combat.id });
+          const { eid } = await call("chaseAddEntry", { combatId: combat.id, uuid: d2.uuid, speed: 20 });
+          let err = null; try { await call("chaseDPStart", { combatId: combat.id, round: combat.round, eid }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /R5-1/, "no chase roll this Turn");
+          // A drone with a chase crew driver can't be affiliated.
+          const crewed = await mk("Quench Crewed", { vehicleType: "drone", pilot: 2 });
+          await call("chaseAddEntry", { combatId: combat.id, uuid: crewed.uuid, driver: a.uuid, speed: 20 });
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: crewed.uuid, on: true });
+          err = null; try { await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: crewed.uuid, on: true }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /chase driver/);
+          } finally { await combat.update({ active: false }); for (const c of prevActive) await c.update({ active: true }); }
         });
       });
 

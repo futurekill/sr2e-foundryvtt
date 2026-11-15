@@ -1138,6 +1138,13 @@ export class SR2EItem extends Item {
       skillKey: tnContext.key, name: this.name, rounds }, SFX_KEYS);
     // Rigger 2 (4b.4): the rounds are spent through the GM's ammunition queue BEFORE the roll; a refusal (a reload in
     // progress, the clip emptied by another attack) aborts without rolling.
+    // A drone's own pools on its attack (Learning, IVIS; R2 p.67; c5a r1 #10), asked before anything is spent.
+    let droneFlags = null;
+    if (actor.type === "vehicle" && !options.resumeTest) {
+      const dp = await (await import("../learning-pool.mjs")).askDronePools(actor);
+      if (dp === null) return;
+      dicePool += dp.n; label += dp.label; if (Object.keys(dp.flags).length) droneFlags = { sr2e: dp.flags };
+    }
     const queuedSpend = isRanged && !isThrown && ammoQueued(this);
     // A Phase 0 missile whose client stopped after its test card (4b r2 #3): finish the SAME attack from that test —
     // nothing is spent, rolled or recoiled again; only the dependent damage card is posted.
@@ -1150,7 +1157,8 @@ export class SR2EItem extends Item {
     const result = resumed ? { successes: testTotalSuccesses(resumed.flags.sr2e.test), testMessageId: resumed.id, resumed: true }
       : await actor.rollSuccessTest(dicePool, targetNumber, {
       label,
-      flags: options.testFlags ? foundry.utils.mergeObject(sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null) ?? {}, options.testFlags, { inplace: false }) : sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null),
+      flags: foundry.utils.mergeObject(sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null) ?? {},
+        foundry.utils.mergeObject(options.testFlags ?? {}, droneFlags ?? {}, { inplace: false }), { inplace: false }),
       // Short caption for the dice-provenance groups. Without this the group
       // caption inherits `label`, i.e. the entire card title.
       sourceLabel: this.name, tnContext,

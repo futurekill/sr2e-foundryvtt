@@ -50,7 +50,8 @@ export async function reconcileDumps(rigger) {
     if (d.state === "pending") {
       if (d.cause !== "deck-removed") continue;   // 5b causes carry their own receipts
       const deck = d.deckUuid ? fromUuidSync(d.deckUuid) : null;
-      if (deck) { await deck.delete({ sr2eRcDelete: true }); continue; }   // the intended deletion, retried
+      if (deck) await deck.delete({ sr2eRcDelete: true });   // the intended deletion, retried
+      if (d.deckUuid && fromUuidSync(d.deckUuid)) continue;   // still there: the next reconcile retries
       await rigger.update({ [`flags.sr2e.rigDumps.${eid}.state`]: "open" });
     }
     const cur = rigger.flags.sr2e.rigDumps[eid];

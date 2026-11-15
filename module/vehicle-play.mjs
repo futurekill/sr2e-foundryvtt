@@ -943,6 +943,7 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const empathy = !drone && !!driver.qualityValues()["vehicle-empathy"] && o.contact !== false
     && (o.mode !== "rigged" || sys.vehicleType !== "drone");
   if (drone && !(sk.dice > 0)) return ui.notifications.warn(`${vehicle.name} has no Pilot rating to drive itself.`);
+  if (RC.sitsOut(vehicle) && !game.user.isGM) return ui.notifications.warn(`${vehicle.name}: ${RC.SIT_OUT}`);
   if (!driver && controllerOf(vehicle)) return ui.notifications.warn(`${vehicle.name} is under ${controllerOf(vehicle).name}'s control: the rigger drives it.`);
   const handling = o.offRoad ? (sys.effectiveHandlingOffRoad ?? o.offRoadHandling) : sys.effectiveHandling;
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);

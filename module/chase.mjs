@@ -69,8 +69,11 @@ export function vehicleStats(doc) {
  * return, connect, disconnect, takeover or range change makes a reserved action "not counted".
  */
 const stampOf = (entry) => ({ driver: actingActorOf(entry) ?? "", ...vehicleStats(fromUuidSync(entry.uuid)), net: netStamp(entry) });
+const opStamp = (uuid) => (RCN.rcIndex().byOperator.get(uuid) ?? []).map(d => `${d.uuid}:${RCN.netOf(d)?.rev ?? 0}`).sort().join(",");
 function netStamp(entry) {
-  if (entry?.kind !== "vehicle" || entry.driver) return "";
+  if (entry?.kind !== "vehicle") return "";
+  // A crew driver's own network state: jumping into a drone suspends their direct rigging here (c5a r1 #3, round 17 #1).
+  if (entry.driver) return opStamp(entry.driver);
   const v = fromUuidSync(entry.uuid), deck = v ? RCN.networkOf(v) : null;
   if (!deck) return "";
   const op = RCN.netOf(deck)?.operator ?? "";
@@ -89,12 +92,14 @@ export function classOf(doc) {
 function riggedOf(entry) {
   // A networked vehicle is rigged only as its operator's live primary (5a.7 dispatch).
   if (entry?.kind === "vehicle" && !entry.driver && operatorOf(entry)) return riggedInto(fromUuidSync(operatorOf(entry)), fromUuidSync(entry.uuid));
-  const d = entry?.driver ? fromUuidSync(entry.driver) : null;
-  return !!(d?.system?.rigging && (d.system.vehicleControlRig ?? 0) > 0);
+  // The one dispatch (5a.7): direct rigging, suspended while the driver has a network primary (c5a r1 #3).
+  return !!entry?.driver && riggedInto(fromUuidSync(entry.driver), fromUuidSync(entry.uuid));
 }
 const vcrOf = (entry) => (riggedOf(entry) ? fromUuidSync(actingActorOf(entry)).system.vehicleControlRig : 0);
 /** A networked drone not rigged (secondary / captain): its own Pilot, no pools (5a.2). */
-const pilotOnly = (entry) => !entry?.driver && !!operatorOf(entry) && !riggedOf(entry);
+// Not an operator driving a hardwired vehicle from aboard it: that's their own skill, manual or datajack (c5a r1 #8).
+const pilotOnly = (entry) => !entry?.driver && !!operatorOf(entry) && !riggedOf(entry)
+  && !(RCN.hardwiredTo(fromUuidSync(entry.uuid)) && (entry.aboard ?? []).includes(operatorOf(entry)));
 const pilotSkill = (vehicle) => ({ dice: vehicle?.system?.effective?.pilot ?? vehicle?.system?.pilot ?? 0, penalty: 0, note: " (Pilot)" });
 const isNpc = (actor) => actor?.type === "npc";
 
@@ -215,6 +220,7 @@ async function dpStart({ combatId, round, eid, control = 0 }, user) {
     const e = ch.entries[eid];
     if (e?.kind !== "vehicle") throw new Error("not a vehicle in this chase");
     if (!owns(user, actingActorOf(e))) throw new Error(`${user?.name} doesn't drive this vehicle`);
+    if (operatorOf(e) && RCN.sitsOut(fromUuidSync(e.uuid), combat)) throw new Error(RCN.SIT_OUT);
     const { rep } = groupOf(ch, eid);
     if (rep !== eid) throw new Error("the group rolls once, with its fastest vehicle");
     const t = ch.turns?.[round]?.[eid];
@@ -259,6 +265,7 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
     liveRound(combat, ch, round);
     const e = ch.entries[eid];
     if (e?.kind !== "vehicle") throw new Error("not a vehicle in this chase");
+    if (kind !== "relocate" && operatorOf(e) && RCN.sitsOut(fromUuidSync(e.uuid), combat)) throw new Error(RCN.SIT_OUT);
     // Out of fuel (R2 p.81, optional): no powered actions while it coasts.
     if (["accelerate", "ram"].includes(kind) && fromUuidSync(e.uuid)?.getFlag("sr2e", "fuelOut")) throw new Error("no power (out of fuel or a dead engine): it can only coast (Rigger 2 p.81)");
     const actor = kind === "relocate" ? actorUuid : actingActorOf(e);
@@ -1069,11 +1076,13 @@ export async function rollDriverPoints(combat, eid) {
     if (control > 0 && !isPoolClient(driver)) throw new Error(`${driver.name}'s Control Pool is spent on their player's client`);
     const { aid, inputs } = await gmCall("chaseDPStart", { combatId: combat.id, round: combat.round, eid, control });
     const paid = inputs.control ? await spendPosition(driver, inputs.control, aid, { combatId: combat.id, round: combat.round }) : 0;
+    // A pilot-only drone's own Learning / IVIS Pool dice (R2 p.67; c5a r1 #10).
+    const dp = pilotOnly(e) ? await (await import("./learning-pool.mjs")).askDronePools(fromUuidSync(e.uuid)) ?? { n: 0, label: "" } : { n: 0, label: "" };
     await gmCall("chaseArm", { combatId: combat.id, aid });
-    const n = inputs.skill + paid + inputs.pr;
+    const n = inputs.skill + paid + inputs.pr + dp.n;
     const roll = await new Roll(n > 0 ? `{${Array(n).fill("1d6x6").join(",")}}kh` : "0").evaluate();
     const msg = await roll.toMessage({ speaker: speakerFor(driver),
-      flavor: `<strong>Driver Points</strong> — Open Test, ${inputs.skill} skill${paid ? ` + ${paid} Control Pool` : ""}${inputs.pr ? ` + ${inputs.pr} Professional Rating` : ""}${esc(inputs.note)} (R2 p.42)`,
+      flavor: `<strong>Driver Points</strong> — Open Test, ${inputs.skill} skill${paid ? ` + ${paid} Control Pool` : ""}${inputs.pr ? ` + ${inputs.pr} Professional Rating` : ""}${esc(inputs.note)}${esc(dp.label)} (R2 p.42)`,
       flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } });
     await gmCall("chaseResolve", { combatId: combat.id, aid, messageId: msg.id });
   } catch (err) { notify(err); }
@@ -1102,8 +1111,10 @@ export async function chaseAction(combat, eid, kind, { target = null, actorUuid 
     await gmCall("chaseArm", { combatId: combat.id, aid });
     // A pilot-only drone rolls its own test: none of its operator's modifiers (5.0 droneCtx).
     const roller = kind !== "relocate" && pilotOnly(e) ? fromUuidSync(e.uuid) : actor;
-    await roller.rollSuccessTest(inputs.dice, inputs.tn, {
-      label: `${KIND_LABEL[kind]} (R2 p.${{ accelerate: 45, brake: 45, position: 47, hide: 48, relocate: 49, ram: 47 }[kind]})`,
+    // Its own Learning / IVIS Pool dice (R2 p.67; c5a r1 #10).
+    const dp = roller.type === "vehicle" ? await (await import("./learning-pool.mjs")).askDronePools(roller) ?? { n: 0, label: "" } : { n: 0, label: "" };
+    await roller.rollSuccessTest(inputs.dice + dp.n, inputs.tn, {
+      label: `${KIND_LABEL[kind]} (R2 p.${{ accelerate: 45, brake: 45, position: 47, hide: 48, relocate: 49, ram: 47 }[kind]})${dp.label}`,
       sourceLabel: kind === "relocate" ? "Intelligence" : "Driving",
       ...(paid ? { paidPoolDice: { control: paid } } : {}),
       flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } });
