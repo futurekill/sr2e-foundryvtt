@@ -1,4 +1,5 @@
 import { isRigger2 } from "../vehicle-mode.mjs";
+import { RC_ITEM_SOURCES } from "../rules/drone-rules.mjs";
 import { classOf } from "../chase.mjs";
 import { VEHICLE_POINTS, R2_CLASS_LABELS } from "../rules/vehicle-combat-rules.mjs";
 import { shiftView } from "../shapeshift.mjs";
@@ -45,6 +46,7 @@ import {
   onRollAttribute, onRollSkill, onRollInitiative, onRollWeapon,
   onMatrixAttack, onMatrixPerception, onResetHostTally, onVR2Maneuver, onVR2Redetect, onHostSheafAdd, onHostSheafRemove, onVr2Ic
 } from "./sheet-actions.mjs";
+const RC_DECK_SOURCES = new Set(Object.entries(RC_ITEM_SOURCES).filter(([, r]) => r === "rc-deck").map(([u]) => u));
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -1599,6 +1601,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     context.bioRejectionVcr = context.vcrFromCyberware && !!actor.qualityValues()["bio-rejection"];
     context.hasVertigo = !!actor.qualityValues()["simsense-vertigo"];
     context.rigger2 = isRigger2();
+    // Rigger 2 remote-control decks (Part 5a.8): each opens its network panel.
+    context.rcDecks = context.rigger2 ? actor.items.filter(i => i.flags?.sr2e?.rule === "rc-deck" || RC_DECK_SOURCES.has(i._stats?.compendiumSource ?? ""))
+      .map(i => ({ id: i.id, name: i.name, rating: i.system.rating ?? 0, connected: i.flags?.sr2e?.rcNet?.connection?.state === "connected",
+        affiliated: Object.keys(i.flags?.sr2e?.rcNet?.affiliated ?? {}).length })) : [];
     context.isMagical = system.isMagical;
     context.isDecker = system.isDecker;
     // The deck block and persona are DERIVED in place (active deck, loaded programs, VR2.0

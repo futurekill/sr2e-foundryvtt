@@ -4350,6 +4350,12 @@ const SHARED_ACTIONS = {
    * Toggle jacked-in (rigging) state — switches initiative to VCR bonuses.
    * @this {ApplicationV2}
    */
+  openDeck: async function(event, target) {
+    event.preventDefault();
+    const deck = this.document.items.get(target.closest("[data-item-id]")?.dataset.itemId);
+    if (deck) (await import("../apps/deck-panel.mjs")).DeckPanel.open(deck);
+  },
+
   toggleRigging: async function(event, target) {
     event.preventDefault();
     return this.document.update({ "system.rigging": !this.document.system.rigging });

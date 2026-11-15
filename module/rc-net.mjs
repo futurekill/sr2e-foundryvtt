@@ -132,8 +132,33 @@ function load(deckUuid, user) {
 }
 const combatNow = () => { const c = game.combat; return c?.started ? { combatId: c.id, round: c.round } : null; };
 
+/**
+ * The range sweep (5a.1): when a deck's holder or one of its affiliated vehicles moves, the GM records which vehicles
+ * are now out of the deck's range (`rcNet.unreachable.<vKey>`), so the synchronous control reads see it. Out of range
+ * a drone can't be commanded or observed and acts on its last order or holds; no Signal Monitor changes.
+ */
+export async function rangeSweep(actor) {
+  if (!game.users.activeGM?.isSelf || !isRigger2() || !actor) return;
+  const decks = rcIndex().decks.filter(d => deckActor(d) === actor
+    || Object.values(netOf(d)?.affiliated ?? {}).some(a => a.uuid === actor.uuid));
+  for (const deck of decks) await rcQueue(async () => {
+    const net = freshNet(deck), out = {};
+    for (const [k, a] of Object.entries(net.affiliated)) {
+      const v = fromUuidSync(a.uuid);
+      if (v && !(await reachable(deck, v))) out[k] = true;
+    }
+    if (JSON.stringify(out) === JSON.stringify(net.unreachable ?? {})) return;
+    net.unreachable = out;
+    await save(deck, net);
+  });
+}
+
 export function registerRcNet() {
   registerRcIndexHooks();
+  Hooks.on("updateToken", (tok, ch) => {
+    if (!("x" in ch || "y" in ch || "elevation" in ch)) return;
+    rangeSweep(tok.actor).catch(err => console.error("SR2E | rc range sweep", err));
+  });
 
   // Subscribe / unsubscribe (p.62): ≤ 2 × rating; editing the list is not an action. Unsubscribing disaffiliates.
   gmOp("rcSubscribe", ({ deckUuid, vehicleUuid, on }, user) => rcQueue(async () => {
@@ -213,6 +238,22 @@ export function registerRcNet() {
     net.primary = k;
     return save(deck, net);
   }));
+  // A command's result (p.66–67; 5a.3): the drone's Comprehension Test card → its standing order (≥ 1 success obeys;
+  // successes = latitude). The primary needs no command.
+  gmOp("rcOrder", ({ deckUuid, vehicleUuid, text = "", messageId }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), v = fromUuidSync(vehicleUuid);
+    if (v?.type !== "vehicle") throw new Error("not a vehicle");
+    const net = freshNet(deck), k = vKey(v.uuid);
+    if (net.connection?.state !== "connected" || !net.affiliated[k]) throw new Error("the drone must be affiliated with a connected network");
+    if (net.primary === k) throw new Error("you're jumped into it: the primary needs no command (Rigger 2 p.65)");
+    const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test;
+    if (!test) throw new Error("no Comprehension Test card");
+    const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
+    const successes = testTotalSuccesses(test);
+    net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1 };
+    return save(deck, net);
+  }));
+
   gmOp("rcReturn", ({ deckUuid }, user) => rcQueue(async () => {
     const deck = load(deckUuid, user), net = freshNet(deck);
     if (!net.primary) return net;

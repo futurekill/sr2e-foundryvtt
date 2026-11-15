@@ -51,6 +51,18 @@
       {{/if}}
     </fieldset>
 
+    {{#if rcDecks.length}}
+    <fieldset class="rc-decks">
+      <legend title="Rigger 2 p.62–67">Remote-control decks</legend>
+      {{#each rcDecks}}
+      <div class="flexrow" data-item-id="{{id}}">
+        <span>{{name}} (Rating {{rating}}) — {{#if connected}}connected{{else}}disconnected{{/if}}, {{affiliated}} affiliated</span>
+        <button type="button" data-action="openDeck" class="btn-small" style="flex:0 0 auto"><i class="fas fa-gamepad"></i> Network</button>
+      </div>
+      {{/each}}
+    </fieldset>
+    {{/if}}
+
     <div class="vehicles-instructions">
       <p>Drag a Vehicle or Drone actor from the sidebar to link it, or
         <button type="button" class="btn-small" data-action="openWorkshop" title="Design one from scratch with the Rigger 2 rules; it's linked to this character when you create it">

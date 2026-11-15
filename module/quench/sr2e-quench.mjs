@@ -19189,6 +19189,14 @@ export function registerSR2EQuenchTests() {
           await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true });
           assert.equal(RCN.droneModeOf(d2), "secondary", "another drone while jumped");
           assert.notOk(VP.riggedInto(pc, d2), "a secondary isn't rigged");
+          // A command (5a.3): the drone's Comprehension Test card becomes its standing order; the primary needs none.
+          const roll = await d2.rollSuccessTest(2, 4, { label: "Quench Comprehension" });
+          await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, text: "hold the alley", messageId: roll.testMessageId });
+          const order = RCN.netOf(deck).standingOrders[RCN.vKey(d2.uuid)];
+          assert.equal(order?.text, "hold the alley");
+          assert.equal(order.successes, roll.successes);
+          err = null; try { await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d1.uuid, text: "x", messageId: roll.testMessageId }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /no command/, "the primary needs no command");
           await call("rcDisconnect", { deckUuid: deck.uuid });
           assert.equal(VP.controllerOf(d1), null, "disconnected: it holds");
           assert.equal(RCN.netOf(deck).primary, null, "the primary cleared");

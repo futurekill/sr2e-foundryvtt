@@ -1,0 +1,50 @@
+<div class="deck-body sensor-body">
+  <section class="deck-head">
+    <h3>{{name}} <small>Rating {{rating}} · Flux {{flux}} ({{range}})</small></h3>
+    <p>
+      {{#if connected}}<strong>Connected</strong> — operator {{operator}}
+        <button type="button" data-action="disconnect" title="Jack out (no dump: Rigger 2 p.64)"><i class="fas fa-plug-circle-xmark"></i> Disconnect</button>
+      {{else}}<strong>Disconnected</strong>
+        <button type="button" data-action="connect"><i class="fas fa-plug"></i> Connect</button>
+      {{/if}}
+      · Subscribers {{subscribed}}/{{limits.subscribers}} · Affiliated {{affiliatedCount}}/{{limits.affiliated}} (Rigger 2 p.62, p.64)
+      {{#if hasPrimary}}<button type="button" data-action="ret" title="Simple Action (p.65)"><i class="fas fa-chair"></i> Return to the captain's chair</button>{{/if}}
+    </p>
+  </section>
+  <table class="deck-table">
+    <thead><tr><th>Vehicle</th><th>Pilot</th><th>Status</th><th>Standing order</th><th></th></tr></thead>
+    <tbody>
+      {{#each rows}}
+      <tr class="{{#if primary}}primary{{/if}}">
+        <td>{{name}}{{#if hardwired}} <i class="fas fa-link" title="Hardwired"></i>{{/if}}</td>
+        <td>{{pilot}}</td>
+        <td>
+          {{#if affiliated}}Affiliated{{#if mode}} · <strong>{{mode}}</strong>{{/if}}{{else}}Subscribed{{/if}}
+          {{#unless reachable}} · <em title="Out of the deck's range: it acts on its last order or holds (p.64)">out of range</em>{{/unless}}
+          {{#if sitsOut}} · <em title="Affiliated this Combat Turn: no actions until the next (ruling R5-1)">sits out this Turn</em>{{/if}}
+        </td>
+        <td>{{#if order}}"{{order.text}}" — {{order.successes}} success{{#unless (eq order.successes 1)}}es{{/unless}}{{/if}}</td>
+        <td class="deck-actions">
+          {{#if affiliated}}
+            {{#unless hardwired}}<button type="button" data-action="affiliate" data-uuid="{{uuid}}" data-on="0" title="Simple Action (p.64)">Disaffiliate</button>{{/unless}}
+            {{#if ../connected}}
+              {{#unless primary}}<button type="button" data-action="jump" data-uuid="{{uuid}}" title="Simple Action; needs a VCR, jacked in (p.65)">Jump in</button>
+              <button type="button" data-action="command" data-uuid="{{uuid}}" title="Complex Action: the drone's Comprehension Test (p.66)">Command</button>{{/unless}}
+            {{/if}}
+          {{else}}
+            <button type="button" data-action="affiliate" data-uuid="{{uuid}}" data-on="1" title="Simple Action (p.64)">Affiliate</button>
+            <button type="button" data-action="unsubscribe" data-uuid="{{uuid}}" title="Remove from the subscriber list">✖</button>
+          {{/if}}
+        </td>
+      </tr>
+      {{else}}
+      <tr><td colspan="5"><em>No subscribers yet.</em></td></tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <p class="deck-add">
+    <select name="newSub"><option value="">— targeted vehicles —</option>{{#each linked}}<option value="{{uuid}}">{{name}}</option>{{/each}}</select>
+    <button type="button" data-action="subscribe"><i class="fas fa-plus"></i> Subscribe</button>
+    <small>Editing the subscriber list is not an action (Rigger 2 p.62).</small>
+  </p>
+</div>
