@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 8 (2026-11-15), after Codex rounds 1–7 (9 + 3 + 3 + 2 + 5 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 9 (2026-11-15), after Codex rounds 1–8 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -88,7 +88,9 @@ preparation.
   explicit lookup over the complete sources (`ctx.events.hasMarker(id)`), inventoried; fixture: a spent one-shot program
   stays unusable in Foundry, Node and the browser.
 - **Localization stays out**: derivation labels attribute sources through `game.i18n` today (three methods); the pure
-  layer returns label keys + params and the adapters localize (docs/DERIVE-INVENTORY.md "Hidden reads").
+  layer returns label keys + params and the adapters localize (docs/DERIVE-INVENTORY.md "Hidden reads"). The golden
+  projections record those CANONICAL tokens (round 8 #2: a dwarf's racial source is `{ key, params }`, not its English
+  string), parity compares tokens, and a separate test checks the Foundry adapter's localized `attributeSources`.
 - **Helpers split first**: flag-only helpers that live in Foundry-coupled modules (`substancesOf`, `drugsInForce`,
   `workingImplant`, `eventsOf`, `programmingState`, `effectChanges`, `elementalHolderOf` → `lookup`, `variableLTGOn`)
   move to pure files with re-exports, in the release that first needs them (inventory "Helpers to split").
@@ -104,9 +106,12 @@ preparation.
   plain object (no Proxy cost).
 
 ## 2.1 Unavailable dependencies (round 1 #7)
-`lookup(ref)` returning `unavailable` THROWS `DependencyUnavailable` out of the derive function that asked; the
-adapter catches it and the whole document falls back to D12 (view-only from its snapshot) — never a plausible wrong
-number. `absent` is a normal result (genuinely empty or deleted). Consumers named: `_applyCybermancy` (a spell origin),
+`lookup(ref)` returning `unavailable` THROWS `DependencyUnavailable` out of the derive function that asked. What the
+adapter does with it depends on the mode (round 8 #1): the **live Foundry adapter** never sees it — its `lookup`
+keeps today's behaviour (an unresolved reference during world load is `absent`/null, as `_applyCybermancy` treats a
+spell origin now), so live preparation is unchanged; the **portable/creator adapter** catches it and falls back to
+D12 (view-only from the document's stored snapshot) ONLY when that snapshot exists, and otherwise shows the document
+as unavailable with a warning — never a plausible wrong number. `absent` is a normal result (genuinely empty or deleted). Consumers named: `_applyCybermancy` (a spell origin),
 `sustainPenalty` → `elementalHolderOf` (a bound elemental). Fixtures for both: resolved, absent, unavailable.
 
 **Document methods on plain records** (round 3 #2): every derive-path read through a Document METHOD becomes an
@@ -199,7 +204,9 @@ it, still in its original position).
 Each content module that writes a registry, at ANY hook (round 7 #3: the Grimoire adds its Druid totems at `setup`),
 — spirit types, totems and totem groups, vehicle list rows, Workshop tables, qualities — exports `register(registries)`
 from a pure file; its Foundry hook becomes `register(CONFIG.SR2E…)`. The inventory lists every `CONFIG.SR2E` writer in
-the system and the modules regardless of hook (a grep check fails on an unlisted one).
+the system and the modules regardless of hook. A grep can't prove parity (round 8 #3: Cyberpirates writes through an
+alias, `S.spiritProfiles.ancestor`), so each module's Quench test compares the complete registries after its Foundry
+hooks have run with the result of its pure `register(registries)` on an empty set — deep-equal, per registry.
 The system's adapter builds `ctx.registries` from the same calls, so the creator can register the modules it pins.
 One module per small release, after M2a.
 

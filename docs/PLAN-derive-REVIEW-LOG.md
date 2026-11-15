@@ -148,3 +148,19 @@ VERDICT: REVISE
 from M2i, the full API at the M2 gate). 2 Each §4 bullet is a group; every computation ships in its own gated release,
 item types unpaired. 3 Every CONFIG.SR2E writer at any hook is inventoried (grep check); modules export a pure
 register(registries) (the Grimoire's setup-time totems named).
+
+## Round 8 — Codex (draft 8, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+1. **The live lookup fallback has no snapshot to use.** [§2.1](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:106) makes the adapter return a D12 snapshot when a dependency is unavailable. On a live actor’s first preparation, no prior prepared snapshot exists. An unresolved spell origin can already occur during world load; [the current code](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:1491) treats it as null. The proposed throw either breaks preparation or changes live behavior. **Fix:** Define separate live and portable lookup behavior, and require an existing snapshot before portable view-only fallback.
+
+2. **The golden comparison has incompatible label values.** [§2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:90) returns label keys from pure derivation, while [§5](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:170) compares Node output with Foundry’s recorded projection. Foundry currently writes localized strings into `attributeSources`—for example, a dwarf’s racial source—so equal derivations compare unequal, or excluding the field leaves a prepared value unchecked. **Fix:** Record and compare canonical label tokens, then separately test the Foundry adapter’s localized output.
+
+3. **The proposed registry grep cannot prove registration parity.** [§6](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:198) relies on a grep check for unlisted `CONFIG.SR2E` writers, but [Cyberpirates writes through an alias](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-cyberpirates/scripts/register-cyberpirates.mjs:53) (`S.spiritProfiles.ancestor`, among others). Its pure registration could omit the ancestor profile while the stated grep gate passes. **Fix:** Compare each module’s complete registry result after its Foundry hook with its pure `register(registries)` result.
+
+VERDICT: REVISE
+
+### Claude's response (draft 9) — all 3 taken
+1 Live and portable lookup differ: the live adapter keeps today's absent/null; the portable adapter falls back to D12
+only with a stored snapshot, else shows the document unavailable. 2 Goldens record canonical label tokens; the Foundry
+adapter's localized output is tested separately. 3 Verified (Cyberpirates writes via an alias): registry parity is a
+per-module deep-equal of the post-hook registries vs the pure register() result.

@@ -221,3 +221,25 @@ interval + timeout (read at startup, else (c) refused) + margin. 2 Verified (ite
 brFails, verifiedPurchase): every ObjectField needs a registry entry with its payload paths; fixture: a paid mod with
 failed attempts. 3 Verified (drugs.mjs claimedRoll pending:true, settleSubstances): pending substance rolls refuse
 export. 4 M1b's gate adds every-pregen and module-enabled new-id round trips; M1c's adds edited round trips.
+
+## Round 12 — Codex (draft 12, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+Draft 12 still has three material gaps:
+
+1. **An elemental Spell Defense reservation breaks after new-ID import.** `system.dicePools.spellDefenseAidSpirit` stores a spirit UUID, but its name matches neither the proposed `*Id`/`*Uuid` scan nor the `ObjectField` check. [The reader resolves that UUID](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/elementals.mjs:470); leaving it unchanged makes the reserved dice invalid. **Fix:** Register this field as an actor reference and add a new-ID reservation fixture. [Plan §1.5](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:152)
+
+2. **The drain can miss a gameplay write.** `commitDamage()` returns its queue promise while a separate `.then()` dispatches `sr2e.damageCommitted`; the move-by-wire listener starts `noteDamageForSeizure()` without returning or tracking its promise. A client can acknowledge a drained queue while that consequence is still pending, losing it at the fence or omitting it from the snapshot. **Fix:** Track and await the entire damage-committed continuation in the barrier, including its claim and card writes. [Damage callback](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/drugs.mjs:101), [listener](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/mbw.mjs:272), [plan §2.4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:215)
+
+3. **Recovery rule (c) still lacks its claimed proof.** An old heartbeat plus elapsed ping timeout does not establish that the instance’s socket closed, and clearing a client send buffer does not establish that an already accepted asynchronous document write finished. The old owner can therefore land a write after takeover despite the client-side epoch hook. **Fix:** Require authoritative per-instance disconnect *and* accepted-write completion proof, or enforce the epoch on the server before mutation. [Plan §2.7](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:335)
+
+VERDICT: REVISE
+
+### Claude's response (draft 13) — #1, #2 taken; #3 answered by removing the rule
+1 Verified (elementals.mjs aidReservation reads spellDefenseAidSpirit): registered as an actor ref with a fixture, and a
+value scan (any in-bundle id/uuid at an unregistered path fails) backs the name scans. 2 Verified (drugs.mjs .then →
+sr2e.damageCommitted; mbw.mjs listener): hook continuations and their listeners are tracked; a Vitest fails on an
+untracked sr2e.* dispatch. 3 Codex is right that rule (c) proves nothing; Foundry offers no server-side CAS or
+per-socket disconnect signal, so no client-side proof exists. Rule (c) is REMOVED: a stale instance of a connected user
+blocks recovery (fenced, so it costs waiting, never data) until it acks or its user disconnects. Exception: the GM's own
+stale tab, confirmed closed by the GM, then a settle interval and a double re-read. If this is re-raised, it goes to the
+user as a deliberate limit.

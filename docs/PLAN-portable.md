@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 12 (2026-11-15), after Codex rounds 1–11 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 findings, all taken); draft 3 added the reader audit
+_Draft 13 (2026-11-15), after Codex rounds 1–12 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -161,7 +161,12 @@ the key re-derived from the remapped actor and op ids, the deadlines rebased (§
   `data`), and the test fails on an unlisted one; e.g. a vehicle mod's `system.custom.receipt.id` (= the item's own
   id: `ref`), `receipt.payer` (actor uuid: `ref`/`external Actor`), `custom.attempt.by` and `custom.brFails.*.worker`
   (actors; they set retry penalties) — read by `verifiedPurchase()` and the installation flow (vehicle-customize.mjs).
-  Fixture: a PAID modification with failed attempts imported with new ids stays verified and keeps its penalties. A
+  Fixture: a PAID modification with failed attempts imported with new ids stays verified and keeps its penalties.
+  Names can't be trusted to find every identity (round 12 #1: `system.dicePools.spellDefenseAidSpirit` holds a spirit
+  uuid, read by `aidReservation` in elementals.mjs; registered as an actor `ref`, fixture: a reserved elemental Spell
+  Defense survives a new-id import). So a **value scan** backs the name scans: exporting every fixture, a test walks
+  every string in the bundle's source and fails when it contains the id or uuid of a document in the bundle at a path
+  the registry doesn't list. A
   DYNAMIC path (a computed key it can't resolve) must carry a `// portable: <entry>`
   annotation naming its registry entry. The test fails on any shape without an entry — per shape and per event type,
   not per top-level name (a new payload inside `claim` is caught).
@@ -220,7 +225,11 @@ restore may keep ids (`keepId`) when they are free.
   acknowledge** — each connected client awaits the tails of its own queues for those actors AND every in-flight
   reconciler run for them (round 5 #2: move-by-wire `reconcile`, the cybermancy reconcilers, the healing and substance
   clocks, the shapeshift and permanent-damage passes run from timers and hooks, outside the queues): each registers its
-  run in `portable/inflight.mjs` (`track(actorUuid, promise)`, the WHOLE run incl. its journal-page and chat writes),
+  run in `portable/inflight.mjs` (`track(actorUuid, promise)`, the WHOLE run incl. its journal-page and chat writes) —
+  including CONTINUATIONS dispatched after a queue settles (round 12 #2: `commitDamage` fires `sr2e.damageCommitted`
+  from a `.then` after its queue, and move-by-wire's listener starts `noteDamageForSeizure` without returning it; the
+  dispatch and every listener's promise are tracked, and a Vitest fails on a `Hooks.callAll("sr2e.*")` whose listeners
+  aren't wrapped in `track`),
   cancels its pending timers for barrier actors, and re-schedules on unfence; the client awaits those promises, then marks itself drained. Acks are PER
   INSTANCE (round 9 #1: two tabs of one user must not share a slot): every page load has an `instanceId`; on seeing the
   barrier it writes `flags.sr2e.importAck.<importId>.<instanceId> = { epoch, state: "seen" }` on its User document at
@@ -230,7 +239,7 @@ restore may keep ids (`keepId`) when they are free.
   user whose heartbeat is under 90 s old, re-read until the wait ends (a tab that loads DURING the barrier registers,
   finds the barrier at once, admits nothing for those actors and acks `drained` immediately). The GM waits for EVERY
   rostered instance to reach `drained` at this epoch; an instance leaves the roster only when its user disconnects or
-  by the socket-gone rule (c) of §2.7; one that never answers blocks the import, which the GM may cancel — never proceed
+  by (a)/(b) of §2.7 or the GM's own-tab confirmation; one that never answers blocks the import, which the GM may cancel — never proceed
   without it. Quench: two instances of one user, one draining slowly — the import waits for both; (3) **fence and verify** —
   the GM writes the actors' fences, re-reads every source, and re-runs quiescence (§1.2) against that fenced state
   before any import write. The pre-hook veto (below) stays as defense in depth for writers that ignore the barrier.
@@ -340,15 +349,13 @@ restore may keep ids (`keepId`) when they are free.
   server reports the old owner's USER inactive (a socket's requests are processed in order before its disconnect, so a
   disconnected client has nothing left to land) and its heartbeat is stale. A stale heartbeat alone (a frozen tab of a
   still-connected user) is NOT enough by itself (round 10 #2: a crashed tab whose user stays connected in another tab
-  never acks and never "disconnects" as a user): (c) the instance's SOCKET is provably gone (round 11 #1 — Foundry has no
-  server-side compare-and-set, so the proof must be that nothing more can arrive): every instance discards socket.io's
-  send buffer on `disconnect` (`game.socket.sendBuffer = []`) and reloads on reconnect, so a request not yet received
-  when its socket closed is never sent; a request the server did receive was processed in order before the close. The
-  server closes a socket that misses its ping deadline (a frozen tab), and an alive-but-throttled tab still answers
-  pings and a handover request (event-driven). So (c) = the instance has not acked a handover request AND its heartbeat
-  is older than the server's ping interval + ping timeout (read from the server's socket options at startup; recovery
-  refuses (c) when they can't be read) + a margin. Quench: a simulated disconnect clears the send buffer; a frozen
-  instance's buffered write never lands. Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
+  never acks and never "disconnects" as a user): there is NO rule (c) (round 12 #3): Foundry has no server-side compare-and-set and no per-socket
+  disconnect signal, so nothing short of (a) or (b) proves an instance has nothing left to land. A frozen tab of a
+  still-connected user therefore BLOCKS recovery, naming the instance and its user, until it acks or that user
+  disconnects (closes every tab). The one exception is the GM's own stale instance: the GM may confirm "I have closed
+  my other tabs" — only the GM can close them, and the takeover still waits a settle interval and re-reads every step
+  twice, unchanged between reads, before it unfences. The import keeps the actors fenced throughout, so a block costs
+  waiting, never data. Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
   Imports and recovery are serialized per world (one import at a time). Recovery runs from a button and from the
   startup coordinator below.
 - **Startup coordinator** (round 4 #3): ONE GM-`ready` sequence orders import recovery and the world migration
