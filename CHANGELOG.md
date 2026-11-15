@@ -49,6 +49,13 @@
   a Deadly Handling/Body hit crashes the vehicle and a Deadly engine/fuel-tank hit needs a Crash Test — one crash per
   attack. Repairs: the Repair button lists the damaged parts (priced from the part, p.87); Deadly parts are replaced and
   armor lost to an Armor-Defeating Hit only by replacing the armor.
+- **Rigger 2 optempo** (optional setting "Rigger 2: optempo"; R2 p.83–84; Part 6a.2): vehicles' upkeep by the mileage of
+  each adventure — **replace** the monthly overhead, **split** both in half, only for vehicles used on every adventure,
+  or only above a mileage threshold (200 km / 50 km for drones, settings). The GM's **Adventures** button (Actors tab,
+  beside Month ends) starts and closes adventures; closing asks each vehicle's kilometres and charges (list price ÷
+  20,000 per km, nearest tenth), payable from the vehicle overhead dialog. A month that optempo replaces is no longer
+  due — and if it was already paid, the cash, Lifestyle credit and Karma it used come back once; a missed month's Stress
+  is taken back.
 - **Rigger 2 Quality Factors** (optional setting "Rigger 2: Quality Factors"; R2 p.84–85; Part 6a.3): choose them in the
   Workshop's price step (Mark-Up added before the special-design multipliers; at most two; never below .1); they change
   Maintenance, the Stress Test, every Build/Repair Test on the vehicle, Custom Built customization prices and times, and

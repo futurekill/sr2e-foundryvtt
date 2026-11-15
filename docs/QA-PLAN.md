@@ -1273,3 +1273,11 @@ Tables 1–8 resolution, counts, severity, damaged mods in the effect pass.
 Manual: shoot a vehicle for Moderate damage → Roll subsystem damage; a Control Box hit → the rigger's resist button
 (Power = the attack's after armour); a Passenger Compartment hit → passengers' buttons; repair a Moderate fuel tank.
 
+## Rigger 2 optempo (option r2Optempo; Part 6a.2) — `sr2e.r2-advanced` batch
+Automated: replace mode — a paid month superseded by an adventure is refunded from its receipt once (a replayed close
+refunds nothing more), the optempo charge (km × value ÷ 20,000) is paid behind its receipt. Vitest: rate, eligibility by
+mode, the refund allocation (credit pro rata within its month, Karma only when no standing bill needs it, ledger caps).
+Manual: set "replace"; Adventures → start; Month ends; pay the month; Adventures → close with 100 km → the refund card and
+the optempo row in the overhead dialog; "split" → the next month's overhead is halved; "mileage" → a vehicle under the
+threshold keeps its monthly overhead; "frequent" → tick the vehicle in the Adventures dialog.
+
