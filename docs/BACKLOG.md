@@ -133,3 +133,10 @@ recipe and the `codex exec -i` stdin gotcha.
 - **Foundry v14 compatibility.** Static deprecation audit is clean and
   `compatibility.verified` is at 14; a deeper pass on a real v14 build is worth
   doing if issues surface.
+- **Rulings backfill (wiki Rulings page).** The page's first version (2026-11-15) was built from what was written
+  down: the plans' "User rulings" blocks, the R-series vehicle rulings, module rulings files and NEEDS-CAPTURE notes.
+  Judgement calls made earlier in conversation and only implemented (in code comments, item notes or CHANGELOG lines,
+  never recorded as a ruling) are missing. Sweep the past session transcripts, the system's and each module's code
+  comments ("the book gives no…", "read as", "treated as"), item notes and CHANGELOGs; add each call to its project's
+  section with page, kind (conflict / ambiguous / misprint / gap) and what the software does. Also settle the page's
+  three open questions (MK-Guyver robot; the three uncited system entries; smoke-grenade citations).
