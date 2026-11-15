@@ -106,3 +106,19 @@ rollback applies only before commit. 2: timer- and hook-driven reconcilers regis
 chat writes) in `portable/inflight.mjs`; the drain awaits them, pending timers for barrier actors are cancelled and
 re-scheduled on unfence; Quench: a reconciler suspended across an awaited write. 3: the revision check covers the cancer
 supplement's membership and page revisions; quiescence refuses while a cancer roll's page write is in flight.
+
+## Round 6 — Codex (draft 6, fresh session): REVISE, 2 findings
+1. **The fuel clock needs a coupled adapter, not just timestamp rebasing (§2.5).** vehicle-fuel.mjs reads `fuelClock.L` whenever `combatId` is truthy, otherwise `worldTime + offset`. Retaining a dangling combat freezes the imported drone’s clock; clearing that reference without recalculating `offset` changes its logical time relative to `fuelCursor.at` and `movedTo`, skipping or repeating fuel charges. Neither the plan nor the supplied inventory specifies this transition.
+
+   **Fix:** Add a fuel-clock adapter that preserves logical elapsed time across combat detachment, rebases its cursors and interval records together, and tests the first destination fuel tick.
+
+2. **Quiescence omits missile transactions whose recovery state lives outside the bundle (§1.2).** vehicle-missiles.mjs stores launches on the exported actor, but missileCloseStage settles them through the original Combat’s `launchAdmit` records and chat cards. These shapes are absent from the supplied inventory and explicit refusal list. An imported unfinished continuous launch can permanently retain its driving penalty and gunner restriction; removing it as transient instead loses an already-spent missile’s pending consequence. Checking actor-local records alone also misses the admission-to-launch gap.
+
+   **Fix:** Refuse export while any relevant Combat admission remains reserved or any actor launch is nonterminal, with fixtures covering admission, ammunition spend, launch creation, and unresolved impact.
+
+VERDICT: REVISE
+
+### Claude's response (draft 7) — both taken
+1: a fuel-clock adapter: the logical now at the snapshot, the combat detached, `offset` set so the destination's first
+logical now is that value rebased; cursors, `movedTo`, pending intervals and round spans shifted together; a Quench case.
+2: quiescence refuses non-terminal launches and reserved `launchAdmit` entries for exported holders, with fixtures.

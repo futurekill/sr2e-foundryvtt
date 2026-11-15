@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 6 (2026-11-15), after Codex rounds 1–5 (13 + 8 + 6 + 3 + 3 findings, all taken); draft 3 added the reader audit
+_Draft 7 (2026-11-15), after Codex rounds 1–6 (13 + 8 + 6 + 3 + 3 + 2 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -53,7 +53,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   (`pendingEngineChecks`), a vehicle follow-up not yet posted (`vfollow`), a pending VR2 sheaf (`vr2SheafPending`); a
   LIVE VR2 connection (round 3 #5: `liveOpen` rebuilds it from the durable `connOpen`/`connEnd` facts, so dropping the
   transient session flags can't end it — the decker jacks out first, which writes `connEnd` with its consequences in
-  the source world); unsettled overhead/optempo money (round 3 #4: a receipt not `released`/settled, a refund `due`). The list is ONE function,
+  the source world); unsettled overhead/optempo money (round 3 #4: a receipt not `released`/settled, a refund `due`); a missile launch
+  not yet terminal (round 6 #2: `flags.sr2e.launches.<id>` not `resolved`/`lost`/`cancelled`) or a Combat
+  `launchAdmit` entry still `reserved` for any exported holder — its recovery lives on the Combat and its chat cards,
+  outside the bundle; fixtures for admission, ammunition spend, launch creation and unresolved impact. The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
@@ -218,6 +221,12 @@ restore may keep ids (`keepId`) when they are free.
   `discount` month keys, a restore's `month`), `overheadRefunds.<tx>.done[]` (`<vehicleUuid>|<month>`: both parts
   remapped). A Stress receipt or refund entry left behind would penalise or refund a month twice. Unsettled money is
   refused by quiescence (§1.2), so the adapter only moves settled history.
+- **The drone fuel clock** (round 6 #1): `fuelClock = { combatId, L, offset }` reads `L` while `combatId` is set, else
+  `worldTime + offset`. One adapter makes the export's logical now explicit (`logicalNow` at the snapshot), detaches
+  the combat (a combat never moves), and sets `offset` so the destination's first `logicalNow` equals that value
+  rebased by Δworld — with `fuelCursor.at`, `movedTo`, `fuelPending` intervals and `fuelRounds` spans shifted by the
+  SAME amount, so no span is billed twice or skipped. Quench: an idle drone exported mid-combat bills exactly the
+  destination's first elapsed span.
 - **Substance report ids** (round 3 #3): `substanceReported` keys are `stepId(step)` — drug, type, the step's TIME and a
   hash of its payload (rules/substances.mjs) — so a rebase changes them. The adapter folds the bundle's log before and
   after the rebase/remap and maps each reported step, by its position in the fold, to its new id; `corrected` entries
