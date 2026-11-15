@@ -85,10 +85,11 @@ qualities) exports `register(registries)` from a pure file; its Foundry `init` h
 The system's adapter builds `ctx.registries` from the same calls, so the creator can register the modules it pins.
 One module per small release, after M2a.
 
-## 7. The Active Effects audit (D3)
-`docs/DERIVE-AE-AUDIT.md`: every AE the system or a module creates on a character, classified (a) derived from item
-data, (b) transient play state carried opaquely, (c) to convert. Category (c) is a blocker list fixed in the system
-before the creator ships (M3 depends on it, not M2's releases).
+## 7. The Active Effects audit (D3) — done
+`docs/DERIVE-AE-AUDIT.md` (2026-11-15): no category (c) blocker in shipped content (every shipped effect is a sustained
+spell or a drug dose, both with supported keys). One gap: `system.dicePools.<pool>.bonus` (Combat Sense, four
+shipped spells) is a real AE hook missing from D9's supported list — M2a adds it to the supported keys (CLAUDE.md
+too) with a Combat Sense parity fixture.
 
 ## Key decisions & tradeoffs
 - **Mutating the working copy** (`fn(ctx)` writes `ctx.system`) instead of returning new objects: the code moves
