@@ -23,8 +23,7 @@ monitors. Items: 9 `prepareDerivedData` in item-data.mjs (skills, weapons incl. 
 tables, armor, focus, lifestyle, …). Reads from outside `this`: `game.settings` (autoEssence, vehicle/matrix
 rulesets, R2 options, cyber options), `this.parent` (items, `_source`, flags, effects), event logs (`eventsOf`,
 `substancesOf`, `foldMbw`, `foldCym`, permanent damage, shapeshift), world time, `CONFIG.SR2E` tables (some
-registered by content modules at `init`), and other documents (bound elementals for the sustain penalty). The first
-M2 task turns this paragraph into `docs/DERIVE-INVENTORY.md`: every method, its inputs, its outputs, its
+registered by content modules at `init`), and other documents (bound elementals for the sustain penalty). First pass done: `docs/DERIVE-INVENTORY.md` (2026-11-15, CharacterData); the item models are the next pass. It records every method, its inputs, its outputs, its
 both-directions assignments (CLAUDE.md "Derived state must be cleared").
 
 ## 2. The context and its Foundry adapter (M2a)
@@ -38,6 +37,11 @@ both-directions assignments (CLAUDE.md "Derived state must be cleared").
 - **Settings and rulesets come from the context, never globals**: `isVR2()`, `isRigger2()`, `r2Option()`,
   `game.settings.get(...)` calls inside code that moves into `module/derive/` are replaced by `ctx.settings` reads;
   the global helpers stay for live-play code.
+- **Localization stays out**: derivation labels attribute sources through `game.i18n` today (three methods); the pure
+  layer returns label keys + params and the adapters localize (docs/DERIVE-INVENTORY.md "Hidden reads").
+- **Helpers split first**: flag-only helpers that live in Foundry-coupled modules (`substancesOf`, `drugsInForce`,
+  `workingImplant`, `eventsOf`, `programmingState`, `effectChanges`, `elementalHolderOf` → `lookup`, `variableLTGOn`)
+  move to pure files with re-exports, in the release that first needs them (inventory "Helpers to split").
 - **Declared reads**: each derive function exports `reads = [...]` (context paths). In tests the context is wrapped
   in a recording Proxy; a parity test fails when a function reads a path it didn't declare (D9). Production uses the
   plain object (no Proxy cost).
