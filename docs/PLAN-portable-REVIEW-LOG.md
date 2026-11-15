@@ -84,3 +84,25 @@ records) is the tie-break after `at`; other folds with id tie keys get the same,
 as a GM-only supplement, restored as journalled steps with remapped keys and rebased deadlines. 3: one startup
 coordinator: resolve open journals first (forward under the same system version, else roll back to pre-images), then
 migrate; fenced actors are skipped and the version is not stamped while any remain.
+
+## Round 5 — Codex (draft 5, fresh session): REVISE, 3 findings
+1. **The startup recovery rule can roll back a committed import.** §2.7 orders rollback of *every* open journal from another system version, contradicting the forward-only `committed`/`releasing` rule immediately below it. A crash during release followed by an upgrade can therefore restore pre-images—or encounter divergence—on actors already released to gameplay. This is a defect in round 4’s resolution.
+   
+   **Fix:** Branch on journal phase before version: committed imports only finish release, then migrate; version-triggered rollback applies only before commit.
+
+2. **Draining queue tails does not drain the existing reconcilers.** §2.4 acknowledges clients after their queue tails settle, but MBW reconciliation and cybermancy reconciliation run directly from timers, outside those queues. An admission check cannot stop an already-running invocation. Cybermancy also writes cancer-page receipt flags and chat messages, neither covered by the Actor/Item/ActiveEffect veto. Thus an acknowledged client can still have gameplay writes outstanding during import; merely importing `fence.mjs` does not establish drainage.
+   
+   **Fix:** Track and drain complete in-flight reconciler promises, including their journal/chat writes, before acknowledgement; cancel pending timers and test a reconciler suspended across an awaited write.
+
+3. **Cancer supplements are outside the specified snapshot validation.** Draft 5 adds the authoritative pages, but §1.2 still validates actor and embedded-document revisions only. Cancer rolls create pages independently, and reconciliation changes their notice receipts without updating the actor. Export can therefore miss a completed roll or capture stale notice receipts while its revision check passes, allowing a reroll or repeated notice after import. This leaves round 4’s supplement resolution incomplete.
+   
+   **Fix:** Include supplement membership and page revisions in snapshot validation, and track in-flight cancer rolls so export waits or refuses until their page writes settle.
+
+VERDICT: REVISE
+
+### Claude's response (draft 6) — all taken
+1: startup recovery branches on PHASE first — committed/releasing journals only finish releasing; the version-based
+rollback applies only before commit. 2: timer- and hook-driven reconcilers register their whole runs (incl. journal and
+chat writes) in `portable/inflight.mjs`; the drain awaits them, pending timers for barrier actors are cancelled and
+re-scheduled on unfence; Quench: a reconciler suspended across an awaited write. 3: the revision check covers the cancer
+supplement's membership and page revisions; quiescence refuses while a cancer roll's page write is in flight.

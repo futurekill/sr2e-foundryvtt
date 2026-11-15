@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 5 (2026-11-15), after Codex rounds 1–4 (13 + 8 + 6 + 3 findings, all taken); draft 3 added the reader audit
+_Draft 6 (2026-11-15), after Codex rounds 1–5 (13 + 8 + 6 + 3 + 3 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -58,7 +58,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
 - **Revision check.** Export reads every source, then the prepared projections, then re-reads each document's
-  `_stats.modifiedTime` (actor and embedded) and the quiescence check; any change → retry (3 times, then refuse).
+  `_stats.modifiedTime` (actor and embedded) — and, for a GM export, the cancer supplement's MEMBERSHIP (the page ids
+  keyed to the actor) and each page's `_stats.modifiedTime` (round 5 #3) — and the quiescence check; any change → retry
+  (3 times, then refuse). Quiescence also refuses while a cancer roll for the actor is in flight (cybermancy.mjs tracks
+  its page write in `inflight.mjs`), so a completed roll is never missed and a page never captured half-written.
 - **One clock and context per snapshot** (round 2 #6): the export captures `worldTime`, `serverTime` and the settings
   context ONCE, first; every prepared projection is derived with that pinned context (folds that read
   `game.time.worldTime` — `mbwFold`, `cymFold`, the substance clock, healing — take an explicit `now`, the extraction
@@ -179,7 +182,11 @@ restore may keep ids (`keepId`) when they are free.
   barrier record (`importBarrier = { importId, epoch, actors: [uuids incl. payers named by any graph record], phase:
   closing }`, a world setting every client receives); from then every client's queue wrappers (`enqueueAttack` keys
   naming those actors, `moneyQueue`, the GM op dispatcher) refuse new entries for those actors; (2) **drain and
-  acknowledge** — each connected client awaits the tails of its own queues for those actors, then writes
+  acknowledge** — each connected client awaits the tails of its own queues for those actors AND every in-flight
+  reconciler run for them (round 5 #2: move-by-wire `reconcile`, the cybermancy reconcilers, the healing and substance
+  clocks, the shapeshift and permanent-damage passes run from timers and hooks, outside the queues): each registers its
+  run in `portable/inflight.mjs` (`track(actorUuid, promise)`, the WHOLE run incl. its journal-page and chat writes),
+  cancels its pending timers for barrier actors, and re-schedules on unfence; the client awaits those promises, then writes
   `flags.sr2e.importAck.<importId> = epoch` on its User document (one per client instance, keyed by a per-page-load
   instance id); the GM waits for every connected client's ack (a client that disconnects is dropped from the wait; one
   that never answers blocks the import, which the GM may cancel — never proceed without it); (3) **fence and verify** —
@@ -286,9 +293,11 @@ restore may keep ids (`keepId`) when they are free.
   Imports and recovery are serialized per world (one import at a time). Recovery runs from a button and from the
   startup coordinator below.
 - **Startup coordinator** (round 4 #3): ONE GM-`ready` sequence orders import recovery and the world migration
-  (`migrateAndReport`): (1) every open import journal is resolved FIRST — rolled forward when it was written under the
-  running system version, otherwise rolled BACK to its pre-images (written under the old version, which the migration
-  then upgrades like any document); (2) only then `migrateWorld` runs. A journal that can't be resolved (divergent,
+  (`migrateAndReport`): (1) every open import journal is resolved FIRST, by PHASE before version (round 5 #1): a
+  journal at `committed` or `releasing` only finishes releasing (forward — its actors are already the imported ones,
+  migrated with the rest afterwards), whatever version wrote it; a journal BEFORE commit is rolled forward when written
+  under the running system version, otherwise rolled BACK to its pre-images (written under the old version, which the
+  migration then upgrades like any document); (2) only then `migrateWorld` runs. A journal that can't be resolved (divergent,
   waiting for the GM) leaves its actors fenced: the migration skips fenced actors and does NOT stamp the new
   `systemMigrationVersion` while any remain, so their migration runs at the next start after the GM resolves the import.
   Quench: an import interrupted mid-write, the system upgraded, then started — the journal rolls back and the migration
