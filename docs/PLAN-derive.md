@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 2 (2026-11-15), after Codex round 1 (9 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 3 (2026-11-15), after Codex rounds 1–2 (9 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -31,10 +31,12 @@ One order, the same in Foundry and in the pure path: (1) **source reset** — th
 (Foundry does this for the actor's system; embedded items are NOT re-initialized, so their derived fields are reassigned
 both ways, CLAUDE.md); (2) **base preparation** (`prepareBaseData`: racial modifiers); (3) **embedded preparation**
 (each item's `prepareDerivedData`, with its item context); (4) **Active Effects**: the eligible effects (actor +
-item-transferred, not disabled, not suppressed), ordered as Foundry orders them (priority, then mode), applied ONCE —
-only the supported keys; (5) **actor derivation** (`prepareDerivedData`). In Foundry the adapter runs inside the data
+item-transferred, not disabled, not suppressed), their CHANGES flattened and ordered exactly as Foundry v13 does
+(round 2 #1: each change's priority defaults to `mode × 10`; a STABLE sort by priority only, so equal priorities keep
+collection order — actor effects, then transferred ones), applied ONCE — only the supported keys; (5) **actor derivation** (`prepareDerivedData`). In Foundry the adapter runs inside the data
 model's own hooks at those points, so nothing is applied twice; the standalone path runs all five. Fixtures: mixed
-priorities, ADD vs OVERRIDE on one key, a suppressed effect, a transferred effect, a disabled event marker (never
+priorities, ADD vs OVERRIDE on one key, EQUAL explicit priorities with mixed modes (OVERRIDE 5 then ADD 2 = 7), an
+actor/transferred tie, a suppressed effect, a transferred effect, a disabled event marker (never
 applied).
 
 ### 1.2 Every block has a milestone (round 1 #2)
@@ -61,7 +63,14 @@ preparation.
 - **Plain records, real accessors** (round 1 #3): the item context's `owner` is a plain record with `items.get(id)`
   (a Map-backed collection, not an array) and each item's `_source`, `flags`, `_stats.compendiumSource` and `uuid`, so
   cyberware's `parent.parent.items.get(id)._source.system` and QualityData's compendium source move verbatim; the
-  transitive helpers move with them (`designOf` for ProgramData joins the helper-split list).
+  transitive helpers move with them (`designOf` for ProgramData joins the helper-split list). Prototype METHODS the
+  actor calls on items are extracted too (round 2 #2): `SkillData.applyLanguageRatings` (called again by
+  `_applySkillsofts` after a LinguaSoft changes ratings) becomes a pure helper in M2a, every actor-side call replaced;
+  fixtures: a LinguaSoft slotted, replaced, removed, prepared twice.
+- **Raw effect membership** (round 2 #3): `programUnusable` (used by `_derivePersona`) asks `actor.effects.has(claimId(…))`
+  for a DISABLED one-shot receipt — neither `ctx.effects` (eligible only) nor a plain array answers that. It becomes an
+  explicit lookup over the complete sources (`ctx.events.hasMarker(id)`), inventoried; fixture: a spent one-shot program
+  stays unusable in Foundry, Node and the browser.
 - **Localization stays out**: derivation labels attribute sources through `game.i18n` today (three methods); the pure
   layer returns label keys + params and the adapters localize (docs/DERIVE-INVENTORY.md "Hidden reads").
 - **Helpers split first**: flag-only helpers that live in Foundry-coupled modules (`substancesOf`, `drugsInForce`,

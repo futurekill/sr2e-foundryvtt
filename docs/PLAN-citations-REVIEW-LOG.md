@@ -34,3 +34,10 @@ actors are parsed, overridden, reported and validated. 5: the TSVs gain `status`
 unresolved rows fail validation — the system's Subsonic, Launch Weapons and Pilot are now `unresolved`. 6: validate runs
 in every affected release workflow before build-packs. 7: citation-bearing module releases raise their minimum system
 version to the schema release.
+
+## Round 2 — Codex (draft 2, fresh session): APPROVED
+No additional material problems found. Draft 2 meets M1b/D8 and addresses the settled findings. The blank-compatible schema is additive; citations introduce no derived-state dependency. The revised parser’s review path, corrective overrides, release validation, and minimum-system-version ordering cover the sampled note forms and identified failure cases.
+
+VERDICT: APPROVED
+
+The citations plan is APPROVED (draft 2).

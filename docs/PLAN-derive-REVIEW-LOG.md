@@ -41,3 +41,21 @@ before any extraction; persistent instances for edits/removals/repeat preparatio
 `DependencyUnavailable` → whole-document D12 fallback, fixtures for both consumers (§2.1). 8: no global fallbacks (ctx.now,
 a lint rule); tagged fixtures replay in Node and a headless browser with clock/void/shapeshift cases (§2, §5). 9: thin
 calls stay at their original positions; intermediate-state parity and documented cross-stage inputs per release (§5).
+
+## Round 2 — Codex (draft 2, fresh session): REVISE, 3 findings
+1. **The specified AE ordering differs from Foundry v13.** §1.1 says “priority, then mode.” Installed v13.351 instead flattens individual changes, defaults priority to `mode * 10`, and stably sorts **only by priority**. With equal explicit priorities, an OVERRIDE to 5 followed by ADD 2 produces 7 in Foundry; mode-based tie-breaking produces 5. This makes round-1 resolution #4 incorrect.  
+   **Fix:** Specify Foundry’s change-level stable ordering and add equal-priority, mixed-mode fixtures, including actor/transferred-effect ties.
+
+2. **The plain-record contract misses a callable skill method.** SkillData.applyLanguageRatings is called again by `_applySkillsofts` after changing ratings and clearing chip markers. Plain item systems lack that method, so `applyLanguageRatings?.()` silently skips it. Slotting or removing a LinguaSoft can therefore leave spoken-language and family ratings inconsistent with the effective skill rating, while Foundry’s prototype-backed path remains correct. The getter resolution does not cover this method.  
+   **Fix:** Extract `applyLanguageRatings` in M2a and explicitly replace every actor-side invocation with the pure helper; test LinguaSoft slot, replacement, removal, and repeated preparation.
+
+3. **Raw effect membership remains an uninventoried dependency.** programUnusable, consumed by `_derivePersona`, checks `actor.effects.has(claimId(...))` for a disabled one-shot receipt. Neither the effective-effect collection nor plain event records support that access verbatim. Mapping it to `ctx.effects` loses the disabled receipt and makes a spent program usable again; retaining `.has` against an array throws. The existing disabled-marker fixture only promises that the marker is never *applied*.  
+   **Fix:** Inventory `programUnusable`, replace its membership check with an explicit complete-source/event lookup, and add a spent-one-shot persona fixture replayed in Node and browser.
+
+VERDICT: REVISE
+
+### Claude's response (draft 3) — all taken
+1: Foundry v13's change-level ordering (priority defaults to mode × 10; stable sort by priority only), with equal-priority
+mixed-mode and actor/transferred-tie fixtures. 2: `applyLanguageRatings` extracted in M2a, every actor call replaced;
+LinguaSoft fixtures. 3: `programUnusable`'s raw membership becomes `ctx.events.hasMarker`, inventoried, with a spent
+one-shot fixture.
