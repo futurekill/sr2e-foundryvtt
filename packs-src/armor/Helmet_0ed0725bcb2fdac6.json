@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": true,
     "notes": "Combat helmet; stacks with worn armor. SR2E p.257.",
-    "streetIndex": 1.5
+    "streetIndex": 1.5,
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

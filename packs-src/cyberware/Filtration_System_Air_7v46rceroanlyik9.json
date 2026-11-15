@@ -66,7 +66,11 @@
         "streetIndex": ""
       }
     ],
-    "notes": "SR2E p.246 (table p.261). Air filtration vs inhaled toxins. Essence = Rating÷10, cost = Rating×15,000¥."
+    "notes": "SR2E p.246 (table p.261). Air filtration vs inhaled toxins. Essence = Rating÷10, cost = Rating×15,000¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 1,
     "description": "",
-    "notes": "SR2E p.206. Slick, smooth, and he knows it. The quintessential gentleman-assassin — impeccably dressed, accessories of the finest quality, with just a hint of dangerous arrogance. Unless he loses his temper. Full stat block: see the \"Elven Hitman\" actor in the SR2E Contacts (NPCs) compendium."
+    "notes": "SR2E p.206. Slick, smooth, and he knows it. The quintessential gentleman-assassin — impeccably dressed, accessories of the finest quality, with just a hint of dangerous arrogance. Unless he loses his temper. Full stat block: see the \"Elven Hitman\" actor in the SR2E Contacts (NPCs) compendium.",
+    "citation": {
+      "book": "sr2",
+      "page": "206"
+    }
   },
   "effects": [],
   "flags": {},

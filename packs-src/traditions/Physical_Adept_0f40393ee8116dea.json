@@ -7,7 +7,11 @@
     "magicType": "physical_adept",
     "tradition": "none",
     "skill": "none",
-    "description": "<p>Physical Adepts channel their magical energy entirely inward, enhancing their own body and reflexes to superhuman levels. They do not cast spells or summon spirits. Their full Magic Rating is converted to Power Points, which are spent on Adept Powers.</p><p>Physical Adepts have no access to astral space.</p><p><em>SR2E p.164</em></p>"
+    "description": "<p>Physical Adepts channel their magical energy entirely inward, enhancing their own body and reflexes to superhuman levels. They do not cast spells or summon spirits. Their full Magic Rating is converted to Power Points, which are spent on Adept Powers.</p><p>Physical Adepts have no access to astral space.</p><p><em>SR2E p.164</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "164"
+    }
   },
   "effects": [],
   "flags": {},

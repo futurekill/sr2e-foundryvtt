@@ -45,7 +45,11 @@
         "streetIndex": ""
       }
     ],
-    "notes": "SR2E p.242 (table p.261). Subdermal armor plating: dermal armor works against anything by increasing the character's Body Attribute (+1 per level). Does not aid in healing. Level 2: Essence 1, 15,000¥."
+    "notes": "SR2E p.242 (table p.261). Subdermal armor plating: dermal armor works against anything by increasing the character's Body Attribute (+1 per level). Does not aid in healing. Level 2: Essence 1, 15,000¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

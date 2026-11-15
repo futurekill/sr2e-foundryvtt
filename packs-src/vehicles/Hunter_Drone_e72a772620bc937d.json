@@ -24,7 +24,11 @@
       "max": 10
     },
     "autonav": 0,
-    "notes": "<p>An armed version of a surveillance/spotter drone (two firmpoints). The core book lists Handling — and Speed −10% of the host drone; set Speed from the host drone (SR2E p.253, 265).</p><p><em>Core book p.265.</em></p>"
+    "notes": "<p>An armed version of a surveillance/spotter drone (two firmpoints). The core book lists Handling — and Speed −10% of the host drone; set Speed from the host drone (SR2E p.253, 265).</p><p><em>Core book p.265.</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "253"
+    }
   },
   "items": [],
   "effects": [],

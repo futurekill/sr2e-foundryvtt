@@ -39,7 +39,11 @@
         "streetIndex": ""
       }
     ],
-    "notes": "SR2E p.248. Neural co-processor boosting Intelligence and providing bonus Initiative dice. Essence varies by level."
+    "notes": "SR2E p.248. Neural co-processor boosting Intelligence and providing bonus Initiative dice. Essence varies by level.",
+    "citation": {
+      "book": "sr2",
+      "page": "248"
+    }
   },
   "effects": [],
   "flags": {},

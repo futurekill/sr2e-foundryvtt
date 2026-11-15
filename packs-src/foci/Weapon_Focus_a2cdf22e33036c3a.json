@@ -13,7 +13,11 @@
     "notes": "SR2E p.138, p.164. A weapon imbued with magical energy; adds Force to melee attack dice pools and can affect astral entities. Bonding costs 4 x Force in Karma for a SMALL weapon focus, 5 x Force for a LARGE one — this entry uses the small value; raise it to 5 for a large weapon. Force 1.",
     "costPerForce": 0,
     "streetIndex": 3,
-    "availability": "8/72 hrs"
+    "availability": "8/72 hrs",
+    "citation": {
+      "book": "sr2",
+      "page": "138"
+    }
   },
   "effects": [],
   "flags": {},

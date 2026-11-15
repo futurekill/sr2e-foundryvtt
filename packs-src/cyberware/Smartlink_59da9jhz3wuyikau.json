@@ -24,7 +24,11 @@
     },
     "ratingStats": [],
     "combatTnMod": -2,
-    "notes": "SR2E p.249, p.90 (table p.261). Subdermal palm induction pad plus retinal targeting overlay: −2 to ranged attack target numbers when firing a smartgun-equipped weapon. Does not stack with smart goggles or a laser sight."
+    "notes": "SR2E p.249, p.90 (table p.261). Subdermal palm induction pad plus retinal targeting overlay: −2 to ranged attack target numbers when firing a smartgun-equipped weapon. Does not stack with smart goggles or a laser sight.",
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

@@ -9,7 +9,11 @@
     "loyalty": 5,
     "influence": 2,
     "description": "",
-    "notes": "A runner you crossed, outbid, or left holding the bag. Same skill set, opposite payroll. SR Companion (Enemies)."
+    "notes": "A runner you crossed, outbid, or left holding the bag. Same skill set, opposite payroll. SR Companion (Enemies).",
+    "citation": {
+      "book": "sc",
+      "page": "71"
+    }
   },
   "effects": [],
   "flags": {},

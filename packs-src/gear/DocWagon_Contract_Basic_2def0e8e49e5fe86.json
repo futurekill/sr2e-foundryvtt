@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.250. DocWagon™ Basic: sealed-band wrist phone beacon, HTR ambulance on call. 5,000¥/year."
+    "notes": "SR2E p.250. DocWagon™ Basic: sealed-band wrist phone beacon, HTR ambulance on call. 5,000¥/year.",
+    "citation": {
+      "book": "sr2",
+      "page": "250"
+    }
   },
   "effects": [],
   "flags": {},

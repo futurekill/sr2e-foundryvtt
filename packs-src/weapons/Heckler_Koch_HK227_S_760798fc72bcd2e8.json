@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "Submachine gun. The S variant, popular with corporate strike teams and special forces, SUBSTITUTES an integral silencer for the standard model's gas-vent recoil system — so it has no recoil compensation. SR2E p.238, p.254.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "238"
+    }
   },
   "effects": [],
   "flags": {},

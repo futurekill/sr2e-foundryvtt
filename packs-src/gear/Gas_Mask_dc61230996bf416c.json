@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.244. Full-face respirator with filter canister. Protects against standard airborne toxins and smoke."
+    "notes": "SR2E p.244. Full-face respirator with filter canister. Protects against standard airborne toxins and smoke.",
+    "citation": {
+      "book": "sr2",
+      "page": "244"
+    }
   },
   "effects": [],
   "flags": {},

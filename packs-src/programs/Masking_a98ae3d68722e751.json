@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.262. Persona program: how well your persona blends with legitimate Matrix traffic."
+    "notes": "SR2E p.262. Persona program: how well your persona blends with legitimate Matrix traffic.",
+    "citation": {
+      "book": "sr2",
+      "page": "262"
+    }
   },
   "effects": [],
   "flags": {},

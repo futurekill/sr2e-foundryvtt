@@ -18,7 +18,11 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Audio/video recorder package. SR2E p.259."
+    "notes": "Audio/video recorder package. SR2E p.259.",
+    "citation": {
+      "book": "sr2",
+      "page": "259"
+    }
   },
   "effects": [],
   "flags": {},

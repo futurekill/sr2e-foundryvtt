@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 2,
     "description": "",
-    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Magical assistance and hermetic/shamanic services."
+    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Magical assistance and hermetic/shamanic services.",
+    "citation": {
+      "book": "none",
+      "page": ""
+    }
   },
   "effects": [],
   "flags": {},

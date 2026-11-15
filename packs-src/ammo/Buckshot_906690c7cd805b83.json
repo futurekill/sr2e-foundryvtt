@@ -11,7 +11,11 @@
     "cost": 15,
     "notes": "Shot rounds use the Flechette Rounds rules. SR2E p.94.",
     "damageType": "",
-    "armorCalc": "flechette"
+    "armorCalc": "flechette",
+    "citation": {
+      "book": "sr2",
+      "page": "94"
+    }
   },
   "effects": [],
   "flags": {},

@@ -572,7 +572,11 @@
         "sustaining": false,
         "sustainedForce": 0,
         "spellLocked": false,
-        "notes": "Increases the Initiative dice of a voluntary subject by one die while sustained. Characters with cybernetic initiative enhancement (e.g. wired reflexes) cannot be boosted by this spell. SR2E p.157 and Table of Spells."
+        "notes": "Increases the Initiative dice of a voluntary subject by one die while sustained. Characters with cybernetic initiative enhancement (e.g. wired reflexes) cannot be boosted by this spell. SR2E p.157 and Table of Spells.",
+        "citation": {
+          "book": "sr2",
+          "page": "157"
+        }
       },
       "effects": [
         {
@@ -648,7 +652,11 @@
         "damageCode": "",
         "isAreaEffect": false,
         "isVoluntary": false,
-        "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits."
+        "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits.",
+        "citation": {
+          "book": "sr2",
+          "page": "184"
+        }
       },
       "effects": [],
       "flags": {},
@@ -716,7 +724,11 @@
         "magicType": "full_magician",
         "tradition": "hermetic",
         "skill": "both",
-        "description": "<p>Hermetic Magicians follow the Western tradition of ceremonial magic, treating the Awakened world as a logical system to be understood through ritual and force of will. They can cast spells <em>and</em> summon and bind Elementals. Their magical tests are linked to Intelligence.</p><p>Hermetic Magicians have full access to astral space.</p><p><em>SR2E p.157</em></p>"
+        "description": "<p>Hermetic Magicians follow the Western tradition of ceremonial magic, treating the Awakened world as a logical system to be understood through ritual and force of will. They can cast spells <em>and</em> summon and bind Elementals. Their magical tests are linked to Intelligence.</p><p>Hermetic Magicians have full access to astral space.</p><p><em>SR2E p.157</em></p>",
+        "citation": {
+          "book": "sr2",
+          "page": "157"
+        }
       },
       "effects": [],
       "flags": {},
@@ -774,7 +786,11 @@
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting—the samurai's sidearm of choice."
+        "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting—the samurai's sidearm of choice.",
+        "citation": {
+          "book": "sr2",
+          "page": "231"
+        }
       },
       "effects": [],
       "flags": {},
@@ -810,7 +826,11 @@
         "legality": "Legal",
         "equipped": true,
         "isLayered": false,
-        "notes": "SR2E p.242. A variety of styles from trenchcoat to duster, lined with protective composite material. Popular among runners."
+        "notes": "SR2E p.242. A variety of styles from trenchcoat to duster, lined with protective composite material. Popular among runners.",
+        "citation": {
+          "book": "sr2",
+          "page": "242"
+        }
       },
       "effects": [],
       "flags": {},

@@ -10,7 +10,11 @@
     "multiplier": 1,
     "cost": 100,
     "loaded": false,
-    "notes": "SR2E p.176. Sensor utility: locates files in a datastore matching a subject; successes reduce the 10-turn base search time."
+    "notes": "SR2E p.176. Sensor utility: locates files in a datastore matching a subject; successes reduce the 10-turn base search time.",
+    "citation": {
+      "book": "sr2",
+      "page": "176"
+    }
   },
   "effects": [],
   "flags": {},

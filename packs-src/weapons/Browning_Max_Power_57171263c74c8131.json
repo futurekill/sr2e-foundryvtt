@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.231. The main competitor to the Ares Predator. Heavy frame, hard-hitting—the samurai's sidearm of choice.",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "231"
+    }
   },
   "effects": [],
   "flags": {},

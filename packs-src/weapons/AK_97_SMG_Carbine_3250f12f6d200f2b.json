@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SMG/carbine variant of the AK-97 (SR2E p.94). Shorter-ranged than the assault rifle; SA/BF/FA.",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "94"
+    }
   },
   "effects": [],
   "flags": {},

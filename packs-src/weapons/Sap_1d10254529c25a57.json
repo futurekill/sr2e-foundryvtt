@@ -35,7 +35,11 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E Melee Weapons Table p.101: (Str+2)M Stun, Reach 0, Concealability 8, 10¥."
+    "notes": "SR2E Melee Weapons Table p.101: (Str+2)M Stun, Reach 0, Concealability 8, 10¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "101"
+    }
   },
   "effects": [],
   "flags": {},

@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "SR2E p.154. Raises one Physical or Mental Attribute, or Reaction, by +3 while sustained. TN = 2 × the Attribute's rating; one success suffices; +4 TN if the Attribute is already magically boosted (e.g. a physical adept). Each Attribute is its own spell (learn e.g. Increase Strength +3: rename the copy). Doesn't affect an Attribute changed by cyberware (use Increase Cybered [Attribute]) and doesn't stack with another Increase spell on the same Attribute. Increase Reaction +3: Drain one level higher, ((F / 2) + 1)D; it raises only the Reaction Rating."
+    "notes": "SR2E p.154. Raises one Physical or Mental Attribute, or Reaction, by +3 while sustained. TN = 2 × the Attribute's rating; one success suffices; +4 TN if the Attribute is already magically boosted (e.g. a physical adept). Each Attribute is its own spell (learn e.g. Increase Strength +3: rename the copy). Doesn't affect an Attribute changed by cyberware (use Increase Cybered [Attribute]) and doesn't stack with another Increase spell on the same Attribute. Increase Reaction +3: Drain one level higher, ((F / 2) + 1)D; it raises only the Reaction Rating.",
+    "citation": {
+      "book": "sr2",
+      "page": "154"
+    }
   },
   "effects": [
     {

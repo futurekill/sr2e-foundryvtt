@@ -18,7 +18,11 @@
     "sustaining": false,
     "sustainedForce": 0,
     "spellLocked": false,
-    "notes": "Increases the voluntary subject's Initiative dice by +3 while sustained (SR2 p.157, Table of Spells). No cybered version: characters with cybernetic initiative enhancement (e.g. wired reflexes) cannot be boosted. Sustain it on a Spell Lock focus to hold it with no sustaining penalty."
+    "notes": "Increases the voluntary subject's Initiative dice by +3 while sustained (SR2 p.157, Table of Spells). No cybered version: characters with cybernetic initiative enhancement (e.g. wired reflexes) cannot be boosted. Sustain it on a Spell Lock focus to hold it with no sustaining penalty.",
+    "citation": {
+      "book": "sr2",
+      "page": "157"
+    }
   },
   "effects": [
     {

@@ -15,7 +15,11 @@
     "concealability": 10,
     "notes": "SR2E p.240. Shock-absorbing pads for the rigid shoulder stock (not folding) of a rifle, assault rifle or shotgun, or the hip brace of a heavy automatic weapon: 1 point of recoil compensation.",
     "weaponAccessory": true,
-    "accessoryRecoilComp": 1
+    "accessoryRecoilComp": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "240"
+    }
   },
   "effects": [],
   "flags": {},

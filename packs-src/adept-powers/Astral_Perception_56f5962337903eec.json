@@ -14,7 +14,11 @@
       "strength": 0,
       "reaction": 0
     },
-    "notes": "SR2E p.124. Flat cost 2 pts. See astral plane; no projection. Can use Sorcery for astral combat but cannot cast spells."
+    "notes": "SR2E p.124. Flat cost 2 pts. See astral plane; no projection. Can use Sorcery for astral combat but cannot cast spells.",
+    "citation": {
+      "book": "sr2",
+      "page": "124"
+    }
   },
   "effects": [],
   "folder": null,

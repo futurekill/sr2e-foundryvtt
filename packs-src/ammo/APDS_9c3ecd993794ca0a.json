@@ -12,7 +12,11 @@
     "notes": "Armor-piercing discarding sabot: halves the target's Ballistic Armor Rating. SSC p.63.",
     "damageType": "",
     "armorCalc": "half_ballistic",
-    "streetIndex": 4
+    "streetIndex": 4,
+    "citation": {
+      "book": "ssc",
+      "page": "63"
+    }
   },
   "effects": [],
   "flags": {},

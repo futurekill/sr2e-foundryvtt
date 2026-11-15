@@ -11,7 +11,11 @@
     "concealability": 0,
     "reach": 0,
     "cost": 0,
-    "notes": "SR2E Melee Weapons table (p.255) and p.100–101: unarmed attacks do (Str)M Stun and use the Unarmed Combat skill. Resolved as opposed melee. Every character gets this attack automatically; adepts with Killing Hands replace the damage per their power."
+    "notes": "SR2E Melee Weapons table (p.255) and p.100–101: unarmed attacks do (Str)M Stun and use the Unarmed Combat skill. Resolved as opposed melee. Every character gets this attack automatically; adepts with Killing Hands replace the damage per their power.",
+    "citation": {
+      "book": "sr2",
+      "page": "255"
+    }
   },
   "effects": [],
   "flags": {},

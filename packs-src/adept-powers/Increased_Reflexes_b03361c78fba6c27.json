@@ -15,7 +15,11 @@
       "reaction": 0,
       "initiativeDice": 1
     },
-    "notes": "SR2E p.126. +1d6 Initiative. Cost: 1 pt."
+    "notes": "SR2E p.126. +1d6 Initiative. Cost: 1 pt.",
+    "citation": {
+      "book": "sr2",
+      "page": "126"
+    }
   },
   "effects": [],
   "folder": null,

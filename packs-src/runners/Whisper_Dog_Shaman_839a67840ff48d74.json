@@ -415,7 +415,11 @@
         "damageCode": "",
         "isAreaEffect": false,
         "isVoluntary": false,
-        "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits."
+        "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits.",
+        "citation": {
+          "book": "sr2",
+          "page": "184"
+        }
       },
       "effects": [],
       "flags": {},
@@ -605,7 +609,11 @@
         "damageCode": "",
         "isAreaEffect": false,
         "isVoluntary": false,
-        "notes": "SR2E p.185. Stabilizes a dying character."
+        "notes": "SR2E p.185. Stabilizes a dying character.",
+        "citation": {
+          "book": "sr2",
+          "page": "185"
+        }
       },
       "effects": [],
       "flags": {},
@@ -637,7 +645,11 @@
         "loyalty": 1,
         "influence": 2,
         "description": "",
-        "notes": "SR2E p.41. Magical assistance and hermetic/shamanic services."
+        "notes": "SR2E p.41. Magical assistance and hermetic/shamanic services.",
+        "citation": {
+          "book": "sr2",
+          "page": "41"
+        }
       },
       "effects": [],
       "flags": {},
@@ -695,7 +707,11 @@
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.230. A tiny hold-out pistol small enough to palm. Fires two rounds, SS mode only. Extremely concealable."
+        "notes": "SR2E p.230. A tiny hold-out pistol small enough to palm. Fires two rounds, SS mode only. Extremely concealable.",
+        "citation": {
+          "book": "sr2",
+          "page": "230"
+        }
       },
       "effects": [],
       "flags": {},
@@ -731,7 +747,11 @@
         "legality": "Legal",
         "equipped": true,
         "isLayered": false,
-        "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives—stylish and protective."
+        "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives—stylish and protective.",
+        "citation": {
+          "book": "sr2",
+          "page": "242"
+        }
       },
       "effects": [],
       "flags": {},

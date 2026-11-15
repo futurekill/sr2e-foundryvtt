@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "Assault rifle with an integral grenade launcher. SR2E p.254-255.",
-    "streetIndex": 4
+    "streetIndex": 4,
+    "citation": {
+      "book": "sr2",
+      "page": "254–255"
+    }
   },
   "effects": [],
   "flags": {},

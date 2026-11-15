@@ -24,7 +24,11 @@
       "max": 10
     },
     "autonav": 0,
-    "notes": "<p>A rotor surveillance drone with thermographic and low-light video scanners.</p><p><em>Core book p.265: Speed 70.</em></p>"
+    "notes": "<p>A rotor surveillance drone with thermographic and low-light video scanners.</p><p><em>Core book p.265: Speed 70.</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "265"
+    }
   },
   "items": [],
   "effects": [],

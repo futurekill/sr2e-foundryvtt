@@ -14,7 +14,11 @@
       "strength": 0,
       "reaction": 1
     },
-    "notes": "SR2E p.126. +level Reaction (no extra Initiative dice). Cost/pt: ≤½ racial max 0.5, ≤racial max 1, ≤1.5× racial max 2. Level = total bonus pts purchased."
+    "notes": "SR2E p.126. +level Reaction (no extra Initiative dice). Cost/pt: ≤½ racial max 0.5, ≤racial max 1, ≤1.5× racial max 2. Level = total bonus pts purchased.",
+    "citation": {
+      "book": "sr2",
+      "page": "126"
+    }
   },
   "effects": [],
   "folder": null,

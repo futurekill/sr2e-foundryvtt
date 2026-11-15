@@ -18,7 +18,11 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "External storage. Cost = 20¥ × Mp. SR2E p.259."
+    "notes": "External storage. Cost = 20¥ × Mp. SR2E p.259.",
+    "citation": {
+      "book": "sr2",
+      "page": "259"
+    }
   },
   "effects": [],
   "flags": {},

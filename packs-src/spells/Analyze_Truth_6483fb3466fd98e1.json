@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "A hypersense spell. The magician can tell whether a target's statement is the truth or not. The target makes a Spell Resistance Test using his Willpower Rating against the force of the spell to reduce the spellcaster's successes. The caster needs at least 1 success to determine validity. The spell does not work on written materials. The magician must hear a statement to know if it is true or not."
+    "notes": "A hypersense spell. The magician can tell whether a target's statement is the truth or not. The target makes a Spell Resistance Test using his Willpower Rating against the force of the spell to reduce the spellcaster's successes. The caster needs at least 1 success to determine validity. The spell does not work on written materials. The magician must hear a statement to know if it is true or not.",
+    "citation": {
+      "book": "sr2",
+      "page": "153"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/analyze-truth.webp",
   "effects": [],

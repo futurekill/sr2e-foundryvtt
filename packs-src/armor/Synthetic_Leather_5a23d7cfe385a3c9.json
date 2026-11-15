@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": false,
     "notes": "Synth-leather clothing — light impact protection. SR2E p.257.",
-    "streetIndex": 0.6
+    "streetIndex": 0.6,
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

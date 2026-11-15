@@ -24,7 +24,11 @@
     },
     "notes": "SR2E p.247 (table p.261, 'Cyber Limb'). Full cyberleg. Essence 1, 100,000¥. Increased Strength +Rating×150,000¥; built-in smartlink +.25 Essence/+2,500¥.",
     "limbType": "leg",
-    "side": "unknown"
+    "side": "unknown",
+    "citation": {
+      "book": "sr2",
+      "page": "249"
+    }
   },
   "effects": [],
   "flags": {},

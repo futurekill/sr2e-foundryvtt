@@ -8,7 +8,11 @@
     "monthlyCost": 5000,
     "monthsPaid": 1,
     "description": "",
-    "notes": "SR2E p.46 (Cost of Extras); described p.44. Apartment in a decent arcology or condo."
+    "notes": "SR2E p.46 (Cost of Extras); described p.44. Apartment in a decent arcology or condo.",
+    "citation": {
+      "book": "sr2",
+      "page": "189"
+    }
   },
   "effects": [],
   "flags": {},

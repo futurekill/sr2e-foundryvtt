@@ -14,7 +14,11 @@
     "equipped": false,
     "concealability": 6,
     "streetIndex": 1.5,
-    "notes": "Vision Enhancers, SR2E p.257. Standard goggles, 20x magnification. Low-light (+500¥) and thermographic (+700¥) options are separate items."
+    "notes": "Vision Enhancers, SR2E p.257. Standard goggles, 20x magnification. Low-light (+500¥) and thermographic (+700¥) options are separate items.",
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

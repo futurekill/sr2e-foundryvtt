@@ -15,7 +15,11 @@
     "concealability": 10,
     "notes": "SR2E p.241, p.90. Top- or under-barrel mount; makes the weapon a smartweapon: −2 TN with a smartlink, −1 with smart goggles; dead weight without a receptor. −2 Concealability. Transferable between weapons with one hour of maintenance and alignment.",
     "weaponAccessory": true,
-    "grantsSmartgun": true
+    "grantsSmartgun": true,
+    "citation": {
+      "book": "sr2",
+      "page": "241"
+    }
   },
   "effects": [],
   "flags": {},

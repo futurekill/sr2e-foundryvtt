@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.233. Colt's high-velocity assault carbine. A standard-issue weapon for corporate strike teams and NAN border troops.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "233"
+    }
   },
   "effects": [],
   "flags": {},

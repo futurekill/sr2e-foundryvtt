@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "SR2E p.242. Corporate-grade lined coat with enhanced ballistic and impact protection."
+    "notes": "SR2E p.242. Corporate-grade lined coat with enhanced ballistic and impact protection.",
+    "citation": {
+      "book": "sr2",
+      "page": "242"
+    }
   },
   "effects": [],
   "flags": {},

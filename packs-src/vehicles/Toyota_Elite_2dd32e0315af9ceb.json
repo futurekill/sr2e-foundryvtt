@@ -24,7 +24,11 @@
       "max": 10
     },
     "autonav": 4,
-    "notes": "<p>A luxury sedan with discreet armor options.</p><p><em>Core book p.264: Speed 40/120 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>"
+    "notes": "<p>A luxury sedan with discreet armor options.</p><p><em>Core book p.264: Speed 40/120 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "264"
+    }
   },
   "items": [],
   "effects": [],

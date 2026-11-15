@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": false,
     "notes": "Everyday clothing; no armour value. SR2E p.257.",
-    "streetIndex": 0.8
+    "streetIndex": 0.8,
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

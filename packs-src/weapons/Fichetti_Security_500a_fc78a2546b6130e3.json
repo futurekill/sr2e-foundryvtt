@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "Extended-clip variant of the Security 500. SR2E p.254-255.",
-    "streetIndex": 0.8
+    "streetIndex": 0.8,
+    "citation": {
+      "book": "sr2",
+      "page": "254–255"
+    }
   },
   "effects": [],
   "flags": {},

@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": false,
     "notes": "SR2E p.242. Military-grade partial plate suit. Rigidly protective, obviously military. Includes helmet. Heavy armor: reduces the Combat Pool by 1 die per point of Ballistic over the wearer's Quickness (SR2E p.84).",
-    "heavyArmor": true
+    "heavyArmor": true,
+    "citation": {
+      "book": "sr2",
+      "page": "84"
+    }
   },
   "effects": [],
   "flags": {},

@@ -8,7 +8,11 @@
     "monthlyCost": 10000,
     "monthsPaid": 1,
     "description": "",
-    "notes": "SR2E p.46 (Cost of Extras); described p.44. High-rise condo or luxury apartment."
+    "notes": "SR2E p.46 (Cost of Extras); described p.44. High-rise condo or luxury apartment.",
+    "citation": {
+      "book": "sr2",
+      "page": "189"
+    }
   },
   "effects": [],
   "flags": {},

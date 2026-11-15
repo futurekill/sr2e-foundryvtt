@@ -24,7 +24,11 @@
     },
     "ratingStats": [],
     "notes": "Cosmetic cybereye styling (colour, glow, etc.). SR2E p.260.",
-    "streetIndex": "0.75"
+    "streetIndex": "0.75",
+    "citation": {
+      "book": "sr2",
+      "page": "260"
+    }
   },
   "effects": [],
   "flags": {},

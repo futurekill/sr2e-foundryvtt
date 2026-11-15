@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "A cheap, easily-hidden hold-out pistol. SR2E p.254-255.",
-    "streetIndex": 0.75
+    "streetIndex": 0.75,
+    "citation": {
+      "book": "sr2",
+      "page": "254–255"
+    }
   },
   "effects": [],
   "flags": {},

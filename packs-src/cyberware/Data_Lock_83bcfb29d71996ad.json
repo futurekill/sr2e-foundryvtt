@@ -23,7 +23,11 @@
       "initiativeDice": 0
     },
     "notes": "SR2E p.244 (table p.260). Head memory accessible only via external jack + access code. Essence .2, 1,000¥.",
-    "streetIndex": "1.5"
+    "streetIndex": "1.5",
+    "citation": {
+      "book": "sr2",
+      "page": "260"
+    }
   },
   "effects": [],
   "flags": {},

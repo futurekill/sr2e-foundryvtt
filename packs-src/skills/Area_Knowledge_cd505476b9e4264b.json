@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Specific region/city."
+    "notes": "Specific region/city.",
+    "citation": {
+      "book": "sr2",
+      "page": "73"
+    }
   },
   "effects": [],
   "flags": {},

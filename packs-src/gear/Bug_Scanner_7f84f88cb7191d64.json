@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "Detects surveillance bugs and taps. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 500¥ x Rating (p.258).",
     "streetIndex": 1.5,
-    "costPerRating": 500
+    "costPerRating": 500,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

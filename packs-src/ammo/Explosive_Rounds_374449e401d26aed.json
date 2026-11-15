@@ -12,7 +12,11 @@
     "notes": "Power +1. Misfires on an all-1s Attack Test: the shooter resists the weapon's normal Damage Code with no Combat Pool. SR2E p.93.",
     "damageType": "",
     "armorCalc": "standard",
-    "streetIndex": 0.8
+    "streetIndex": 0.8,
+    "citation": {
+      "book": "sr2",
+      "page": "93"
+    }
   },
   "effects": [],
   "flags": {},

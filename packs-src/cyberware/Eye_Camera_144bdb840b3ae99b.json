@@ -24,7 +24,11 @@
     },
     "ratingStats": [],
     "notes": "Cybereye still/video camera. SR2E p.260.",
-    "streetIndex": "2"
+    "streetIndex": "2",
+    "citation": {
+      "book": "sr2",
+      "page": "260"
+    }
   },
   "effects": [],
   "flags": {},

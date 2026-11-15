@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.240. Custom-fitted for hip, small of the back, underarm, forearm or ankle carry. Adds +2 to the Concealability of a pistol (spotting a concealed weapon is a Perception Test against its Concealability)."
+    "notes": "SR2E p.240. Custom-fitted for hip, small of the back, underarm, forearm or ankle carry. Adds +2 to the Concealability of a pistol (spotting a concealed weapon is a Perception Test against its Concealability).",
+    "citation": {
+      "book": "sr2",
+      "page": "240"
+    }
   },
   "effects": [],
   "flags": {},

@@ -29,7 +29,11 @@
     "skill": "armed combat",
     "damageType": "physical",
     "reach": 0,
-    "damageCode": "(Str+2)M"
+    "damageCode": "(Str+2)M",
+    "citation": {
+      "book": "sr2",
+      "page": "249"
+    }
   },
   "effects": [],
   "flags": {},

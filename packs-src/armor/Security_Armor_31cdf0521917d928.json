@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": false,
-    "notes": "SR2E p.242. Purpose-built armor for corporate security and law enforcement. Partial or full suit options."
+    "notes": "SR2E p.242. Purpose-built armor for corporate security and law enforcement. Partial or full suit options.",
+    "citation": {
+      "book": "sr2",
+      "page": "242"
+    }
   },
   "effects": [],
   "flags": {},

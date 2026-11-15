@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "SR2E p.155. Like Increase [Attribute] +1, but for an Attribute already affected by cybernetics: +1 while sustained. Physical; TN = 2 × the Attribute's rating, one success suffices. Each Attribute is its own spell (learn e.g. Increase Cybered Strength +1: rename the copy). The Reaction version's Drain is one Damage Level higher, as for Increase Attribute; Increase Cybered Reaction +4 is ((F / 2) + 5)D."
+    "notes": "SR2E p.155. Like Increase [Attribute] +1, but for an Attribute already affected by cybernetics: +1 while sustained. Physical; TN = 2 × the Attribute's rating, one success suffices. Each Attribute is its own spell (learn e.g. Increase Cybered Strength +1: rename the copy). The Reaction version's Drain is one Damage Level higher, as for Increase Attribute; Increase Cybered Reaction +4 is ((F / 2) + 5)D.",
+    "citation": {
+      "book": "sr2",
+      "page": "155"
+    }
   },
   "effects": [
     {

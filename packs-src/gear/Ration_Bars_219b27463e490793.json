@@ -18,7 +18,11 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Compact field rations. SR2E p.258."
+    "notes": "Compact field rations. SR2E p.258.",
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

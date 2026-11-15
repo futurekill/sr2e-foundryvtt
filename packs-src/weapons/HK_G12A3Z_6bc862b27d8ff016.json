@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.233. The H&K caseless rifle system. Advanced design with programmable burst mode; ammunition is proprietary.",
-    "streetIndex": 3
+    "streetIndex": 3,
+    "citation": {
+      "book": "sr2",
+      "page": "233"
+    }
   },
   "effects": [],
   "flags": {},

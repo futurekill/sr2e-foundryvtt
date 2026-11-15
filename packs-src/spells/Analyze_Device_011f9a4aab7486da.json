@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": true,
-    "notes": "A speciﬁc hypersense spell requiring a voluntary subject. The magician can analyze the purpose and basic operation of a device or piece of equipment. The magician's previous familiarity with the device or similar objects reduces the target number by -2. The base target number for this spell is based on the object's resistance."
+    "notes": "A speciﬁc hypersense spell requiring a voluntary subject. The magician can analyze the purpose and basic operation of a device or piece of equipment. The magician's previous familiarity with the device or similar objects reduces the target number by -2. The base target number for this spell is based on the object's resistance.",
+    "citation": {
+      "book": "sr2",
+      "page": "153"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/analyze-device.webp",
   "effects": [],

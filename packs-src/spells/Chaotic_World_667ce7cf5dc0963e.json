@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": true,
     "isVoluntary": false,
-    "notes": "This is an area-effect version of the Chaos spell."
+    "notes": "This is an area-effect version of the Chaos spell.",
+    "citation": {
+      "book": "sr2",
+      "page": "155"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/chaotic-world.webp",
   "effects": [],

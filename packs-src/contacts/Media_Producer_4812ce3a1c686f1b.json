@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 1,
     "description": "",
-    "notes": "SR2E p.209. An entertainment entrepreneur who draws a very fine line between news information and entertainment. Knows what is newsworthy, and how to present a story in a way that will not leave anybody too upset. Broadcasting is a business, after all. Full stat block: see the \"Media Producer\" actor in the SR2E Contacts (NPCs) compendium."
+    "notes": "SR2E p.209. An entertainment entrepreneur who draws a very fine line between news information and entertainment. Knows what is newsworthy, and how to present a story in a way that will not leave anybody too upset. Broadcasting is a business, after all. Full stat block: see the \"Media Producer\" actor in the SR2E Contacts (NPCs) compendium.",
+    "citation": {
+      "book": "sr2",
+      "page": "209"
+    }
   },
   "effects": [],
   "flags": {},

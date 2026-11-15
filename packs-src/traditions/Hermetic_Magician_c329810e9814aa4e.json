@@ -7,7 +7,11 @@
     "magicType": "full_magician",
     "tradition": "hermetic",
     "skill": "both",
-    "description": "<p>Hermetic Magicians follow the Western tradition of ceremonial magic, treating the Awakened world as a logical system to be understood through ritual and force of will. They can cast spells <em>and</em> summon and bind Elementals. Their magical tests are linked to Intelligence.</p><p>Hermetic Magicians have full access to astral space.</p><p><em>SR2E p.157</em></p>"
+    "description": "<p>Hermetic Magicians follow the Western tradition of ceremonial magic, treating the Awakened world as a logical system to be understood through ritual and force of will. They can cast spells <em>and</em> summon and bind Elementals. Their magical tests are linked to Intelligence.</p><p>Hermetic Magicians have full access to astral space.</p><p><em>SR2E p.157</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "157"
+    }
   },
   "effects": [],
   "flags": {},

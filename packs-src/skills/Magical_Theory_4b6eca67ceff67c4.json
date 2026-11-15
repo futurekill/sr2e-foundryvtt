@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Academic knowledge of magic and hermetic theory."
+    "notes": "Academic knowledge of magic and hermetic theory.",
+    "citation": {
+      "book": "sr2",
+      "page": "73"
+    }
   },
   "effects": [],
   "flags": {},

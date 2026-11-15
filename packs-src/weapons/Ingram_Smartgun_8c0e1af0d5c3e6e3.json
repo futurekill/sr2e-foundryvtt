@@ -35,7 +35,11 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.232. A compact smartgun-ready SMG. Integral smartgun system adds +2 dice when used with a smartlink."
+    "notes": "SR2E p.232. A compact smartgun-ready SMG. Integral smartgun system adds +2 dice when used with a smartlink.",
+    "citation": {
+      "book": "sr2",
+      "page": "232"
+    }
   },
   "effects": [],
   "flags": {},

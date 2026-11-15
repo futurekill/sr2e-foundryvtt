@@ -15,7 +15,11 @@
     "concealability": 3,
     "weight": 0.5,
     "availability": "6/36 hrs",
-    "notes": "Taser dart, per 10. Damage is Special — see the taser rules. AMMUNITION table, SR2E p.256."
+    "notes": "Taser dart, per 10. Damage is Special — see the taser rules. AMMUNITION table, SR2E p.256.",
+    "citation": {
+      "book": "sr2",
+      "page": "256"
+    }
   },
   "effects": [],
   "flags": {},

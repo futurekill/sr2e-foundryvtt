@@ -7,7 +7,11 @@
     "magicType": "magical_adept",
     "tradition": "hermetic",
     "skill": "sorcery",
-    "description": "<p>A Hermetic Sorcerer is a Magical Adept who follows the Hermetic tradition and specialises entirely in Sorcery. They can cast spells but <strong>cannot</strong> summon or bind Elementals. They follow all normal Hermetic rules for spellcasting and spell learning.</p><p>Magical Adepts have <strong>no access to astral space</strong> whatsoever — neither astral perception nor astral projection.</p><p><em>SR2E p.163</em></p>"
+    "description": "<p>A Hermetic Sorcerer is a Magical Adept who follows the Hermetic tradition and specialises entirely in Sorcery. They can cast spells but <strong>cannot</strong> summon or bind Elementals. They follow all normal Hermetic rules for spellcasting and spell learning.</p><p>Magical Adepts have <strong>no access to astral space</strong> whatsoever — neither astral perception nor astral projection.</p><p><em>SR2E p.163</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "163"
+    }
   },
   "effects": [],
   "flags": {},

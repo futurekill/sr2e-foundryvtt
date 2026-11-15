@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": true,
     "isVoluntary": true,
-    "notes": "This area-effect spell requires voluntary subjects. It creates obvious, but entertaining, illusions for all who wish to watch. The number of successes measures how entertaining the audience ﬁnds the illusion."
+    "notes": "This area-effect spell requires voluntary subjects. It creates obvious, but entertaining, illusions for all who wish to watch. The number of successes measures how entertaining the audience ﬁnds the illusion.",
+    "citation": {
+      "book": "sr2",
+      "page": "156"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/entertainment.webp",
   "effects": [],

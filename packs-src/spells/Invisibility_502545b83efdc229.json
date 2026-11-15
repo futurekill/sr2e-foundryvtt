@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "The spellcaster must touch the subject, who becomes invisible to normal light. Thermographic vision can still detect body heat, and the subject is completely tangible and detectable to the senses of hearing, smell, and so forth. Double the number of successes to get the target number for an observer's Perception Test. A successful Perception Test means that the invisible person or thing has been noticed. The spell does not affect technological sensing systems (not including cybereyes which are considered natural because of the Essence Cost paid)."
+    "notes": "The spellcaster must touch the subject, who becomes invisible to normal light. Thermographic vision can still detect body heat, and the subject is completely tangible and detectable to the senses of hearing, smell, and so forth. Double the number of successes to get the target number for an observer's Perception Test. A successful Perception Test means that the invisible person or thing has been noticed. The spell does not affect technological sensing systems (not including cybereyes which are considered natural because of the Essence Cost paid).",
+    "citation": {
+      "book": "sr2",
+      "page": "156"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/invisibility.webp",
   "effects": [],

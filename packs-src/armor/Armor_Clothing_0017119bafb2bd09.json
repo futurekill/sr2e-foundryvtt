@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": false,
     "notes": "SR2E p.242. The prime choice for an everyday stroll on the streets. Fashion-forward KevlarTM derivatives—stylish and protective.",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "242"
+    }
   },
   "effects": [],
   "flags": {},

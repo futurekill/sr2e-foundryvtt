@@ -35,7 +35,11 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.232. A Heckler & Koch SMG-pistol hybrid. Compact and reliable, popular with bodyguard teams."
+    "notes": "SR2E p.232. A Heckler & Koch SMG-pistol hybrid. Compact and reliable, popular with bodyguard teams.",
+    "citation": {
+      "book": "sr2",
+      "page": "232"
+    }
   },
   "effects": [],
   "flags": {},

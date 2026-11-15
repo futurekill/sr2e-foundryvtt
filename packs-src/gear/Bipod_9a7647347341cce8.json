@@ -16,7 +16,11 @@
     "notes": "SR2E p.240. Two-legged under-barrel brace: 2 points of recoil compensation, but only when set up — fired low to the ground from a sitting or lying position (tick 'deployed' in the attack dialog). Does not affect Concealability. Freely removable and transferable between weapons.",
     "weaponAccessory": true,
     "accessoryRecoilComp": 2,
-    "requiresDeployment": true
+    "requiresDeployment": true,
+    "citation": {
+      "book": "sr2",
+      "page": "240"
+    }
   },
   "effects": [],
   "flags": {},

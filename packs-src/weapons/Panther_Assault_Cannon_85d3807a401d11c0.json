@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.234. The Ares Panther is the definitive assault cannon—fires explosive-equivalent shells with limited armor-piercing capability.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "234"
+    }
   },
   "effects": [],
   "flags": {},

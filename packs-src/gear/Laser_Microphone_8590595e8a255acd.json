@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "Reads audio off a vibrating surface at range. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 1,500¥ x Rating (p.258).",
     "streetIndex": 1.5,
-    "costPerRating": 1500
+    "costPerRating": 1500,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

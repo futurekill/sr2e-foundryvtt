@@ -23,6 +23,10 @@
       "storageMemory": 500,
       "ioSpeed": 20,
       "loadSpeed": 20
+    },
+    "citation": {
+      "book": "sr2",
+      "page": "262"
     }
   },
   "effects": [],

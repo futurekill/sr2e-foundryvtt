@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 2,
     "description": "",
-    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Law enforcement contact. Dangerous relationship."
+    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Law enforcement contact. Dangerous relationship.",
+    "citation": {
+      "book": "none",
+      "page": ""
+    }
   },
   "effects": [],
   "flags": {},

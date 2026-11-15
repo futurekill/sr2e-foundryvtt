@@ -19,7 +19,11 @@
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
     "notes": "A trackable tag beacon. Priced 100¥ x Concealability (p.258) — at the printed Concealability 3 that is 300¥. Recompute by hand if a GM changes its Concealability. SR2E p.258.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

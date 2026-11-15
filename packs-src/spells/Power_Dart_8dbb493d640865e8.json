@@ -15,7 +15,11 @@
     "isAreaEffect": false,
     "isVoluntary": false,
     "notes": "A small dart of magical power that does Physical damage.",
-    "damageType": "physical"
+    "damageType": "physical",
+    "citation": {
+      "book": "sr2",
+      "page": "151"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/power-dart.webp",
   "effects": [],

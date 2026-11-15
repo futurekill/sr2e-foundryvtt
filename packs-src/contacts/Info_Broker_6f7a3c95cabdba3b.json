@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 3,
     "description": "",
-    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Data, gossip, and secrets for nuyen."
+    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Data, gossip, and secrets for nuyen.",
+    "citation": {
+      "book": "none",
+      "page": ""
+    }
   },
   "effects": [],
   "flags": {},

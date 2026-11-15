@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Knowledge of the shadows and its denizens."
+    "notes": "Knowledge of the shadows and its denizens.",
+    "citation": {
+      "book": "sr2",
+      "page": "73"
+    }
   },
   "effects": [],
   "flags": {},

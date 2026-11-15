@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "Assault rifle (SR2E p.94). The ubiquitous Soviet-derived assault rifle; a separate SMG/carbine variant also exists. SA/BF/FA.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "94"
+    }
   },
   "effects": [],
   "flags": {},

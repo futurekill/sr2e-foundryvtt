@@ -26,7 +26,11 @@
     },
     "ratingStats": [],
     "notes": "SR2E p.247. Prosthetic cybereyes (base 0.2 Essence). They accept vision-enhancement modules up to 0.5 Essence at no further cost; only module essence beyond that adds to the total. Toggle the modules your eyes carry below.",
-    "streetIndex": "0.75"
+    "streetIndex": "0.75",
+    "citation": {
+      "book": "sr2",
+      "page": "247"
+    }
   },
   "effects": [],
   "flags": {},

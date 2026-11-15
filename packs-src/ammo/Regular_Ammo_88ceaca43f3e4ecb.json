@@ -12,7 +12,11 @@
     "notes": "Standard rounds. SR2E p.93.",
     "damageType": "",
     "armorCalc": "standard",
-    "streetIndex": 0.75
+    "streetIndex": 0.75,
+    "citation": {
+      "book": "sr2",
+      "page": "93"
+    }
   },
   "effects": [],
   "flags": {},

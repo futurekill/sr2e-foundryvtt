@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 1,
     "description": "",
-    "notes": "SR2E p.210. May not look the same the next time you see him, and may not even be a he. The generic slang term for a corporate-insider contact. He has the bucks and he has the jobs — and a private army to hunt you down if you cross him. Full stat block: see the \"Mr. Johnson\" actor in the SR2E Contacts (NPCs) compendium."
+    "notes": "SR2E p.210. May not look the same the next time you see him, and may not even be a he. The generic slang term for a corporate-insider contact. He has the bucks and he has the jobs — and a private army to hunt you down if you cross him. Full stat block: see the \"Mr. Johnson\" actor in the SR2E Contacts (NPCs) compendium.",
+    "citation": {
+      "book": "sr2",
+      "page": "210"
+    }
   },
   "effects": [],
   "flags": {},

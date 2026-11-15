@@ -23,7 +23,11 @@
       "initiativeDice": 2
     },
     "ratingStats": [],
-    "notes": "SR2E p.247 (table p.261). Implanted neural boosters and adrenaline stimulators: each level adds +2 Reaction and +1D6 Initiative. Level 2: +4 Reaction, +2D6; Essence 3, 165,000¥."
+    "notes": "SR2E p.247 (table p.261). Implanted neural boosters and adrenaline stimulators: each level adds +2 Reaction and +1D6 Initiative. Level 2: +4 Reaction, +2D6; Essence 3, 165,000¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

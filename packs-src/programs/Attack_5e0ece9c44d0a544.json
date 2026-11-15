@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.262. Utility program: deals damage to IC and hostile programs in the Matrix."
+    "notes": "SR2E p.262. Utility program: deals damage to IC and hostile programs in the Matrix.",
+    "citation": {
+      "book": "sr2",
+      "page": "262"
+    }
   },
   "effects": [],
   "flags": {},

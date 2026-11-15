@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": false,
     "notes": "Real-leather clothing — modest impact protection, social cachet. SR2E p.257.",
-    "streetIndex": 0.75
+    "streetIndex": 0.75,
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

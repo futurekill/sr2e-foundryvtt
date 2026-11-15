@@ -28,7 +28,11 @@
       "low_light_vision"
     ],
     "karmaCost": 0,
-    "description": "<p>Orks are large, powerfully built metahumans with exceptional physical attributes. They see in low-light conditions and are the most numerous non-human metatype in most urban centres.</p><p><strong>Racial Abilities:</strong> Low-Light Vision.</p><p><strong>Attribute Modifiers:</strong> Body +3, Strength +2, Charisma –1, Intelligence –1.</p><p><em>SR2E p.45</em></p>"
+    "description": "<p>Orks are large, powerfully built metahumans with exceptional physical attributes. They see in low-light conditions and are the most numerous non-human metatype in most urban centres.</p><p><strong>Racial Abilities:</strong> Low-Light Vision.</p><p><strong>Attribute Modifiers:</strong> Body +3, Strength +2, Charisma –1, Intelligence –1.</p><p><em>SR2E p.45</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "45"
+    }
   },
   "effects": [],
   "flags": {},

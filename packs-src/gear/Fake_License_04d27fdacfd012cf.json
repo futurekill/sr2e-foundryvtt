@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.249. Documentation for restricted or concealed equipment. Required for carrying weapons or restricted cyberware."
+    "notes": "SR2E p.249. Documentation for restricted or concealed equipment. Required for carrying weapons or restricted cyberware.",
+    "citation": {
+      "book": "sr2",
+      "page": "249"
+    }
   },
   "effects": [],
   "flags": {},

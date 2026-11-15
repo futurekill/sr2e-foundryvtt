@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Extracting information from an unwilling subject; uses the subject's Willpower as the target number (SR2 p.83)."
+    "notes": "Extracting information from an unwilling subject; uses the subject's Willpower as the target number (SR2 p.83).",
+    "citation": {
+      "book": "sr2",
+      "page": "83"
+    }
   },
   "effects": [],
   "flags": {},

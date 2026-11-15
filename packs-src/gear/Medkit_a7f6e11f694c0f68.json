@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.250. A 2053 medkit with expert system (Biotech 3). Drug supplies, bandages, and diagnostic AI."
+    "notes": "SR2E p.250. A 2053 medkit with expert system (Biotech 3). Drug supplies, bandages, and diagnostic AI.",
+    "citation": {
+      "book": "sr2",
+      "page": "250"
+    }
   },
   "effects": [],
   "flags": {},

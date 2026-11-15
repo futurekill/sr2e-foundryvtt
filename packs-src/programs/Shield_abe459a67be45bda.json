@@ -10,7 +10,11 @@
     "multiplier": 4,
     "cost": 400,
     "loaded": false,
-    "notes": "SR2E p.175. Defense utility: automatically stops a number of Matrix wounds equal to its rating; loses 1 rating point each time it absorbs damage."
+    "notes": "SR2E p.175. Defense utility: automatically stops a number of Matrix wounds equal to its rating; loses 1 rating point each time it absorbs damage.",
+    "citation": {
+      "book": "sr2",
+      "page": "175"
+    }
   },
   "effects": [],
   "flags": {},

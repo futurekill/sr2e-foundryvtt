@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Knowledge of criminal organizations."
+    "notes": "Knowledge of criminal organizations.",
+    "citation": {
+      "book": "sr2",
+      "page": "73"
+    }
   },
   "effects": [],
   "flags": {},

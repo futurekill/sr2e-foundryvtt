@@ -416,7 +416,11 @@
           "reaction": 0,
           "initiativeDice": 1
         },
-        "notes": "SR2E p.126. +1d6 Initiative. Cost: 1 pt."
+        "notes": "SR2E p.126. +1d6 Initiative. Cost: 1 pt.",
+        "citation": {
+          "book": "sr2",
+          "page": "126"
+        }
       },
       "effects": [],
       "flags": {},
@@ -453,7 +457,11 @@
           "strength": 0,
           "reaction": 0
         },
-        "notes": "SR2E p.126. Unarmed attacks deal (STR)M Physical damage. Effective vs. critters with weapon immunity. Cost: 1 pt."
+        "notes": "SR2E p.126. Unarmed attacks deal (STR)M Physical damage. Effective vs. critters with weapon immunity. Cost: 1 pt.",
+        "citation": {
+          "book": "sr2",
+          "page": "126"
+        }
       },
       "effects": [],
       "flags": {},
@@ -490,7 +498,11 @@
           "strength": 0,
           "reaction": 0
         },
-        "notes": "SR2E p.124. +1 Combat Pool die. Can spend Combat Pool dice to assist Reaction Tests in surprise situations."
+        "notes": "SR2E p.124. +1 Combat Pool die. Can spend Combat Pool dice to assist Reaction Tests in surprise situations.",
+        "citation": {
+          "book": "sr2",
+          "page": "124"
+        }
       },
       "effects": [],
       "flags": {},
@@ -528,7 +540,11 @@
           "reaction": 0
         },
         "notes": "SR2E p.125. Extra dice for a specific skill. Cost/die: Athletic/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1. Combat skills: max extra dice ≤ current skill rating.",
-        "improvedSkill": "Unarmed Combat"
+        "improvedSkill": "Unarmed Combat",
+        "citation": {
+          "book": "sr2",
+          "page": "125"
+        }
       },
       "effects": [],
       "flags": {},
@@ -586,7 +602,11 @@
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.228. The traditional Japanese sword, crafted from a composite of alloys and polymers. Favored by street samurai for its reach and elegant lethality."
+        "notes": "SR2E p.228. The traditional Japanese sword, crafted from a composite of alloys and polymers. Favored by street samurai for its reach and elegant lethality.",
+        "citation": {
+          "book": "sr2",
+          "page": "228"
+        }
       },
       "effects": [],
       "flags": {},
@@ -622,7 +642,11 @@
         "legality": "Legal",
         "equipped": false,
         "isLayered": false,
-        "notes": "SR2E p.242. A full-body undersuit of flexible armor material. Worn under clothing for concealed protection."
+        "notes": "SR2E p.242. A full-body undersuit of flexible armor material. Worn under clothing for concealed protection.",
+        "citation": {
+          "book": "sr2",
+          "page": "242"
+        }
       },
       "effects": [],
       "flags": {},

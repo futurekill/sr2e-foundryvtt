@@ -35,7 +35,11 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "Range scales with Strength (×2/×8/×20/×40). SR2E p.254."
+    "notes": "Range scales with Strength (×2/×8/×20/×40). SR2E p.254.",
+    "citation": {
+      "book": "sr2",
+      "page": "254"
+    }
   },
   "effects": [],
   "flags": {},

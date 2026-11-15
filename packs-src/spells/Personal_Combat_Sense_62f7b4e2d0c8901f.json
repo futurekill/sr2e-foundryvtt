@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "This personal form of the combat sense spell affects only the caster."
+    "notes": "This personal form of the combat sense spell affects only the caster.",
+    "citation": {
+      "book": "sr2",
+      "page": "153"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/personal-combat-sense.webp",
   "effects": [

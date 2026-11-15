@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 2,
     "description": "",
-    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Buys and sells stolen goods, no questions."
+    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Buys and sells stolen goods, no questions.",
+    "citation": {
+      "book": "none",
+      "page": ""
+    }
   },
   "effects": [],
   "flags": {},

@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.249. A low-grade false System Identification Number. Fools casual checks but won't stand up to deep scrutiny."
+    "notes": "SR2E p.249. A low-grade false System Identification Number. Fools casual checks but won't stand up to deep scrutiny.",
+    "citation": {
+      "book": "sr2",
+      "page": "249"
+    }
   },
   "effects": [],
   "flags": {},

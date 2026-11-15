@@ -14,7 +14,11 @@
       "strength": 0,
       "reaction": 0
     },
-    "notes": "SR2E p.124. +1 Combat Pool die. Can spend Combat Pool dice to assist Reaction Tests in surprise situations."
+    "notes": "SR2E p.124. +1 Combat Pool die. Can spend Combat Pool dice to assist Reaction Tests in surprise situations.",
+    "citation": {
+      "book": "sr2",
+      "page": "86"
+    }
   },
   "effects": [],
   "folder": null,

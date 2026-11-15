@@ -16,7 +16,11 @@
     "notes": "SR2E p.240. Barrel-mounted gas-vent recoil compensation: 3 points. −2 Concealability. Once installed it CANNOT be removed (and excludes other barrel mounts such as silencers/suppressors).",
     "weaponAccessory": true,
     "accessoryRecoilComp": 3,
-    "permanentAccessory": true
+    "permanentAccessory": true,
+    "citation": {
+      "book": "sr2",
+      "page": "240"
+    }
   },
   "effects": [],
   "flags": {},

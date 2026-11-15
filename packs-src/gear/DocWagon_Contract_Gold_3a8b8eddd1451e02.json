@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.250. DocWagon™ Gold: one free resuscitation/year, 50% off HTR charges, 10% extended care discount. 25,000¥/year."
+    "notes": "SR2E p.250. DocWagon™ Gold: one free resuscitation/year, 50% off HTR charges, 10% extended care discount. 25,000¥/year.",
+    "citation": {
+      "book": "sr2",
+      "page": "250"
+    }
   },
   "effects": [],
   "flags": {},

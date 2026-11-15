@@ -18,7 +18,11 @@
     "combatTnMod": 0,
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
-    "notes": "Discreet earplug phone. SR2E p.259."
+    "notes": "Discreet earplug phone. SR2E p.259.",
+    "citation": {
+      "book": "sr2",
+      "page": "259"
+    }
   },
   "effects": [],
   "flags": {},

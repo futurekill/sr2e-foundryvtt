@@ -24,7 +24,11 @@
     },
     "ratingStats": [],
     "notes": "SR2E p.245 (table p.260). Hear below-normal frequencies. Essence .2, 3,000¥.",
-    "streetIndex": "1.25"
+    "streetIndex": "1.25",
+    "citation": {
+      "book": "sr2",
+      "page": "260"
+    }
   },
   "effects": [],
   "flags": {},

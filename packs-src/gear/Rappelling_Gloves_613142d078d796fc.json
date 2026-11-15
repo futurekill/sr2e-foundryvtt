@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.244. Friction-grip gloves for climbing and rappelling. Essential kit for urban infiltration."
+    "notes": "SR2E p.244. Friction-grip gloves for climbing and rappelling. Essential kit for urban infiltration.",
+    "citation": {
+      "book": "sr2",
+      "page": "244"
+    }
   },
   "effects": [],
   "flags": {},

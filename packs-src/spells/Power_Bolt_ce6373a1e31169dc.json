@@ -15,7 +15,11 @@
     "isAreaEffect": false,
     "isVoluntary": false,
     "notes": "A powerful bolt of magical energy that causes Physical damage.",
-    "damageType": "physical"
+    "damageType": "physical",
+    "citation": {
+      "book": "sr2",
+      "page": "151"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/power-bolt.webp",
   "effects": [],

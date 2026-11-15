@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Street knowledge of urban survival."
+    "notes": "Street knowledge of urban survival.",
+    "citation": {
+      "book": "sr2",
+      "page": "73"
+    }
   },
   "effects": [],
   "flags": {},

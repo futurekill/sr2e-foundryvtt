@@ -15,7 +15,11 @@
     "concealability": 10,
     "notes": "SR2E p.240, p.88. Top-mounted only; shifts the range bracket 1 level closer (short is the floor). May NOT be used with smartlink systems. −1 Concealability; 1 Complex Action to install/remove.",
     "weaponAccessory": true,
-    "rangeShift": 1
+    "rangeShift": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "240"
+    }
   },
   "effects": [],
   "flags": {},

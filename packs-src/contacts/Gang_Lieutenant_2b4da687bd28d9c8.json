@@ -9,7 +9,11 @@
     "loyalty": 5,
     "influence": 3,
     "description": "",
-    "notes": "A street-gang officer who took the loss of face hard. Knows your turf and never travels alone. SR Companion (Enemies)."
+    "notes": "A street-gang officer who took the loss of face hard. Knows your turf and never travels alone. SR Companion (Enemies).",
+    "citation": {
+      "book": "sc",
+      "page": "71"
+    }
   },
   "effects": [],
   "flags": {},

@@ -15,7 +15,11 @@
     "isAreaEffect": true,
     "isVoluntary": false,
     "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets.",
-    "damageType": "physical"
+    "damageType": "physical",
+    "citation": {
+      "book": "sr2",
+      "page": "151"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/powerball.webp",
   "effects": [],

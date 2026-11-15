@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.176. Masking utility: defeats trace IC by sending it on an endless wild goose chase, without tripping alarms."
+    "notes": "SR2E p.176. Masking utility: defeats trace IC by sending it on an endless wild goose chase, without tripping alarms.",
+    "citation": {
+      "book": "sr2",
+      "page": "176"
+    }
   },
   "effects": [],
   "flags": {},

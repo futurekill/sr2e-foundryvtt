@@ -9,7 +9,11 @@
     "loyalty": 3,
     "influence": 5,
     "description": "",
-    "notes": "A fixer you stiffed or embarrassed — won't dirty their own hands, but the contact network just went cold and the next job smells like a setup. SR Companion (Enemies)."
+    "notes": "A fixer you stiffed or embarrassed — won't dirty their own hands, but the contact network just went cold and the next job smells like a setup. SR Companion (Enemies).",
+    "citation": {
+      "book": "sc",
+      "page": "71"
+    }
   },
   "effects": [],
   "flags": {},

@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.232. The latest in the venerable Uzi lineage—compact, reliable, and effective in close quarters. BF capable.",
-    "streetIndex": 0.75
+    "streetIndex": 0.75,
+    "citation": {
+      "book": "sr2",
+      "page": "232"
+    }
   },
   "effects": [],
   "flags": {},

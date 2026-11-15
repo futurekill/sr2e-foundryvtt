@@ -35,7 +35,11 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E Melee Weapons Table p.101: 6S Stun, Reach 1, Concealability 4, 750¥."
+    "notes": "SR2E Melee Weapons Table p.101: 6S Stun, Reach 1, Concealability 4, 750¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "101"
+    }
   },
   "effects": [],
   "flags": {},

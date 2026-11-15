@@ -19,7 +19,11 @@
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
     "notes": "Lets the wearer function at altitude/depth/pressure. SR2E p.258.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

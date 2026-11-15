@@ -42,7 +42,11 @@
     "accessories": [],
     "notes": "Guided high-explosive missile with on-board sensors (Intelligence rating). SR2E p.255.",
     "blastType": "offensive",
-    "streetIndex": 3
+    "streetIndex": 3,
+    "citation": {
+      "book": "sr2",
+      "page": "255"
+    }
   },
   "effects": [],
   "flags": {},

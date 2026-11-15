@@ -9,7 +9,11 @@
     "loyalty": 3,
     "influence": 5,
     "description": "",
-    "notes": "Head of security at a corp you hit — has your description on file and the resources of a department behind the grudge. SR Companion (Enemies)."
+    "notes": "Head of security at a corp you hit — has your description on file and the resources of a department behind the grudge. SR Companion (Enemies).",
+    "citation": {
+      "book": "sc",
+      "page": "71"
+    }
   },
   "effects": [],
   "flags": {},

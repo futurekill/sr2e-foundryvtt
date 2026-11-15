@@ -19,7 +19,11 @@
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
     "notes": "A pure-data library accessed via a datasoft link or headware memory; grants no skill. Cost varies with the data. SR2E p.243.",
-    "grantedSkillCategory": "data"
+    "grantedSkillCategory": "data",
+    "citation": {
+      "book": "sr2",
+      "page": "243"
+    }
   },
   "effects": [],
   "flags": {},

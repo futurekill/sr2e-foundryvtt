@@ -12,7 +12,11 @@
     "notes": "Power −2; all damage is Stun and Impact Armor applies. Increased knockdown chance (TN = Power). SR2E p.93–94.",
     "damageType": "stun",
     "armorCalc": "impact",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "93–94"
+    }
   },
   "effects": [],
   "flags": {},

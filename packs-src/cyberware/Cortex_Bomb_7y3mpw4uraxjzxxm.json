@@ -23,7 +23,11 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.244 (table p.260). Illegal implanted explosive — no essence cost (nobody asks the victim). 500,000¥."
+    "notes": "SR2E p.244 (table p.260). Illegal implanted explosive — no essence cost (nobody asks the victim). 500,000¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "260"
+    }
   },
   "effects": [],
   "flags": {},

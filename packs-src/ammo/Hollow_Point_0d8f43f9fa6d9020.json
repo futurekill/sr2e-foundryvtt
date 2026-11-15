@@ -11,7 +11,11 @@
     "cost": 60,
     "notes": "SR2E p.241. Designed for maximum tissue damage against unprotected targets. Ballistic armor stops them cold.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "citation": {
+      "book": "sr2",
+      "page": "241"
+    }
   },
   "effects": [],
   "flags": {},

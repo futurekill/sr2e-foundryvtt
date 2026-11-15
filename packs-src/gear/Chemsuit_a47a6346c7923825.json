@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "Sealed suit protecting against chemical/toxin exposure. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 200¥ x Rating (p.258).",
     "costPerRating": 200,
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

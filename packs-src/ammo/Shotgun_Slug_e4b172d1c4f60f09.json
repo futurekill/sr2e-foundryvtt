@@ -11,7 +11,11 @@
     "cost": 15,
     "notes": "Solid slug — the standard shotgun round. SR2E p.94.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "citation": {
+      "book": "sr2",
+      "page": "94"
+    }
   },
   "effects": [],
   "flags": {},

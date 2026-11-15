@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.230. A Fichetti design aimed at light security. Accepts a full range of accessories and optional extended 22-round clip.",
-    "streetIndex": 0.8
+    "streetIndex": 0.8,
+    "citation": {
+      "book": "sr2",
+      "page": "230"
+    }
   },
   "effects": [],
   "flags": {},

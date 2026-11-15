@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.176. Sensor utility: appraises datastore files for market value; degrades over time as data markets shift."
+    "notes": "SR2E p.176. Sensor utility: appraises datastore files for market value; degrades over time as data markets shift.",
+    "citation": {
+      "book": "sr2",
+      "page": "176"
+    }
   },
   "effects": [],
   "flags": {},

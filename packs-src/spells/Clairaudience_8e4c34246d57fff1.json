@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "A hypersense spell. The magician can hear distant sounds as if present, to the range of the new sense. The magician must concentrate to use this sense, and while using it, cannot use physical hearing. This spell does not translate visual images."
+    "notes": "A hypersense spell. The magician can hear distant sounds as if present, to the range of the new sense. The magician must concentrate to use this sense, and while using it, cannot use physical hearing. This spell does not translate visual images.",
+    "citation": {
+      "book": "sr2",
+      "page": "153"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/clairaudience.webp",
   "effects": [],

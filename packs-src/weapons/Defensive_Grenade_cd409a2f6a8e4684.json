@@ -38,7 +38,11 @@
     "notes": "Defensive grenade — tighter blast (−2 Power per metre) for use from cover. SR2E p.256.",
     "blastType": "defensive",
     "quantity": 1,
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "256"
+    }
   },
   "effects": [],
   "flags": {},

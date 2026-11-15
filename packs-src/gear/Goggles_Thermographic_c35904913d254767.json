@@ -14,7 +14,11 @@
     "equipped": false,
     "concealability": 6,
     "notes": "Vision Enhancers, SR2E p.257. Goggles (20x magnification) with the thermographic option: 1,500¥ base + 700¥. Street Index 2.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

@@ -8,7 +8,11 @@
     "monthlyCost": 1000,
     "monthsPaid": 1,
     "description": "",
-    "notes": "SR2E p.46 (Cost of Extras); described p.44. Rented room in a bad neighborhood."
+    "notes": "SR2E p.46 (Cost of Extras); described p.44. Rented room in a bad neighborhood.",
+    "citation": {
+      "book": "sr2",
+      "page": "189"
+    }
   },
   "effects": [],
   "flags": {},

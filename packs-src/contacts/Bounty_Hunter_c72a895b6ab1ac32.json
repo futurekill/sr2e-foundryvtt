@@ -9,7 +9,11 @@
     "loyalty": 4,
     "influence": 3,
     "description": "",
-    "notes": "A licensed (or not) tracker carrying paper with your face on it. Persistent, professional, paid by results. SR Companion (Enemies)."
+    "notes": "A licensed (or not) tracker carrying paper with your face on it. Persistent, professional, paid by results. SR Companion (Enemies).",
+    "citation": {
+      "book": "sc",
+      "page": "71"
+    }
   },
   "effects": [],
   "flags": {},

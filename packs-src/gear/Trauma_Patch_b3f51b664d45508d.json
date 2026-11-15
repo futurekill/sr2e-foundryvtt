@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.250. Adhesive drug patch that stabilizes a critically wounded patient. Single-use emergency triage."
+    "notes": "SR2E p.250. Adhesive drug patch that stabilizes a critically wounded patient. Single-use emergency triage.",
+    "citation": {
+      "book": "sr2",
+      "page": "250"
+    }
   },
   "effects": [],
   "flags": {},

@@ -26,7 +26,11 @@
     },
     "specialAbilities": [],
     "karmaCost": 0,
-    "description": "<p>Humans are the most numerous of the metahuman races, comprising the majority of the population in the Sixth World. They have no racial attribute modifiers and pay no Karma during character creation.</p><p><strong>Racial Abilities:</strong> None.</p><p><em>SR2E p.45</em></p>"
+    "description": "<p>Humans are the most numerous of the metahuman races, comprising the majority of the population in the Sixth World. They have no racial attribute modifiers and pay no Karma during character creation.</p><p><strong>Racial Abilities:</strong> None.</p><p><em>SR2E p.45</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "45"
+    }
   },
   "effects": [],
   "flags": {},

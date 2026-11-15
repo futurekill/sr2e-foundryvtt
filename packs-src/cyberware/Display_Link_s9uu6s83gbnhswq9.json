@@ -23,7 +23,11 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.248. Projects data onto the retina or cybereye as a HUD overlay. Works with AR and tactical feeds."
+    "notes": "SR2E p.248. Projects data onto the retina or cybereye as a HUD overlay. Works with AR and tactical feeds.",
+    "citation": {
+      "book": "sr2",
+      "page": "248"
+    }
   },
   "effects": [],
   "flags": {},

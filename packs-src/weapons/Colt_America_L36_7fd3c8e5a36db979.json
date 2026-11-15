@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.230. A slim, lightweight pistol popular with off-duty officers. 11-round clip, SA fire.",
-    "streetIndex": 0.8
+    "streetIndex": 0.8,
+    "citation": {
+      "book": "sr2",
+      "page": "230"
+    }
   },
   "effects": [],
   "flags": {},

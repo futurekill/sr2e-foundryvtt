@@ -14,7 +14,11 @@
     "equipped": false,
     "concealability": 5,
     "streetIndex": 1.25,
-    "notes": "Vision Enhancers, SR2E p.257. Binoculars (50x) with the thermographic option: 100¥ base + 250¥. Street Index 1.25."
+    "notes": "Vision Enhancers, SR2E p.257. Binoculars (50x) with the thermographic option: 100¥ base + 250¥. Street Index 1.25.",
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

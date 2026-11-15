@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 1,
     "description": "",
-    "notes": "SR2E p.203. A common source of information on current conditions in the streets and on the club circuit. Discreet and reliable, for a price. Full stat block: see the \"Bartender\" actor in the SR2E Contacts (NPCs) compendium."
+    "notes": "SR2E p.203. A common source of information on current conditions in the streets and on the club circuit. Discreet and reliable, for a price. Full stat block: see the \"Bartender\" actor in the SR2E Contacts (NPCs) compendium.",
+    "citation": {
+      "book": "sr2",
+      "page": "203"
+    }
   },
   "effects": [],
   "flags": {},

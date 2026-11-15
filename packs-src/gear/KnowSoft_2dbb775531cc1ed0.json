@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "A knowledge-skill chip (facts/procedures, no active use). Cost = Mp × 150¥. Cost varies with the chip's Memory (Mp), which scales with Rating — see Skillsofts, SR2E p.243.",
     "grantedSkillCategory": "knowledge",
-    "slotted": false
+    "slotted": false,
+    "citation": {
+      "book": "sr2",
+      "page": "248"
+    }
   },
   "effects": [],
   "flags": {},

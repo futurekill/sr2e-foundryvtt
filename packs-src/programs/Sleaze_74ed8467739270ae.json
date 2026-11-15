@@ -10,7 +10,11 @@
     "multiplier": 3,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.262. Persona program: your ability to perform Matrix actions quietly, avoiding triggering alarms."
+    "notes": "SR2E p.262. Persona program: your ability to perform Matrix actions quietly, avoiding triggering alarms.",
+    "citation": {
+      "book": "sr2",
+      "page": "262"
+    }
   },
   "effects": [],
   "flags": {},

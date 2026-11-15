@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": false,
     "notes": "SR2E p.242. Slim-line protection worn under normal clothing. Rigid plates available for improved coverage.",
-    "streetIndex": 0.8
+    "streetIndex": 0.8,
+    "citation": {
+      "book": "sr2",
+      "page": "242"
+    }
   },
   "effects": [],
   "flags": {},

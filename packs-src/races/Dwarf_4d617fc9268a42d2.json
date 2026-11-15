@@ -29,7 +29,11 @@
       "disease_resistance"
     ],
     "karmaCost": 0,
-    "description": "<p>Dwarfs are shorter and stockier than humans, with greater natural strength and willpower. They see well in the dark using thermographic vision and are highly resistant to disease and pathogens.</p><p><strong>Racial Abilities:</strong> Thermographic Vision, Pathogen Resistance (doubled Willpower for disease/toxin resistance tests).</p><p><strong>Attribute Modifiers:</strong> Body +1, Quickness –1, Strength +2, Willpower +1.</p><p><em>SR2E p.45</em></p>"
+    "description": "<p>Dwarfs are shorter and stockier than humans, with greater natural strength and willpower. They see well in the dark using thermographic vision and are highly resistant to disease and pathogens.</p><p><strong>Racial Abilities:</strong> Thermographic Vision, Pathogen Resistance (doubled Willpower for disease/toxin resistance tests).</p><p><strong>Attribute Modifiers:</strong> Body +1, Quickness –1, Strength +2, Willpower +1.</p><p><em>SR2E p.45</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "45"
+    }
   },
   "effects": [],
   "flags": {},

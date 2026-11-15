@@ -23,7 +23,11 @@
       "initiativeDice": 0
     },
     "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2.",
-    "streetIndex": "0.9"
+    "streetIndex": "0.9",
+    "citation": {
+      "book": "sr2",
+      "page": "246"
+    }
   },
   "effects": [],
   "flags": {},

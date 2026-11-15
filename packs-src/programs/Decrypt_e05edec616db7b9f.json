@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.176. Defeats scramble IC, restoring access to data it has encrypted."
+    "notes": "SR2E p.176. Defeats scramble IC, restoring access to data it has encrypted.",
+    "citation": {
+      "book": "sr2",
+      "page": "176"
+    }
   },
   "effects": [],
   "flags": {},

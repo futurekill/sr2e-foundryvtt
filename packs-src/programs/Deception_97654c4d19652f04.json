@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.176. Masking utility: forges passcodes to fool access and gray IC (not barrier or black IC); the logged codes leave a trail."
+    "notes": "SR2E p.176. Masking utility: forges passcodes to fool access and gray IC (not barrier or black IC); the logged codes leave a trail.",
+    "citation": {
+      "book": "sr2",
+      "page": "176"
+    }
   },
   "effects": [],
   "flags": {},

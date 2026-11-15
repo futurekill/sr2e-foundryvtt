@@ -42,7 +42,11 @@
     "accessories": [],
     "notes": "Unguided high-explosive rocket — large blast warhead. SR2E p.255.",
     "blastType": "offensive",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "255"
+    }
   },
   "effects": [],
   "flags": {},

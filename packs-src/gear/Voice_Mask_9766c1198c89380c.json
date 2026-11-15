@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "Disguises or alters the wearer's voiceprint. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 3,000¥ x Rating (p.258).",
     "costPerRating": 3000,
-    "streetIndex": 1.5
+    "streetIndex": 1.5,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

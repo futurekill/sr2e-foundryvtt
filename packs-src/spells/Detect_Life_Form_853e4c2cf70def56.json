@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": true,
     "isVoluntary": false,
-    "notes": "An area-effect, general hypersense spell. The magician detects a speciﬁed type of target: detect ork, detect dragon, detect guns, detect computers, detect cameras, and so forth. Each variation is a separate spell."
+    "notes": "An area-effect, general hypersense spell. The magician detects a speciﬁed type of target: detect ork, detect dragon, detect guns, detect computers, detect cameras, and so forth. Each variation is a separate spell.",
+    "citation": {
+      "book": "sr2",
+      "page": "153"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/detect-life-form.webp",
   "effects": [],

@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "Heavy machine gun. SR2E p.255.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "255"
+    }
   },
   "effects": [],
   "flags": {},

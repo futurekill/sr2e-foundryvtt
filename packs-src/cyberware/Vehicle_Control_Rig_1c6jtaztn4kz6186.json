@@ -46,7 +46,11 @@
       }
     ],
     "notes": "SR2E p.246 (table p.261). Datajack-linked vehicle rig: Level 1 Essence 2 (12,000¥), Level 2 Essence 3 (60,000¥), Level 3 Essence 5 (300,000¥).",
-    "isVcr": true
+    "isVcr": true,
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

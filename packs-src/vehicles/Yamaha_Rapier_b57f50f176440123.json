@@ -24,7 +24,11 @@
       "max": 10
     },
     "autonav": 1,
-    "notes": "<p>A fast, slick street machine favored by go-gangs.</p><p><em>Core book p.264: Speed 65/195 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>"
+    "notes": "<p>A fast, slick street machine favored by go-gangs.</p><p><em>Core book p.264: Speed 65/195 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "264"
+    }
   },
   "items": [],
   "effects": [],

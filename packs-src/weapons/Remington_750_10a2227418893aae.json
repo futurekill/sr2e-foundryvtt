@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "A semi-automatic sporting rifle. SR2E p.254-255.",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "254–255"
+    }
   },
   "effects": [],
   "flags": {},

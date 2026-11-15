@@ -9,7 +9,11 @@
     "loyalty": 1,
     "influence": 2,
     "description": "",
-    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Another runner. Good for backup and intel."
+    "notes": "GM-invented archetype — NOT printed in the SR2E core rulebook. Another runner. Good for backup and intel.",
+    "citation": {
+      "book": "none",
+      "page": ""
+    }
   },
   "effects": [],
   "flags": {},

@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 100,
     "loaded": false,
-    "notes": "SR2E p.262. Persona program: detection and scanning in the Matrix. Alerts you to IC and system features."
+    "notes": "SR2E p.262. Persona program: detection and scanning in the Matrix. Alerts you to IC and system features.",
+    "citation": {
+      "book": "sr2",
+      "page": "262"
+    }
   },
   "effects": [],
   "flags": {},

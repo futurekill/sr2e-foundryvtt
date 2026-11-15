@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "The FN Heavy Assault Rifle. SR2E p.254-255.",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "254–255"
+    }
   },
   "effects": [],
   "flags": {},

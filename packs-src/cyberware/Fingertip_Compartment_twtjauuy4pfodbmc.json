@@ -23,7 +23,11 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.246 (table p.261). Hollow storage in a finger. Essence .1, 3,000¥."
+    "notes": "SR2E p.246 (table p.261). Hollow storage in a finger. Essence .1, 3,000¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

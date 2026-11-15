@@ -30,7 +30,11 @@
       "reach_1"
     ],
     "karmaCost": 0,
-    "description": "<p>Trolls are the largest and physically strongest metahumans, towering over other races. Their thick, rocky skin provides natural armor and their thermographic vision allows them to see heat signatures. They have natural reach in melee combat.</p><p><strong>Racial Abilities:</strong> Thermographic Vision, Dermal Armor (Ballistic 1 / Impact 2), Reach +1 in melee.</p><p><strong>Attribute Modifiers:</strong> Body +5, Quickness –1, Strength +4, Charisma –2, Intelligence –2, Willpower –1.</p><p><em>SR2E p.45</em></p>"
+    "description": "<p>Trolls are the largest and physically strongest metahumans, towering over other races. Their thick, rocky skin provides natural armor and their thermographic vision allows them to see heat signatures. They have natural reach in melee combat.</p><p><strong>Racial Abilities:</strong> Thermographic Vision, Dermal Armor (Ballistic 1 / Impact 2), Reach +1 in melee.</p><p><strong>Attribute Modifiers:</strong> Body +5, Quickness –1, Strength +4, Charisma –2, Intelligence –2, Willpower –1.</p><p><em>SR2E p.45</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "45"
+    }
   },
   "effects": [],
   "flags": {},

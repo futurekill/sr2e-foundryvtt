@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": true,
     "isVoluntary": false,
-    "notes": "An area-effect spell. This spell creates a mobile point of light that illuminates an area equal to the magician's Magic Rating times the spell's successes in meters. The illumination is roughly equal to that from a good ﬂashlight, but as an area-effect. This spell cannot be used to blind, but does offset visibility modiﬁers for darkness: 2 successes counters a + 1 modiﬁer."
+    "notes": "An area-effect spell. This spell creates a mobile point of light that illuminates an area equal to the magician's Magic Rating times the spell's successes in meters. The illumination is roughly equal to that from a good ﬂashlight, but as an area-effect. This spell cannot be used to blind, but does offset visibility modiﬁers for darkness: 2 successes counters a + 1 modiﬁer.",
+    "citation": {
+      "book": "sr2",
+      "page": "158"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/light.webp",
   "effects": [],

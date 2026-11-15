@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": "Running, climbing, jumping, swimming, and general physical exertion (SR2 p.84)."
+    "notes": "Running, climbing, jumping, swimming, and general physical exertion (SR2 p.84).",
+    "citation": {
+      "book": "sr2",
+      "page": "84"
+    }
   },
   "effects": [],
   "flags": {},

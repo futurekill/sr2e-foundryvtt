@@ -66,7 +66,11 @@
         "streetIndex": ""
       }
     ],
-    "notes": "SR2E p.246 (table p.261). Blood filtration vs toxins. Essence = Rating÷5, cost = Rating×10,000¥."
+    "notes": "SR2E p.246 (table p.261). Blood filtration vs toxins. Essence = Rating÷5, cost = Rating×10,000¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

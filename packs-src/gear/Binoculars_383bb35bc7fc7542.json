@@ -14,7 +14,11 @@
     "equipped": false,
     "concealability": 5,
     "streetIndex": 0.8,
-    "notes": "Vision Enhancers, SR2E p.257. 50x magnification. Low-light (+200¥) and thermographic (+250¥) options are separate items."
+    "notes": "Vision Enhancers, SR2E p.257. 50x magnification. Low-light (+200¥) and thermographic (+250¥) options are separate items.",
+    "citation": {
+      "book": "sr2",
+      "page": "257"
+    }
   },
   "effects": [],
   "flags": {},

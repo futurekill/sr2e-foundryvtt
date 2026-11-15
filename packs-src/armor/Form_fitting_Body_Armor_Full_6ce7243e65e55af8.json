@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "isLayered": true,
-    "notes": "SR2E p.242 gear list. A full-body undersuit of flexible armor material worn under clothing; LAYERS with other worn armor (adds its rating instead of competing for highest)."
+    "notes": "SR2E p.242 gear list. A full-body undersuit of flexible armor material worn under clothing; LAYERS with other worn armor (adds its rating instead of competing for highest).",
+    "citation": {
+      "book": "sr2",
+      "page": "242"
+    }
   },
   "effects": [],
   "flags": {},

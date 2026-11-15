@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "An active-skill chip run through Skillwires; the user acts at the soft's Rating. Cost = Mp × 100¥. Cost varies with the chip's Memory (Mp), which scales with Rating — see Skillsofts, SR2E p.243.",
     "grantedSkillCategory": "active",
-    "slotted": false
+    "slotted": false,
+    "citation": {
+      "book": "sr2",
+      "page": "248"
+    }
   },
   "effects": [],
   "flags": {},

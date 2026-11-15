@@ -23,7 +23,11 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.248. Socket for reading datasofts without a full chipjack. No active-skill capability. Essence 0.1."
+    "notes": "SR2E p.248. Socket for reading datasofts without a full chipjack. No active-skill capability. Essence 0.1.",
+    "citation": {
+      "book": "sr2",
+      "page": "248"
+    }
   },
   "effects": [],
   "flags": {},

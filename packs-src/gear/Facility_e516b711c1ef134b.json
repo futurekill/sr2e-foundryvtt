@@ -19,7 +19,11 @@
     "accessoryRecoilComp": 0,
     "requiresSmartgun": false,
     "notes": "A full fabrication facility. ×2 cost for vehicle work, ×3 for electronics/computer/cyberware. SR2E p.259.",
-    "streetIndex": 4
+    "streetIndex": 4,
+    "citation": {
+      "book": "sr2",
+      "page": "259"
+    }
   },
   "effects": [],
   "flags": {},

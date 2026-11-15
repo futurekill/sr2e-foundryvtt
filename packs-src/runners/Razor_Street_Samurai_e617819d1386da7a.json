@@ -446,7 +446,11 @@
             "streetIndex": ""
           }
         ],
-        "notes": "SR2E p.249. Neural signal accelerators. L1: +1 Reaction +1D6 Init. L2: +2 Reaction +2D6 Init. L3: +3 Reaction +3D6 Init."
+        "notes": "SR2E p.249. Neural signal accelerators. L1: +1 Reaction +1D6 Init. L2: +2 Reaction +2D6 Init. L3: +3 Reaction +3D6 Init.",
+        "citation": {
+          "book": "sr2",
+          "page": "249"
+        }
       },
       "effects": [],
       "flags": {},
@@ -560,7 +564,11 @@
             "streetIndex": ""
           }
         ],
-        "notes": "SR2E p.248. Hard plastic and metal fiber plates bonded under the skin. Provides ballistic armor equal to rating. Invasive and obvious. Increases Body by rating."
+        "notes": "SR2E p.248. Hard plastic and metal fiber plates bonded under the skin. Provides ballistic armor equal to rating. Invasive and obvious. Increases Body by rating.",
+        "citation": {
+          "book": "sr2",
+          "page": "248"
+        }
       },
       "effects": [],
       "flags": {},
@@ -619,7 +627,11 @@
         "equipped": true,
         "accessories": [],
         "notes": "Submachine gun. The SMG of choice for corporate security, military police and base security worldwide. The standard model has a retractable stock, integral laser sight (under-barrel mount) and an integral gas-vent recoil compensation system (barrel mount, Rating 2). SR2E p.238, p.254.",
-        "streetIndex": 0.75
+        "streetIndex": 0.75,
+        "citation": {
+          "book": "sr2",
+          "page": "238"
+        }
       },
       "effects": [],
       "flags": {},
@@ -677,7 +689,11 @@
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.231. Considered by many the premier heavy pistol. Menacing and popular among mercenaries and security services."
+        "notes": "SR2E p.231. Considered by many the premier heavy pistol. Menacing and popular among mercenaries and security services.",
+        "citation": {
+          "book": "sr2",
+          "page": "231"
+        }
       },
       "effects": [],
       "flags": {},
@@ -735,7 +751,11 @@
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.228. The traditional Japanese sword, crafted from a composite of alloys and polymers. Favored by street samurai for its reach and elegant lethality."
+        "notes": "SR2E p.228. The traditional Japanese sword, crafted from a composite of alloys and polymers. Favored by street samurai for its reach and elegant lethality.",
+        "citation": {
+          "book": "sr2",
+          "page": "228"
+        }
       },
       "effects": [],
       "flags": {},
@@ -771,7 +791,11 @@
         "legality": "Legal",
         "equipped": true,
         "isLayered": false,
-        "notes": "SR2E p.242. Available from chic street styling to macho militarism. Substantial protection in a practical package."
+        "notes": "SR2E p.242. Available from chic street styling to macho militarism. Substantial protection in a practical package.",
+        "citation": {
+          "book": "sr2",
+          "page": "242"
+        }
       },
       "effects": [],
       "flags": {},
@@ -805,7 +829,11 @@
         "cost": 15,
         "notes": "Standard rounds. SR2E p.93.",
         "damageType": "",
-        "armorCalc": "standard"
+        "armorCalc": "standard",
+        "citation": {
+          "book": "sr2",
+          "page": "93"
+        }
       },
       "effects": [],
       "flags": {},
@@ -839,7 +867,11 @@
         "cost": 120,
         "notes": "Armor-piercing discarding sabot: halves the target's Ballistic Armor Rating. SSC p.63.",
         "damageType": "",
-        "armorCalc": "half_ballistic"
+        "armorCalc": "half_ballistic",
+        "citation": {
+          "book": "ssc",
+          "page": "63"
+        }
       },
       "effects": [],
       "flags": {},

@@ -24,7 +24,11 @@
     },
     "ratingStats": [],
     "notes": "SR2E p.247. Headware telenet access. Speak normally or sub-vocally. Not suitable for decking.",
-    "streetIndex": "0.9"
+    "streetIndex": "0.9",
+    "citation": {
+      "book": "sr2",
+      "page": "247"
+    }
   },
   "effects": [],
   "flags": {},

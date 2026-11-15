@@ -312,7 +312,11 @@
         "equipped": true,
         "accessories": [],
         "notes": "Bear form only. The bear's attack with the Power +1 (core p.234: (A + 1)(A)).",
-        "form": "bear"
+        "form": "bear",
+        "citation": {
+          "book": "sr2",
+          "page": "234"
+        }
       },
       "effects": [],
       "_stats": {
@@ -379,7 +383,11 @@
         "equipped": true,
         "accessories": [],
         "notes": "Fox form only. The fox's attack with the Power +1 (core p.234: (A + 1)(A)). Printed −1 Reach (the sheet has no negative Reach; apply it by hand).",
-        "form": "fox"
+        "form": "fox",
+        "citation": {
+          "book": "sr2",
+          "page": "234"
+        }
       },
       "effects": [],
       "_stats": {
@@ -446,7 +454,11 @@
         "equipped": true,
         "accessories": [],
         "notes": "Leopard form only. The leopard's attack with the Power +1 (core p.234: (A + 1)(A)).",
-        "form": "leopard"
+        "form": "leopard",
+        "citation": {
+          "book": "sr2",
+          "page": "234"
+        }
       },
       "effects": [],
       "_stats": {
@@ -513,7 +525,11 @@
         "equipped": true,
         "accessories": [],
         "notes": "Seal form only. The seal's attack with the Power +1 (core p.234: (A + 1)(A)).",
-        "form": "seal"
+        "form": "seal",
+        "citation": {
+          "book": "sr2",
+          "page": "234"
+        }
       },
       "effects": [],
       "_stats": {
@@ -580,7 +596,11 @@
         "equipped": true,
         "accessories": [],
         "notes": "Tiger form only. The tiger's attack with the Power +1 (core p.234: (A + 1)(A)).",
-        "form": "tiger"
+        "form": "tiger",
+        "citation": {
+          "book": "sr2",
+          "page": "234"
+        }
       },
       "effects": [],
       "_stats": {
@@ -647,7 +667,11 @@
         "equipped": true,
         "accessories": [],
         "notes": "Wolf form only. The wolf's attack with the Power +1 (core p.234: (A + 1)(A)).",
-        "form": "wolf"
+        "form": "wolf",
+        "citation": {
+          "book": "sr2",
+          "page": "234"
+        }
       },
       "effects": [],
       "_stats": {

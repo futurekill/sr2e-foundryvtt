@@ -24,7 +24,11 @@
     },
     "ratingStats": [],
     "notes": "SR2E p.248. Filters harmful Matrix input. Resists MIJI effects. SI 1.5. Essence 0.3.",
-    "streetIndex": "1.5"
+    "streetIndex": "1.5",
+    "citation": {
+      "book": "sr2",
+      "page": "248"
+    }
   },
   "effects": [],
   "flags": {},

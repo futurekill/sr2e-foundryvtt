@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.250. Disposable restraints."
+    "notes": "SR2E p.250. Disposable restraints.",
+    "citation": {
+      "book": "sr2",
+      "page": "250"
+    }
   },
   "effects": [],
   "flags": {},

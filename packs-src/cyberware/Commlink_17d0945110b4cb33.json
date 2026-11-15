@@ -22,7 +22,11 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E table p.281 (Cybertech update). Implanted commlink, model II. Essence .3, 8,000¥. (Models IV/VIII/X: 18,000/40,000/60,000¥, Essence .3.)"
+    "notes": "SR2E table p.281 (Cybertech update). Implanted commlink, model II. Essence .3, 8,000¥. (Models IV/VIII/X: 18,000/40,000/60,000¥, Essence .3.)",
+    "citation": {
+      "book": "sr2",
+      "page": "281"
+    }
   },
   "effects": [],
   "flags": {},

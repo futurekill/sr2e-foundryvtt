@@ -13,7 +13,11 @@
     "notes": "SR2E p.138, p.164. Adds Force to all magical dice pools. Bonding costs 5 x Force in Karma. Force 1.",
     "costPerForce": 105000,
     "streetIndex": 2,
-    "availability": "6/72 hrs"
+    "availability": "6/72 hrs",
+    "citation": {
+      "book": "sr2",
+      "page": "138"
+    }
   },
   "effects": [],
   "flags": {},

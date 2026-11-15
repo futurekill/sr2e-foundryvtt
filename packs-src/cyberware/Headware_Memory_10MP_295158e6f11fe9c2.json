@@ -22,7 +22,11 @@
       "reaction": 0,
       "initiativeDice": 0
     },
-    "notes": "SR2E p.244 (table p.260). Essence = Mp ÷ 100 (.1), cost = Mp × 100¥ (1,000¥)."
+    "notes": "SR2E p.244 (table p.260). Essence = Mp ÷ 100 (.1), cost = Mp × 100¥ (1,000¥).",
+    "citation": {
+      "book": "sr2",
+      "page": "260"
+    }
   },
   "effects": [],
   "flags": {},

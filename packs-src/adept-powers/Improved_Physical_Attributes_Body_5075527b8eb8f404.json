@@ -14,7 +14,11 @@
       "strength": 0,
       "reaction": 0
     },
-    "notes": "SR2E p.125. +level to Body (max 1.5× racial max). Cost/pt: ≤½ racial max 0.5, ≤racial max 1, ≤1.5× racial max 1.5. Level = total bonus pts purchased."
+    "notes": "SR2E p.125. +level to Body (max 1.5× racial max). Cost/pt: ≤½ racial max 0.5, ≤racial max 1, ≤1.5× racial max 1.5. Level = total bonus pts purchased.",
+    "citation": {
+      "book": "sr2",
+      "page": "125"
+    }
   },
   "effects": [],
   "folder": null,

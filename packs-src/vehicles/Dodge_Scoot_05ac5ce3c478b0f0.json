@@ -24,7 +24,11 @@
       "max": 10
     },
     "autonav": 0,
-    "notes": "<p>An electric intra-city scooter.</p><p><em>Core book p.264: Speed 20/60 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>"
+    "notes": "<p>An electric intra-city scooter.</p><p><em>Core book p.264: Speed 20/60 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "264"
+    }
   },
   "items": [],
   "effects": [],

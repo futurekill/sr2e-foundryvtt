@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.246. A portable commlink unit, essentially a ruggedized civilian phone with extended range."
+    "notes": "SR2E p.246. A portable commlink unit, essentially a ruggedized civilian phone with extended range.",
+    "citation": {
+      "book": "sr2",
+      "page": "246"
+    }
   },
   "effects": [],
   "flags": {},

@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": ""
+    "notes": "",
+    "citation": {
+      "book": "sr2",
+      "page": "157"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/levitate-item.webp",
   "effects": [],

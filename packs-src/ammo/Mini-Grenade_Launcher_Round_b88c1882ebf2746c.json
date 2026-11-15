@@ -11,7 +11,11 @@
     "cost": 50,
     "notes": "Launcher-fed mini-grenades — the launcher's own damage code applies. For thrown grenades with type-specific damage (offensive/defensive/concussion), use the grenade weapon items. SR2E p.256.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "citation": {
+      "book": "sr2",
+      "page": "256"
+    }
   },
   "effects": [],
   "flags": {},

@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "Like the invisibility spell, except that this spell affects technological sensing devices."
+    "notes": "Like the invisibility spell, except that this spell affects technological sensing devices.",
+    "citation": {
+      "book": "sr2",
+      "page": "156"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/improved-invisibility.webp",
   "effects": [],

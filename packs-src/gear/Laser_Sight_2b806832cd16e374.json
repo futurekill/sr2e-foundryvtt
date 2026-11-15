@@ -16,7 +16,11 @@
     "notes": "SR2E p.240, p.90. Under-barrel or top mount, −1 TN — but only out to 50 m, and countered by mist, smoke, fog or rain. May NOT be used with any smartlink system (the roll applies whichever benefit is better). −1 Concealability; 1 Complex Action to install/remove.",
     "weaponAccessory": true,
     "combatTnMod": -1,
-    "laserSight": true
+    "laserSight": true,
+    "citation": {
+      "book": "sr2",
+      "page": "240"
+    }
   },
   "effects": [],
   "flags": {},

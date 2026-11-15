@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "Palmprint identification lock. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 300¥ x Rating (p.258).",
     "streetIndex": 2,
-    "costPerRating": 300
+    "costPerRating": 300,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

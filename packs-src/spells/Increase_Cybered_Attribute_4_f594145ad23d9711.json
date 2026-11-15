@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "SR2E p.155. Like Increase [Attribute] +4, but for an Attribute already affected by cybernetics: +4 while sustained. Physical; TN = 2 × the Attribute's rating, one success suffices. Each Attribute is its own spell (learn e.g. Increase Cybered Strength +4: rename the copy). Increase Cybered Reaction +4 is ((F / 2) + 5)D."
+    "notes": "SR2E p.155. Like Increase [Attribute] +4, but for an Attribute already affected by cybernetics: +4 while sustained. Physical; TN = 2 × the Attribute's rating, one success suffices. Each Attribute is its own spell (learn e.g. Increase Cybered Strength +4: rename the copy). Increase Cybered Reaction +4 is ((F / 2) + 5)D.",
+    "citation": {
+      "book": "sr2",
+      "page": "155"
+    }
   },
   "effects": [
     {

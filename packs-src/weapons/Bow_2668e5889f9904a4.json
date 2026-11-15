@@ -38,7 +38,11 @@
     "notes": "Purchased at a specified Strength Minimum (SR2 p.96): price is 100¥ x Str Min and damage is (Str Min + 2)M — the WEAPON's Str Min, not the wielder's Strength. A wielder below the Str Min takes +1 target number per point short. Str Min also sets the range brackets.",
     "strengthMinimum": 1,
     "costPerStrengthMin": 100,
-    "strMinDamageBonus": 2
+    "strMinDamageBonus": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "96"
+    }
   },
   "effects": [],
   "flags": {},

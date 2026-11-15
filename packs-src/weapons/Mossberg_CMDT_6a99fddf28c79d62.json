@@ -35,7 +35,11 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.233. Compact military-spec shotgun favored by close-quarters units. Durable and hard-hitting."
+    "notes": "SR2E p.233. Compact military-spec shotgun favored by close-quarters units. Durable and hard-hitting.",
+    "citation": {
+      "book": "sr2",
+      "page": "233"
+    }
   },
   "effects": [],
   "flags": {},

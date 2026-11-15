@@ -24,7 +24,11 @@
       "max": 10
     },
     "autonav": 2,
-    "notes": "<p>A heavily armored T-bird (Thunderbird) VTOL gunship. Restricted military issue.</p><p><em>Core book p.264: Speed 650/1000 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>"
+    "notes": "<p>A heavily armored T-bird (Thunderbird) VTOL gunship. Restricted military issue.</p><p><em>Core book p.264: Speed 650/1000 m/CT (cruising/maximum; Speed holds the cruising speed, which vehicle tests use).</em></p>",
+    "citation": {
+      "book": "sr2",
+      "page": "264"
+    }
   },
   "items": [],
   "effects": [],

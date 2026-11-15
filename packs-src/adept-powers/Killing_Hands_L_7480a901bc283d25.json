@@ -14,7 +14,11 @@
       "strength": 0,
       "reaction": 0
     },
-    "notes": "SR2E p.126. Unarmed attacks deal (STR)L Physical damage. Effective vs. critters with weapon immunity. Cost: 0.5 pts."
+    "notes": "SR2E p.126. Unarmed attacks deal (STR)L Physical damage. Effective vs. critters with weapon immunity. Cost: 0.5 pts.",
+    "citation": {
+      "book": "sr2",
+      "page": "126"
+    }
   },
   "effects": [],
   "folder": null,

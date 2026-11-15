@@ -35,7 +35,11 @@
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.230. A compact light pistol, popular with corporate security for its sleek profile and 12-round magazine."
+    "notes": "SR2E p.230. A compact light pistol, popular with corporate security for its sleek profile and 12-round magazine.",
+    "citation": {
+      "book": "sr2",
+      "page": "230"
+    }
   },
   "effects": [],
   "flags": {},

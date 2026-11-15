@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E Melee Weapons Table p.101: (Str)L, Reach 0, Concealability 8, 30¥.",
-    "streetIndex": 0.75
+    "streetIndex": 0.75,
+    "citation": {
+      "book": "sr2",
+      "page": "101"
+    }
   },
   "effects": [],
   "flags": {},

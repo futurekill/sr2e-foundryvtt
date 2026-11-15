@@ -14,7 +14,11 @@
     "equipped": false,
     "concealability": 10,
     "notes": "SR2E p.241. Barrel-mounted, for burst-fire and full-auto weapons: +2 TN to any attempt to notice the weapon's use or locate the firer. Must be replaced every 300 rounds of burst/auto fire. −2 Concealability; 2 Complex Actions to install/remove.",
-    "weaponAccessory": true
+    "weaponAccessory": true,
+    "citation": {
+      "book": "sr2",
+      "page": "241"
+    }
   },
   "effects": [],
   "flags": {},

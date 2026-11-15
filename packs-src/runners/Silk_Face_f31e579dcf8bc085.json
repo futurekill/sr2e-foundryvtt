@@ -424,7 +424,11 @@
           "initiativeDice": 0
         },
         "ratingStats": [],
-        "notes": "SR2E p.249. Implanted voice-alteration hardware. Base cost includes increased volume and tonal shift. Secondary pattern (illegal): 50,000¥. Playback: 40,000¥."
+        "notes": "SR2E p.249. Implanted voice-alteration hardware. Base cost includes increased volume and tonal shift. Secondary pattern (illegal): 50,000¥. Playback: 40,000¥.",
+        "citation": {
+          "book": "sr2",
+          "page": "249"
+        }
       },
       "effects": [],
       "flags": {},
@@ -469,7 +473,11 @@
           "reaction": 0,
           "initiativeDice": 0
         },
-        "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2."
+        "notes": "SR2E p.246. The essential neural interface plug. Allows direct data connection to computers, cyberdecks, vehicles, and other compatible systems. Essence 0.2.",
+        "citation": {
+          "book": "sr2",
+          "page": "246"
+        }
       },
       "effects": [],
       "flags": {},
@@ -515,7 +523,11 @@
           "initiativeDice": 0
         },
         "ratingStats": [],
-        "notes": "SR2E p.246. A passive slot for skillsofts and datasofts. Chips must remain inserted during use. Essence 0.1."
+        "notes": "SR2E p.246. A passive slot for skillsofts and datasofts. Chips must remain inserted during use. Essence 0.1.",
+        "citation": {
+          "book": "sr2",
+          "page": "246"
+        }
       },
       "effects": [],
       "flags": {},
@@ -573,7 +585,11 @@
         "legality": "Legal",
         "equipped": true,
         "accessories": [],
-        "notes": "SR2E p.231. Considered by many the premier heavy pistol. Menacing and popular among mercenaries and security services."
+        "notes": "SR2E p.231. Considered by many the premier heavy pistol. Menacing and popular among mercenaries and security services.",
+        "citation": {
+          "book": "sr2",
+          "page": "231"
+        }
       },
       "effects": [],
       "flags": {},
@@ -607,7 +623,11 @@
         "cost": 15,
         "notes": "Standard rounds. SR2E p.93.",
         "damageType": "",
-        "armorCalc": "standard"
+        "armorCalc": "standard",
+        "citation": {
+          "book": "sr2",
+          "page": "93"
+        }
       },
       "effects": [],
       "flags": {},
@@ -643,7 +663,11 @@
         "legality": "Legal",
         "equipped": false,
         "isLayered": false,
-        "notes": "SR2E p.242. A variety of styles from trenchcoat to duster, lined with protective composite material. Popular among runners."
+        "notes": "SR2E p.242. A variety of styles from trenchcoat to duster, lined with protective composite material. Popular among runners.",
+        "citation": {
+          "book": "sr2",
+          "page": "242"
+        }
       },
       "effects": [],
       "flags": {},

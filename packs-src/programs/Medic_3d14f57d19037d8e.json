@@ -10,7 +10,11 @@
     "multiplier": 4,
     "cost": 300,
     "loaded": false,
-    "notes": "SR2E p.176. Repairs damage to the persona's Condition Monitor each turn (Program Repair Table); cannot be augmented with pool dice."
+    "notes": "SR2E p.176. Repairs damage to the persona's Condition Monitor each turn (Program Repair Table); cannot be augmented with pool dice.",
+    "citation": {
+      "book": "sr2",
+      "page": "176"
+    }
   },
   "effects": [],
   "flags": {},

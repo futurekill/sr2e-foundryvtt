@@ -14,7 +14,11 @@
       "strength": 0,
       "reaction": 0
     },
-    "notes": "SR2E p.125. 0.25 pts per improvement. Options: low-light vision, thermographic vision, high/low-freq hearing, enhanced smell/taste, etc. (anything cybernetic except radio). No package deals."
+    "notes": "SR2E p.125. 0.25 pts per improvement. Options: low-light vision, thermographic vision, high/low-freq hearing, enhanced smell/taste, etc. (anything cybernetic except radio). No package deals.",
+    "citation": {
+      "book": "sr2",
+      "page": "125"
+    }
   },
   "effects": [],
   "folder": null,

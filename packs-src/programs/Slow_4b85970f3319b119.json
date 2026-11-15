@@ -10,7 +10,11 @@
     "multiplier": 4,
     "cost": 200,
     "loaded": false,
-    "notes": "SR2E p.175. Combat utility: successes subtract from the target IC's Initiative next turn; reduce it to 0 or less and the IC freezes."
+    "notes": "SR2E p.175. Combat utility: successes subtract from the target IC's Initiative next turn; reduce it to 0 or less and the IC freezes.",
+    "citation": {
+      "book": "sr2",
+      "page": "175"
+    }
   },
   "effects": [],
   "flags": {},

@@ -14,7 +14,11 @@
     "equipped": false,
     "isLayered": true,
     "notes": "SR2E p.242. Corporate security headgear. Adds its Ballistic rating when worn with other armor.",
-    "streetIndex": 1.5
+    "streetIndex": 1.5,
+    "citation": {
+      "book": "sr2",
+      "page": "242"
+    }
   },
   "effects": [],
   "flags": {},

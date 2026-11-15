@@ -10,7 +10,11 @@
     "multiplier": 3,
     "cost": 300,
     "loaded": false,
-    "notes": "SR2E p.175. Sensor utility: identifies a construct or node (name, function, Security Rating) or analyzes an IC program."
+    "notes": "SR2E p.175. Sensor utility: identifies a construct or node (name, function, Security Rating) or analyzes an IC program.",
+    "citation": {
+      "book": "sr2",
+      "page": "175"
+    }
   },
   "effects": [],
   "flags": {},

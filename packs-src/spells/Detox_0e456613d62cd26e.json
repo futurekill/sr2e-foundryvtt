@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "SR2E p.184. Removes toxins from the body."
+    "notes": "SR2E p.184. Removes toxins from the body.",
+    "citation": {
+      "book": "sr2",
+      "page": "184"
+    }
   },
   "effects": [],
   "flags": {},

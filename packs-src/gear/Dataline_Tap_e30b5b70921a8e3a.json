@@ -20,7 +20,11 @@
     "requiresSmartgun": false,
     "notes": "Taps a dataline for monitoring. Rated item — cost shown is per Rating point (×Rating). SR2E p.258. Priced 5,000¥ x Rating (p.258).",
     "streetIndex": 1.5,
-    "costPerRating": 5000
+    "costPerRating": 5000,
+    "citation": {
+      "book": "sr2",
+      "page": "258"
+    }
   },
   "effects": [],
   "flags": {},

@@ -12,7 +12,11 @@
     "notes": "Riot-control rounds for LARGE-BORE weapons only (shotguns). All damage is Stun; Impact Armor applies and Ballistic Armor is useless against their high mass / low speed. 100¥ per 10 rounds. SR2 p.256 (Street Gear), rules p.95.",
     "damageType": "stun",
     "armorCalc": "impact",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "241"
+    }
   },
   "effects": [],
   "flags": {},

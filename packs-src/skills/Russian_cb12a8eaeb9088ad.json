@@ -17,7 +17,11 @@
     },
     "isMagical": false,
     "notes": "Sixth World language (SR2E p.69).",
-    "languageFamily": "Slavic"
+    "languageFamily": "Slavic",
+    "citation": {
+      "book": "sr2",
+      "page": "69"
+    }
   },
   "effects": [],
   "flags": {},

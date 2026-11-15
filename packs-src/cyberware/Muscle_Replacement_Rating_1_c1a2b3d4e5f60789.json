@@ -24,7 +24,11 @@
     },
     "ratingStats": [],
     "notes": "SR2E p.249 (table p.261). Vat-grown synthetic muscle: +1 Strength AND +1 Quickness (max rating 4). The Quickness increase does NOT affect Reaction. Essence 1, 20,000¥.",
-    "noReactionBonus": true
+    "noReactionBonus": true,
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

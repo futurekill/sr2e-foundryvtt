@@ -11,7 +11,11 @@
     "cost": 25,
     "notes": "Every third round visible in flight; treat as regular rounds. SSC.",
     "damageType": "",
-    "armorCalc": "standard"
+    "armorCalc": "standard",
+    "citation": {
+      "book": "ff",
+      "page": "51"
+    }
   },
   "effects": [],
   "flags": {},

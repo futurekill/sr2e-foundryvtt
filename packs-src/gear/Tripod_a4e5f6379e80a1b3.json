@@ -16,7 +16,11 @@
     "notes": "SR2E p.241. Heavy stable mounting for heavy weapons: 6 points of recoil compensation when set up (tick 'deployed' in the attack dialog). Not concealable.",
     "weaponAccessory": true,
     "accessoryRecoilComp": 6,
-    "requiresDeployment": true
+    "requiresDeployment": true,
+    "citation": {
+      "book": "sr2",
+      "page": "241"
+    }
   },
   "effects": [],
   "flags": {},

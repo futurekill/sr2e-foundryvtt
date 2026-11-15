@@ -14,7 +14,11 @@
     "damageCode": "",
     "isAreaEffect": false,
     "isVoluntary": false,
-    "notes": "The magician must touch a voluntary or unconscious subject. The spell puts the subject in a form of suspended animation. Double the successes from the Spell Success Test to get the factor by which bodily processes are slowed. If 4 successes are scored, the hibernate spell slows the subject's metabolism by a factor of 8. If the subject has exceeded his Condition Monitor, he or she, or it would take an extra box of damage every 80 minutes instead of 10 minutes, as described in Exceeding the Condition Monitor. If the subject were suffering from a disease that weakened him every hour, it would now take 8 hours. If he were sealed into a chamber with only enough air to keep him alive for 1 day, the air would now last 8 days."
+    "notes": "The magician must touch a voluntary or unconscious subject. The spell puts the subject in a form of suspended animation. Double the successes from the Spell Success Test to get the factor by which bodily processes are slowed. If 4 successes are scored, the hibernate spell slows the subject's metabolism by a factor of 8. If the subject has exceeded his Condition Monitor, he or she, or it would take an extra box of damage every 80 minutes instead of 10 minutes, as described in Exceeding the Condition Monitor. If the subject were suffering from a disease that weakened him every hour, it would now take 8 hours. If he were sealed into a chamber with only enough air to keep him alive for 1 day, the air would now last 8 days.",
+    "citation": {
+      "book": "sr2",
+      "page": "157"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/hibernate.webp",
   "effects": [],

@@ -12,7 +12,11 @@
     "notes": "Heavy assault-cannon shells — explosive-equivalent with limited armour-piercing. ~1.25 wt/unit. Feeds the Panther and vehicle-mounted assault cannons. SR2E p.256.",
     "damageType": "",
     "armorCalc": "standard",
-    "streetIndex": 2
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "256"
+    }
   },
   "effects": [],
   "flags": {},

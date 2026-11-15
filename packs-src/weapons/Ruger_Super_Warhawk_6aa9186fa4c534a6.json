@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.231. A heavy revolver that accepts all standard accessories except silencers. Powerful and extremely reliable.",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "231"
+    }
   },
   "effects": [],
   "flags": {},

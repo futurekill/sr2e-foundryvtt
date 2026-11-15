@@ -10,7 +10,11 @@
     "multiplier": 2,
     "cost": 400,
     "loaded": false,
-    "notes": "SR2E p.175. Defense utility: adds its rating to every target number in the node (including the deck's own tests); degrades by 1 each Combat Turn."
+    "notes": "SR2E p.175. Defense utility: adds its rating to every target number in the node (including the deck's own tests); degrades by 1 each Combat Turn.",
+    "citation": {
+      "book": "sr2",
+      "page": "175"
+    }
   },
   "effects": [],
   "flags": {},

@@ -15,7 +15,11 @@
     "isAreaEffect": true,
     "isVoluntary": false,
     "notes": "An area-effect spell that causes Stun damage to living targets only.",
-    "damageType": "stun"
+    "damageType": "stun",
+    "citation": {
+      "book": "sr2",
+      "page": "151"
+    }
   },
   "img": "systems/sr2e/assets/item_icons/spells/sleep.webp",
   "effects": [],

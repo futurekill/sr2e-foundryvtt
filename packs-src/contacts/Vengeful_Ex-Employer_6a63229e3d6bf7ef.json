@@ -9,7 +9,11 @@
     "loyalty": 4,
     "influence": 4,
     "description": "",
-    "notes": "A Johnson whose deniable asset you became — burned by the run, now spending real budget to make it personal. SR Companion (Enemies)."
+    "notes": "A Johnson whose deniable asset you became — burned by the run, now spending real budget to make it personal. SR Companion (Enemies).",
+    "citation": {
+      "book": "sc",
+      "page": "71"
+    }
   },
   "effects": [],
   "flags": {},

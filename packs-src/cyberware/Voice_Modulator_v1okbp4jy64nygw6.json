@@ -23,7 +23,11 @@
       "initiativeDice": 0
     },
     "ratingStats": [],
-    "notes": "SR2E p.246 (table p.261). Voice control implant (volume/tonal-shift/pattern options extra). Essence .2, 45,000¥."
+    "notes": "SR2E p.246 (table p.261). Voice control implant (volume/tonal-shift/pattern options extra). Essence .2, 45,000¥.",
+    "citation": {
+      "book": "sr2",
+      "page": "261"
+    }
   },
   "effects": [],
   "flags": {},

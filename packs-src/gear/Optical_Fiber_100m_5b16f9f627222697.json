@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.246. 100m spool of fiber-optic cable for secure hardline data connections."
+    "notes": "SR2E p.246. 100m spool of fiber-optic cable for secure hardline data connections.",
+    "citation": {
+      "book": "sr2",
+      "page": "246"
+    }
   },
   "effects": [],
   "flags": {},

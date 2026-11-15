@@ -36,7 +36,11 @@
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.233. Heavier sister to the 750, designed for tough game and armor penetration. SA capable.",
-    "streetIndex": 1
+    "streetIndex": 1,
+    "citation": {
+      "book": "sr2",
+      "page": "233"
+    }
   },
   "effects": [],
   "flags": {},

@@ -13,7 +13,11 @@
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.244. Picks up sub-audible speech via throat contact. Enables silent communication."
+    "notes": "SR2E p.244. Picks up sub-audible speech via throat contact. Enables silent communication.",
+    "citation": {
+      "book": "sr2",
+      "page": "244"
+    }
   },
   "effects": [],
   "flags": {},
