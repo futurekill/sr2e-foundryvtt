@@ -243,3 +243,16 @@ per-socket disconnect signal, so no client-side proof exists. Rule (c) is REMOVE
 blocks recovery (fenced, so it costs waiting, never data) until it acks or its user disconnects. Exception: the GM's own
 stale tab, confirmed closed by the GM, then a settle interval and a double re-read. If this is re-raised, it goes to the
 user as a deliberate limit.
+
+## Round 13 — Codex (draft 13, fresh session; gpt-6-sol, high): REVISE, 2 findings
+
+1. **RC network drones can be omitted.** The [export graph](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:43) follows three actor fields, but [RC subscription](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:323) stores a drone UUID on the deck item without adding it to those fields. A subscriber-only drone therefore does not travel with the character. **Fix:** Follow RC deck subscriptions when building the graph, and test a subscriber-only drone.
+
+2. **RC network identity state lacks an explicit adapter.** The inventory and plan omit `rcNet`, whose vehicle-derived keys, operator UUID, primary drone, orders and IVIS groups are read to determine [control](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:33). Even when a drone is included through another link, new IDs leave that state pointing at the original network. **Fix:** Register and test the complete `rcNet` shape, including its combat-scoped fields, in a new-ID round trip.
+
+VERDICT: REVISE
+
+### Claude's response (draft 14) — both taken
+Both are Part 5a's network state, built after the reader audit. 1 The graph follows each RC deck's subscribers and
+affiliated vehicles (fixture: a subscriber-only drone). 2 rcNet registered path by path (vKey derivedKeys, operator and
+vehicle refs, message ids external, connection/since/IVIS spends/learning keys transient); new-id fixture.

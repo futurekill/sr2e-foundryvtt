@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 13 (2026-11-15), after Codex rounds 1–12 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 14 (2026-11-15), after Codex rounds 1–13 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -41,7 +41,9 @@ what the chargen web app reads and writes.
   assets: [ { path, file, sha256, bytes } ] }
 ```
 ### 1.1 Graph (D6)
-Start at the root actor; follow `system.linkedVehicles`, `system.controlledVehicles`, `system.boundSpirits` (vehicles
+Start at the root actor; follow `system.linkedVehicles`, `system.controlledVehicles`, `system.boundSpirits`, and the
+vehicles named by its remote-control decks' networks (round 13 #1: `flags.sr2e.rcNet.subscribers[]` and
+`affiliated.*.uuid` on each RC deck item — a subscriber-only drone is in none of the three fields; fixture) (vehicles
 and spirits: nothing further); every reached actor is one document, stored once. Unlinked token actors are exported
 from their synthetic source. A reference to something not exported → `unresolved[]`.
 
@@ -131,7 +133,15 @@ location — a parent-aware path: `actor.<path>`, `actor.items[].<path>`, `actor
 - `worldTime` / `serverTime` / `monotonic` / `duration` — clocks (§2.5);
 - `opaque` — unknown: carried as is; an identity-CHANGING import refuses when a scan finds a uuid/id of an exported
   document inside it, naming it; same-id restores pass.
-Effects' `origin` and system fields holding ids (`linkedWeaponId`-style) are registry entries too. So are the Rigger 2
+Effects' `origin` and system fields holding ids (`linkedWeaponId`-style) are registry entries too. The Rigger 2
+remote-control network (round 13 #2; Part 5a, after the reader audit) is one entry with explicit paths: on the deck item,
+`flags.sr2e.rcNet` = `subscribers[]` (vehicle uuids: `ref`), `affiliated.<vKey>` (keys `derivedKey` = `followId(vehicle
+uuid)`, payload `uuid` `ref`, `hardwired` data, `since` combat-scoped → `transient`), `operator` (actor uuid `ref`),
+`primary` (a vKey), `standingOrders.<vKey>` (text/successes data, `messageId` → `external ChatMessage`), `ivis.<gid>`
+(`drones[]` vKeys, spends keyed by Turn → `transient`), `usedCards` (message ids → `external ChatMessage`),
+`connection` (live session → `transient`: an import arrives disconnected unless a same-world restore keeps every
+referent); and the vehicles' `flags.sr2e.learningKey` / `learningSpends` (combat-scoped → `transient`). Fixture: a deck
+with a connected operator, a primary, a subscriber-only drone, orders and an IVIS group, imported with new ids. So are the Rigger 2
 subsystem bindings (round 9 #2; missed by the reader audit, now added to docs/PORTABLE-FLAG-INVENTORY.md):
 `flags.sr2e.subsystems.<id>.target.id` is a `ref` to an embedded item when `target.kind` is `item` (`data` for a
 `builtin` target, whose `gen` stays with `subsysGen`), and its copies in `vfollow.<fid>.subsystem.rolled.made[].target.id`

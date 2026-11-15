@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 9 (2026-11-15), after Codex rounds 1–8 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 10 (2026-11-15), after Codex rounds 1–9 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -43,7 +43,8 @@ applied).
 `docs/DERIVE-INVENTORY.md` gains a column assigning EVERY preparation block, helper, item getter and actor getter to a
 milestone, and each keeps its execution position (a thin call where the code is today, round 1 #9). Beyond §4's list:
 `_applySkillsofts`, `_applyAdeptSkills`, `_applyWeaponFoci`, `_applyUnarmedPower` → **M2j** (skills and foci, after
-M2f's pools, as today); the actor getters (`woundPenalty`, `sustainPenalty`, `mpcpOverloadPenalty`, `bodyOverstressTN`,
+M2f's pools, as today); the actor getters (round 9 #2: `woundPenalty` reads `withdrawalStun`, which folds substance state from
+`system.parent` — it becomes an explicit `ctx` read, with a withdrawal-at-zero-Stun fixture; `woundPenalty`, `sustainPenalty`, `mpcpOverloadPenalty`, `bodyOverstressTN`,
 `isMagical`/`isDecker`/`isRigger`) → **M2h** with the monitors, except `astralReaction` → **M2d** (round 3 #1: M2d's
 Initiative reads it when projecting — a plain system would give `undefined + 15`; fixtures: a projecting magician and a
 projecting shapeshifter, Node and browser); the item getters `actualEssenceCost`,
@@ -62,9 +63,9 @@ preparation.
 - **Items without a character owner** (round 5 #3): every item data model prepares, including world and compendium
   items (a standalone Program) and items owned by an NPC, a vehicle or a spirit. `contextFromItem(item, system)` builds
   the ITEM context with an explicit `owner`: `null` (unowned: only what the item derives from itself), or a plain
-  record of the owning actor's `type`, `uuid`, item facade and flags (non-character: the derivations that read
-  character-only state — skillsofts, persona, cyber limbs — see `owner.type` and skip exactly as the current code
-  does). M2a parity covers a world Program, a compendium Program, an NPC-owned and a vehicle-owned item.
+  record of the owning actor's `type`, `uuid`, item facade and flags (non-character: every item derivation runs exactly as today for every owner type — round 9 #1: CyberwareData has
+  no owner-type guard, so an NPC's linked limb option is priced as now; a branch is skipped ONLY where the current code
+  itself skips it). M2a parity covers a world Program, a compendium Program, an NPC-owned and a vehicle-owned item.
 - **Settings and rulesets come from the context, never globals**: `isVR2()`, `isRigger2()`, `r2Option()`,
   `game.settings.get(...)` calls inside code that moves into `module/derive/` are replaced by `ctx.settings` reads;
   the global helpers stay for live-play code. That includes helpers that SWALLOW a missing global (round 5 #1):
@@ -153,6 +154,10 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
 - **M2f** dice pools; **M2g** armor; **M2h** condition monitors.
 - **M2i** the chargen budget: `chargenBudgetOf` / `priorityTableFor` move from `sheets/actor-sheet.mjs` into
   `module/derive/chargen.mjs` (reading `ctx.registries`, not `CONFIG`).
+- **Item getters** (round 9 #4): EVERY prototype getter on an item data model is inventoried and assigned to its item
+type's M2a.n release, with projection parity cases — `parsedDamageCode` (weapon), `parsedDrainCode` and `drainTarget`
+(spell), `actualEssenceCost` (cyberware), `actualBodyCost` (bioware), `totalCost`, `signedValue` and any other; the
+pure item record exposes each as a derived field, so a plain spell or weapon record has the same readouts.
 - **M2j** skills and foci (round 6 #2): `_applySkillsofts`, `_applyAdeptSkills`, `_applyWeaponFoci`,
   `_applyUnarmedPower` (§1.2), after M2f's pools as today.
 **The M2 gate** (what M3 waits for): every block in docs/DERIVE-INVENTORY.md's milestone column moved, M2a–M2j
@@ -205,8 +210,9 @@ Each content module that writes a registry, at ANY hook (round 7 #3: the Grimoir
 — spirit types, totems and totem groups, vehicle list rows, Workshop tables, qualities — exports `register(registries)`
 from a pure file; its Foundry hook becomes `register(CONFIG.SR2E…)`. The inventory lists every `CONFIG.SR2E` writer in
 the system and the modules regardless of hook. A grep can't prove parity (round 8 #3: Cyberpirates writes through an
-alias, `S.spiritProfiles.ancestor`), so each module's Quench test compares the complete registries after its Foundry
-hooks have run with the result of its pure `register(registries)` on an empty set — deep-equal, per registry.
+alias, `S.spiritProfiles.ancestor`), so each module's Quench test compares complete registries from the SAME starting state (round 9 #3): both paths
+start from the core system's registries, apply the enabled modules in hook order (Foundry: their hooks; pure: their
+`register()` calls), and the results must be deep-equal, per registry.
 The system's adapter builds `ctx.registries` from the same calls, so the creator can register the modules it pins.
 One module per small release, after M2a.
 

@@ -164,3 +164,20 @@ VERDICT: REVISE
 only with a stored snapshot, else shows the document unavailable. 2 Goldens record canonical label tokens; the Foundry
 adapter's localized output is tested separately. 3 Verified (Cyberpirates writes via an alias): registry parity is a
 per-module deep-equal of the post-hook registries vs the pure register() result.
+
+## Round 9 — Codex (draft 9, fresh session; gpt-6-sol, high): REVISE, 4 findings
+
+1. **Cyberware preparation must not skip non-character owners.** [The plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:62) says cyberlimb derivation skips NPC and vehicle owners, but [CyberwareData](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:737) has no such guard. An NPC’s linked limb option would get a different price. **Fix:** Preserve the existing item preparation for every owner type; guard only branches the current code guards.
+
+2. **A parent read is missing from the getter inventory.** [The wound-penalty getter](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:1665) calls `withdrawalStun`, which reads `system.parent` to fold substance state. A plain working system has no parent, so a character in withdrawal with zero Stun can lose the minimum wound penalty. **Fix:** Move that helper to explicit context reads and add a withdrawal fixture.
+
+3. **The registry parity test has the wrong starting state.** [Section 6](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:203) compares complete post-hook registries with `register()` run on an empty set. [Cyberpirates’ registration](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-cyberpirates/scripts/register-cyberpirates.mjs:53) requires core registry entries, so a correct adapter cannot pass that comparison. **Fix:** Seed both paths with the same core registries, apply enabled modules in hook order, then compare complete results.
+
+4. **The item-getter inventory does not meet its stated gate.** [Section 1.2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:42) promises a milestone for every item getter but names only three. [Spell drain target](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:464) and [weapon parsed damage](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:341) still depend on DataModel prototypes excluded from the core package. A plain spell or weapon record would lack those prepared readouts. **Fix:** Inventory and assign the remaining getters to item releases, with projection parity cases.
+
+VERDICT: REVISE
+
+### Claude's response (draft 10) — all 4 taken
+1 Item derivations run unchanged for every owner type; skip only where today's code skips. 2 withdrawalStun's parent read
+becomes an explicit ctx read (fixture). 3 Registry parity starts both paths from the core registries and applies modules in
+hook order. 4 Every item getter inventoried and assigned to its item release with parity cases.
