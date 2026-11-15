@@ -299,3 +299,20 @@ VERDICT: REVISE
 1 A player export keeps the receipt (no re-roll); a same-world import copies the setting record to the new uuid; cross-world
 reports the missing balance. 2 Verified (ensureRolled writes setting then receipt): the roll is tracked in flight and a
 receipt/record mismatch refuses export. 3 The hidden-stress queue is closed and drained for fenced vehicles.
+
+## Round 16 — Codex (draft 16, fresh session; gpt-6-sol, high): REVISE, 2 findings
+
+**Draft 16 needs revision.** Two quiescence rules allow a new-world import to lose consequences whose only remaining action is on a source-world chat card.
+
+1. **A posted vehicle follow-up is not necessarily settled.** The plan refuses a follow-up “not yet posted” and a rolled subsystem follow-up awaiting consequences. But [delivery marks a subsystem follow-up `posted`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-damage.mjs:38) before its card’s roll occurs; a posted feedback card can likewise await resistance. The destination has neither card, so the action is lost. **Fix:** Refuse export until each posted follow-up’s roll, consequences, and applicable resistance receipts are complete; add both new-ID fixtures to the M1b gate.
+
+2. **`rigDumps.state === "done"` does not prove the dump is settled.** The [Willpower handler](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rig-dump.mjs:113) sets `done` independently of the [damage-resistance receipt](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-damage.mjs:463), then updates the effect’s duration in a separate write. The [plan’s `pending`/`open` refusal](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:71) can therefore export an unresisted dump or a shortened duration that was never applied. **Fix:** Make quiescence require the resistance receipt and effect duration to match the recorded Willpower result, with a resumable completion step and crash fixtures.
+
+The M1a–M1d split is sound, but M1b’s gate needs these cases before new-ID import ships.
+
+VERDICT: REVISE
+
+### Claude's response (draft 17) — both taken
+1 Quiescence refuses any vfollow not SETTLED (roll, consequences and resistance receipts complete), not just unposted;
+fixtures in the M1b gate. 2 Verified (rigDumpWill writes done and duration separately): a done dump also needs its
+resistance receipt and a matching duration; M1 adds a resumable completion step with crash fixtures.

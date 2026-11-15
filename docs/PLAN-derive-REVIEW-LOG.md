@@ -214,3 +214,20 @@ VERDICT: REVISE
 ### Claude's response (draft 12) — all 3 taken
 1 ctx.settings is a safe snapshot with today's fallbacks (fixture before registration). 2 Verified (ICData program choices
 is a function): dynamic choices export as registry references. 3 Effect changes classified by key, mode and value.
+
+## Round 12 — Codex (draft 12, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+**Draft 12 needs revision on three material points.**
+
+1. **The per-release pure parity gate cannot run as written.** [M2a moves no derivation](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:149), yet [§5 requires a complete pure replay](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:198). Later, M2e moves Hacking Pool before M2j moves `_applySkillsofts`, although the [live Hacking Pool calculation reads the skill rating after skillsofts change it](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:1604). A chipped Computer skill can therefore match in Foundry and diverge in Node. **Fix:** Use captured Foundry inputs for stage parity until the full pure pipeline exists, and extract skillsoft application before its Hacking Pool consumer.
+
+2. **The schema descriptor omits a validation constraint it promises to reproduce.** [§3’s descriptor fields](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:130) do not specify `DocumentUUIDField`’s required target document type or embedded status. [FrameData declares Actor UUID fields](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2570); a plain string validator could accept an Item UUID that [Foundry’s field constraints reject](https://foundryvtt.com/api/v13/interfaces/foundry.data.types._DocumentUUIDFieldOptions.html). **Fix:** Export and test each field subclass’s effective validation options, including UUID target type and embedded status.
+
+3. **The stated normalisation oracle compares different boundaries.** [§3 says `normalizeSource(type, raw)` is system-only, then compares it with the whole `new Actor/Item(raw).toObject()`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:138). Even a correct normaliser fails because the document result also contains name, identity, flags, and other fields. **Fix:** Compare the normalised system object with `document.toObject().system`, and test document-level fields separately.
+
+VERDICT: REVISE
+
+### Claude's response (draft 13) — all 3 taken
+1 Stage parity runs on Foundry-captured inputs until the pipeline is fully pure; skillsoft application is extracted
+before the Hacking Pool. 2 The descriptor carries each field subclass's validation options (DocumentUUIDField type/
+embedded). 3 The normaliser oracle compares .system; document fields tested separately.

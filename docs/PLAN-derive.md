@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 12 (2026-11-15), after Codex rounds 1–11 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 13 (2026-11-15), after Codex rounds 1–12 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -129,7 +129,9 @@ Fixtures: the recorded ammunition value in the chargen budget, and a resolved-bu
 The creator starts from minimal or raw sources, Foundry from instantiated ones. A build step
 (`tools/derive/schema-export.mjs`, run in Foundry by a Quench helper and committed) exports each TypeDataModel's field
 tree as a plain descriptor (`schema/data-models.json`: type, required, initial, nullable, blank, integer, min/max,
-choices, nested fields, arrays) — round 1 #6. `module/derive/normalize.mjs` applies it like Foundry's `cleanData` (defaults, coercion,
+choices, nested fields, arrays, and each field SUBCLASS's effective validation options — round 12 #2: a
+`DocumentUUIDField`'s target `type` and `embedded` status, e.g. FrameData's Actor UUID fields, so an Item UUID is
+rejected as Foundry rejects it; a test per subclass) — round 1 #6. `module/derive/normalize.mjs` applies it like Foundry's `cleanData` (defaults, coercion,
 clamping — Foundry 13 CLAMPS out-of-range numbers, CLAUDE.md "NPC Essence"; the `blank` rule; nested defaults;
 StringField TRIMMING, round 3 #3: v13's `StringField` defaults to `trim: true` and trims before cleaning, so the
 descriptor records each field's effective `trim` and the normaliser applies it — `system.race: " troll "` must become
@@ -138,7 +140,8 @@ clamping) and `validateSystem` (required, null, blank, choices — the errors Fo
 `system` object (document-level fields — name, img, ownership, `_stats` — are the adapters' job). Tests: missing,
 null, blank, invalid-choice, string-number coercion and out-of-range clamping cases for every constraint kind, each
 compared with Foundry's own result. A
-Quench test compares `normalizeSource(type, raw)` with `new Actor/Item(raw).toObject()` for a minimal new actor of
+Quench test compares `normalizeSource(type, raw)` with `new Actor/Item(raw).toObject().system` (round 12 #3: the
+contracts' boundary is `system`; document-level fields are tested separately against the adapter) for a minimal new actor of
 every type and EVERY raw `packs-src` item of the system and the content modules; a CI check fails when
 `schema/data-models.json` is stale against the live models. Dynamic choices (round 11 #2: a function such as
 ICData's `program`, reading `CONFIG.SR2E.icPrograms`) are exported as REGISTRY REFERENCES (`{ registry: "icPrograms" }`),
@@ -212,7 +215,12 @@ globals defined, and the declared-reads check over recorded contexts; the fixtur
 Maps and references survive JSON, round 1 #8) REPLAY through a plain-data `lookup` resolver in Node and in a headless
 browser (the puppeteer-core setup the wiki media uses) and must match the golden projections — including nonzero
 clocks, a substance clock different from world time, voided permanent-damage records and a shapeshifter in animal
-form. **Intermediate-state parity** (round 1 #9): each release also compares the working copy right after its own
+form. **Until the pure pipeline is complete** (round 12 #1: M2a moves nothing, and a later stage may read a value an
+earlier, not-yet-moved stage changed), each release's stage parity runs on INPUTS CAPTURED from Foundry at that
+stage's position (the working copy just before it), not on a full pure replay; the full replay becomes the gate once
+every stage is pure. Release ORDER respects producer before consumer: skillsoft application (M2j's
+`_applySkillsofts`) is extracted BEFORE M2e's Hacking Pool, which reads the chipped Computer rating (its call position
+stays where it is). **Intermediate-state parity** (round 1 #9): each release also compares the working copy right after its own
 stage, and documents the cross-stage inputs it reads (e.g. M2b's cybermancy reads the signed Essence assigned before
 it, still in its original position).
 

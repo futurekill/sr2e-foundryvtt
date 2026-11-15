@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 16 (2026-11-15), after Codex rounds 1–15 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 17 (2026-11-15), after Codex rounds 1–16 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -53,7 +53,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   cybermancy operation without op-done; an unfinished dose (`resumeDoses` pending); an unsettled money queue entry; an
   open crash/impact record; a VR2 request the sequencer hasn't settled; and, from the reader audit
   (docs/PORTABLE-FLAG-INVENTORY.md), an interrupted Keep as edited (`keepEdited`), pending engine checks
-  (`pendingEngineChecks`), a vehicle follow-up not yet posted (`vfollow`), a pending VR2 sheaf (`vr2SheafPending`); a
+  (`pendingEngineChecks`), a vehicle follow-up not SETTLED (`vfollow`; round 16 #1: "posted" is not settled — a subsystem
+  follow-up is posted before its roll and a feedback card before its resistance, and the destination has neither card:
+  export waits until each follow-up's roll, consequences and resistance receipts are complete; new-id fixtures for a
+  posted-unrolled subsystem and a posted-unresisted feedback join the M1b gate), a pending VR2 sheaf (`vr2SheafPending`); a
   LIVE VR2 connection (round 3 #5: `liveOpen` rebuilds it from the durable `connOpen`/`connEnd` facts, so dropping the
   transient session flags can't end it — the decker jacks out first, which writes `connEnd` with its consequences in
   the source world); unsettled overhead/optempo money (round 3 #4: a receipt not `released`/settled, a refund `due`); a missile launch
@@ -68,7 +71,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   eject items stays open in `planned`/`ready`/`settled`/`cancelled`, and `reconcileReloads` resumes it; its reference
   shapes `reloadPlans.ammoItemId`, `ejectTo`, `reserveReceipts.props.loadedSourceId` and `system.ammo.sourceId` /
   `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation); a hidden-Stress REVEAL not `done` (round 14 #1: `r2HiddenStress.reveals.<id>` pending in the world setting); a
-  rigger DUMP not settled (round 14 #2: `flags.sr2e.rigDumps.<id>` `pending` or `open` — its card and its resistance
+  rigger DUMP not settled (round 14 #2, round 16 #2: `flags.sr2e.rigDumps.<id>` `pending` or `open`, OR `done` while its
+  Stun-resistance receipt is missing or the dump-shock effect's duration doesn't match the recorded Willpower result —
+  `rigDumpWill` sets `done` and the duration in separate writes; M1 adds a resumable completion step in rig-dump.mjs
+  that re-applies the duration from `will`, with crash fixtures between the writes — its card and its resistance
   and Willpower steps live in the source world; `reconcileDumps` joins the barrier's drained reconcilers); a PENDING substance roll (round 11 #3: a
   `substanceLog` test, extension or recovery record with `pending: true` is claimed before its card exists, and
   `settleSubstances` deletes it as abandoned in a world without that card; fixture interrupted between claim and
