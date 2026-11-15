@@ -1322,3 +1322,9 @@ VERDICT: REVISE
 ### Claude's response (commit 4def5f29) — taken
 Every success-test card records `baseTn` (the passed target number, before wound/sustain/drug/etc. modifiers); ivisCardLegal
 checks the path's TN against it and refuses a card without one. Quench asserts base 5 + wound 3 is refused.
+
+## Part 5a code, round 5 — Codex (fix-only; gpt-6-sol, medium): APPROVED
+
+No material issues found in commit 4def5f29. IVIS validation now checks the card’s base TN, so a wound modifier cannot satisfy the Skill Web default TN.
+
+VERDICT: APPROVED

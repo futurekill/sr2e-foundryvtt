@@ -175,3 +175,22 @@ record whose item id is gone): `subsystems.*.target.id` (kind item) and `vfollow
 are `ref`s; inventory rows added for `subsystems`, `subsysGen`, `guidance`; fixture with item-bound and built-in records.
 3 Quiescence refuses a rolled subsystem follow-up without `consequencesDone`. 4 Quiescence refuses active guidance
 (`acquired`/`committed`) until `ended`/`lost`.
+
+## Round 10 — Codex (draft 10, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+1. **The barrier can miss a tab.** Draft 10 builds its roster from instances that report `seen` during a fixed window. A connected tab that receives the setting later is absent from that roster, so import can proceed while that tab still has a write in flight. This leaves the round 9 barrier finding unresolved. **Fix:** Use an authoritative per-instance roster and require a drained acknowledgement from every instance in it before fencing. [Plan §2.4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:199)
+
+2. **Recovery can strand an import after one tab closes.** Takeover accepts an acknowledgement from the old instance or inactivity of its *user*. If that instance crashes while another tab of the same user stays connected, neither condition can occur; closing the failed tab does not unblock recovery. **Fix:** Establish per-instance disconnect and pending-write proof for takeover, rather than relying on user-level activity. [Plan §2.7](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:322)
+
+3. **The registry completeness check excludes system-field references.** The proposed AST scan covers flags, claim keys and `keepId` creates, yet a spell’s `system.fetish.itemId` identifies a gear item and is dereferenced after import. An omitted adapter for that shape would silently break the spell under new item ids without failing the stated inventory check. **Fix:** Include identity-bearing system fields and their readers in the enforced registry inventory, with a new-id round-trip fixture for the fetish link. [Plan §1.5](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:148), [spell field](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:447), [reader](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/restricted-spells.mjs:69)
+
+VERDICT: REVISE
+
+### Claude's response (draft 11) — all 3 taken
+1 The roster is authoritative: each page load registers `instances.<instanceId>` on its User at ready and heartbeats
+every 30 s; the roster is every registered instance of a connected user with a heartbeat under 90 s, re-read during the
+wait; a tab loading mid-barrier admits nothing and acks drained at once. 2 Takeover adds (c) GM attestation of an
+instance whose heartbeat is over 90 s stale; an attested takeover is roll-forward only (steps are idempotent toward
+`after`, so a woken tab can only land the same values) and re-verifies before unfencing. 3 The shape inventory also
+covers identity-bearing system fields (`*Id`/`*Uuid` names or `static IDENTITY_FIELDS`) and their readers; fixture:
+`system.fetish.itemId` (verified at item-data.mjs, read by restricted-spells.mjs).

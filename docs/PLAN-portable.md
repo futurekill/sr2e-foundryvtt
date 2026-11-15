@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 10 (2026-11-15), after Codex rounds 1–9 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 findings, all taken); draft 3 added the reader audit
+_Draft 11 (2026-11-15), after Codex rounds 1–10 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -149,7 +149,10 @@ the key re-derived from the remapped actor and op ids, the deadlines rebased (§
 - **Shape inventory** (Vitest, `test/portable-registry.test.mjs`): an espree AST walk of `module/` (espree ships with
   ESLint) finds every write: `setFlag/getFlag/unsetFlag("sr2e", …)`, string and template-literal update keys under
   `flags.sr2e.`, nested object literals under `flags: { sr2e: … }`, `once()`/`recordEvent()`/`claimId()` key prefixes,
-  and every `keepId` create. A DYNAMIC path (a computed key it can't resolve) must carry a `// portable: <entry>`
+  and every `keepId` create — and the identity-bearing SYSTEM fields (round 10 #3): every data-model field named
+  `*Id`, `*Ids`, `*Uuid`, `*Uuids` or declared in a model's `static IDENTITY_FIELDS`, with the readers that dereference
+  it (e.g. a spell's `system.fetish.itemId`, read by restricted-spells.mjs to find the bound gear item; fixture: a
+  fetish-bound spell imported with new ids still finds its fetish). A DYNAMIC path (a computed key it can't resolve) must carry a `// portable: <entry>`
   annotation naming its registry entry. The test fails on any shape without an entry — per shape and per event type,
   not per top-level name (a new payload inside `claim` is caught).
 - **Adapter coverage**: every `ref`/`derivedKey`/`deterministicId`/`event` entry has a fixture-driven round-trip test
@@ -211,11 +214,14 @@ restore may keep ids (`keepId`) when they are free.
   cancels its pending timers for barrier actors, and re-schedules on unfence; the client awaits those promises, then marks itself drained. Acks are PER
   INSTANCE (round 9 #1: two tabs of one user must not share a slot): every page load has an `instanceId`; on seeing the
   barrier it writes `flags.sr2e.importAck.<importId>.<instanceId> = { epoch, state: "seen" }` on its User document at
-  once, and `state: "drained"` after its drain. The GM's roster is the set of `seen` instances: it collects for a fixed
-  window after `closing` (so a slower second tab still registers), requires at least one `seen` instance for every
-  connected user, then waits for EVERY rostered instance to reach `drained` at this epoch (an instance whose user
-  disconnects is dropped; one that never answers blocks the import, which the GM may cancel — never proceed without
-  it). Quench: two instances of one user, one draining slowly — the import waits for both; (3) **fence and verify** —
+  once, and `state: "drained"` after its drain. The roster is AUTHORITATIVE, not collected
+  (round 10 #1): every page load registers `flags.sr2e.instances.<instanceId> = { at }` on its User document at `ready`
+  (before it can write anything) and renews it every 30 s; the roster is every registered instance of a connected
+  user whose heartbeat is under 90 s old, re-read until the wait ends (a tab that loads DURING the barrier registers,
+  finds the barrier at once, admits nothing for those actors and acks `drained` immediately). The GM waits for EVERY
+  rostered instance to reach `drained` at this epoch; an instance leaves the roster only when its user disconnects or
+  by the attested-dead rule of §2.7; one that never answers blocks the import, which the GM may cancel — never proceed
+  without it. Quench: two instances of one user, one draining slowly — the import waits for both; (3) **fence and verify** —
   the GM writes the actors' fences, re-reads every source, and re-runs quiescence (§1.2) against that fenced state
   before any import write. The pre-hook veto (below) stays as defense in depth for writers that ignore the barrier.
 - **Pre-hook veto on every client**: one set of `preCreate/preUpdate/preDelete` hooks for Actor, Item and ActiveEffect
@@ -323,8 +329,12 @@ restore may keep ids (`keepId`) when they are free.
   awaits its own pending writes, then writes `importAck.<importId> = { epoch, drained: true }` on its User), or (b) the
   server reports the old owner's USER inactive (a socket's requests are processed in order before its disconnect, so a
   disconnected client has nothing left to land) and its heartbeat is stale. A stale heartbeat alone (a frozen tab of a
-  still-connected user) is NOT enough: recovery stays blocked, naming the instance, until it acks or disconnects (the GM
-  can close that tab). Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
+  still-connected user) is NOT enough by itself (round 10 #2: a crashed tab whose user stays connected in another tab
+  never acks and never "disconnects" as a user): (c) when the instance's heartbeat is over 90 s stale the GM may
+  ATTEST it dead (a button naming the instance, its user and its last heartbeat). An attested takeover is
+  roll-forward ONLY — rollback is disabled for that import — because every journal step is idempotent toward `after`
+  (absolute values, `keepId` creates the server rejects as duplicates, deletes), so a late write from a frozen tab that
+  wakes can only land the same `after` the new owner writes; the final verify re-reads every step before unfencing. Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
   Imports and recovery are serialized per world (one import at a time). Recovery runs from a button and from the
   startup coordinator below.
 - **Startup coordinator** (round 4 #3): ONE GM-`ready` sequence orders import recovery and the world migration

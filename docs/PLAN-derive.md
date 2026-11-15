@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 6 (2026-11-15), after Codex rounds 1–5 (9 + 3 + 3 + 2 + 5 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 7 (2026-11-15), after Codex rounds 1–6 (9 + 3 + 3 + 2 + 5 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -134,8 +134,12 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
 `schema/data-models.json` is stale against the live models.
 
 ## 4. Extraction order (one release each; D2)
-- **M2a** context, adapter, declared reads, normaliser + schema export, the parity harness (§5), and **item
-  preparation** (the 9 item `prepareDerivedData` → `module/derive/items/*.mjs`; the item data models call them).
+- **M2a** context, adapter, declared reads, normaliser + schema export, the parity harness (§5) with its golden
+  projections, and the consumable package — and NO derivation moved (round 6 #1: D2's one derivation per release).
+- **M2a.1 … M2a.n** item preparation, ONE item type per release (the 9 item `prepareDerivedData` →
+  `module/derive/items/*.mjs`, the data model calling it): Program (sizing, options, frame cores) and cyberware/bioware
+  (grades, pricing, limb links) each alone; the simpler types may pair only when their fixtures don't overlap. Each
+  release passes the full parity gate on its own.
 - **M2b** attributes: racial modifiers, `_collectItemModifiers`, `_calculateAttributeValues`, limb averages,
   articulation, cybermancy, CCSS (the limb/ware/cym rule modules are already pure — moved callers only).
 - **M2c** Essence, Magic, Body Index (incl. substances, autoEssence, signed Essence).
@@ -145,6 +149,10 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
 - **M2f** dice pools; **M2g** armor; **M2h** condition monitors.
 - **M2i** the chargen budget: `chargenBudgetOf` / `priorityTableFor` move from `sheets/actor-sheet.mjs` into
   `module/derive/chargen.mjs` (reading `ctx.registries`, not `CONFIG`).
+- **M2j** skills and foci (round 6 #2): `_applySkillsofts`, `_applyAdeptSkills`, `_applyWeaponFoci`,
+  `_applyUnarmedPower` (§1.2), after M2f's pools as today.
+**The M2 gate** (what M3 waits for): every block in docs/DERIVE-INVENTORY.md's milestone column moved, M2a–M2j
+released, and a Vitest that fails while any `prepareDerivedData` still computes instead of calling `module/derive/`.
 Each step: move the code verbatim behind the context, the data model calls it, parity + existing tests green, no
 behaviour change, CHANGELOG "Changed (internal)" only.
 **The consumable package (D1; round 4 #2)** is an M2a deliverable and a gate of every M2 release: the release workflow
@@ -165,7 +173,10 @@ prepared again), not fresh copies, so stale item fields show up.
 
 Quench batch `sr2e.derive-parity` (the Foundry path needs Foundry): for each fixture, prepare the actor in Foundry,
 then run the pure path on `contextFromActor` of a FRESH, unprepared copy of the same sources, and compare the D12
-projection (`module/portable` shares it) field by field. Fixtures (the chargen plan's M2 gate): every pregen in
+projection (`module/portable` shares it) field by field. Sequences (round 6 #3) run on PERSISTENT instances on BOTH
+sides: one Foundry actor and one pure working state, each edited, stripped of a mechanism and prepared again in the
+same steps, compared after EVERY step — so a pure path that keeps an adept bonus or a chip's rating on the second
+preparation fails, just as the Foundry side would. Fixtures (the chargen plan's M2 gate): every pregen in
 `packs-src/runners` and each content module's archetypes; edits (an attribute raised, an item's rating changed);
 removals (a ware item, a skillsoft, a VCR, a deck, a bonded focus — the derivation-removed trap); **prepare twice**;
 Active Effects on/off — SUPPORTED keys (actor and item-transferred) compared field by field; an UNSUPPORTED one

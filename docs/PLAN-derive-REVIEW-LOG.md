@@ -116,3 +116,19 @@ source order), tested with the moved deck selection. 3 `contextFromItem` with `o
 record; M2a parity covers world, compendium, NPC- and vehicle-owned items. 4 The archive allow-list matches D1:
 module/portable/** and the static tables (config.mjs's data half split into module/tables/*.mjs); the smoke test
 imports every creator-facing export. 5 Unsupported AEs assert D9's whole-document snapshot fallback + warning, not parity.
+
+## Round 6 — Codex (draft 6, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+1. **M2a moves too much at once.** [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:136) moves every item preparation in one release, despite approved D2’s one-derivation-per-release rule. A Program sizing regression and a cyberware pricing regression could then land together, making the required incremental parity gate ineffective. **Fix:** release the normaliser and harness first, then move item derivations in small, separately gated releases.
+
+2. **The M2 completion gate can omit skills and foci.** [§1.2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:42) assigns skillsofts, adept skills, weapon foci, and unarmed power to M2j, but the release sequence in [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:136) ends at M2i. Starting M3 there would leave those character results dependent on DataModel code. **Fix:** add M2j explicitly to the release sequence and M2 gate.
+
+3. **The parity procedure does not exercise repeated pure preparation.** [§5](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:159) promises persistent instances, then specifies a *fresh, unprepared* pure copy for each fixture. A pure path that retains an adept bonus or chipped rating after a second preparation could pass a fresh-copy comparison. **Fix:** run the same edit, removal, and prepare-twice sequence on persistent Foundry and pure instances, comparing after each step.
+
+VERDICT: REVISE
+
+### Claude's response (draft 7) — all 3 taken
+1 M2a now moves nothing (context, adapter, normaliser, harness, goldens, package); item preparation follows as
+M2a.1…n, one item type per release (Program and cyberware/bioware each alone). 2 M2j added to the release list, and an
+explicit M2 gate (every inventoried block moved, M2a–M2j released, a Vitest that fails while a prepareDerivedData still
+computes). 3 Sequences run on persistent instances on both sides, compared after every step.
