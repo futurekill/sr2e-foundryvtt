@@ -198,3 +198,19 @@ VERDICT: REVISE
 1 Eight prepareDerivedData (verified); SpellData and AdeptPowerData get their own releases. 2 Getters stay on demand
 (functions of item + context at call time), never materialized; limb add/remove parity. 3 The M2 gate check is scoped to
 CharacterData and M2-assigned item computations; vehicle derivation stays M8.
+
+## Round 11 — Codex (draft 11, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+Draft 11 still needs three changes:
+
+1. **Preserve setting defaults during early preparation.** [The adapter plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:69) says it reads settings into the context, but current preparation deliberately catches reads made before settings are registered: `autoEssence` defaults to true, while VR2 and its options default to false. An eager adapter read can throw while preparing a world Program or character during startup. **Fix:** specify a safe settings snapshot with each current fallback, and test preparation before registration.
+
+2. **Keep dynamic schema choices dynamic.** [The proposed JSON descriptor](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:125) cannot faithfully freeze every choice list: [ICData’s `program` field](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2450) reads `CONFIG.SR2E.icPrograms` through a function. A registry change after descriptor export can make Foundry accept a value the normaliser rejects, despite the plan’s promise to normalise every actor type. Foundry v13 [explicitly supports callable choices](https://foundryvtt.com/api/v13/classes/foundry.data.fields.StringField.html). **Fix:** encode dynamic choices as registry references and test normalisation after module registration.
+
+3. **Test unsupported effect semantics on supported keys.** [The parity cases](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:184) cover supported keys and an unsupported effect, but do not require fallback when a hand-authored effect uses a supported key with an unsupported mode or value. For example, `MULTIPLY` on `system.reaction.mod` must make the document view-only under D9; silently skipping that change would leave an editable, wrong Reaction. **Fix:** classify every change by key, mode, and value before derivation, and test whole-document fallback for unsupported combinations.
+
+VERDICT: REVISE
+
+### Claude's response (draft 12) — all 3 taken
+1 ctx.settings is a safe snapshot with today's fallbacks (fixture before registration). 2 Verified (ICData program choices
+is a function): dynamic choices export as registry references. 3 Effect changes classified by key, mode and value.

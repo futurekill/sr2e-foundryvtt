@@ -279,3 +279,23 @@ VERDICT: REVISE
 section, a player export omits it and the import report says so (receipt cleared so the GM can re-roll); a pending reveal
 refuses export. 2 Verified (rig-dump.mjs): pending/open dumps refuse export, reconcileDumps joins the barrier drain,
 deckUuid ref / card external. 3 Verified (rc-net.mjs): deckId is a ref, unreachable transient (recomputed); fixture.
+
+## Round 15 — Codex (draft 15, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+Draft 15 still has three material gaps in its hidden Stress resolution:
+
+1. **Owner exports lose state.** A player’s bundle omits the unrevealed balance; clearing `hiddenStressRolled` causes a new roll, which can change the character’s state. [Plan §1.4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:149) · [writer](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-quality.mjs:26)  
+   **Fix:** Carry the balance in a sealed GM-readable supplement for owner exports, or refuse an affected owner export as incomplete.
+
+2. **A GM export can capture a split snapshot.** `ensureRolled` writes `r2HiddenStress` before it writes the vehicle’s receipt. The export revision check covers documents and cancer pages, but specifies no check for this setting or the roll in flight. [Plan §1.2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:84) · [write order](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-quality.mjs:28)  
+   **Fix:** Track the whole roll as in flight and validate the vehicle’s hidden Stress setting record as part of the snapshot.
+
+3. **The import barrier does not fence hidden Stress writes.** The `hidden-stress` queue writes a world setting before `adjustStress` reaches the actor. During an M1c import, a concurrent reveal can change that setting even while the actor fence blocks its Stress update. [Plan §2.4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:237) · [reveal path](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-quality.mjs:43)  
+   **Fix:** Close and drain the hidden Stress queue for affected vehicles before import, then keep its setting writes fenced through journal commit.
+
+VERDICT: REVISE
+
+### Claude's response (draft 16) — all 3 taken
+1 A player export keeps the receipt (no re-roll); a same-world import copies the setting record to the new uuid; cross-world
+reports the missing balance. 2 Verified (ensureRolled writes setting then receipt): the roll is tracked in flight and a
+receipt/record mismatch refuses export. 3 The hidden-stress queue is closed and drained for fenced vehicles.

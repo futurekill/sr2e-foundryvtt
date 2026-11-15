@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 15 (2026-11-15), after Codex rounds 1–14 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 16 (2026-11-15), after Codex rounds 1–15 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -149,8 +149,14 @@ it), and a signal amplifier's or IVIS master's `flags.sr2e.deckId` is a `ref` to
 with two decks and both devices bound). **Hidden Stress** (round 14 #1; R2 p.84) lives in the GM-only world setting
 `r2HiddenStress`, keyed by vehicle uuid, with only the receipt `hiddenStressRolled` on the vehicle: a GM's export
 carries each exported vehicle's unrevealed balance in a GM-only bundle section (`gmOnly.hiddenStress`, remapped to the
-new uuid and journalled on import); a player's export omits it and the import report tells the GM the balance wasn't
-carried (the GM may re-roll; the receipt is cleared so the roll is offered). Rigger dumps: `rigDumps.<id>.deckUuid` is a
+new uuid and journalled on import); a player's export omits the balance but KEEPS the receipt (round 15 #1: clearing it would re-roll and change the
+character): a same-world import, always run by the GM, copies the setting record from the old vehicle uuid to the new
+one in the journal; a cross-world import keeps the receipt with no balance and the report tells the GM so (they may
+set it by hand) — nothing is re-rolled. Consistency (round 15 #2): `ensureRolled` writes the setting before the
+receipt, so the whole roll is `track`ed as in flight, and the snapshot check refuses export when a vehicle's receipt
+and its setting record disagree (one without the other). The barrier (round 15 #3) closes the world-wide
+`hidden-stress` queue for fenced vehicles: its admission checks `fenced(vehicle)` and the drain awaits its tail; its
+setting writes for those vehicles stay refused until the journal commits. Rigger dumps: `rigDumps.<id>.deckUuid` is a
 `ref`, its card id `external ChatMessage`. So are the Rigger 2
 subsystem bindings (round 9 #2; missed by the reader audit, now added to docs/PORTABLE-FLAG-INVENTORY.md):
 `flags.sr2e.subsystems.<id>.target.id` is a `ref` to an embedded item when `target.kind` is `item` (`data` for a

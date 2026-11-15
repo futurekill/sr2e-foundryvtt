@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 11 (2026-11-15), after Codex rounds 1–10 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 12 (2026-11-15), after Codex rounds 1–11 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -68,7 +68,10 @@ preparation.
   itself skips it). M2a parity covers a world Program, a compendium Program, an NPC-owned and a vehicle-owned item.
 - **Settings and rulesets come from the context, never globals**: `isVR2()`, `isRigger2()`, `r2Option()`,
   `game.settings.get(...)` calls inside code that moves into `module/derive/` are replaced by `ctx.settings` reads;
-  the global helpers stay for live-play code. That includes helpers that SWALLOW a missing global (round 5 #1):
+  the global helpers stay for live-play code. The live adapter builds `ctx.settings` as a SAFE snapshot (round 11
+  #1): each key read through today's guarded path with today's fallback when settings aren't registered yet
+  (`autoEssence` true, VR2 and its options false), so preparing a character or a world Program at startup behaves as
+  now; a fixture prepares both before registration. That includes helpers that SWALLOW a missing global (round 5 #1):
   `utilityOptionsOn()` (VR2 utility options, read by `ProgramData.prepareDerivedData`) catches a missing `game` and
   returns false, so Node would silently derive an optioned program's size and cost wrong; it becomes
   `ctx.settings.vr2UtilityOptions`. `CONFIG.SR2E.languageFamilies` (the synthetic LinguaSoft skill path) becomes
@@ -137,7 +140,10 @@ null, blank, invalid-choice, string-number coercion and out-of-range clamping ca
 compared with Foundry's own result. A
 Quench test compares `normalizeSource(type, raw)` with `new Actor/Item(raw).toObject()` for a minimal new actor of
 every type and EVERY raw `packs-src` item of the system and the content modules; a CI check fails when
-`schema/data-models.json` is stale against the live models.
+`schema/data-models.json` is stale against the live models. Dynamic choices (round 11 #2: a function such as
+ICData's `program`, reading `CONFIG.SR2E.icPrograms`) are exported as REGISTRY REFERENCES (`{ registry: "icPrograms" }`),
+never frozen lists; the normaliser resolves them against `ctx.registries`, and a test normalises after module
+registration.
 
 ## 4. Extraction order (one release each; D2)
 - **M2a** context, adapter, declared reads, normaliser + schema export, the parity harness (§5) with its golden
@@ -196,7 +202,8 @@ same steps, compared after EVERY step — so a pure path that keeps an adept bon
 preparation fails, just as the Foundry side would. Fixtures (the chargen plan's M2 gate): every pregen in
 `packs-src/runners` and each content module's archetypes; edits (an attribute raised, an item's rating changed);
 removals (a ware item, a skillsoft, a VCR, a deck, a bonded focus — the derivation-removed trap); **prepare twice**;
-Active Effects on/off — SUPPORTED keys (actor and item-transferred) compared field by field; an UNSUPPORTED one
+Active Effects on/off — SUPPORTED keys (actor and item-transferred) compared field by field; an UNSUPPORTED one — classified per CHANGE by
+key, mode AND value before derivation (round 11 #3: `MULTIPLY` on the supported `system.reaction.mod` is unsupported)
 (round 5 #5) is not a parity case: per D9 the pure path marks the affected document view-only and returns its D12
 snapshot, so the fixture asserts the whole-document snapshot fallback and the warning, not field equality; module-enabled characters
 (Cybertechnology, Shadowtech, Companion qualities); an elemental sustaining its magician's spell via `lookup`, and the
