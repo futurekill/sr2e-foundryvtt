@@ -15,6 +15,7 @@ import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
 import { commitDamage } from "./drugs.mjs";
 import { findEntry, findAboard } from "./chase-state.mjs";
+import * as RC from "./rc-net.mjs";
 import { isRigger2, vehicleQuality } from "./vehicle-mode.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { impactDamage } from "./rules/vehicle-play-rules.mjs";
@@ -260,7 +261,8 @@ async function applyCrash(vehicle, cid) {
 function aboardOf(vehicle, c = null) {
   if (c?.occupants) return c.occupants;
   const e = findEntry(vehicle.uuid)?.entry;
-  const list = e ? [e.driver, ...(e.aboard ?? [])] : [controllerOf(vehicle)?.uuid];
+  // A networked vehicle's controller is its (usually remote) operator: only a chase entry records who is aboard (5a.7).
+  const list = e ? [e.driver, ...(e.aboard ?? [])] : RC.isAffiliated(vehicle) ? [] : [controllerOf(vehicle)?.uuid];
   return [...new Set(list.filter(Boolean))];
 }
 

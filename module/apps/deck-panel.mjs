@@ -19,7 +19,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     position: { width: 640, height: 560 },
     actions: { connect: DeckPanel.#connect, disconnect: DeckPanel.#disconnect, subscribe: DeckPanel.#subscribe,
       unsubscribe: DeckPanel.#unsubscribe, affiliate: DeckPanel.#affiliate, jump: DeckPanel.#jump, ret: DeckPanel.#return,
-      command: DeckPanel.#command }
+      command: DeckPanel.#command, hardwire: DeckPanel.#hardwire }
   };
   static PARTS = { body: { template: "systems/sr2e/templates/apps/deck-panel.hbs", scrollable: [".deck-body"] } };
 
@@ -63,7 +63,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     return { name: d.name, rating: d.system.rating, flux, range: fmtRange(typeof r === "object" && r ? r.low : r),
       limits: lim, subscribed: rows.length, affiliatedCount: rows.filter(x => x.affiliated).length,
       connected: net.connection?.state === "connected", operator: op?.name ?? null, jacked: rigEligible(op ?? this.holder),
-      hasPrimary: !!net.primary, rows, linked: linked.map(v => ({ uuid: v.uuid, name: v.name })), gm: game.user.isGM };
+      hasPrimary: !!net.primary, rows,
+      onVehicle: this.holder?.type === "vehicle", holderName: this.holder?.name ?? "", hardwired: !!net.affiliated?.[vKey(this.holder?.uuid ?? "")]?.hardwired, linked: linked.map(v => ({ uuid: v.uuid, name: v.name })), gm: game.user.isGM };
   }
 
   static #connect() {
@@ -71,6 +72,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!op) return warn("choose your character (User configuration) to run a vehicle's deck");
     return rc("rcConnect", { deckUuid: this.deck.uuid, operatorUuid: op.uuid }).catch(warn);
   }
+  static #hardwire(ev, btn) { return rc("rcHardwire", { deckUuid: this.deck.uuid, on: btn.dataset.on !== "0" }).catch(warn); }
   static #disconnect() { return rc("rcDisconnect", { deckUuid: this.deck.uuid }).catch(warn); }
   static #subscribe() {
     const sel = this.element.querySelector("select[name=newSub]");

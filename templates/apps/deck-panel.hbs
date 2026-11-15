@@ -8,6 +8,8 @@
         <button type="button" data-action="connect"><i class="fas fa-plug"></i> Connect</button>
       {{/if}}
       · Subscribers {{subscribed}}/{{limits.subscribers}} · Affiliated {{affiliatedCount}}/{{limits.affiliated}} (Rigger 2 p.62, p.64)
+      {{#if onVehicle}}{{#if hardwired}}<em>Hardwired to {{holderName}}</em>{{#if gm}} <button type="button" data-action="hardwire" data-on="0">Un-hardwire</button>{{/if}}
+      {{else}}<button type="button" data-action="hardwire" data-on="1" title="Permanently affiliate the vehicle carrying this deck: rigger adaptation + an Electronics Port to the deck (p.64)"><i class="fas fa-link"></i> Hardwire</button>{{/if}}{{/if}}
       {{#if hasPrimary}}<button type="button" data-action="ret" title="Simple Action (p.65)"><i class="fas fa-chair"></i> Return to the captain's chair</button>{{/if}}
     </p>
   </section>

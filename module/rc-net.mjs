@@ -59,6 +59,9 @@ const deckActor = (deck) => deck?.parent ?? null;
 /** The deck's transmitter Flux (p.30; 5a.1): an RC deck is Flux 2, raised by a signal amplifier bound to it (R2 p.99). */
 export function deckFlux(deck) {
   const owner = deckActor(deck);
+  // A deck on a vehicle is one of its transmitters (4a.3): engine boosts through its Electronics Port (≤ ⌊Body ÷ 2⌋,
+  // R2 p.64), amplifiers and conditions all come from the vehicle's one Flux reader.
+  if (owner?.type === "vehicle" && TX) { const f = TX.txFlux(owner, TX.transmitterOf(owner, deck.id))?.flux; if (Number.isFinite(f)) return f; }
   const amp = (owner?.items ?? []).filter(i => rcRuleOf(i) === "signal-amplifier" && (i.flags?.sr2e?.deckId ?? soleDeckId(owner)) === deck.id)
     .reduce((m, i) => Math.max(m, num(i.system.rating)), 0);
   return baseFlux("rcDeck", num(deck?.system?.rating)) + amp;
@@ -90,6 +93,8 @@ export function networkControllerOf(vehicle) {
   if (!net || net.connection?.state !== "connected" || !net.operator || !reachKnown(deck, vehicle)) return null;
   return fromUuidSync(net.operator) ?? null;
 }
+/** Is the vehicle hardwired to its network's deck (5a.7)? */
+export const hardwiredTo = (vehicle) => !!netOf(networkOf(vehicle))?.affiliated?.[vKey(vehicle.uuid)]?.hardwired;
 /** Is the vehicle affiliated with any network (Part 1 crew control is then refused, and vice versa)? */
 export const isAffiliated = (vehicle) => isRigger2() && !!networkOf(vehicle);
 
@@ -153,8 +158,10 @@ export async function rangeSweep(actor) {
   });
 }
 
+let TX = null;   // vehicle-sensors.mjs, loaded once (it imports the play layer; a static import would be circular)
 export function registerRcNet() {
   registerRcIndexHooks();
+  import("./vehicle-sensors.mjs").then(m => { TX = m; });
   Hooks.on("updateToken", (tok, ch) => {
     if (!("x" in ch || "y" in ch || "elevation" in ch)) return;
     rangeSweep(tok.actor).catch(err => console.error("SR2E | rc range sweep", err));
@@ -283,6 +290,37 @@ export function registerRcNet() {
     invalidate();
     if (op) await reconcileDumps(op);
     return true;
+  }));
+
+  // Hardwiring (R2 p.64; 5a.7): a deck carried BY a rigger-adapted vehicle, connected through one of its Electronics
+  // Ports, is permanently subscribed and affiliated with it (counted against both limits; never disaffiliated). The GM's
+  // un-hardwire (or deleting the deck) ends it.
+  gmOp("rcHardwire", ({ deckUuid, on = true }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), v = deckActor(deck);
+    if (v?.type !== "vehicle") throw new Error("hardwire a deck installed in the vehicle itself (Rigger 2 p.64)");
+    const net = freshNet(deck), k = vKey(v.uuid);
+    if (!on) {
+      if (!user.isGM) throw new Error("GM only");
+      if (!net.affiliated[k]?.hardwired) return net;
+      delete net.affiliated[k];
+      if (net.primary === k) net.primary = null;
+      return save(deck, net);
+    }
+    if (net.affiliated[k]?.hardwired) return net;
+    const { riggerAdapted } = await import("./vehicle-play.mjs"), { ported } = await import("./vehicle-sensors.mjs");
+    if (!riggerAdapted(v)) throw new Error(`${v.name} must be adapted for rigger control (Rigger 2 p.64)`);
+    if (!ported(v, deck.id)) throw new Error(`connect the deck through one of ${v.name}'s Electronics Ports first (Rigger 2 p.64, p.139)`);
+    const other = networkOf(v);
+    if (other && other !== deck) throw new Error(`${v.name} is already affiliated with another network`);
+    if (game.actors.some(a => a.type === "character" && (a.system.controlledVehicles ?? []).includes(v.uuid))) throw new Error(`${v.name} is under a crew's control (Rigger 2 p.64)`);
+    const lim = deckLimits(deck.system.rating);
+    if (!net.subscribers.includes(v.uuid)) {
+      if (net.subscribers.length >= lim.subscribers) throw new Error(`a Rating ${num(deck.system.rating)} deck holds ${lim.subscribers} subscribers (Rigger 2 p.62)`);
+      net.subscribers.push(v.uuid);
+    }
+    if (!net.affiliated[k] && Object.keys(net.affiliated).length >= lim.affiliated) throw new Error(`a Rating ${num(deck.system.rating)} deck affiliates ${lim.affiliated} vehicles at once (Rigger 2 p.64)`);
+    net.affiliated[k] = { ...(net.affiliated[k] ?? { since: combatNow(), at: Date.now() }), hardwired: true, uuid: v.uuid };
+    return save(deck, net);
   }));
 
   gmOp("rcReturn", ({ deckUuid }, user) => rcQueue(async () => {

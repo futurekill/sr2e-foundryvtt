@@ -863,12 +863,26 @@ export function drivingModes(driver, vehicle) {
   if (!driver) return ["drone"];
   // A networked drone (Part 5a.2): its operator rigs the primary; a secondary or captain-controlled drone runs on its
   // own Pilot (p.65). A remote operator isn't aboard: no datajack or manual controls.
-  if (RC.isAffiliated(vehicle)) return riggedInto(driver, vehicle) ? ["rigged"] : ["drone"];
+  if (RC.isAffiliated(vehicle)) {
+    if (riggedInto(driver, vehicle)) return ["rigged"];
+    // Onboard hardwired driving (p.64; 5a.7): the operator aboard a hardwired vehicle, not rigging it, drives it by
+    // datajack or manual controls (in a chase: when its entry lists them aboard; outside one the GM's call).
+    if (RC.hardwiredTo(vehicle) && RC.networkControllerOf(vehicle) === driver && aboardOrUnknown(driver, vehicle)) {
+      const out = hasDatajack(driver) ? ["datajack", "manual"] : ["manual"];
+      return [...out, "drone"];
+    }
+    return ["drone"];
+  }
   const out = [];
   if (riggedInto(driver, vehicle) && riggerAdapted(vehicle)) out.push("rigged");
   if (hasDatajack(driver) && (hasWorkingMod(vehicle, "datajack-port") || riggerAdapted(vehicle))) out.push("datajack");
   out.push("manual");
   return out;
+}
+
+function aboardOrUnknown(actor, vehicle) {
+  const e = findEntry(vehicle.uuid)?.entry;
+  return !e || (e.aboard ?? []).includes(actor.uuid);
 }
 
 /** The Driving Test dialog; `driver` null = a drone driving itself on its Pilot. */

@@ -19326,6 +19326,36 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Hardwiring (Part 5a.7, R2 p.64)", function () {
+        it("a deck in a ported, rigger-adapted vehicle hardwires it (limits, no disaffiliation); the operator aboard drives it onboard", async function () {
+          this.timeout(30000);
+          const RCN = await import("../rc-net.mjs"), VP = await import("../vehicle-play.mjs");
+          const pc = await Actor.create({ name: "Quench Hardwire Rigger", type: "character", system: {} }); made.push(pc);
+          const van = await mk("Quench Hardwire Van", { vehicleType: "drone", pilot: 2, body: 5 });
+          const [deck] = await van.createEmbeddedDocuments("Item", [{ name: "Quench Van Deck", type: "gear", system: { rating: 1 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          let err = null;
+          try { await call("rcHardwire", { deckUuid: deck.uuid }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /Electronics Port/, "needs a port to the deck");
+          await van.createEmbeddedDocuments("Item", [{ name: "Electronics Port", type: "vehicle_mod", system: { modKey: "electronics-port", custom: { state: "", choice: { device: deck.id } } } }]);
+          await call("rcHardwire", { deckUuid: deck.uuid });
+          const k = RCN.vKey(van.uuid);
+          assert.ok(RCN.netOf(deck).affiliated[k]?.hardwired);
+          assert.include(RCN.netOf(deck).subscribers, van.uuid);
+          assert.ok(RCN.hardwiredTo(van));
+          err = null; try { await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: van.uuid, on: false }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /hardwired/, "never disaffiliated");
+          const d2 = await mk("Quench Hardwire Drone", { vehicleType: "drone", pilot: 1 });
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true });
+          err = null; try { await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /affiliates 1/, "the hardwired vehicle counts against the limit");
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
+          assert.equal(VP.controllerOf(van), pc);
+          assert.deepEqual(VP.drivingModes(pc, van), ["manual", "drone"], "no VCR: onboard manual controls (outside a chase)");
+          await call("rcHardwire", { deckUuid: deck.uuid, on: false });
+          assert.notOk(RCN.hardwiredTo(van), "the GM un-hardwires");
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

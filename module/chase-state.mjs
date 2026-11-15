@@ -37,8 +37,15 @@ export function findAboard(uuid) {
 /** The entry this character DRIVES in an active chase, or null (Initiative step 5, p.44). */
 export function drivenEntry(uuid) {
   const hit = findAboard(uuid);
-  return hit?.entry?.driver === uuid ? hit : null;
+  if (hit?.entry?.driver === uuid) return hit;
+  // A hardwired network vehicle's live operator, physically aboard, drives it (R2 p.64; 5a.7, round 9 #1); a remote
+  // captain or secondary-drone operator isn't driving here.
+  return hit && !hit.entry.driver && (hit.entry.aboard ?? []).includes(uuid) && operatorOf(hit.entry) === uuid && hardwiredEntry(hit.entry) ? hit : null;
 }
+const hardwiredEntry = (entry) => {
+  const v = fromUuidSync(entry.uuid), deck = v ? RCN.networkOf(v) : null;
+  return !!RCN.netOf(deck)?.affiliated?.[RCN.vKey(v.uuid)]?.hardwired;
+};
 
 /** The driver of a vehicle under Rigger 2: the chase entry's driver, else `fallback(vehicle)` (controllerOf). */
 export function chaseDriverUuid(vehicle) {

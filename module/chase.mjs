@@ -889,7 +889,9 @@ function routeDamage(vehicle, commit) {
 export function passengerLimit(actor) {
   const hit = findAboard(actor?.uuid);
   if (!hit || !hasChase(hit.combat) || !hit.combat.started) return null;
-  if (hit.entry.driver === actor.uuid && riggedOf(hit.entry)) return null;
+  // The driver's exemption: whoever is the vehicle's live controller rigged into it — a hardwired operator aboard too
+  // (5a.7, round 8 #1), never by `entry.driver` alone.
+  if ((hit.entry.driver === actor.uuid || actingActorOf(hit.entry) === actor.uuid) && riggedOf(hit.entry)) return null;
   const cb = hit.combat.combatants.find(c => c.actor?.uuid === actor.uuid);
   if (!cb || cb.initiative == null) return null;
   const rec = chaseOf(hit.combat).turns?.[hit.combat.round]?.[hit.eid]?.dp;
