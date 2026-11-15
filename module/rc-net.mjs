@@ -11,7 +11,7 @@
 import { gmOp, gmCall, followId } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
-import { rcRuleOf, deckLimits, networkCapable, droneMode } from "./rules/drone-rules.mjs";
+import { rcRuleOf, deckLimits, networkCapable, droneMode, poolBalance } from "./rules/drone-rules.mjs";
 import { baseFlux, fluxRange } from "./rules/vehicle-sensor-rules.mjs";
 
 const RC = "rc-control";
@@ -93,6 +93,37 @@ export function networkControllerOf(vehicle) {
   if (!net || net.connection?.state !== "connected" || !net.operator || !reachKnown(deck, vehicle)) return null;
   return fromUuidSync(net.operator) ?? null;
 }
+/* ── BattleTac IVIS (5a.5, R2 p.66–67) ─────────────────────────────────────────────────────────────────────── */
+
+/** The deck carries a bound IVIS master unit (a module counts for its `deckId` deck, or the actor's only deck). */
+export const hasIvisMaster = (deck) => (deckActor(deck)?.items ?? []).some(i => rcRuleOf(i) === "ivis-master"
+  && (i.flags?.sr2e?.deckId ?? soleDeckId(deckActor(deck))) === deck.id);
+/** The drone carries a working IVIS receiver module. */
+export const hasIvisReceiver = (v) => (v?.items ?? []).some(i => i.type === "vehicle_mod" && (i.system.modKey === "ivis-receiver" || rcRuleOf(i) === "ivis-receiver")
+  && ["", "done", "factory"].includes(i.system.custom?.state ?? ""));
+/** The IVIS group a drone belongs to: { deck, gid, group } or null. A drone is in at most one active group. */
+export function ivisGroupOf(vehicle) {
+  const deck = networkOf(vehicle), k = vehicle ? vKey(vehicle.uuid) : null;
+  for (const [gid, g] of Object.entries(netOf(deck)?.ivis ?? {})) if (g?.drones?.includes(k)) return { deck, gid, group: g };
+  return null;
+}
+/** The pool refreshes at the end of each Combat Turn: spends count under the current Turn (outside combat, per test). */
+const ivisKey = () => { const c = game.combat; return c?.started ? `${c.id}:${c.round}` : null; };
+/** IVIS Pool dice a drone may draw now (never while jumped into it, p.67). */
+export function ivisBalance(vehicle) {
+  const hit = ivisGroupOf(vehicle);
+  if (!hit || droneModeOf(vehicle) === "primary") return 0;
+  const key = ivisKey();
+  return key ? poolBalance(hit.group.pool, hit.group.spends, key) : num(hit.group.pool);
+}
+/** Remove drones from every IVIS group of a network record (a new order or task, p.67); an emptied group ends. */
+function leaveGroups(net, keys) {
+  for (const [gid, g] of Object.entries(net.ivis ?? {})) {
+    g.drones = (g.drones ?? []).filter(d => !keys.includes(d));
+    if (!g.drones.length) delete net.ivis[gid];
+  }
+}
+
 /** Is the vehicle hardwired to its network's deck (5a.7)? */
 export const hardwiredTo = (vehicle) => !!netOf(networkOf(vehicle))?.affiliated?.[vKey(vehicle.uuid)]?.hardwired;
 /** Is the vehicle affiliated with any network (Part 1 crew control is then refused, and vice versa)? */
@@ -267,6 +298,7 @@ export function registerRcNet() {
     const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
     const successes = testTotalSuccesses(test);
     net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1 };
+    if (net.ivis) leaveGroups(net, [k]);   // a new order for one drone takes it out of its IVIS group (p.67)
     return save(deck, net);
   }));
 
@@ -329,6 +361,53 @@ export function registerRcNet() {
     }
     if (!net.affiliated[k] && Object.keys(net.affiliated).length >= lim.affiliated) throw new Error(`a Rating ${num(deck.system.rating)} deck affiliates ${lim.affiliated} vehicles at once (Rigger 2 p.64)`);
     net.affiliated[k] = { ...(net.affiliated[k] ?? { since: combatNow(), at: Date.now() }), hardwired: true, uuid: v.uuid };
+    return save(deck, net);
+  }));
+
+  // A group command (p.66–67; 5a.3/5a.5): ONE Comprehension Test card for an identical command to several drones, its
+  // result each drone's standing order; with an IVIS Test card, the unassigned successes become the group's IVIS Pool
+  // and the drones a new group (any earlier group membership ends; a new task ends the old group).
+  gmOp("rcGroupOrder", ({ deckUuid, vehicleUuids = [], text = "", messageId, ivis = null }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), net = freshNet(deck);
+    if (net.connection?.state !== "connected") throw new Error("connect the deck first");
+    const vs = vehicleUuids.map(u => fromUuidSync(u));
+    if (!vs.length || vs.some(v => v?.type !== "vehicle")) throw new Error("choose the group's drones");
+    const keys = vs.map(v => vKey(v.uuid));
+    if (keys.some(k => !net.affiliated[k])) throw new Error("every drone must be affiliated with this network");
+    if (keys.includes(net.primary)) throw new Error("the primary needs no command (Rigger 2 p.65)");
+    if (keys.length > num(deck.system.rating)) throw new Error(`a group is at most ${num(deck.system.rating)} drones (the deck's rating)`);
+    const test = game.messages.get(messageId)?.flags?.sr2e?.test;
+    if (!test) throw new Error("no Comprehension Test card");
+    const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
+    const successes = testTotalSuccesses(test);
+    for (const k of keys) net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1, group: true };
+    net.ivis ??= {};
+    leaveGroups(net, keys);
+    if (ivis && num(ivis.pool) > 0) {
+      if (!hasIvisMaster(deck)) throw new Error("the deck needs a BattleTac IVIS master unit (Rigger 2 p.66)");
+      const missing = vs.filter(v => !hasIvisReceiver(v));
+      if (missing.length) throw new Error(`${missing.map(v => v.name).join(", ")} lack an IVIS receiver module (Rigger 2 p.66)`);
+      net.ivis[foundry.utils.randomID(8)] = { drones: keys, task: String(text).slice(0, 200), pool: num(ivis.pool), spends: {}, messageId: ivis.messageId ?? "" };
+    }
+    return save(deck, net);
+  }));
+  // An IVIS Pool draw (any drone of the group, any action; p.67), receipted under the Turn's key.
+  gmOp("rcIvisSpend", ({ vehicleUuid, n }, user) => rcQueue(async () => {
+    const v = fromUuidSync(vehicleUuid), hit = ivisGroupOf(v);
+    if (!hit) return { n: 0 };
+    if (!user.isGM && !v.testUserPermission(user, "OWNER") && !(networkControllerOf(v)?.testUserPermission(user, "OWNER"))) throw new Error("not your drone");
+    const spend = Math.min(Math.max(0, Math.floor(num(n))), ivisBalance(v));
+    if (!spend) return { n: 0 };
+    const net = freshNet(hit.deck), id = foundry.utils.randomID(16);
+    net.ivis[hit.gid].spends[id] = { key: ivisKey() ?? `free:${id}`, n: spend, vehicle: vKey(v.uuid) };
+    await save(hit.deck, net);
+    return { n: spend, eventId: id };
+  }));
+  // The task is done (or abandoned): the group and its pool end (p.67).
+  gmOp("rcIvisEnd", ({ deckUuid, gid }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), net = freshNet(deck);
+    if (!net.ivis?.[gid]) return net;
+    delete net.ivis[gid];
     return save(deck, net);
   }));
 

@@ -895,6 +895,7 @@ export async function promptDrivingTest(driver, vehicle) {
   const poolMax = driver && isPoolClient(driver) ? Math.min(driver.system.dicePools?.control?.value ?? 0, sk.cap) : 0;
   const maxStressDice = driver ? stressDice(99, vehicle.system.effective?.body ?? vehicle.system.body).dice : 0;
   const learnMax = modes.includes("drone") && LP.learningUsable(vehicle) ? LP.learningBalance(vehicle) : 0;
+  const ivisMax = modes.includes("drone") ? RC.ivisBalance(vehicle) : 0;
   const sel = (name, opts, v = "") => `<select name="${name}">${opts.map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   const label = { rigged: "Rigged (VCR)", datajack: "Datajack (−1)", manual: "Manual", drone: "The drone itself (Pilot)" };
   return foundry.applications.api.DialogV2.prompt({
@@ -914,6 +915,7 @@ export async function promptDrivingTest(driver, vehicle) {
       ${poolMax ? `<div class="form-group"><label>Control Pool (rigged, max ${poolMax}):</label><input type="number" name="control" value="0" min="0" max="${poolMax}" style="width:52px;"></div>` : ""}
       ${learnMax ? `<div class="form-group"><label title="The drone's own test only (Rigger 2 p.67)">Learning Pool (the drone itself, max ${learnMax}):</label><input type="number" name="learning" value="0" min="0" max="${learnMax}" style="width:52px;"></div>
         ${vehicle.system.learningPool?.scope ? `<label style="font-size:12px;"><input type="checkbox" name="inScope"> This test is within “${esc(vehicle.system.learningPool.scope)}” (the GM may veto)</label>` : ""}` : ""}
+      ${ivisMax ? `<div class="form-group"><label title="The group's shared pool; the drone's own test only (Rigger 2 p.67)">IVIS Pool (max ${ivisMax}):</label><input type="number" name="ivis" value="0" min="0" max="${ivisMax}" style="width:52px;"></div>` : ""}
       ${maxStressDice ? `<div class="form-group"><label>Push it: +dice (2 Stress each, max ${maxStressDice}):</label><input type="number" name="stressDice" value="0" min="0" max="${maxStressDice}" style="width:52px;"></div>` : ""}
       <p style="grid-column:1/-1;font-size:10px;color:#aaa1c0;margin:4px 0 0;">Rigger 2 p.20–21: Handling + the Driving Test Modifiers Table; the vehicle's Autonav adds dice.
         Control Pool dice here can't resist damage. A failed test or many 1s can cost Stress (p.26).</p></div>`,
@@ -924,7 +926,7 @@ export async function promptDrivingTest(driver, vehicle) {
         offRoadHandling: e.offRoadHandling?.value === "" || e.offRoadHandling == null ? null : parseInt(e.offRoadHandling.value),
         contact: e.contact ? e.contact.checked : true,
         control: parseInt(e.control?.value) || 0, stressDice: parseInt(e.stressDice?.value) || 0,
-        learning: parseInt(e.learning?.value) || 0, inScope: !!e.inScope?.checked };
+        learning: parseInt(e.learning?.value) || 0, inScope: !!e.inScope?.checked, ivis: parseInt(e.ivis?.value) || 0 };
     } }
   });
 }
@@ -958,10 +960,12 @@ export async function rollDrivingTest(driver, vehicle, o) {
   // The drone's Learning Pool (p.67; 5a.4): its own test only; a scoped pool only on a declared in-scope test.
   const scope = sys.learningPool?.scope ?? "";
   const learn = drone && o.learning > 0 && (!scope || o.inScope) ? await LP.spendLearning(vehicle, o.learning, { scope }) : { n: 0 };
+  const ivis = drone && o.ivis > 0 ? await gmCall("rcIvisSpend", { vehicleUuid: vehicle.uuid, n: o.ivis }) : { n: 0 };
   const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;
   // A simsense interface (datajack, rig) is an electronic device: Computer Illiterate (p.15).
-  const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice + learn.n, tn, { label: label + (learn.n ? `, +${learn.n} Learning Pool${scope ? ` (declared: ${scope})` : ""}` : ""),
+  const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice + learn.n + ivis.n, tn, { label: label + (learn.n ? `, +${learn.n} Learning Pool${scope ? ` (declared: ${scope})` : ""}` : "")
+    + (ivis.n ? `, +${ivis.n} IVIS Pool` : ""),
     paidPoolDice: paid ? { control: paid } : undefined,
     ...(learn.n ? { flags: { sr2e: { learningSpend: { vehicleUuid: vehicle.uuid, eventId: learn.eventId, n: learn.n, scope } } } } : {}),
     tnContext: { kind: "skill", key: sk.key ?? "", skillCategory: "active", electronic: o.mode === "rigged" || o.mode === "datajack" },

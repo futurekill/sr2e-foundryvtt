@@ -19394,6 +19394,44 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("BattleTac IVIS and group commands (Part 5a.3/5a.5, R2 p.66–67)", function () {
+        it("a group order gives every drone the one result; the IVIS Pool is shared, needs master + receivers, and a new order leaves the group", async function () {
+          this.timeout(30000);
+          const RCN = await import("../rc-net.mjs");
+          const pc = await Actor.create({ name: "Quench IVIS Rigger", type: "character", system: {} }); made.push(pc);
+          const [deck] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench IVIS Deck", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          const rx = { name: "BattleTac IVIS Receiver Module", type: "vehicle_mod", system: { modKey: "ivis-receiver" } };
+          const d1 = await mk("Quench IVIS A", { vehicleType: "drone", pilot: 3 }), d2 = await mk("Quench IVIS B", { vehicleType: "drone", pilot: 2 });
+          await d1.createEmbeddedDocuments("Item", [rx]);
+          for (const d of [d1, d2]) {
+            await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+            await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+          }
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
+          const roll = await d2.rollSuccessTest(2, 4, { label: "Quench group Comprehension" });
+          const args = { deckUuid: deck.uuid, vehicleUuids: [d1.uuid, d2.uuid], text: "sweep the lot", messageId: roll.testMessageId, ivis: { pool: 3 } };
+          let err = null; try { await call("rcGroupOrder", args); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /master unit/, "no master unit");
+          await pc.createEmbeddedDocuments("Item", [{ name: "BattleTac IVIS Master Unit", type: "gear", system: {}, flags: { sr2e: { rule: "ivis-master" } } }]);
+          err = null; try { await call("rcGroupOrder", args); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /Quench IVIS B.*receiver/, "every drone needs a receiver");
+          await d2.createEmbeddedDocuments("Item", [rx]);
+          await call("rcGroupOrder", args);
+          const net = RCN.netOf(deck);
+          assert.equal(net.standingOrders[RCN.vKey(d1.uuid)].successes, roll.successes);
+          assert.equal(net.standingOrders[RCN.vKey(d2.uuid)].successes, roll.successes, "one result for the group");
+          assert.equal(RCN.ivisBalance(d1), 3);
+          assert.equal(RCN.ivisBalance(d2), 3, "shared");
+          assert.equal((await call("rcIvisSpend", { vehicleUuid: d1.uuid, n: 5 })).n, 3, "never more than the pool");
+          const r1 = await d1.rollSuccessTest(2, 4, { label: "Quench solo Comprehension" });
+          await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d1.uuid, text: "come back", messageId: r1.testMessageId });
+          assert.equal(RCN.ivisGroupOf(d1), null, "a new order takes it out of the group");
+          assert.ok(RCN.ivisGroupOf(d2), "the rest of the group continues");
+          await call("rcIvisEnd", { deckUuid: deck.uuid, gid: RCN.ivisGroupOf(d2).gid });
+          assert.equal(RCN.ivisBalance(d2), 0, "task ended: no pool");
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

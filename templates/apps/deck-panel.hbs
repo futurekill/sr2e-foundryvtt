@@ -44,6 +44,15 @@
       {{/each}}
     </tbody>
   </table>
+  {{#if connected}}
+  <section class="deck-ivis">
+    <button type="button" data-action="groupCommand" title="Complex Action: one Comprehension Test at the group's lowest Pilot; an IVIS Test first if the deck has the master unit (p.66–67)"><i class="fas fa-users"></i> Group command</button>
+    {{#each ivis}}
+      <p>IVIS group: {{drones}} — "{{task}}" · pool {{balance}}/{{pool}}
+        <button type="button" data-action="ivisEnd" data-gid="{{gid}}" title="The task is done or abandoned: the group and its pool end (p.67)">End task</button></p>
+    {{/each}}
+  </section>
+  {{/if}}
   <p class="deck-add">
     <select name="newSub"><option value="">— targeted vehicles —</option>{{#each linked}}<option value="{{uuid}}">{{name}}</option>{{/each}}</select>
     <button type="button" data-action="subscribe"><i class="fas fa-plus"></i> Subscribe</button>
