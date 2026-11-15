@@ -26,6 +26,7 @@ import { RL } from "../util/roll-label.mjs";
 import { controllerOf, gmCall } from "../vehicle-play.mjs";
 import { manualExtras, sensorGunneryTN, vehicleRecoil } from "../rules/vehicle-gunnery-rules.mjs";
 import { isRigger2, r2Option } from "../vehicle-mode.mjs";
+import { subsysLevelOf, NO_BONUS_TN } from "../rules/vehicle-subsystem-rules.mjs";
 import { ammoQueued, queuedReload, spendRounds } from "../vehicle-ammo.mjs";
 import { validateSplit } from "../rules/spell-rules.mjs";
 import { renderSpellResistCard, combatSpellMode, combatSpellDamage, planCombatTargets, movementTN, postCombatSpellCards,
@@ -602,6 +603,9 @@ export class SR2EItem extends Item {
       const committed = await continuousCommitment(this, actor, options, engage);
       if (committed) return ui.notifications.warn(`${this.name}: ${committed}`);
     }
+    // A damaged vehicle weapon (R2 p.86 Table 5/8, optional): Serious inoperable, Deadly destroyed.
+    const weaponLvl = this.parent?.type === "vehicle" && r2Option("r2Subsystems") ? subsysLevelOf(this) : null;
+    if (weaponLvl === "S" || weaponLvl === "D") return ui.notifications.warn(`${this.name} is ${weaponLvl === "D" ? "destroyed" : "inoperable"} (subsystem damage, Rigger 2 p.86).`);
     // Rigger 2 missiles (4b.4): a launch rolls nothing now — the missile strikes at Phase 0.
     if (isRigger2() && options.gunneryMode === "launch") return launchMissile(this, actor, options, engage);
     // An area-effect attack (p.60–61; r1 #9): the round is spent through the ammunition queue, then the scatter flow.
@@ -850,6 +854,8 @@ export class SR2EItem extends Item {
     const targetMod    = options.targetMod   ?? 0;
     let speedMod       = options.speedMod    ?? 0;   // Moving Target Table (p.108)
     const otherMod     = options.otherMod    ?? 0;
+    // Light/Moderate damage to the weapon itself: no bonus to reduce → +1 / +3 TN (R2 p.86 Table 8; R6-1).
+    const weaponDmgMod = weaponLvl ? (NO_BONUS_TN[weaponLvl] ?? 0) : 0;
 
     const modParts = [];
     let targetNumber;
@@ -1067,7 +1073,7 @@ export class SR2EItem extends Item {
       const effVis_ = Math.max(visMod, barrierBlind_);
 
       targetNumber = Math.max(2,
-        BASE_TN + rangeMod + coverMod + attackerMod + targetMod + speedMod + meleeMod + otherMod
+        BASE_TN + rangeMod + coverMod + attackerMod + targetMod + speedMod + meleeMod + otherMod + weaponDmgMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
                 + effVis_ + spreadMod + defaultingPenalty
                 + calledShotMod_ - aimCut_ + eng.tnMod + (r2?.mode === "manual" ? r2.extra : 0) + designatorMod_
@@ -1105,6 +1111,7 @@ export class SR2EItem extends Item {
       if (options.deployed && acc.needsDeployment.length)
         modParts.push(`${acc.needsDeployment.join("/")} deployed`);
       if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
+      if (weaponDmgMod) modParts.push(`damaged weapon +${weaponDmgMod} (R2 p.86)`);
       if (shortBurstNote) modParts.unshift(shortBurstNote);
       if (eng.tnMod)   modParts.push(`multiple targets +${eng.tnMod}`);
       if (eng.walked)  modParts.push(`walked fire: ${eng.walked} round${eng.walked === 1 ? "" : "s"} wasted`);

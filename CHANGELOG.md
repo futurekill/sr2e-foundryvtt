@@ -11,10 +11,13 @@
   twice). **Running dry**: the vehicle coasts — speed falls 2 × Acceleration a Turn and the chase moves it by its share
   of the printed coasting distance (Gray Ghost: 2,500 / 2,000 / 1,500 / 1,000 / 500 m); one Vehicle Test coaxes more
   (+ Acceleration per 2 successes); no accelerating, ramming or engine boosts; an aircraft makes ONE Crash Test at its
-  Stall Speed — success is an emergency landing (6L to the vehicle only, 1D6 Stress, passengers unhurt).
+  Stall Speed — success is an emergency landing at the end of its deceleration (6L to the vehicle only, 1D6 Stress,
+  passengers unhurt), failure a crash, which ends the coasting.
 - **Rigger 2 subsystem damage** (optional setting "Rigger 2: subsystem damage"; R2 p.85–87; Part 6a.4): Moderate or worse
   damage from one source posts a **Roll subsystem damage** card (Tables 1–8). Damaged mods lose bonuses (Light −1,
-  Moderate half, Serious/Deadly stop — factory ones too); Handling +1/+2/+3, the engine cuts Acceleration/Speed/Load,
+  Moderate half, Serious/Deadly stop — factory ones too, sensors and ECM/ECCM/ED/ECD included; a damaged vehicle weapon
+  +1/+3 TN, Serious/Deadly can't fire; Autonav loses dice); Handling +1/+2/+3, the engine cuts Acceleration/Speed/Load
+  (Deadly: it loses power and coasts like a vehicle out of fuel until the engine is replaced),
   Aggravated Body lowers the vehicle's Body everywhere it's used, Armor-Defeating Hits are cumulative; a leaking tank
   loses fuel each Turn; a damaged turret or target-acquisition system penalizes its weapons (Deadly: frozen / no smart
   weapons or locks); the Rigger Control Box's ASIST backlash and passenger-compartment shrapnel are resistance buttons;

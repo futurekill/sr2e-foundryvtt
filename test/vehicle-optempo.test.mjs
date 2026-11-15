@@ -22,6 +22,18 @@ describe("Optempo (R2 p.83–84)", () => {
     expect(r.karma).toBe(0);   // B still needs part of the point's coverage
     const both = overheadRefund(receipt, new Set(["A|3", "B|3"]));
     expect(both).toMatchObject({ cash: 300, credit: 200, karma: 1 });
-    expect(overheadRefund(receipt, new Set(["A|3", "B|3"]), { cash: 300, credit: 200, karma: 1 })).toMatchObject({ cash: 0, credit: 0, karma: 0 });
+    expect(overheadRefund(receipt, new Set(["A|3", "B|3"]), { cash: 300, credit: 200, karma: 1, creditByMonth: { 3: 200 } })).toMatchObject({ cash: 0, credit: 0, karma: 0 });
+  });
+  it("a whole Karma point comes back even when it covered less than 500¥ (Codex 6a r1 #15)", () => {
+    const receipt = { rows: [{ vehicleUuid: "A", month: 3, amount: 200 }], amount: 0, karma: 1, discount: {} };
+    expect(overheadRefund(receipt, new Set(["A|3"])).karma).toBe(1);
+    expect(overheadRefund(receipt, new Set()).karma).toBe(0);
+  });
+  it("credit returns to its own month, ledgered per month (Codex 6a r1 #16)", () => {
+    const receipt = { rows: [{ vehicleUuid: "A", month: 3, amount: 500 }, { vehicleUuid: "A", month: 4, amount: 500 }], amount: 600, karma: 0, discount: { 3: 200, 4: 200 } };
+    const r = overheadRefund(receipt, new Set(["A|3", "A|4"]));
+    expect(r.creditByMonth).toEqual({ 3: 200, 4: 200 });
+    const later = overheadRefund(receipt, new Set(["A|3", "A|4"]), { cash: 300, credit: 200, karma: 0, creditByMonth: { 3: 200 } });
+    expect(later.creditByMonth).toEqual({ 4: 200 });
   });
 });

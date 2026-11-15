@@ -19069,8 +19069,58 @@ export function registerSR2EQuenchTests() {
             assert.equal(e.speed, 90); assert.equal(e.acceleration, 9); assert.equal(e.load, 900);
             assert.equal(e.body, 3, "½ of 5 rounded up");
             assert.equal(e.armor, 10 - 1 - 6, "Armor-Defeating Hits are cumulative");
-            await V.update({ "flags.sr2e.subsysGen.engine": 1 });   // the engine replaced: its record no longer applies
+            await call("replaceEngine", { vehicleUuid: V.uuid });   // the engine replaced: its record no longer applies (r1 #3)
             assert.equal(V.system.effective.speed, 100);
+            assert.equal(V.getFlag("sr2e", "subsystems").b.state, "retired");
+          } finally { ON.delete("r2Subsystems"); }
+        });
+        it("operability: a destroyed ECM stops; a Moderate one runs at half rating (r1 #1)", async function () {
+          const V = await mk("Quench Subsys ECM", {});
+          ON.add("r2Subsystems");
+          try {
+            const [ecm] = await V.createEmbeddedDocuments("Item", [{ name: "Quench ECM", type: "vehicle_mod", system: { modKey: "ecm", rating: 4 } }]);
+            const S = await import("../vehicle-sensors.mjs");
+            const tx = () => S.transmitters(V).find(t => t.id === ecm.id);
+            assert.equal(tx().rating, 4); assert.ok(tx().working);
+            await V.update({ "flags.sr2e.subsystems.q1": { target: { kind: "item", id: ecm.id }, key: "ecm", label: "ECM", level: "M", state: "active", origin: "q" } });
+            assert.equal(tx().rating, 2, "Moderate: halved");
+            await V.update({ "flags.sr2e.subsystems.q1.level": "D" });
+            assert.notOk(tx().working, "Deadly: destroyed, still installed");
+          } finally { ON.delete("r2Subsystems"); }
+        });
+        it("a Deadly engine loses power: it coasts 2 × Acceleration a Turn; refuelling doesn't fix it; a new engine does (r1 #2)", async function () {
+          this.timeout(20000);
+          const V = await mk("Quench Dead Engine", { speed: 300, acceleration: 50, fuelSize: 10, economy: 5 });
+          ON.add("r2Subsystems");
+          try {
+            const M = await F();
+            await M.engineOut(V, "q-engine");
+            const combat = await Combat.create({ active: false, flags: { sr2e: { chase: { entries: { e1: { kind: "vehicle", uuid: V.uuid, speed: 300 } }, pairs: {} } } } });
+            combats.push(combat);
+            const share = M.coastTurn(V)?.metres;
+            const coast = await M.fuelChaseStage(combat, 1);
+            assert.ok(share > 0 && coast.e1 === share, "it moves by its coasting share, not its speed");
+            await M.fuelAdvanceStage(combat, 1);
+            assert.equal(combat.getFlag("sr2e", "chase").entries.e1.speed, 200, "−2 × Acceleration");
+            await call("fuel", { vehicleUuid: V.uuid, origin: "refuel" });
+            assert.equal(V.getFlag("sr2e", "fuelOut")?.cause, "engine", "fuel doesn't fix a dead engine");
+            await call("replaceEngine", { vehicleUuid: V.uuid });
+            assert.notOk(V.getFlag("sr2e", "fuelOut"), "a new engine does");
+          } finally { ON.delete("r2Subsystems"); }
+        });
+        it("an automatic crash after a PASSED Crash Test for the same event still happens (r1 #4)", async function () {
+          this.timeout(20000);
+          const V = await mk("Quench Passed Test", { handling: 4, speed: 100, body: 4 });
+          ON.add("r2Subsystems");
+          try {
+            await V.update({ "flags.sr2e.vfollow.qpass": { crash: { kind: "test", why: "q", speed: 50, ruleset: "rigger2", state: "posted" } },
+              "flags.sr2e.crashes.qc": { fid: "qpass", kind: "test", ruleset: "rigger2", speed: 50, state: "done", occupants: [] } });
+            const D = await import("../vehicle-damage.mjs");
+            await D.escalateCrash(V, "qpass", "auto", "a Deadly Handling hit");
+            await new Promise(r => setTimeout(r, 500));
+            assert.equal(V.getFlag("sr2e", "vfollow")["qpass-auto"]?.crash?.kind, "auto", "its own automatic crash");
+            await D.escalateCrash(V, "qpass", "auto", "again");
+            assert.equal(Object.values(V.getFlag("sr2e", "crashes")).filter(c => String(c.fid).startsWith("qpass")).length, 2, "once");
           } finally { ON.delete("r2Subsystems"); }
         });
         it("a subsystem repair quotes from the part and repairs THAT record, not the monitor (p.87)", async function () {

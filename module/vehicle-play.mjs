@@ -2,6 +2,7 @@
  * Vehicles in play, core rulebook (docs/PLAN-vehicles-phase2.md Part 1): who controls a vehicle, the ONE vehicle
  * damage commit (the active GM's per-vehicle queue) with its crash triggers, and Control Pool spends.
  */
+import { itemOperable } from "./rules/vehicle-subsystem-rules.mjs";
 import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
@@ -209,7 +210,7 @@ GM_OPS.damage = async ({ vehicleUuid, boxes, source, eventId, receipt, woundLeve
     // Subsystem damage (R2 p.85, optional): Moderate or worse from ONE source → a roll follow-up in this same update,
     // carrying the immutable attack context (Power after armour etc.) the Control Box and compartment rows need.
     if (r2 && r2Option("r2Subsystems") && ["M", "S", "D"].includes(staged) && source !== "passenger" && !vehicle.getFlag("sr2e", "missile"))
-      follow.subsystem = { level: staged, attack: attack ?? null, state: "pending" };
+      follow.subsystem = { level: staged, attack: attack ?? null, source, state: "pending" };
     if (Object.keys(follow).length) upd[`flags.sr2e.vfollow.${followId(eventId ?? path)}`] = follow;
     await vehicle.update(upd);
     return { landedBoxes: value - before, follow: Object.keys(follow), crash: follow.crash?.kind ?? null };
@@ -488,7 +489,8 @@ export async function hitObjectFlow(driver, vehicle) {
     label: `${vehicle.name} resists the impact (${power}${level})`, isResistance: true });
   const stages = ["L", "M", "S", "D"];
   const idx = stages.indexOf(level) - Math.floor((resist?.successes ?? 0) / 2);
-  if (idx >= 0) await commitVehicleDamage(vehicle, [1, 3, 6, 10][idx], { source: "collision", woundLevel: stages[idx] });
+  if (idx >= 0) await commitVehicleDamage(vehicle, [1, 3, 6, 10][idx], { source: "collision", woundLevel: stages[idx],
+    attack: { power, powerAfterArmor: Math.max(0, power - armor), level: stages[idx], sourceKind: "collision" } });
   const lines = [`${head}. ${idx >= 0 ? `The vehicle takes ${stages[idx]} damage.` : "The vehicle resists all damage."}`];
   if (broken) lines.push("The barrier breaks: the driver must make a Crash Test (SR2E p.107).");
   else {
@@ -515,8 +517,9 @@ export function bindVehicleCardButtons(message, html) {
 
 /** Working equipment: a factory item, a Workshop design mod, or an installed customization with one of these keys. */
 export function hasWorkingMod(vehicle, ...keys) {
+  if (keys.includes("rigger-adaptation") && ["S", "D"].includes(vehicle?.system?.subsysControlBox)) keys = keys.filter(k => k !== "rigger-adaptation");
   return !!vehicle?.items?.some(i => i.type === "vehicle_mod" && keys.includes(i.system.modKey)
-    && ["", "done", "factory"].includes(i.system.custom?.state ?? ""));
+    && ["", "done", "factory"].includes(i.system.custom?.state ?? "") && itemOperable(i));
 }
 /** Adapted for rigger control (R2 p.21): a drone, or Rigger Adaptation. */
 export const riggerAdapted = (v) => v?.system?.vehicleType === "drone" || hasWorkingMod(v, "rigger-adaptation");
@@ -737,7 +740,12 @@ GM_OPS.replaceEngine = async ({ vehicleUuid }, user) => {
       designUpdate = workshopUpdate(ws.design, r, ch, pp, vehicle.name);
     }
     if (items.length) await vehicle.deleteEmbeddedDocuments("Item", items);
-    await vehicle.update({ ...designUpdate, "flags.sr2e.-=engineStress": null,
+    // A new engine is a new instance (6a.4, Codex 6a r1 #3): its subsystem records go inert and are retired.
+    const engineGen = { "flags.sr2e.subsysGen.engine": (Number(vehicle.getFlag("sr2e", "subsysGen")?.engine) || 0) + 1,
+      ...(vehicle.getFlag("sr2e", "fuelOut")?.cause === "engine" ? { "flags.sr2e.-=fuelOut": null } : {}) };
+    for (const [id, r] of Object.entries(vehicle.getFlag("sr2e", "subsystems") ?? {}))
+      if (r?.target?.kind === "builtin" && r.target.id === "engine" && r.state === "active") engineGen[`flags.sr2e.subsystems.${id}.state`] = "retired";
+    await vehicle.update({ ...designUpdate, ...engineGen, "flags.sr2e.-=engineStress": null,
       ...stressPatch({ before: vehicle.system.stress ?? 0, after: Math.max(0, (vehicle.system.stress ?? 0) - points), counter: overheadCounter(vehicle) }) });
     return { points };
   });

@@ -50,6 +50,7 @@ export function registerSubsystems() {
     const res = await vq(v.uuid, async () => {
       const f = v.getFlag("sr2e", "vfollow")?.[fid]?.subsystem;
       if (!f || f.rolled) return null;
+      const upd = {};
       const d6 = async (n = 1) => (await new Roll(`${n}d6`).evaluate()).total;
       const countRoll = await d6();
       const n = subsystemCount(f.level, countRoll);
@@ -59,7 +60,6 @@ export function registerSubsystems() {
         let j = 0; const roll = (dice) => { if (dice === 2) { const a = seq[j++], b = seq[j++]; return a + b; } return seq[j++]; };
         rolls.push(...resolveSubsystemHit(roll));
       }
-      const upd = { [`flags.sr2e.vfollow.${fid}.subsystem.rolled`]: { countRoll, n, hits: rolls } };
       const made = [];
       for (const h of rolls) {
         const target = h.gm ? null : subsystemTarget(v, h.key);
@@ -69,15 +69,18 @@ export function registerSubsystems() {
           state: "active", at: Date.now() };
         made.push({ ...h, id, target });
       }
+      // The rolled hits WITH their record ids, in the same update as the records: the consequences are replayable from
+      // here until `consequencesDone` (Codex 6a r1 #6).
+      upd[`flags.sr2e.vfollow.${fid}.subsystem.rolled`] = { countRoll, n, hits: rolls, made };
       await v.update(upd);
-      return { countRoll, n, made };
+      return { countRoll, n, made, source: f.source ?? null };
     });
     if (!res) return null;
     const lines = res.made.map(h => `<li>${esc(h.label)}: <strong>${h.level}</strong>${h.none ? h.gm ? " — the GM's choice of device (or roll again)" : " — no subsystem hit (the vehicle lacks it)" : ""}</li>`);
     await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: v }), content: `<div class="sr2e-damage-result">
       <strong>${esc(v.name)}: subsystem damage</strong> (Rigger 2 p.85–87) — 1D6 = ${res.countRoll}: ${res.n} subsystem${res.n === 1 ? "" : "s"} hit.
       ${lines.length ? `<ul>${lines.join("")}</ul>` : ""}</div>` });
-    await consequences(v, res.made.filter(h => h.id), fid);
+    await finishConsequences(v, fid);
     return res;
   });
 
@@ -89,6 +92,27 @@ export function registerSubsystems() {
       gmCall("subsystemRoll", s).catch(err => ui.notifications.warn(`SR2E | ${err.message}`));
     });
   });
+}
+
+/** Run a rolled follow-up's consequences once (GM): each step is itself receipted/coalesced, so a replay is harmless. */
+const FINISHING = new Set();
+async function finishConsequences(v, fid) {
+  const k = `${v.uuid}:${fid}`;
+  if (FINISHING.has(k)) return;
+  FINISHING.add(k);
+  try {
+    const s = v.getFlag("sr2e", "vfollow")?.[fid]?.subsystem;
+    if (!s?.rolled || s.consequencesDone) return;
+    await consequences(v, (s.rolled.made ?? []).filter(h => h.id), fid, s.source ?? null);
+    await vq(v.uuid, () => v.update({ [`flags.sr2e.vfollow.${fid}.subsystem.consequencesDone`]: true }));
+  } finally { FINISHING.delete(k); }
+}
+
+/** GM pass: finish every rolled follow-up whose consequences didn't complete (a client stopped mid-way). */
+export async function resumeSubsystems(v) {
+  if (!game.users.activeGM?.isSelf) return;
+  for (const [fid, f] of Object.entries(v.getFlag("sr2e", "vfollow") ?? {}))
+    if (f?.subsystem?.rolled && !f.subsystem.consequencesDone) await finishConsequences(v, fid);
 }
 
 /** The follow-up card (vehicle-damage.mjs delivery). */
@@ -104,13 +128,18 @@ export function postSubsystemCard(v, fid, x, tag) {
  * ruptured fuel tank or a Deadly engine hit needs a Crash Test — all merged into ONE origin-keyed crash (automatic
  * crash beats a pending test). The rigger's ASIST backlash and passengers' shrapnel are noted on the card for the GM.
  */
-async function consequences(v, hits, origin) {
+async function consequences(v, hits, origin, source = null) {
   const { escalateCrash } = await import("./vehicle-damage.mjs");
+  // Damage taken DURING a crash never starts another crash (the writer's crash-on-crash rule; Codex 6a r1 #5).
+  if (source === "crash") hits = hits.filter(h => !["handling", "body", "fuelTank", "engine"].includes(h.key) || h.level !== "D");
   const auto = hits.some(h => (h.key === "handling" || h.key === "body") && h.level === "D");
   const test = hits.some(h => (h.key === "fuelTank" || h.key === "engine") && h.level === "D");
   // ONE crash per originating event (the damage writer's own follow-up id), an automatic crash taking precedence.
   if (auto) await escalateCrash(v, origin, "auto", "a Deadly subsystem hit (Rigger 2 p.86–87)");
   else if (test) await escalateCrash(v, origin, "test", "a Deadly engine or fuel-tank hit (Rigger 2 p.87)");
+  // A Deadly engine loses power and decelerates (p.87): the coasting episode (vehicle-fuel.mjs).
+  const dead = hits.find(h => h.key === "engine" && h.level === "D");
+  if (dead) await (await import("./vehicle-fuel.mjs")).engineOut(v, dead.id);
   const { postSubsystemSteps } = await import("./vehicle-damage.mjs");
   for (const h of hits) if (h.key === "controlBox" || h.key === "compartment") await postSubsystemSteps(v, { ...h, attack: subsystemsOf(v)[h.id]?.attack }, h.id);
 }
