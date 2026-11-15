@@ -1110,6 +1110,13 @@ the gunner controls; the lock snapshot is taken GM-side. 6: sensor/indirect/miss
 its Skill Web defaulting, p.69 — e.g. Firearms at +4 TN), never the weapon's skill or the name fallback.
 Quench `sr2e.sensors` 28/28 (+5 tests), vehicle/combat batches 140/140; Vitest 1688.
 
+## Part 4b code, round 3 — Codex (fix-only, fresh session): REVISE, 1 finding
+1. The runner's own retry doesn't renew `runner.at`, so a retry after 60 s can be taken over mid-post (duplicate
+   damage cards).
+
+### Claude's response — taken
+`missileArm` refreshes `runner.at` (in the holder queue) whenever the current runner reclaims its attempt.
+
 ## Part 6a code, round 1 — Codex (fresh session): REVISE, 17 findings
 1. Subsystem damage doesn't reach equipment operability (transmitters, hasWorkingMod, Autonav dice).
 2. A Deadly engine keeps powered movement after a passed Crash Test.
