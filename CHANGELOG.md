@@ -16,8 +16,10 @@
   rigged, with your pools and rigger bonuses) or as a **secondary** while you're jumped elsewhere. **Command** rolls the
   drone's Comprehension Test (Pilot + Non-Matrix Programming, the GM's Skill Success Table TN, +2 when you're jumped
   into another drone) and records its standing order; **Group command** gives several drones one order and one test at
-  their lowest Pilot, with a **BattleTac IVIS** Test first (master unit on the deck, receivers on the drones) whose spare
-  successes become the group's shared IVIS Pool. Out-of-range drones hold their last order. Network drones in a chase
+  their lowest Pilot, with a **BattleTac IVIS** Test first (master unit on the deck, receivers on the drones: Vehicle Tactics at
+  TN 5, or a Skill Web default to Tactics at TN 6 or Military Theory at TN 8, R2 p.66 + Companion p.48) whose spare
+  successes become the group's shared IVIS Pool. The GM's client checks every command and IVIS card against these
+  rules and settles each card once. Out-of-range drones hold their last order. Network drones in a chase
   are acted for by their operator (a jump, return or disconnect makes a reserved roll "not counted"); captain's-chair
   drones fire their weapons on their Pilot. **Hardwire** a deck carried by a rigger-adapted vehicle through an
   Electronics Port. **Dump shock**: deleting a connected deck dumps its operator — +2 on all Success Tests for 10 Combat
@@ -25,8 +27,15 @@
 - **Robots** (Rigger 2 p.65, p.67): a vehicle with the robot design trait rolls its own Initiative (Reaction 2 × Pilot,
   Learning Pool + 1 dice, max 4); vehicles carry a **Learning Pool** (blank = Pilot for a robot; a printed scope like
   "Search & Rescue" is declared on the test and the GM may veto it), refreshed each Combat Turn and each phase the
-  vehicle acts, offered on the drone's own Driving Test. A non-robot network drone can't be added to the combat tracker
+  vehicle acts, offered on the drone's own tests (Driving Tests, weapons, chase rolls; on a chase roll, which applies at
+  once, a scoped pool only when the GM rolls). A non-robot network drone can't be added to the combat tracker
   by a player (it acts in its operator's phases).
+- **[Rulings](https://github.com/futurekill/sr2e-foundryvtt/wiki/Rulings)** wiki page: every place the books conflict,
+  are ambiguous or say nothing, what the system does, and the open questions.
+
+### Changed
+- Success-test cards record their base target number (`baseTn`, before wound, sustaining and other modifiers) beside
+  the effective one.
 
 ## 0.155.0 — 2026-11-15
 
