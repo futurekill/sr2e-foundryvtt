@@ -77,3 +77,17 @@ VERDICT: REVISE
 1: `astralReaction` moves to M2d with projecting magician/shapeshifter fixtures. 2: the two Document-method reads become
 explicit flag reads, a lint rule forbids method calls on context records, with the two fixtures. 3: the normaliser applies
 each StringField's effective `trim`; padded/whitespace parity cases.
+
+## Round 4 — Codex (draft 4)
+
+1. **`drugsInForce` needs a different effect view from `ctx.effects`.** The plan calls it a “flag-only” helper, but [its implementation](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/drugs.mjs:47) reads actor-owned effects, excludes disabled and zero-duration effects, and does **not** exclude suppressed effects or include transferred ones. [Attribute collection](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:1104) uses this to limit adrenal pumps. Substituting the effective collection changes pump bonuses for a suppressed MAO dose; omitting each effect’s `_source.duration` makes a tracking-only dose count. The proposed AE fixtures do not test this interaction.  
+   **Fix:** Explicitly derive this helper’s input from actor-owned raw effect sources, preserving duration and creation order, and add suppressed, transferred, and zero-duration MAO/pump parity cases.
+
+2. **D1’s consumable release artifact has no implementation step.** The approved requirement specifies `sr2e-core-<version>.tgz`, built from the same release tag with an explicit allow-list. Draft 4 schedules extraction and registration but never schedules that artifact; the [current release workflow](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/.github/workflows/release.yml) publishes only the manifest and Foundry ZIP. Consequently, every proposed parity gate could pass while M3 cannot consume the required pinned package.  
+   **Fix:** Add an M2 release gate that builds and publishes the allow-listed core archive and runs Node/browser import checks against its unpacked contents.
+
+VERDICT: REVISE
+
+### Claude's response (draft 5) — both taken
+1: `drugsInForce` gets the actor-owned raw effect sources (`ctx.ownEffectSources`), with the three MAO/pump parity cases.
+2: the `sr2e-core-<version>.tgz` archive is an M2a deliverable and a gate of every M2 release, tested from its unpacked contents.

@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 8 (2026-11-15), after Codex rounds 1–7 (13 + 8 + 6 + 3 + 3 + 2 + 3 findings, all taken); draft 3 added the reader audit
+_Draft 9 (2026-11-15), after Codex rounds 1–8 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -60,7 +60,11 @@ from their synthetic source. A reference to something not exported → `unresolv
   CLOSED in `vehicleAdventures` but not `applied` with a row for any exported vehicle (round 7 #2: the decision lives in
   the world setting and its charges/supersession are delivered after it; fixtures before and between row deliveries);
   a coasting episode with `fuelOut.pending` (round 7 #3: its speed change, stall Crash Test or landing is earned but
-  delivered only by the next combat stage; fixtures interrupted before the crash and before the landing delivery). The list is ONE function,
+  delivered only by the next combat stage; fixtures interrupted before the crash and before the landing delivery); a
+  vehicle-ammo RELOAD not `closed` (round 8 #1: vehicle-ammo.mjs's five-step transaction across weapon, reserve and
+  eject items stays open in `planned`/`ready`/`settled`/`cancelled`, and `reconcileReloads` resumes it; its reference
+  shapes `reloadPlans.ammoItemId`, `ejectTo`, `reserveReceipts.props.loadedSourceId` and `system.ammo.sourceId` /
+  `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation). The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
@@ -203,7 +207,8 @@ restore may keep ids (`keepId`) when they are free.
   (`module/portable/fence.mjs`) refuses any write to a fenced actor or its embedded documents unless the write carries
   `sr2eImport: { importId, epoch }` matching the journal's CURRENT epoch (so an old recovery owner's late write is
   refused too, #3).
-- **Admission closure**: queues and reconcilers (money, `damage:`, `vdmg:`, `vr2op:`, `rc-control`, pool, matrix, the
+- **Admission closure**: queues and reconcilers (money, `damage:`, `vdmg:`, `vr2op:`, `rc-control`, `ammo:<weaponUuid>`
+  — mapped to its weapon's actor for admission and drain, round 8 #1 — and `reconcileReloads`, pool, matrix, the
   healing/substance clocks, mbw/cybermancy reconcilers incl. delayed ones, astral forms, persona tokens, jackpoints,
   overhead, chase and vehicle GM passes, the VR2 sequencer) check `fenced(actor)` at admission and skip without error,
   re-scheduling themselves on unfence (a `sr2e.unfenced` hook). A Vitest grep check fails if a writer module from that

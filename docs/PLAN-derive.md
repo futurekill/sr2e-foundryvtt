@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 4 (2026-11-15), after Codex rounds 1–3 (9 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 5 (2026-11-15), after Codex rounds 1–4 (9 + 3 + 3 + 2 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -78,6 +78,10 @@ preparation.
 - **Helpers split first**: flag-only helpers that live in Foundry-coupled modules (`substancesOf`, `drugsInForce`,
   `workingImplant`, `eventsOf`, `programmingState`, `effectChanges`, `elementalHolderOf` → `lookup`, `variableLTGOn`)
   move to pure files with re-exports, in the release that first needs them (inventory "Helpers to split").
+  `drugsInForce` is NOT given `ctx.effects` (round 4 #1): it reads the actor-OWNED raw effect sources (no transferred
+  effects, suppressed ones included, disabled and zero-duration `_source.duration` excluded, creation order kept) —
+  the adapter passes exactly that view as `ctx.ownEffectSources`; parity cases: a suppressed MAO dose, a transferred
+  effect, a zero-duration (tracking-only) dose, each against an adrenal pump.
 - **No hidden globals, ever** (round 1 #8): `globalThis.game?.time?.worldTime ?? 0` in `_wareCyberInteractions` (and any
   `?? default` fallback on a global) becomes `ctx.now`; a lint rule forbids `game`, `CONFIG`, `globalThis.game`,
   `fromUuidSync`, `canvas` under `module/derive/**`.
@@ -129,6 +133,10 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
   `module/derive/chargen.mjs` (reading `ctx.registries`, not `CONFIG`).
 Each step: move the code verbatim behind the context, the data model calls it, parity + existing tests green, no
 behaviour change, CHANGELOG "Changed (internal)" only.
+**The consumable package (D1; round 4 #2)** is an M2a deliverable and a gate of every M2 release: the release workflow
+also builds `sr2e-core-<version>.tgz` from the same tag with an explicit allow-list (`module/derive/**`, `module/rules/**`,
+the schema descriptor, package.json `exports`), publishes it beside the Foundry ZIP, and a CI job unpacks THAT archive
+and runs the Node parity suite and a browser import smoke test against its contents (so a missing file fails the release).
 
 ## 5. The parity harness
 **Golden projections** (round 1 #5): before M2a moves anything, the harness records the CURRENT code's prepared

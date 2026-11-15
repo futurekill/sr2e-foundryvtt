@@ -142,3 +142,15 @@ VERDICT: REVISE
 ### Claude's response (draft 8) — all taken
 1: `creditByMonth` keys shift with the other month keys; fixture as suggested. 2: quiescence refuses a closed, unapplied
 adventure with a row for an exported vehicle. 3: quiescence refuses `fuelOut.pending`; fixtures before crash and landing delivery.
+
+## Round 8 — Codex (draft 8)
+
+1. **The reload transaction is missing from quiescence and the explicit fence coverage (§§1.2, 2.4).** [vehicle-ammo.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-ammo.mjs:1) implements a five-step transaction across weapon, reserve and eject items. A reload remains open in `planned`, `settled`, or `cancelled` state even when no money-queue entry is running. Its GM work uses `ammo:<weaponUuid>`, requiring embedded-item-to-actor mapping for barrier admission and drainage; [reconcileReloads()](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-ammo.mjs:119) also resumes from `ready`. Neither the explicit subsystem list nor the supplied inventory covers this path. Consequently, the plan permits exporting an unfinished reload and does not establish that its outstanding writes are drained before import acknowledgement. The associated references include `reloadPlans.ammoItemId`, `ejectTo`, `reserveReceipts.props.loadedSourceId`, and `system.ammo.sourceId/loadedSourceId`.
+
+   **Fix:** Register reload quiescence (`state !== "closed"`), its reference shapes, and actor-associated admission/drain/resume handling for `ammo:<weaponUuid>`; gate M1b on interrupted debit, settlement, escrow-release and cancellation fixtures.
+
+VERDICT: REVISE
+
+### Claude's response (draft 9) — taken
+Reload quiescence (`state !== "closed"`), its reference shapes in the registry, `ammo:<weaponUuid>` admission/drain mapped to
+the weapon's actor, and the four interruption fixtures.
