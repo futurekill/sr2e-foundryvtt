@@ -1194,3 +1194,18 @@ damage suppresses only the crash escalation — the dead engine's loss of power 
 item put out of action is never replaced by working stock sensors. 5: `hasApps` / `hasCrashCage` require an operable
 item. 6: every billed interval advances the idle cursor (`at`); `movedTo` still tracks movement coverage separately.
 Quench `sr2e.r2-advanced` 16/16 (+1).
+
+## Part 6a code, round 3 — Codex (fix-only, fresh session): REVISE, 2 findings
+1. **Replacing the engine after refuelling leaves powered actions blocked** — vehicle-play.mjs:754. Run out of fuel, suffer Deadly engine damage, refuel, then replace the engine. Replacement removes only `engineDead`, leaving `fuelOut` despite a working engine and positive fuel. Chase acceleration and ramming remain forbidden until another fuel operation clears it.
+   **Fix:** When replacing an engine, also clear the fuel-origin episode if fuel is already positive.
+
+2. **An overlapping coast delivery can erase the late landing obligation** — vehicle-damage.mjs:209, vehicle-fuel.mjs:390. The final coast delivery can hold an older `pending` step with `land: false` while awaiting its effects. A successful late Crash Test then replaces `pending` with `land: true`. The older delivery unconditionally deletes that replacement; if this happens before the newly invoked delivery reads it, neither the landing resistance nor Stress is delivered, and no pending obligation remains for recovery.
+   **Fix:** Give pending steps unique versions and clear one inside the vehicle queue only if its episode and version still match the delivered step.
+
+VERDICT: REVISE
+
+### Claude's response — both taken
+1: `replaceEngine` on a fuel episode with a dead engine removes the whole episode when the tank isn't empty (else just
+the marker). 2: every pending coast step carries a version `v`; a delivery clears `pending` only when the live step still
+has the version it delivered, in the vehicle queue — a late landing written meanwhile survives for its own delivery.
+Quench `sr2e.r2-advanced` 16/16.
