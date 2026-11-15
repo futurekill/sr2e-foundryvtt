@@ -1117,6 +1117,10 @@ Quench `sr2e.sensors` 28/28 (+5 tests), vehicle/combat batches 140/140; Vitest 1
 ### Claude's response — taken
 `missileArm` refreshes `runner.at` (in the holder queue) whenever the current runner reclaims its attempt.
 
+## Part 4b code, round 4 — Codex (fix-only, fresh session): APPROVED
+"No material findings. The fix awaits renewal of `runner.at` inside the holder queue before returning, so a competing
+claim sees the refreshed timestamp." Part 4b is APPROVED; released as sr2e 0.154.0 from release/0.154.0.
+
 ## Part 6a code, round 1 — Codex (fresh session): REVISE, 17 findings
 1. Subsystem damage doesn't reach equipment operability (transmitters, hasWorkingMod, Autonav dice).
 2. A Deadly engine keeps powered movement after a passed Crash Test.
