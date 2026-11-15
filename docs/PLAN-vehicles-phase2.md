@@ -1308,8 +1308,9 @@ Electronics).
   any other deck (checked in `rc-control`). Jumping needs a VCR (`isVcr`) and the operator jacked in; captain's chair
   is the only mode without a VCR (p.65). Jump / return to captain's chair: Simple Actions.
 - primary: as if jacked in — Combat and Control Pool, rigger bonuses (`riggerTnParts`), no Comprehension Test.
-  secondary / captain: the drone's Pilot replaces the skill or attribute (p.65, p.67); no Combat/Control/Task Pool;
-  only IVIS Pool. Captain's chair keeps the rigger's Initiative bonuses (Rigger X's +2D6).
+  secondary / captain: the drone's Pilot replaces the skill or attribute (p.65, p.67); no Combat/Control Pool; only
+  IVIS Pool on the drone's tests — but in captain's chair the rigger "may still use her Task Pool dice" (p.65, checked
+  on the render 2026-11-15; Task Pool stays a Technical-skill pool, 5a.0). Captain's chair keeps the rigger's Initiative bonuses (Rigger X's +2D6).
 - Equipment dice are unchanged (⌊Sensor ÷ 2⌋ on sensor gunnery); Pilot replaces only the skill.
 - **Observe**: captain — through any AFFILIATED drone (Free; p.64: never a non-affiliated one); primary — the primary
   (Free), a secondary (Complex). Observe in Detail: Simple — captain any affiliated drone, primary the primary only.
