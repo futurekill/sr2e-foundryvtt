@@ -564,6 +564,7 @@ export class SR2EActor extends Actor {
       magic:   game.i18n.localize("SR2E.DicePools.Magic"),
       hacking: game.i18n.localize("SR2E.DicePools.Hacking"),
       control: game.i18n.localize("SR2E.DicePools.Control"),
+      task:    game.i18n.localize("SR2E.DicePools.Task"),
       astral:  "Astral Pool"
     };
 

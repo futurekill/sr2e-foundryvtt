@@ -24,7 +24,7 @@ import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass, secondhandDead } from "../rules/sr2e-rules.mjs";
+import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -187,6 +187,8 @@ export class CharacterData extends SR2EDataModel {
         hacking: SR2EDataModel.resourceField(0, 0),
         magic: SR2EDataModel.resourceField(0, 0),
         control: SR2EDataModel.resourceField(0, 0),
+        // Task Pool (Rigger 2 p.16; Shadowtech pp.23, 49): encephalon / cerebral booster, under Rigger 2 (5a.0).
+        task: SR2EDataModel.resourceField(0, 0),
         // Astral Combat Pool (SR2E p.147): usable only while astrally active.
         astral: SR2EDataModel.resourceField(0, 0),
         spellDefense: new fields.NumberField({ required: true, integer: true, initial: 0, min: 0 }),
@@ -1582,6 +1584,15 @@ export class CharacterData extends SR2EDataModel {
       applyPool(this.dicePools.control, naturalReaction + 2 * this.vehicleControlRig);
     } else applyPool(this.dicePools.control, 0);
 
+    // Task Pool (5a.0): from WORKING implants only, under Rigger 2; assigned both ways (0 otherwise).
+    let encephalon = 0, cerebralBooster = 0;
+    if (isRigger2()) for (const i of this.parent?.items ?? []) {
+      if (!["cyberware", "bioware"].includes(i.type) || !workingImplant(this.parent, i)) continue;
+      const rule = i.system.wareRule ?? wareRule(i.flags, sourceOf(i));   // bioware derives no wareRule field
+      if (rule === "encephalon") encephalon = Math.max(encephalon, Number(i.system.rating) || 0);
+      if (rule === "cerebral-booster") cerebralBooster = Math.max(cerebralBooster, Number(i.system.rating) || 0);
+    }
+    if (this.dicePools.task) applyPool(this.dicePools.task, taskPoolDice({ encephalon, cerebralBooster }));
   }
 
   /**

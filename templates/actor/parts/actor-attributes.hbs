@@ -90,6 +90,14 @@
         <button type="button" data-action="resetPool" data-pool="control" class="btn-reset-pool" title="Reset Control Pool"><i class="fas fa-sync"></i></button>
       </div>
       {{/if}}
+      {{#if system.dicePools.task.max}}
+      <div class="pool-row flexrow">
+        <label title="Rigger 2 p.16: Technical, Knowledge and Build/Repair tests, at most the skill's rating">{{localize "SR2E.DicePools.Task"}}</label>
+        <input type="number" name="system.dicePools.task.value" value="{{system.dicePools.task.value}}" min="0" max="{{system.dicePools.task.max}}" class="pool-input" />
+        <span>/ {{system.dicePools.task.max}}</span>
+        <button type="button" data-action="resetPool" data-pool="task" class="btn-reset-pool" title="Reset Task Pool"><i class="fas fa-sync"></i></button>
+      </div>
+      {{/if}}
       <button type="button" data-action="resetPools" class="btn-reset-pools">
         <i class="fas fa-sync"></i> Reset Pools
       </button>

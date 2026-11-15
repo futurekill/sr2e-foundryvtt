@@ -12,6 +12,7 @@ const of = (key, ...uuids) => uuids.map(u => [u, key]);
 /** Known compendium items by source uuid. */
 export const WARE_SOURCES = Object.fromEntries([
   ...of("adrenal-pump", ST("st-bioware", "acc48cba2abcfb40")),
+  ...of("cerebral-booster", ST("st-bioware", "bca4fdaee6a77912")),
   ...of("suprathyroid", ST("st-bioware", "fc58c133d4a51a68")),
   ...of("enhanced-articulation", ST("st-bioware", "339597bae36eceb8")),
   ...of("muscle-augmentation", ST("st-bioware", "f29c412ec9f800eb")),

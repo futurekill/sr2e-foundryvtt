@@ -19160,6 +19160,28 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Task Pool (Part 5a.0, R2 p.16)", function () {
+        it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
+          this.timeout(20000);
+          const encDoc = (await game.packs.get("sr2e.cyberware").getDocuments()).find(d => d.name === "Encephalon");
+          assert.ok(encDoc, "the core Encephalon");
+          const enc = game.items.fromCompendium(encDoc);   // as a drag from the compendium (keeps its source)
+          enc.system.rating = 3; enc.system.installed = true;
+          const pc = await Actor.create({ name: "Quench Task Pool", type: "character" }); made.push(pc);
+          await pc.createEmbeddedDocuments("Item", [enc, { name: "Electronics", type: "skill", system: { rating: 4, category: "active" } }]);
+          const skill = pc.items.find(i => i.type === "skill");
+          assert.equal(pc.system.dicePools.task.max, 2, "Level 3 → 2 dice");
+          const gg = game.settings.get;
+          game.settings.get = function (ns, k) { return ns === "sr2e" && k === "vehicleRuleset" ? "core" : gg.call(this, ns, k); };
+          try { pc.prepareData(); assert.equal(pc.system.dicePools.task.max, 0, "core: no Task Pool"); }
+          finally { game.settings.get = gg; pc.prepareData(); }
+          await pc.rollSkillTest(skill.id, 4, { poolDice: { task: 2 } });
+          assert.equal(pc.system.dicePools.task.value, 0, "spent");
+          await pc.refreshDicePools();
+          assert.equal(pc.system.dicePools.task.value, 2, "refreshed with the other pools");
+        });
+      });
+
       describe("Optempo (Part 6a.2, R2 p.83–84)", function () {
         let month0, adv0;
         before(async function () { month0 = game.settings.get("sr2e", "vehicleOverheadMonth"); adv0 = foundry.utils.deepClone(game.settings.get("sr2e", "vehicleAdventures") ?? {}); });

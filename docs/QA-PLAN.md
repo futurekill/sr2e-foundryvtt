@@ -1281,3 +1281,9 @@ Manual: set "replace"; Adventures → start; Month ends; pay the month; Adventur
 the optempo row in the overhead dialog; "split" → the next month's overhead is halved; "mileage" → a vehicle under the
 threshold keeps its monthly overhead; "frequent" → tick the vehicle in the Adventures dialog.
 
+
+## Rigger 2 Task Pool (Part 5a.0) — `sr2e.r2-advanced` batch
+- [ ] Rigger 2 ruleset: a character with an encephalon Level 3 shows **TkP 2/2** in the header and a Task Pool row; under core, none.
+- [ ] Add a cerebral booster Level 2 (Shadowtech): the pool becomes 3 (they add).
+- [ ] Roll Electronics (rating 4): the dialog offers Task Pool dice, at most 4; Firearms offers none; a Knowledge and a B/R skill offer it.
+- [ ] Spend 2: the pool shows 0/2; Reset Pools (or the next Combat Turn) brings it back.

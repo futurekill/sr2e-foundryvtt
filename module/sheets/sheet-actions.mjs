@@ -8,7 +8,7 @@ import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
 import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, areaTargetEligible, blastRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays} from "../rules/sr2e-rules.mjs";
+         footprintDistance, areaTargetEligible, blastRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays, taskPoolApplies } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
 import { nullInactivityMod } from "../rules/vr2-decoy-rules.mjs";
@@ -53,7 +53,9 @@ const POOL_DEFS = [
   { key: "combat",  label: "Combat Pool" },
   { key: "magic",   label: "Magic Pool" },
   { key: "hacking", label: "Hacking Pool" },
-  { key: "control", label: "Control Pool" }
+  { key: "control", label: "Control Pool" },
+  // Task Pool (5a.0): offered only where the caller allows it (Technical, Knowledge, B/R skill tests).
+  { key: "task",    label: "Task Pool", only: true }
 ];
 
 /**
@@ -176,7 +178,7 @@ function readKarmaDice(form, actor, baseDice) {
  * @param {boolean} [opts.showPools=true]    - Whether dice pools may be used on this test.
  * @returns {Promise<{tn: number, poolDice: object, karmaDice: number}|null>}
  */
-async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, showPools = true, attribute = null } = {}) {
+async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, showPools = true, attribute = null, pools = [] } = {}) {
   // Cyberware social penalty (Cybertechnology p.58, optional): a pre-ticked box on
   // Charisma and Charisma-linked rolls when the world setting is on.
   let cyberSocial = false;
@@ -194,7 +196,8 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
       <input type="checkbox" name="socialTN" checked>
     </div>` : "";
   // Collect pools that have dice available, capping each by both available and skillCap.
-  const availablePools = (showPools ? POOL_DEFS : [])
+  // `pools` names extra pools this test allows even when the general pools aren't shown (the Task Pool, 5a.0).
+  const availablePools = POOL_DEFS.filter(p => p.only ? pools.includes(p.key) : showPools)
     .map(p => {
       const available = getPoolAvailable(actor, p.key);
       const cap = skillCap === Infinity ? available : Math.min(available, skillCap);
@@ -362,7 +365,11 @@ async function onRollSkill(event, target) {
       ? (actor.system.reaction?.value ?? 1)
       : (actor.system[attrKey]?.value ?? 1);
   }
-  const opts = await promptRollOptions(actor, { showPools: false, baseDice, attribute: skillItem?.system?.linkedAttribute });
+  // Task Pool dice on Technical, Knowledge and Build/Repair skill tests, at most the skill's rating (R2 p.16; 5a.0).
+  const taskOk = (actor.system.dicePools?.task?.max ?? 0) > 0
+    && taskPoolApplies({ category: skillItem?.system?.category, key: String(skillItem?.name ?? "").toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "") });
+  const opts = await promptRollOptions(actor, { showPools: false, baseDice, attribute: skillItem?.system?.linkedAttribute,
+    ...(taskOk ? { pools: ["task"], skillCap: Math.max(0, effectiveSkillRating(skillItem?.system, variant) || 0) } : {}) });
   if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, {
     poolDice: opts.poolDice, karmaDice: opts.karmaDice, variant, miscDice: opts.miscDice, miscLabel: opts.miscLabel,

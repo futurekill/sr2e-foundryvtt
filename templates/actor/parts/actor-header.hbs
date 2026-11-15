@@ -53,6 +53,12 @@
           <span class="pool-pip-value">{{system.dicePools.control.value}}/{{system.dicePools.control.max}}</span>
         </span>
         {{/if}}
+        {{#if system.dicePools.task.max}}
+        <span class="pool-pip" title="Task Pool (Rigger 2 p.16)">
+          <span class="pool-pip-label">TkP</span>
+          <span class="pool-pip-value">{{system.dicePools.task.value}}/{{system.dicePools.task.max}}</span>
+        </span>
+        {{/if}}
       </div>
     </div>
 

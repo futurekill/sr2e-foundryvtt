@@ -2811,7 +2811,7 @@ export function strengthMinWeaponStats(sys = {}) {
  */
 export function dicePoolRefreshUpdates(pools = {}) {
   const updates = {};
-  for (const key of ["combat", "hacking", "magic", "control", "astral"]) {
+  for (const key of ["combat", "hacking", "magic", "control", "astral", "task"]) {
     const p = pools[key];
     if (p && p.value !== p.max) updates[`system.dicePools.${key}.value`] = p.max;
   }
@@ -4463,4 +4463,17 @@ export const halveBonus = (v) => v > 0 ? Math.floor(v / 2) : v;
 /** VR2.0 Hacking Pool (VR2.0 p.18): ⌊(Intelligence + MPCP) ÷ 3⌋. */
 export function vr2HackingPool(intelligence, mpcp) {
   return Math.max(0, Math.floor(((Number(intelligence) || 0) + (Number(mpcp) || 0)) / 3));
+}
+
+/**
+ * Task Pool (Rigger 2 p.16; Shadowtech pp.23, 49; docs/PLAN-vehicles-phase2.md 5a.0): an encephalon of Level 2 / 3 / 4
+ * gives 1 / 2 / 3 dice, a cerebral booster of Level 2 gives 1; the two ADD (user ruling R5-4).
+ */
+export function taskPoolDice({ encephalon = 0, cerebralBooster = 0 } = {}) {
+  const e = Math.max(0, Math.min(3, (Number(encephalon) || 0) - 1));
+  return e + ((Number(cerebralBooster) || 0) >= 2 ? 1 : 0);
+}
+/** May Task Pool dice be used on a test of this skill (5a.0)? `key` is the skill's normalized name. */
+export function taskPoolApplies({ category = "active", key = "" } = {}) {
+  return category === "knowledge" || category === "build_repair" || TECHNICAL_SKILLS.has(String(key));
 }
