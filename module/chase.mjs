@@ -1083,7 +1083,7 @@ export async function rollDriverPoints(combat, eid) {
     const roll = await new Roll(n > 0 ? `{${Array(n).fill("1d6x6").join(",")}}kh` : "0").evaluate();
     const msg = await roll.toMessage({ speaker: speakerFor(driver),
       flavor: `<strong>Driver Points</strong> — Open Test, ${inputs.skill} skill${paid ? ` + ${paid} Control Pool` : ""}${inputs.pr ? ` + ${inputs.pr} Professional Rating` : ""}${esc(inputs.note)}${esc(dp.label)} (R2 p.42)`,
-      flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } });
+      flags: { sr2e: { chaseAction: { combatId: combat.id, aid }, ...(dp.flags ?? {}) } } });   // the GM's scope veto (c5a r2 #3)
     await gmCall("chaseResolve", { combatId: combat.id, aid, messageId: msg.id });
   } catch (err) { notify(err); }
 }
@@ -1117,7 +1117,7 @@ export async function chaseAction(combat, eid, kind, { target = null, actorUuid 
       label: `${KIND_LABEL[kind]} (R2 p.${{ accelerate: 45, brake: 45, position: 47, hide: 48, relocate: 49, ram: 47 }[kind]})${dp.label}`,
       sourceLabel: kind === "relocate" ? "Intelligence" : "Driving",
       ...(paid ? { paidPoolDice: { control: paid } } : {}),
-      flags: { sr2e: { chaseAction: { combatId: combat.id, aid } } } });
+      flags: { sr2e: { chaseAction: { combatId: combat.id, aid }, ...(dp.flags ?? {}) } } });
   } catch (err) { notify(err); }
 }
 

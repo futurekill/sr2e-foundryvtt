@@ -3,7 +3,7 @@
  * operator, subscribers and affiliation, reachability, each drone's mode, the primary, standing orders — with the
  * actions and their costs. Every change is a GM op in module/rc-net.mjs.
  */
-import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBalance, hasIvisMaster } from "../rc-net.mjs";
+import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBalance, hasIvisMaster, vehicleTacticsDice, nmpDice } from "../rc-net.mjs";
 import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit } from "../rules/drone-rules.mjs";
 import { fluxRange } from "../rules/vehicle-sensor-rules.mjs";
 
@@ -158,19 +158,3 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
-/** The operator's Vehicle Tactics specialization dice (Tactics Concentration, SRComp; R2 p.66), 0 when none. */
-function vehicleTacticsDice(actor) {
-  for (const sk of actor?.items?.filter(i => i.type === "skill") ?? []) {
-    const sp = sk.system?.specialization;
-    if (/vehicle tactics/i.test(sp?.name ?? "")) return Number(sp.rating) || 0;
-    if (/vehicle tactics/i.test(sk.name)) return Number(sk.system.rating) || 0;
-  }
-  return 0;
-}
-
-/** The operator's Non-Matrix Programming specialization dice (Computer skill; p.67), 0 when none. */
-function nmpDice(actor) {
-  const sk = actor?.items?.find(i => i.type === "skill" && /^computer$/i.test(i.name));
-  const sp = sk?.system?.specialization;
-  return /non.?matrix programming/i.test(sp?.name ?? "") ? Number(sp.rating) || 0 : 0;
-}

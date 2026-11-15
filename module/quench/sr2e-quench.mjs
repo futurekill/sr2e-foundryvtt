@@ -19404,6 +19404,8 @@ export function registerSR2EQuenchTests() {
           this.timeout(30000);
           const RCN = await import("../rc-net.mjs");
           const pc = await Actor.create({ name: "Quench IVIS Rigger", type: "character", system: {} }); made.push(pc);
+          await pc.createEmbeddedDocuments("Item", [{ name: "Military Theory", type: "skill", system: { rating: 3, category: "knowledge",
+            concentration: { name: "Tactics", rating: 4 }, specialization: { name: "Vehicle Tactics", rating: 5 } } }]);
           const [deck] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench IVIS Deck", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "rc-deck" } } }]);
           const rx = { name: "BattleTac IVIS Receiver Module", type: "vehicle_mod", system: { modKey: "ivis-receiver" } };
           const d1 = await mk("Quench IVIS A", { vehicleType: "drone", pilot: 3 }), d2 = await mk("Quench IVIS B", { vehicleType: "drone", pilot: 2 });
@@ -19413,13 +19415,28 @@ export function registerSR2EQuenchTests() {
             await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
           }
           await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
-          const iv = await pc.rollSuccessTest(5, 2, { label: "Quench IVIS", flags: { sr2e: { rcIvis: { deckUuid: deck.uuid } } } });
+          // Every die a 5 (never all sixes: they explode forever). The IVIS card must be TN 5 with the Vehicle Tactics dice.
+          const orig = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => 0.2;
+          let iv, roll, bad = {};
+          try {
+            const ivCard = (n, tn) => pc.rollSuccessTest(n, tn, { label: "Quench IVIS", flags: { sr2e: { rcIvis: { deckUuid: deck.uuid } } } });
+            const comp = (n, ivisMsg) => d2.rollSuccessTest(n, 4, { label: "Quench group Comprehension", flags: { sr2e: { rcCommand: { deckUuid: deck.uuid,
+              vehicleUuids: [d1.uuid, d2.uuid], ivisMessageId: ivisMsg, ivisToTest: 1 } } } });
+            iv = await ivCard(5, 5);
+            roll = await comp(3, iv.testMessageId);   // group Pilot 2 + 1 IVIS success
+            bad.lowTn = await comp(3, (await ivCard(5, 2)).testMessageId);
+            bad.tooMany = await comp(3, (await ivCard(RCN.ivisDiceMax(pc) + 1, 5)).testMessageId);   // one die past what the skill allows
+            bad.doubleDip = await comp(4, (await ivCard(5, 5)).testMessageId);
+          } finally { CONFIG.Dice.randomUniform = orig; }
           const pool = iv.successes - 1;
-          const roll = await d2.rollSuccessTest(3, 4, { label: "Quench group Comprehension", flags: { sr2e: { rcCommand: { deckUuid: deck.uuid,
-            vehicleUuids: [d1.uuid, d2.uuid], ivisMessageId: iv.testMessageId, ivisToTest: 1 } } } });
           const args = { deckUuid: deck.uuid, vehicleUuids: [d1.uuid, d2.uuid], text: "sweep the lot", messageId: roll.testMessageId };
-          assert.isAbove(pool, 0, "TN 2: the IVIS Test succeeds");
-          let err = null; try { await call("rcGroupOrder", args); } catch (e) { err = e.message; }
+          assert.equal(pool, 4, "5 successes at TN 5, one put on the test");
+          let err = null;
+          for (const [k, re] of [["lowTn", /TN 5/], ["tooMany", /Vehicle Tactics dice/], ["doubleDip", /more dice/]]) {
+            err = null; try { await call("rcGroupOrder", { ...args, messageId: bad[k].testMessageId }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", re, `c5a r2 #2: ${k} refused`);
+          }
+          err = null; try { await call("rcGroupOrder", args); } catch (e) { err = e.message; }
           assert.match(err ?? "", /master unit/, "no master unit");
           await pc.createEmbeddedDocuments("Item", [{ name: "BattleTac IVIS Master Unit", type: "gear", system: {}, flags: { sr2e: { rule: "ivis-master" } } }]);
           err = null; try { await call("rcGroupOrder", args); } catch (e) { err = e.message; }
@@ -19505,6 +19522,23 @@ export function registerSR2EQuenchTests() {
           err = null; try { await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: crewed.uuid, on: true }); } catch (e) { err = e.message; }
           assert.match(err ?? "", /chase driver/);
           } finally { await combat.update({ active: false }); for (const c of prevActive) await c.update({ active: true }); }
+        });
+      });
+
+      describe("Part 5a review fixes (c5a r2)", function () {
+        it("a player can't delete another character's deck (#1); a scoped Learning spend on a chase roll carries the veto flag (#3)", async function () {
+          this.timeout(30000);
+          const VP = await import("../vehicle-play.mjs");
+          const player = game.users.find(u => !u.isGM);
+          if (player) {
+            const pc = await Actor.create({ name: "Quench Deck Owner", type: "character" }); made.push(pc);
+            const [deck] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Other Deck", type: "gear", system: { rating: 1 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+            let err = null; try { await VP.gmOpHandler("rcDeleteDeck")({ deckUuid: deck.uuid }, player); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /not your deck/, "the requesting player owns neither the deck nor its actor");
+            assert.ok(pc.items.get(deck.id), "the deck survives");
+          }
+          const src = await (await fetch("systems/sr2e/module/chase.mjs")).text();
+          assert.equal((src.match(/\.\.\.\(dp\.flags \?\? \{\}\)/g) ?? []).length, 2, "both chase cards (Driver Points, actions) carry askDronePools' flags");
         });
       });
 

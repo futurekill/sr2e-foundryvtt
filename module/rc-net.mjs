@@ -255,6 +255,37 @@ export async function rcValidate(actor) {
   if (held.length) await rangeSweep(actor);
 }
 
+/** The operator's Vehicle Tactics specialization dice (Tactics Concentration, SRComp; R2 p.66), 0 when none. */
+export function vehicleTacticsDice(actor) {
+  for (const sk of actor?.items?.filter(i => i.type === "skill") ?? []) {
+    const sp = sk.system?.specialization;
+    if (/vehicle tactics/i.test(sp?.name ?? "")) return Number(sp.rating) || 0;
+    if (/vehicle tactics/i.test(sk.name)) return Number(sk.system.rating) || 0;
+  }
+  return 0;
+}
+
+/** The operator's Non-Matrix Programming specialization dice (Computer skill; p.67), 0 when none. */
+export function nmpDice(actor) {
+  const sk = actor?.items?.find(i => i.type === "skill" && /^computer$/i.test(i.name));
+  const sp = sk?.system?.specialization;
+  return /non.?matrix programming/i.test(sp?.name ?? "") ? Number(sp.rating) || 0 : 0;
+}
+/** The most IVIS Test dice the operator may roll: the Vehicle Tactics specialization, or what a default to the Tactics
+ *  Concentration or Military Theory gives (SRComp p.48 Skill Web; the TN rises, never the dice). c5a r2 #2. */
+export function ivisDiceMax(actor) {
+  let max = vehicleTacticsDice(actor);
+  for (const sk of actor?.items?.filter(i => i.type === "skill") ?? []) {
+    const s = sk.system ?? {};
+    if (/military theory|tactics/i.test(sk.name)) max = Math.max(max, Number(s.rating) || 0);
+    if (/tactics/i.test(s.concentration?.name ?? "")) max = Math.max(max, Number(s.concentration.rating) || 0);
+  }
+  return max;
+}
+/** A test card's own dice (not Karma Pool dice) and whether it took situational misc dice. */
+const ownDice = (test) => (test?.dice ?? []).filter(d => d.sourceKey === "base").length;
+const tookMisc = (test) => (test?.dice ?? []).some(d => d.sourceKey === "misc");
+
 export function registerRcNet() {
   const validate = (a) => rcValidate(a).catch(err => console.error("SR2E | rc validate", err));
   Hooks.on("updateActor", (a) => validate(a));
@@ -399,7 +430,7 @@ export function registerRcNet() {
   gmOp("rcDeleteDeck", ({ deckUuid }, user) => rcQueue(async () => {
     const deck = fromUuidSync(deckUuid);
     if (!deck || !isRcDeck(deck)) return true;
-    if (!user.isGM && !deck.isOwner && !deckActor(deck)?.testUserPermission?.(user, "OWNER")) throw new Error("not your deck");
+    if (!user.isGM && !deck.testUserPermission(user, "OWNER") && !deckActor(deck)?.testUserPermission?.(user, "OWNER")) throw new Error("not your deck");   // the requester, not the GM running this (c5a r2 #1)
     const net = netOf(deck), op = net?.connection?.state === "connected" && net.operator ? fromUuidSync(net.operator) : null;
     const { pendDump, reconcileDumps } = await import("./rig-dump.mjs");
     if (op) await pendDump(op, { cause: "deck-removed", deck });
@@ -464,10 +495,20 @@ export function registerRcNet() {
     if (cmd.ivisMessageId) {
       const im = game.messages.get(cmd.ivisMessageId), it = im?.flags?.sr2e?.test;
       if (!it || im.flags.sr2e.rcIvis?.deckUuid !== deck.uuid || it.actorUuid !== net.operator) throw new Error("that isn't the operator's IVIS Test card");
+      // Rolled as the rules say (c5a r2 #2): TN 5 or more (a Skill Web default only raises it), no more dice than the
+      // operator's Vehicle Tactics (or the skill defaulted to), no situational misc dice.
+      const opActor = fromUuidSync(net.operator);
+      if (num(it.tn) < 5 || ownDice(it) > ivisDiceMax(opActor) || tookMisc(it)) throw new Error("that IVIS Test wasn't rolled at TN 5 with the operator's Vehicle Tactics dice (Rigger 2 p.66)");
       const toTest = Math.max(0, num(cmd.ivisToTest)), s = testTotalSuccesses(it);
       if (toTest > s) throw new Error("more IVIS successes on the test than the IVIS Test rolled");
       ivis = { pool: s - toTest, messageId: cmd.ivisMessageId };
     }
+    // The Comprehension card holds no more dice than the group's Pilot (+ Non-Matrix Programming, up to Pilot) plus the
+    // IVIS successes it declares — so IVIS dice can't be on the test AND in the pool (c5a r2 #2).
+    const { comprehensionTest, groupPilot } = await import("./rules/drone-rules.mjs");
+    const allowed = comprehensionTest({ pilot: groupPilot(vs.map(v => v.system.effective?.pilot ?? v.system.pilot ?? 0)),
+      specDice: nmpDice(fromUuidSync(net.operator)), ivis: ivis ? num(cmd.ivisToTest) : 0 }).dice;
+    if (ownDice(test) > allowed || tookMisc(test)) throw new Error("that Comprehension Test has more dice than the group's Pilot and its IVIS successes allow (Rigger 2 p.66)");
     useCard(net, messageId, cmd.ivisMessageId);
     for (const k of keys) net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1, group: true };
     net.ivis ??= {};
