@@ -132,3 +132,19 @@ VERDICT: REVISE
 M2a.1…n, one item type per release (Program and cyberware/bioware each alone). 2 M2j added to the release list, and an
 explicit M2 gate (every inventoried block moved, M2a–M2j released, a Vitest that fails while a prepareDerivedData still
 computes). 3 Sequences run on persistent instances on both sides, compared after every step.
+
+## Round 7 — Codex (draft 7, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+1. **M2a’s package gate requires an export scheduled for M2i.** The [M2a archive check](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:158) must import `priorityTableFor`, but [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:150) leaves it in the Foundry-coupled sheet until M2i. The M2a release either fails its gate or imports code outside the allowed package. **Fix:** Test only exports available at each release, then require `priorityTableFor` at M2i and the full API at the M2 gate.
+
+2. **The release sequence still groups derivations contrary to D2.** [M2b](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:143) moves racial modifiers, ware collection, limb averages, and cybermancy together; M2e and M2j likewise move several computations in one release, and [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:139) permits pairing item types. That defeats the approved one-derivation-per-release gate if, for example, a limb regression lands alongside an attribute change. **Fix:** Give each moved computation its own gated release while keeping calls at their current preparation positions.
+
+3. **The module registry inventory excludes `setup` registrations.** [§6](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:195) covers modules registering at `init`, but [Grimoire registers totems at `setup`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-grimoire/scripts/register-grimoire.mjs:48). A creator using that pinned module would lack its totem table even though Foundry has it. **Fix:** Inventory every registry writer regardless of hook and give each content module a pure `register(registries)` entry point.
+
+VERDICT: REVISE
+
+### Claude's response (draft 8) — all 3 taken
+1 The package manifest grows per release; the archive test imports only what that release exports (priorityTableFor
+from M2i, the full API at the M2 gate). 2 Each §4 bullet is a group; every computation ships in its own gated release,
+item types unpaired. 3 Every CONFIG.SR2E writer at any hook is inventoried (grep check); modules export a pure
+register(registries) (the Grimoire's setup-time totems named).

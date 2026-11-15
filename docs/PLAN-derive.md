@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 7 (2026-11-15), after Codex rounds 1–6 (9 + 3 + 3 + 2 + 5 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 8 (2026-11-15), after Codex rounds 1–7 (9 + 3 + 3 + 2 + 5 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -137,9 +137,8 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
 - **M2a** context, adapter, declared reads, normaliser + schema export, the parity harness (§5) with its golden
   projections, and the consumable package — and NO derivation moved (round 6 #1: D2's one derivation per release).
 - **M2a.1 … M2a.n** item preparation, ONE item type per release (the 9 item `prepareDerivedData` →
-  `module/derive/items/*.mjs`, the data model calling it): Program (sizing, options, frame cores) and cyberware/bioware
-  (grades, pricing, limb links) each alone; the simpler types may pair only when their fixtures don't overlap. Each
-  release passes the full parity gate on its own.
+  `module/derive/items/*.mjs`, the data model calling it): one item type per release, no pairing. Each release passes
+  the full parity gate on its own.
 - **M2b** attributes: racial modifiers, `_collectItemModifiers`, `_calculateAttributeValues`, limb averages,
   articulation, cybermancy, CCSS (the limb/ware/cym rule modules are already pure — moved callers only).
 - **M2c** Essence, Magic, Body Index (incl. substances, autoEssence, signed Essence).
@@ -153,6 +152,9 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
   `_applyUnarmedPower` (§1.2), after M2f's pools as today.
 **The M2 gate** (what M3 waits for): every block in docs/DERIVE-INVENTORY.md's milestone column moved, M2a–M2j
 released, and a Vitest that fails while any `prepareDerivedData` still computes instead of calling `module/derive/`.
+**One computation per release** (round 7 #2, D2): each bullet above is a GROUP; every computation it names
+(racial modifiers, item-modifier collection, limb averages, articulation, cybermancy, CCSS …; each item type in
+M2a.n — no pairing) ships in its own gated release, its call kept at its current preparation position.
 Each step: move the code verbatim behind the context, the data model calls it, parity + existing tests green, no
 behaviour change, CHANGELOG "Changed (internal)" only.
 **The consumable package (D1; round 4 #2)** is an M2a deliverable and a gate of every M2 release: the release workflow
@@ -161,8 +163,9 @@ also builds `sr2e-core-<version>.tgz` from the same tag with an explicit allow-l
 the static tables are the data half of `module/config.mjs`, split in M2a into `module/tables/*.mjs` with no Foundry
 reads, `config.mjs` re-exporting them), publishes it beside the Foundry ZIP, and a CI job unpacks THAT archive
 and runs the Node parity suite and a browser import smoke test against its contents — importing every creator-facing
-export (the derive entry, the D12 codec and projection, `priorityTableFor` and the tables) — so a missing file fails
-the release.
+export AVAILABLE AT THAT RELEASE (round 7 #1: a manifest in the package lists them and grows release by release — the
+derive entry, the D12 codec and projection and the tables from M2a; `priorityTableFor` from M2i; the full API at the M2
+gate) — so a missing file fails the release.
 
 ## 5. The parity harness
 **Golden projections** (round 1 #5): before M2a moves anything, the harness records the CURRENT code's prepared
@@ -193,8 +196,10 @@ stage, and documents the cross-stage inputs it reads (e.g. M2b's cybermancy read
 it, still in its original position).
 
 ## 6. Content modules (D1 "registration as pure adapters")
-Each content module that registers tables at `init` (spirit types, totem groups, vehicle list rows, Workshop tables,
-qualities) exports `register(registries)` from a pure file; its Foundry `init` hook becomes `register(CONFIG.SR2E…)`.
+Each content module that writes a registry, at ANY hook (round 7 #3: the Grimoire adds its Druid totems at `setup`),
+— spirit types, totems and totem groups, vehicle list rows, Workshop tables, qualities — exports `register(registries)`
+from a pure file; its Foundry hook becomes `register(CONFIG.SR2E…)`. The inventory lists every `CONFIG.SR2E` writer in
+the system and the modules regardless of hook (a grep check fails on an unlisted one).
 The system's adapter builds `ctx.registries` from the same calls, so the creator can register the modules it pins.
 One module per small release, after M2a.
 

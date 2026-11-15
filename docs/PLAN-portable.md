@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 11 (2026-11-15), after Codex rounds 1–10 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 findings, all taken); draft 3 added the reader audit
+_Draft 12 (2026-11-15), after Codex rounds 1–11 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -22,9 +22,10 @@ what the chargen web app reads and writes.
 - **M1c — import OVER an existing actor**: recursive source reconciliation with confirmed deletions (items, effects,
   flags, fields), `edits[]`/`deleted[]`, backup/restore with the same ids.
 - **Release gates** (round 2 #8): M1b ships only with its failure-injection (a crash before/after every journal step,
-  recovery and rollback) and multi-client barrier/fence tests (two clients, a GM handover) passing; M1c only with its
-  overwrite, deletion and rollback tests. **M1d** adds coverage beyond those gates (every pregen, module-enabled
-  characters, historical fixtures for each new `schemaVersion`).
+  recovery and rollback) and multi-client barrier/fence tests (two clients, a GM handover) passing; and (round 11 #4,
+  the approved M1's interchange proof) new-id round trips of EVERY pregen and of module-enabled characters; M1c only
+  with its overwrite, deletion and rollback tests and EDITED round trips (export → edit → import over). **M1d** adds
+  coverage beyond those gates (historical fixtures for each new `schemaVersion`, wider module combinations).
 
 ## 1. The format and export (M1a)
 ```
@@ -64,7 +65,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   vehicle-ammo RELOAD not `closed` (round 8 #1: vehicle-ammo.mjs's five-step transaction across weapon, reserve and
   eject items stays open in `planned`/`ready`/`settled`/`cancelled`, and `reconcileReloads` resumes it; its reference
   shapes `reloadPlans.ammoItemId`, `ejectTo`, `reserveReceipts.props.loadedSourceId` and `system.ammo.sourceId` /
-  `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation); a ROLLED subsystem follow-up
+  `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation); a PENDING substance roll (round 11 #3: a
+  `substanceLog` test, extension or recovery record with `pending: true` is claimed before its card exists, and
+  `settleSubstances` deletes it as abandoned in a world without that card; fixture interrupted between claim and
+  card); a ROLLED subsystem follow-up
   (`vfollow.<fid>.subsystem.rolled`) without `consequencesDone` (round 9 #3: its crash, engine and passenger
   consequences replay from the source world's follow-up; fixture interrupted between the roll and the consequences); an
   ACTIVE indirect-fire guidance record (round 9 #4: `flags.sr2e.guidance.<id>` in `acquired` or `committed` — its +2 TN
@@ -152,7 +156,13 @@ the key re-derived from the remapped actor and op ids, the deadlines rebased (§
   and every `keepId` create — and the identity-bearing SYSTEM fields (round 10 #3): every data-model field named
   `*Id`, `*Ids`, `*Uuid`, `*Uuids` or declared in a model's `static IDENTITY_FIELDS`, with the readers that dereference
   it (e.g. a spell's `system.fetish.itemId`, read by restricted-spells.mjs to find the bound gear item; fixture: a
-  fetish-bound spell imported with new ids still finds its fetish). A DYNAMIC path (a computed key it can't resolve) must carry a `// portable: <entry>`
+  fetish-bound spell imported with new ids still finds its fetish). Field NAMES miss identities inside an `ObjectField`
+  (round 11 #2), so every `ObjectField` in the data models must have a registry entry listing its payload paths (or
+  `data`), and the test fails on an unlisted one; e.g. a vehicle mod's `system.custom.receipt.id` (= the item's own
+  id: `ref`), `receipt.payer` (actor uuid: `ref`/`external Actor`), `custom.attempt.by` and `custom.brFails.*.worker`
+  (actors; they set retry penalties) — read by `verifiedPurchase()` and the installation flow (vehicle-customize.mjs).
+  Fixture: a PAID modification with failed attempts imported with new ids stays verified and keeps its penalties. A
+  DYNAMIC path (a computed key it can't resolve) must carry a `// portable: <entry>`
   annotation naming its registry entry. The test fails on any shape without an entry — per shape and per event type,
   not per top-level name (a new payload inside `claim` is caught).
 - **Adapter coverage**: every `ref`/`derivedKey`/`deterministicId`/`event` entry has a fixture-driven round-trip test
@@ -220,7 +230,7 @@ restore may keep ids (`keepId`) when they are free.
   user whose heartbeat is under 90 s old, re-read until the wait ends (a tab that loads DURING the barrier registers,
   finds the barrier at once, admits nothing for those actors and acks `drained` immediately). The GM waits for EVERY
   rostered instance to reach `drained` at this epoch; an instance leaves the roster only when its user disconnects or
-  by the attested-dead rule of §2.7; one that never answers blocks the import, which the GM may cancel — never proceed
+  by the socket-gone rule (c) of §2.7; one that never answers blocks the import, which the GM may cancel — never proceed
   without it. Quench: two instances of one user, one draining slowly — the import waits for both; (3) **fence and verify** —
   the GM writes the actors' fences, re-reads every source, and re-runs quiescence (§1.2) against that fenced state
   before any import write. The pre-hook veto (below) stays as defense in depth for writers that ignore the barrier.
@@ -330,11 +340,15 @@ restore may keep ids (`keepId`) when they are free.
   server reports the old owner's USER inactive (a socket's requests are processed in order before its disconnect, so a
   disconnected client has nothing left to land) and its heartbeat is stale. A stale heartbeat alone (a frozen tab of a
   still-connected user) is NOT enough by itself (round 10 #2: a crashed tab whose user stays connected in another tab
-  never acks and never "disconnects" as a user): (c) when the instance's heartbeat is over 90 s stale the GM may
-  ATTEST it dead (a button naming the instance, its user and its last heartbeat). An attested takeover is
-  roll-forward ONLY — rollback is disabled for that import — because every journal step is idempotent toward `after`
-  (absolute values, `keepId` creates the server rejects as duplicates, deletes), so a late write from a frozen tab that
-  wakes can only land the same `after` the new owner writes; the final verify re-reads every step before unfencing. Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
+  never acks and never "disconnects" as a user): (c) the instance's SOCKET is provably gone (round 11 #1 — Foundry has no
+  server-side compare-and-set, so the proof must be that nothing more can arrive): every instance discards socket.io's
+  send buffer on `disconnect` (`game.socket.sendBuffer = []`) and reloads on reconnect, so a request not yet received
+  when its socket closed is never sent; a request the server did receive was processed in order before the close. The
+  server closes a socket that misses its ping deadline (a frozen tab), and an alive-but-throttled tab still answers
+  pings and a handover request (event-driven). So (c) = the instance has not acked a handover request AND its heartbeat
+  is older than the server's ping interval + ping timeout (read from the server's socket options at startup; recovery
+  refuses (c) when they can't be read) + a margin. Quench: a simulated disconnect clears the send buffer; a frozen
+  instance's buffered write never lands. Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
   Imports and recovery are serialized per world (one import at a time). Recovery runs from a button and from the
   startup coordinator below.
 - **Startup coordinator** (round 4 #3): ONE GM-`ready` sequence orders import recovery and the world migration

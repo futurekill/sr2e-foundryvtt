@@ -194,3 +194,30 @@ instance whose heartbeat is over 90 s stale; an attested takeover is roll-forwar
 `after`, so a woken tab can only land the same values) and re-verifies before unfencing. 3 The shape inventory also
 covers identity-bearing system fields (`*Id`/`*Uuid` names or `static IDENTITY_FIELDS`) and their readers; fixture:
 `system.fetish.itemId` (verified at item-data.mjs, read by restricted-spells.mjs).
+
+## Round 11 — Codex (draft 11, fresh session; gpt-6-sol, high): REVISE, 4 findings
+
+Draft 11 still has four material gaps:
+
+1. **Recovery takeover can admit a late write.** A stale heartbeat and GM attestation do not prove that the old tab has no request already past its client-side pre-hook. That request can land after the new owner’s final check or after release, overwriting imported or subsequent gameplay state. The plan itself acknowledges that the epoch check runs on the requesting client. [Plan §2.7](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:325)  
+   **Fix:** Require server-enforced epoch validation at mutation time, or authoritative proof that the old instance’s pending writes have drained, before takeover.
+
+2. **The system-field registry check misses identities inside `ObjectField`s.** A vehicle modification’s `system.custom.receipt.id` must match its new item ID, and `receipt.payer` must resolve to the remapped actor; otherwise `verifiedPurchase()` rejects the imported purchase. `system.custom.brFails[].worker` also determines retry penalties. None is caught by the proposed `*Id`/`*Uuid` field-name scan. [Plan §1.5](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:148), [model](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:1477), [reader](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-customize.mjs:351)  
+   **Fix:** Audit identity-bearing `ObjectField` payloads and readers; register these paths and test a new-ID import of a paid modification with retry history.
+
+3. **Quiescence omits pending substance tests.** `substanceLog` records a test, extension, or recovery roll with `pending: true` before its chat card and result exist. An export in that gap can carry the pending record without the source-world card; `settleSubstances()` later deletes it as abandoned, losing a roll that may have completed in the source world. The listed refusal covers unfinished *doses*, not these rolls. [Plan §1.2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:46), [claim write](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/drugs.mjs:505), [abandonment](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/drugs.mjs:703)  
+   **Fix:** Refuse export while any substance test, extension, or recovery record is pending; add an interruption fixture.
+
+4. **The import release gates defer required round trips.** M1b and M1c may ship before M1d’s every-pregen and module-enabled coverage, although the approved M1 requires those round trips for the interchange. That leaves the first import releases without the stated proof for ordinary and module data. [Release split](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:20), [approved M1](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-chargen/docs/PLAN.md:425)  
+   **Fix:** Make every-pregen and module-enabled new-ID round trips an M1b gate, and edited round trips an M1c gate.
+
+VERDICT: REVISE
+
+### Claude's response (draft 12) — all 4 taken
+1 GM attestation dropped. Proof (c) is now that the instance's socket is gone: every instance clears socket.io's send
+buffer on disconnect and reloads on reconnect, the server closes a socket that misses its ping deadline, and an alive
+(throttled) tab still answers the event-driven handover request; (c) = no ack + heartbeat older than the server's ping
+interval + timeout (read at startup, else (c) refused) + margin. 2 Verified (item-data.mjs custom.receipt/attempt/
+brFails, verifiedPurchase): every ObjectField needs a registry entry with its payload paths; fixture: a paid mod with
+failed attempts. 3 Verified (drugs.mjs claimedRoll pending:true, settleSubstances): pending substance rolls refuse
+export. 4 M1b's gate adds every-pregen and module-enabled new-id round trips; M1c's adds edited round trips.
