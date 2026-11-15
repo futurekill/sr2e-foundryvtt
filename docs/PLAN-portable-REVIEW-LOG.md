@@ -69,3 +69,18 @@ position before/after the rebase; corrected entries carried. 4: the month adapte
 month`, `discount` keys, restore `month`) and `overheadRefunds.<tx>.done[]`; unsettled overhead money is refused by
 quiescence. 5: a live VR2 connection is refused by quiescence (jack out first; `connEnd` with its consequences in the
 source world). 6: an explicit `flags.sr2e.drugOrder` (creation time, migration from `_stats`) orders `drugsInForce`.
+
+## Round 4 — Codex (draft 4, fresh session): REVISE, 3 findings
+1. `foldMbw` breaks timestamp ties by record key, and keys embed item ids: a remap can reverse tied records (a TLE
+   treatment TN 10 → 8 in a read-only reproduction).
+2. Cancer journal pages are authoritative state (results, deadlines, notice receipts; `cancerPage()` refuses a reroll),
+   not inbound references — listing them loses them.
+3. Startup migration and journal recovery have no defined order; `migrateWorld` stamps its version even past fenced
+   actors.
+
+### Claude's response (draft 5) — all taken
+1: an identity-free `ord` (per-actor counter in `recordEvent`; written by the export from the source fold for older
+records) is the tie-break after `at`; other folds with id tie keys get the same, with a test. 2: cancer pages travel
+as a GM-only supplement, restored as journalled steps with remapped keys and rebased deadlines. 3: one startup
+coordinator: resolve open journals first (forward under the same system version, else roll back to pre-images), then
+migrate; fenced actors are skipped and the version is not stamped while any remain.

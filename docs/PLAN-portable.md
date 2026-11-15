@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 4 (2026-11-15), after Codex rounds 1–3 (13 + 8 + 6 findings, all taken); draft 3 added the reader audit
+_Draft 5 (2026-11-15), after Codex rounds 1–4 (13 + 8 + 6 + 3 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -110,8 +110,15 @@ location — a parent-aware path: `actor.<path>`, `actor.items[].<path>`, `actor
   document inside it, naming it; same-id restores pass.
 Effects' `origin` and system fields holding ids (`linkedWeaponId`-style) are registry entries too.
 
-**Inbound references** — documents outside the bundle that point AT the actor (cancer journal pages, Calendaria
-healing/substance notes) — are not exported; an import under new ids lists them so the GM can relink.
+**Inbound references** — documents outside the bundle that point AT the actor (Calendaria healing/substance notes:
+reminders the clocks re-create) — are not exported; an import under new ids lists them so the GM can relink.
+
+**Cancer records are state, not a reference** (round 4 #2): the GM journal's cancer pages (`cymJournal`, page flag
+`key` = `pageKey(actor, opId)`) hold the rolled cancer result, onset/death deadlines and notice receipts, and
+`cancerPage()` refuses a reroll. They travel as a GM-ONLY supplement of the bundle (`supplements.cancer[]`: each page's
+source), exported only by a GM (a player's export of a cybermantic character omits it and its import is refused for
+an identity change, named). The import restores them into the destination's GM journal as journalled steps (§2.7),
+the key re-derived from the remapped actor and op ids, the deadlines rebased (§2.5), the notice receipts carried.
 
 ### 1.5 The CI checks (round 1 #2)
 - **Shape inventory** (Vitest, `test/portable-registry.test.mjs`): an espree AST walk of `module/` (espree ships with
@@ -218,6 +225,12 @@ restore may keep ids (`keepId`) when they are free.
   `sequence`) are rebased into the destination's sequence space preserving their order (offset = the destination's
   next sequence − the bundle's minimum), and — while holding the sequencer barrier — the sequencer's counter (`SEQ`,
   vr2ic.mjs) is advanced above every imported value before the graph is released.
+- **Identity-free tie order** (round 4 #1): `foldMbw` breaks equal `at` by record KEY, and keys embed item ids — remapping
+  them can reverse two tied records (a TLE treatment TN 10 → 8). Move-by-wire records get an `ord` (a per-actor counter
+  stamped by `recordEvent`, M1a), the fold sorts by `at`, then `ord`, then key; the export writes `ord` for older records
+  from the SOURCE world's fold order, so the destination folds them identically. Every other fold that breaks ties on an
+  identity-bearing key gets the same treatment (the registry's `event` entries name their tie key; a test fails on one
+  that sorts by an id). Gate: a tied-timestamp remap fixture in M1a's adapter tests.
 - **Drug-effect order** (round 3 #6): `drugsInForce` orders active drug effects by `_stats.createdTime`, and
   `commitDamage` consumes absorption in that order — but `_stats` is not carried. M1a gives each drug effect an
   explicit `flags.sr2e.drugOrder` (the creation time, written in its create data; the reader sorts by it, falling back
@@ -270,7 +283,16 @@ restore may keep ids (`keepId`) when they are free.
   disconnected client has nothing left to land) and its heartbeat is stale. A stale heartbeat alone (a frozen tab of a
   still-connected user) is NOT enough: recovery stays blocked, naming the instance, until it acks or disconnects (the GM
   can close that tab). Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
-  Imports and recovery are serialized per world (one import at a time). Recovery runs on GM `ready` and from a button.
+  Imports and recovery are serialized per world (one import at a time). Recovery runs from a button and from the
+  startup coordinator below.
+- **Startup coordinator** (round 4 #3): ONE GM-`ready` sequence orders import recovery and the world migration
+  (`migrateAndReport`): (1) every open import journal is resolved FIRST — rolled forward when it was written under the
+  running system version, otherwise rolled BACK to its pre-images (written under the old version, which the migration
+  then upgrades like any document); (2) only then `migrateWorld` runs. A journal that can't be resolved (divergent,
+  waiting for the GM) leaves its actors fenced: the migration skips fenced actors and does NOT stamp the new
+  `systemMigrationVersion` while any remain, so their migration runs at the next start after the GM resolves the import.
+  Quench: an import interrupted mid-write, the system upgraded, then started — the journal rolls back and the migration
+  runs once.
 - **Commit, then release** (round 2 #3): `written` → `committed` is persisted while every actor is STILL fenced (the
   import's decision point: before it, recovery may roll back; after it, only forward); then `releasing` unfences the
   actors one by one, each release its own journalled step; then the barrier is lifted and the journal `closed`. A crash
