@@ -62,6 +62,19 @@ can't import them in Node: `drugs.mjs` `substancesOf`, `workingImplant`, `drugsI
 Each moves to `module/rules/` (or a new `module/derive/` helper) with its module re-exporting it, so callers don't
 change.
 
-## Not yet inventoried
-The item data models (`module/data/item-data.mjs`, 9 `prepareDerivedData`), including their reads of the parent actor
-(`wareCtx`, limb models) — next pass.
+## Item data models (`module/data/item-data.mjs`, 9 `prepareDerivedData`)
+| Model | Line | Reads outside `this` |
+|---|---|---|
+| `SkillData` | 79 | — |
+| `WeaponData` | 204 | — (`strengthMinWeaponStats`, restores from `_source` both ways) |
+| `CyberwareData` | 478 | `isRigger2()`, its own `flags`, the OWNING ACTOR's items (`parent.parent.items`: limb/ware context) |
+| `BiowareData` | 806 | — |
+| `GearData` | 936 | — |
+| `ProgramData` | 1076 | `deriveProgram`, `eventsOf`, `game.settings`, `isVR2()`, its own `_source`, `effects`, `flags`, `name` |
+| `LifestyleData` | 1241 | — |
+| `FocusData` | 1310 | — |
+| `QualityData` | 1593 | — |
+
+So item preparation needs an ITEM context (`{ source, system, flags, effects, events, settings, owner }`) where
+`owner` is the actor's item list for cyberware (and the deck context for programs); seven of the nine read nothing
+outside the item and move as they are. Their `_source` restores (the both-directions rule) carry over unchanged.
