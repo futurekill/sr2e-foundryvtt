@@ -7,6 +7,10 @@
   Level 2 / 3 / 4 gives 1 / 2 / 3 dice and a cerebral booster of Level 2 one more (they add). The sheet shows it beside
   the other pools; the skill-test dialog offers it on Technical (Biotech, Computer, Electronics), Knowledge and
   Build/Repair skill tests, at most the skill's rating; it refreshes with the other pools.
+
+## 0.155.0 — 2026-11-15
+
+### Added
 - **Rigger 2 fuel** (optional settings "Rigger 2: variable fuel consumption", "aircraft maneuver fuel", "fuel grades"; R2
   p.81–83; Part 6a.1): a **Fuel** button on the vehicle sheet — travel (by the Economy Rating Table), refuel, set the
   level, STOL/VSTOL/VTOL maneuvers, a drone's operating mode, and the fuel grade (cheap/regular/premium/custom change
