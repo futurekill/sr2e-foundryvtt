@@ -1293,3 +1293,20 @@ on the dialog" was settled: the dialog stays, but the GM op now refuses an IVIS 
 Vehicle Tactics dice (or the Tactics Concentration / Military Theory defaulted to, SRComp p.48), or with misc dice, and a
 Comprehension card over Pilot + NMP (≤ Pilot) + the declared IVIS successes. No reservation record: the cards are the
 record, and both checks run on the GM in rc-control. 3 both chase cards carry the learningSpend flag. Quench 46/46.
+
+## Part 5a code, round 3 — Codex (fix-only; gpt-6-sol, medium)
+
+- **[P1] IVIS defaulting can still produce an unearned pool.** [rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:277) takes the highest of Vehicle Tactics and its default skills, but the card check accepts TN 5 for all of them. An operator with Military Theory 6 and no Vehicle Tactics can roll six dice at TN 5 and turn the successes into IVIS Pool, even though defaulting raises the TN. **Fix:** Validate the card’s dice count and TN together against a legal Vehicle Tactics or Skill Web default path.
+
+- **[P2] The chase veto arrives after the result is committed.** [chase.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:1082) resolves Driver Points immediately after posting the flagged card; an action card can likewise be applied before the GM vetoes it. [learning-pool.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/learning-pool.mjs:51) then voids the spend but leaves the rolled chase result intact. A drone can therefore gain Driver Points from dice the GM has ruled out of scope. **Fix:** Settle scoped Learning dice before chase resolution, or recompute the result without vetoed dice before committing it.
+
+VERDICT: REVISE
+
+### Claude's response (commit a91210c1) — both taken
+1 Read SRComp p.48 from the render: a Specialization is half a dot (+1) from its Concentration, a Concentration one dot
+(+2) from its general skill. R2 p.66 applies Skill Web modifiers to a default, so the legal IVIS paths are Vehicle
+Tactics TN 5, Tactics Concentration TN 6, Military Theory TN 8 (ruling: R2's explicit instruction over p.48's "no
+modifier for your own general skill"). The dialog offers those paths (no free dice entry); the op checks dice and TN
+together. 2 Rather than deferring chase resolution for a veto, a scoped Learning Pool isn't offered on a non-GM chase
+roll (a notice says to ask the GM to roll it); the GM's own declaration needs no veto. Non-chase tests keep the
+declare-then-veto flow (they don't auto-resolve). Quench 46/46.
