@@ -36,7 +36,8 @@ export function overheadPayment(rows = [], allowance = {}, karma = 0) {
  * reserved ones too — a reservation isn't a payment). Each missed month adds 1 Stress, counted in the NEW month.
  */
 export function assessMonth(months = {}, m, { value, stress, maintenance = 1 }) {
-  const missed = Object.entries(months).filter(([k, r]) => Number(k) < m && !r?.paid && !r?.missed).map(([k]) => Number(k));
+  // A month superseded by optempo (R2 p.83, 6a.2) is never payable, so never missed.
+  const missed = Object.entries(months).filter(([k, r]) => Number(k) < m && !r?.paid && !r?.missed && r?.superseded == null).map(([k]) => Number(k));
   // `maintenance`: Quality Factors' Maintenance Cost multiplier (R2 p.84: ×.9 / ×1.2 per level), rounded up.
   return { record: { amount: Math.ceil(overheadAmount(value, stress) * (Number(maintenance) || 1)), stress: Math.max(0, Number(stress) || 0), paid: false, missed: false, tx: null },
     missed, addStress: missed.length };
@@ -77,4 +78,65 @@ export function mechanicLabour(level, hours, { perDay = 8, daysPerWeek = 5 } = {
 /** The Stress update every writer uses: the new Stress, and this month's counter raised by any increase (p.18). */
 export function stressPatch({ before = 0, after = 0, counter = 0 }) {
   return { "system.stress": after, "flags.sr2e.overhead.stress": Math.max(0, Number(counter) || 0) + Math.max(0, after - before) };
+}
+
+/* ── Optempo (R2 p.83–84; docs/PLAN-vehicles-phase2.md 6a.2) ─────────────────────────────────────────────────── */
+
+/** Per-km optempo rate (p.83): (list price + modifications at Vehicle List / Customization values) ÷ 20,000, nearest tenth. */
+export const optempoRate = (value) => Math.round((Math.max(0, Number(value) || 0) / 20000) * 10) / 10;
+
+/**
+ * Whether an adventure's mileage puts this vehicle on optempo (decided when the GM closes the adventure, immutable):
+ * replace → yes; split → yes at half rate (and half the monthly overhead); frequent → only vehicles flagged "used every
+ * adventure"; mileage → only above the threshold (200 km vehicles / 50 km drones suggested). Returns
+ * { optempo, factor, replacesOverhead, halvesOverhead }.
+ */
+export function optempoEligibility(mode, { km = 0, drone = false, frequent = false, thresholds = { vehicle: 200, drone: 50 } } = {}) {
+  const k = Math.max(0, Number(km) || 0);
+  if (mode === "replace") return { optempo: true, factor: 1, replacesOverhead: true, halvesOverhead: false };
+  if (mode === "split") return { optempo: true, factor: 0.5, replacesOverhead: false, halvesOverhead: true };
+  if (mode === "frequent") return { optempo: !!frequent, factor: 1, replacesOverhead: !!frequent, halvesOverhead: false };
+  if (mode === "mileage") { const over = k > (drone ? thresholds.drone : thresholds.vehicle); return { optempo: over, factor: 1, replacesOverhead: over, halvesOverhead: false }; }
+  return { optempo: false, factor: 0, replacesOverhead: false, halvesOverhead: false };
+}
+
+/**
+ * The refund owed for SUPERSEDED bills from ONE original payment receipt (6a.2, rounds 3–5), deterministic:
+ *   receipt = { rows: [{vehicleUuid, month, amount}], amount (cash), karma, discount: {month: credit} }
+ *   superseded = Set of "vehicleUuid|month"; ledger = what was already refunded from this receipt {cash, credit, karma}.
+ * Lifestyle credit is allocated only within its own month (pro rata over that month's bills); each Karma point's ¥
+ * coverage (KARMA_NUYEN) is spread over the remaining bills after credit, then cash takes the rest — cash allocations
+ * summing exactly to the cash debit. A superseded bill refunds its cash share, then its credit share; a Karma point
+ * comes back only when NONE of its coverage is still needed by a bill that stands. Capped by the ledger.
+ */
+export function overheadRefund(receipt = {}, superseded = new Set(), ledger = {}) {
+  const rows = (receipt.rows ?? []).map((r, i) => ({ ...r, i, key: `${r.vehicleUuid}|${r.month}`, amount: Math.max(0, Number(r.amount) || 0) }));
+  // Credit per month, pro rata over that month's rows (largest remainder so it sums exactly).
+  const credit = new Array(rows.length).fill(0);
+  for (const [m, c] of Object.entries(receipt.discount ?? {})) {
+    const idx = rows.filter(r => String(r.month) === String(m)), tot = idx.reduce((t, r) => t + r.amount, 0);
+    if (!tot) continue;
+    split(Math.max(0, Number(c) || 0), idx.map(r => r.amount)).forEach((v, j) => { credit[idx[j].i] = v; });
+  }
+  const after = rows.map(r => Math.max(0, r.amount - credit[r.i]));
+  const karmaYen = Math.min(Math.max(0, Number(receipt.karma) || 0) * KARMA_NUYEN, after.reduce((t, v) => t + v, 0));
+  const kCover = split(karmaYen, after);
+  const cashOwed = after.map((v, i) => v - kCover[i]);
+  const cash = split(Math.max(0, Number(receipt.amount) || 0), cashOwed);
+  const sup = rows.filter(r => superseded.has(r.key));
+  const standingNeed = rows.filter(r => !superseded.has(r.key)).reduce((t, r) => t + kCover[r.i], 0);
+  // Karma points no standing bill needs: whole points of the coverage the superseded bills held.
+  const freeKarma = Math.max(0, Math.floor((karmaYen - standingNeed) / KARMA_NUYEN + 1e-9));
+  const want = { cash: sup.reduce((t, r) => t + cash[r.i], 0), credit: sup.reduce((t, r) => t + credit[r.i], 0), karma: freeKarma };
+  return { cash: Math.max(0, want.cash - (Number(ledger.cash) || 0)), credit: Math.max(0, want.credit - (Number(ledger.credit) || 0)),
+    karma: Math.max(0, want.karma - (Number(ledger.karma) || 0)), totals: want };
+}
+/** Split an integer total over weights so the parts sum exactly (largest remainder). */
+function split(total, weights) {
+  const W = weights.reduce((t, w) => t + w, 0);
+  if (!W || !total) return weights.map(() => 0);
+  const raw = weights.map(w => (total * w) / W), base = raw.map(Math.floor);
+  let rest = Math.round(total - base.reduce((t, v) => t + v, 0));
+  raw.map((v, i) => [v - base[i], i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (rest > 0) { base[i]++; rest--; } });
+  return base;
 }

@@ -19014,6 +19014,53 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Optempo (Part 6a.2, R2 p.83–84)", function () {
+        let month0, adv0;
+        before(async function () { month0 = game.settings.get("sr2e", "vehicleOverheadMonth"); adv0 = foundry.utils.deepClone(game.settings.get("sr2e", "vehicleAdventures") ?? {}); });
+        after(async function () {
+          await new Promise(r => setTimeout(r, 500));   // let the last queued settings write land first
+          await game.settings.set("sr2e", "vehicleOverheadMonth", month0);
+          for (let i = 0; i < 5 && JSON.stringify(game.settings.get("sr2e", "vehicleAdventures")) !== JSON.stringify(adv0); i++) {
+            await game.settings.set("sr2e", "vehicleAdventures", adv0); await new Promise(r => setTimeout(r, 200));
+          }
+          (await import("../vehicle-optempo.mjs")).resetAdventureCache();
+        });
+        it("replace: a paid month superseded by an adventure is refunded from its receipt once; the optempo charge is paid", async function () {
+          this.timeout(30000);
+          const optemp = "replace";
+          const g0 = game.settings.get;
+          game.settings.get = function (ns, k) { return ns === "sr2e" && k === "r2Optempo" ? optemp : g0.call(this, ns, k); };
+          try {
+            const v = await mk("Quench Optempo Van", { cost: 40000, body: 3 });
+            const c = await Actor.create({ name: "Quench Optempo Owner", type: "character", system: { nuyen: 100000, lifestyle: "street", karma: { current: 0, total: 0 }, linkedVehicles: [v.uuid] } });
+            made.push(c);
+            const adv = await call("adventureStart", { name: "Quench run" });
+            const m = game.settings.get("sr2e", "vehicleOverheadMonth");
+            await call("overheadMonthEnd", { expectedMonth: m, only: [v.uuid] });   // the vehicle's cursor
+            await call("overheadMonthEnd", { expectedMonth: m + 1, only: [v.uuid] });   // month m+1 assessed: 400¥
+            const M = m + 1;
+            const OH = await import("../vehicle-overhead.mjs");
+            await OH.payOverhead(c, [{ vehicleUuid: v.uuid, month: M }], { useCredit: false, karma: 0 });
+            assert.ok(v.getFlag("sr2e", "overhead").months[M].paid, "paid");
+            const before = c.system.nuyen;
+            assert.equal(adv.startMonth, M, "it runs in month M (started before M ended)");
+            await call("adventureClose", { id: adv.id, km: { [v.uuid]: 100 } });
+            for (let i = 0; i < 40 && c.system.nuyen === before; i++) await new Promise(r => setTimeout(r, 100));
+            assert.equal(c.system.nuyen - before, 400, "month M's 400¥ refunded");
+            assert.equal(v.getFlag("sr2e", "overhead").months[M].superseded != null, true);
+            await call("adventureClose", { id: adv.id, km: { [v.uuid]: 100 } });   // a replay: nothing more
+            await new Promise(r => setTimeout(r, 300));
+            assert.equal(c.system.nuyen - before, 400, "once");
+            const o = Object.values(v.getFlag("sr2e", "optempo"))[0];
+            assert.equal(o.amount, 100 * 2, "100 km × (40,000 ÷ 20,000)");
+            const O = await import("../vehicle-optempo.mjs");
+            await O.payOptempo(c, [{ vehicleUuid: v.uuid, id: adv.id }]);
+            assert.equal(v.getFlag("sr2e", "optempo")[adv.id].state, "paid");
+            assert.equal(c.system.nuyen - before, 400 - 200);
+          } finally { game.settings.get = g0; }
+        });
+      });
+
       describe("Quality Factors (Part 6a.3, R2 p.84–85)", function () {
         it("the vehicle's factors feed the consumers while the option is on", async function () {
           const V = await mk("Quench Rugged", { economy: 4 });

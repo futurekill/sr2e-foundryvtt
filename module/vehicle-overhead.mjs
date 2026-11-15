@@ -89,6 +89,12 @@ function assessThrough(vehicle, m) {
       for (const [k, r] of Object.entries(months)) if (r?.tx && !r.paid && chargedReceipt(r)) { r.paid = true; upd[`flags.sr2e.overhead.months.${k}.paid`] = true; }
       const a = assessMonth(months, next, { value: await overheadValue(vehicle), stress: o.stress ?? 0,
         maintenance: (await vehicleQuality(vehicle)).maintenance * fuelGradeMaintenance(vehicle) });
+      // Optempo (R2 p.83–84, optional): `split` halves every month; an adventure closed in this month whose mode
+      // replaces the monthly overhead supersedes the record (never payable, never missed).
+      const { optempoMode } = await import("./vehicle-optempo.mjs");
+      if (optempoMode() === "split") a.record.amount = Math.ceil(a.record.amount / 2);
+      const om = o.optempoMonths?.[next];
+      if (om?.replaces) a.record.superseded = om.rev;
       Object.assign(upd, { [`flags.sr2e.overhead.months.${next}`]: a.record, "flags.sr2e.overhead.assessedThrough": next, "flags.sr2e.overhead.stress": 0 });
       if (a.addStress) {
         const before = vehicle.system.stressRating ?? 0;
@@ -151,7 +157,7 @@ gmOp("overheadReserve", async ({ tx, payerUuid, picks }, user) => {
     await inVehicle(v, async () => {
       if (refused) return;
       const recs = ohOf(v).months ?? {};
-      const bad = months.find(m => !recs[m] || recs[m].paid || recs[m].tx);
+      const bad = months.find(m => !recs[m] || recs[m].paid || recs[m].tx || recs[m].superseded != null);
       if (bad != null) { refused = `${v.name}, month ${bad}: already paid or being paid`; return; }
       const cu = catchUpProblems(recs, months);
       if (cu.length) { refused = `${v.name}: a missed month is paid only with the current month (p.19)`; return; }
@@ -334,7 +340,10 @@ export async function openOverheadDialog(payer) {
   const credit = lifestyleDiscount(payer.system.lifestyle);
   const used = payer.getFlag("sr2e", "overheadDiscount") ?? {};
   const rows = [];
+  for (const v of vehicles) for (const [id, x] of Object.entries(v.getFlag("sr2e", "optempo") ?? {})) if (x?.state === "due" && x.payer === payer.uuid)
+    rows.push(`<tr><td><input type="checkbox" name="opt" value="${esc(v.uuid)}|${esc(id)}"></td><td>${esc(v.name)}</td><td>${esc(x.adventure)}</td><td>${num(x.amount).toLocaleString()}¥</td><td>optempo (${x.km} km)</td></tr>`);
   for (const v of vehicles) for (const [m, r] of Object.entries(ohOf(v).months ?? {}).sort((a, b) => a[0] - b[0])) {
+    if (r.superseded != null) { rows.push(`<tr><td></td><td>${esc(v.name)}</td><td>${m}</td><td>—</td><td>superseded by optempo${r.refund?.state === "due" ? " (refund due)" : ""}</td></tr>`); continue; }
     if (!r.paid) rows.push(`<tr><td>${r.tx ? `<button type="button" data-release="${esc(r.tx)}" data-payer="${esc(r.payer)}" title="A payment in progress: release it if it's stuck">Release</button>`
         : `<input type="checkbox" name="pick" value="${esc(v.uuid)}|${m}">`}</td><td>${esc(v.name)}</td><td>${m}</td><td>${num(r.amount).toLocaleString()}¥</td>
       <td>${r.missed ? "<strong>missed</strong>" : "due"}</td></tr>`);
@@ -362,7 +371,9 @@ export async function openOverheadDialog(payer) {
       }));
     },
     ok: { label: "Pay", callback: (ev, b) => ({ picks: [...b.form.querySelectorAll("[name=pick]:checked")].map(i => { const [vehicleUuid, m] = i.value.split("|"); return { vehicleUuid, month: Number(m) }; }),
+      opt: [...b.form.querySelectorAll("[name=opt]:checked")].map(i => { const [vehicleUuid, id] = i.value.split("|"); return { vehicleUuid, id }; }),
       useCredit: !!b.form.elements.credit?.checked, karma: parseInt(b.form.elements.karma.value) || 0 }) } });
+  if (dlg?.opt?.length) await (await import("./vehicle-optempo.mjs")).payOptempo(payer, dlg.opt);
   if (dlg?.picks?.length) return payOverhead(payer, dlg.picks, dlg);
 }
 
@@ -384,6 +395,10 @@ export async function overheadPass() {
       }
       if (r?.restoreTx && slots(r.restorePayer)[r.restoreTx]?.released) await freeTx(r.restoreTx, [v], "restoreTx", r.restorePayer);
     }
+    // Optempo (6a.2): months waiting on a payment to finish are reconciled; charges with a receipt are settled.
+    const O = await import("./vehicle-optempo.mjs");
+    for (const [m, r] of Object.entries(ohOf(v).months ?? {})) if (r?.supersedePending && (r.paid || !r.tx)) await O.reconcileMonth(v, Number(m));
+    for (const [id, x] of Object.entries(v.getFlag("sr2e", "optempo") ?? {})) if (x?.state === "due" && x.payer) await gmCall("optempoSettle", { vehicleUuid: v.uuid, id });
   }
 }
 
@@ -402,5 +417,15 @@ export function registerVehicleOverhead() {
     b.title = "Rigger 2 p.18–19: close the month's vehicle overhead";
     b.addEventListener("click", () => endMonth());
     actions.append(b);
+    // Optempo adventures (R2 p.83–84, optional).
+    import("./vehicle-optempo.mjs").then(O => {
+      if (O.optempoMode() === "off" || actions.querySelector("[data-sr2e-adventure]")) return;
+      const a = document.createElement("button");
+      a.type = "button"; a.dataset.sr2eAdventure = "1";
+      a.innerHTML = `<i class="fas fa-route"></i> Adventures`;
+      a.title = "Rigger 2 p.83–84: start or close an adventure (optempo)";
+      a.addEventListener("click", () => O.adventureDialog());
+      actions.append(a);
+    });
   });
 }
