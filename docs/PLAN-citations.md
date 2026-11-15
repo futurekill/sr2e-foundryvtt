@@ -51,8 +51,20 @@ Foundry and the chargen (D1: the system is the shared package).
 - Parses `notes`, `description` (HTML stripped) and qualities' `source`: `(<book>? p.N[–M])`, bare `p.N` / `pp.N–M`,
   `<book> p.N`; a page with no recognised book belongs to the repo's OWN book (the module → book map in the table);
   section words before `p.` ("Design specifications p.110", "Cyberware Rules p.12") don't name a book.
-- Picks the item's citation: its own book's FIRST reference (the entry); other references (rules cross-references)
-  are ignored. Several own-book pages → reported as ambiguous, nothing written.
+- Picks the item's citation in this order (measured on every repo, 2026-11-15; a plain "first own-book reference" is
+  wrong: Cybertechnology notes read "… move-by-wire (p.39) … (Cybertechnology, table p.99, p.38.)", whose first page is
+  a cross-reference to ANOTHER entry):
+  1. a **source parenthetical** — one whose content is only book names, pages and the word "table" — preferring the
+     repo's own book, the LAST such one in the text; inside it the **description page** wins over a `table p.N` page
+     (the citation is where the rules are; the price table only when the item has no other entry);
+  2. else the first page reference with no other book named just before it and not inside a "see …"/"(p.N)"
+     cross-reference — attributed to the repo's own book.
+  Coverage of this rule over the current notes: 1,247 items placed (source parentheticals 457, first references
+  790), the rest are the gaps the overrides fill. Several candidate pages with no source parenthetical → reported as
+  ambiguous, nothing written.
+- **Description page, not table page** is the convention throughout (overrides included). A repo with its own
+  coverage map (Cybertechnology `docs/COVERAGE.md`, which lists the TABLE page for tabled entries) is cross-checked:
+  disagreements are listed in the report for a human look, never auto-resolved.
 - An embedded item whose `_stats.compendiumSource` resolves to a cited catalog item takes that citation.
 - **Overrides** `tools/data/citations/<repo>.tsv` (`name`, `_id`, `book`, `page`, `checked` = how it was verified)
   win over parsing; they are how gaps get filled.
