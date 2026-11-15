@@ -92,7 +92,8 @@ export function registerMissiles() {
       if (l.state === "rolling") {
         // ONE execution at a time for the attempt (r2 #4): the runner holding the claim retries freely; another client
         // (same user or not) takes over only once the claim is stale — the client that held it stopped.
-        if (l.runner?.id === runner) return l;
+        // The runner's own retry renews its claim (r3), so a slow retry is never taken over mid-post.
+        if (l.runner?.id === runner) { await holder.update({ [`${base}.runner.at`]: Date.now() }); return launchesOf(holder)[launchId]; }
         if (l.runner && Date.now() - (l.runner.at ?? 0) < RUNNER_STALE_MS) throw new Error("this Missile Attack Test is being rolled on another client");
         const upd = { [`${base}.runner`]: { id: runner, user: user.id, at: Date.now() }, [`${base}.armedBy`]: user.id };
         await holder.update(upd);
