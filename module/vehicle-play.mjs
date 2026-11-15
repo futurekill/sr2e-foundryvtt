@@ -861,6 +861,9 @@ const hasDatajack = (c) => !!c?.items?.some(i => i.type === "cyberware" && /data
 /** The modes a driver can use on this vehicle, best first (plan 2a.2). */
 export function drivingModes(driver, vehicle) {
   if (!driver) return ["drone"];
+  // A networked drone (Part 5a.2): its operator rigs the primary; a secondary or captain-controlled drone runs on its
+  // own Pilot (p.65). A remote operator isn't aboard: no datajack or manual controls.
+  if (RC.isAffiliated(vehicle)) return riggedInto(driver, vehicle) ? ["rigged"] : ["drone"];
   const out = [];
   if (riggedInto(driver, vehicle) && riggerAdapted(vehicle)) out.push("rigged");
   if (hasDatajack(driver) && (hasWorkingMod(vehicle, "datajack-port") || riggerAdapted(vehicle))) out.push("datajack");
@@ -911,13 +914,15 @@ export async function promptDrivingTest(driver, vehicle) {
 export async function rollDrivingTest(driver, vehicle, o) {
   if (!o) return null;
   const sys = vehicle.system;
-  const drone = !driver;
+  // The drone's own Pilot: no driver, or an operator commanding a secondary / captain-controlled drone (Part 5a.2: Pilot
+  // replaces the skill; no Combat, Control or Task Pool).
+  const drone = !driver || o.mode === "drone";
   const sk = drone ? { key: null, dice: sys.effective?.pilot ?? sys.pilot ?? 0, penalty: 0, cap: 0, note: " (Pilot)" } : driver._vehicleSkill(vehicle, { mode: o.mode });
   // Vehicle Empathy (p.16): physical contact = manual controls or jacked into this vehicle; rigging a drone never is.
   const empathy = !drone && !!driver.qualityValues()["vehicle-empathy"] && o.contact !== false
     && (o.mode !== "rigged" || sys.vehicleType !== "drone");
   if (drone && !(sk.dice > 0)) return ui.notifications.warn(`${vehicle.name} has no Pilot rating to drive itself.`);
-  if (drone && controllerOf(vehicle)) return ui.notifications.warn(`${vehicle.name} is under ${controllerOf(vehicle).name}'s control: the rigger drives it.`);
+  if (!driver && controllerOf(vehicle)) return ui.notifications.warn(`${vehicle.name} is under ${controllerOf(vehicle).name}'s control: the rigger drives it.`);
   const handling = o.offRoad ? (sys.effectiveHandlingOffRoad ?? o.offRoadHandling) : sys.effectiveHandling;
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);
   const { tn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
@@ -930,7 +935,7 @@ export async function rollDrivingTest(driver, vehicle, o) {
     await adjustStress(vehicle, push.stress, { reason: "extra Driving Test dice", driverUuid: driver?.uuid ?? "" });
     (await import("./vehicle-quality.mjs")).hiddenStressPrompt(vehicle, "pushed with Stress dice").catch(() => {});   // R2 p.84
   }
-  const roller = driver ?? vehicle;
+  const roller = drone ? vehicle : driver;   // a drone's own test carries none of its operator's modifiers (5.0 droneCtx)
   const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;
   // A simsense interface (datajack, rig) is an electronic device: Computer Illiterate (p.15).

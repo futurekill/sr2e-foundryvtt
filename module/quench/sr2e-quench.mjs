@@ -19227,6 +19227,13 @@ export function registerSR2EQuenchTests() {
           assert.equal(order.successes, roll.successes);
           err = null; try { await call("rcOrder", { deckUuid: deck.uuid, vehicleUuid: d1.uuid, text: "x", messageId: roll.testMessageId }); } catch (e) { err = e.message; }
           assert.match(err ?? "", /no command/, "the primary needs no command");
+          // Test context (5.0): the primary is driven rigged; a secondary runs on its own Pilot, rolled by the drone.
+          assert.deepEqual(VP.drivingModes(pc, d1), ["rigged"]);
+          assert.deepEqual(VP.drivingModes(pc, d2), ["drone"]);
+          const seen = []; const orig = d2.rollSuccessTest.bind(d2);
+          d2.rollSuccessTest = (n, tn, o) => { seen.push(n); return orig(n, tn, o); };
+          try { await VP.rollDrivingTest(pc, d2, { mode: "drone", tn: 4, terrain: "normal" }); } finally { d2.rollSuccessTest = orig; }
+          assert.equal(seen[0], 2, "Pilot 2, the drone rolls");
           await call("rcDisconnect", { deckUuid: deck.uuid });
           assert.equal(VP.controllerOf(d1), null, "disconnected: it holds");
           assert.equal(RCN.netOf(deck).primary, null, "the primary cleared");
