@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.155.0 — 2026-11-15
 
 ### Added
 - **Rigger 2 fuel** (optional settings "Rigger 2: variable fuel consumption", "aircraft maneuver fuel", "fuel grades"; R2
