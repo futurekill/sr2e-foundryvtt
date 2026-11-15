@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 14 (2026-11-15), after Codex rounds 1–13 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 15 (2026-11-15), after Codex rounds 1–14 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -67,7 +67,9 @@ from their synthetic source. A reference to something not exported → `unresolv
   vehicle-ammo RELOAD not `closed` (round 8 #1: vehicle-ammo.mjs's five-step transaction across weapon, reserve and
   eject items stays open in `planned`/`ready`/`settled`/`cancelled`, and `reconcileReloads` resumes it; its reference
   shapes `reloadPlans.ammoItemId`, `ejectTo`, `reserveReceipts.props.loadedSourceId` and `system.ammo.sourceId` /
-  `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation); a PENDING substance roll (round 11 #3: a
+  `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation); a hidden-Stress REVEAL not `done` (round 14 #1: `r2HiddenStress.reveals.<id>` pending in the world setting); a
+  rigger DUMP not settled (round 14 #2: `flags.sr2e.rigDumps.<id>` `pending` or `open` — its card and its resistance
+  and Willpower steps live in the source world; `reconcileDumps` joins the barrier's drained reconcilers); a PENDING substance roll (round 11 #3: a
   `substanceLog` test, extension or recovery record with `pending: true` is claimed before its card exists, and
   `settleSubstances` deletes it as abandoned in a world without that card; fixture interrupted between claim and
   card); a ROLLED subsystem follow-up
@@ -141,7 +143,15 @@ uuid)`, payload `uuid` `ref`, `hardwired` data, `since` combat-scoped → `trans
 (`drones[]` vKeys, spends keyed by Turn → `transient`), `usedCards` (message ids → `external ChatMessage`),
 `connection` (live session → `transient`: an import arrives disconnected unless a same-world restore keeps every
 referent); and the vehicles' `flags.sr2e.learningKey` / `learningSpends` (combat-scoped → `transient`). Fixture: a deck
-with a connected operator, a primary, a subscriber-only drone, orders and an IVIS group, imported with new ids. So are the Rigger 2
+with a connected operator, a primary, a subscriber-only drone, orders and an IVIS group, imported with new ids. Round 14 #3 adds the two RC bindings read by direct
+flag access: `rcNet.unreachable.<vKey>` is `transient` (dropped on a cross-world import; the range sweep recomputes
+it), and a signal amplifier's or IVIS master's `flags.sr2e.deckId` is a `ref` to the deck item (fixture: a character
+with two decks and both devices bound). **Hidden Stress** (round 14 #1; R2 p.84) lives in the GM-only world setting
+`r2HiddenStress`, keyed by vehicle uuid, with only the receipt `hiddenStressRolled` on the vehicle: a GM's export
+carries each exported vehicle's unrevealed balance in a GM-only bundle section (`gmOnly.hiddenStress`, remapped to the
+new uuid and journalled on import); a player's export omits it and the import report tells the GM the balance wasn't
+carried (the GM may re-roll; the receipt is cleared so the roll is offered). Rigger dumps: `rigDumps.<id>.deckUuid` is a
+`ref`, its card id `external ChatMessage`. So are the Rigger 2
 subsystem bindings (round 9 #2; missed by the reader audit, now added to docs/PORTABLE-FLAG-INVENTORY.md):
 `flags.sr2e.subsystems.<id>.target.id` is a `ref` to an embedded item when `target.kind` is `item` (`data` for a
 `builtin` target, whose `gen` stays with `subsysGen`), and its copies in `vfollow.<fid>.subsystem.rolled.made[].target.id`

@@ -181,3 +181,20 @@ VERDICT: REVISE
 1 Item derivations run unchanged for every owner type; skip only where today's code skips. 2 withdrawalStun's parent read
 becomes an explicit ctx read (fixture). 3 Registry parity starts both paths from the core registries and applies modules in
 hook order. 4 Every item getter inventoried and assigned to its item release with parity cases.
+
+## Round 10 — Codex (draft 10, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+Draft 10 still needs revision on three material points:
+
+1. **The item release inventory leaves computed getters without a release.** [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:144) schedules nine `prepareDerivedData` methods, but [item-data.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:138) has eight. `SpellData` and `AdeptPowerData` have computed getters but no preparation method, so a plain spell can still lack `drainTarget` at the M2 gate. **Fix:** correct the count and give getter-only item types their own gated extraction releases.
+
+2. **The item-record contract conflicts with late getter evaluation.** [§1.2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:49) correctly requires `actualEssenceCost` at its consumption point, after the actor assigns limb markers; [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:157) instead says the item record exposes it as a derived field. Materializing it during item preparation would use the pre-limb value and misstate a cyberlimb’s Essence. **Fix:** specify a pure, on-demand getter or an explicit recomputation after marker assignment, with limb addition and removal parity cases.
+
+3. **The M2 completion check has the wrong scope.** [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:162) says the gate fails while *any* `prepareDerivedData` still computes, but [actor-data.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2164) also contains vehicle derivation scheduled for M8. As written, M2 cannot pass without moving work outside its approved scope. **Fix:** scope that check to `CharacterData` and the item computations assigned to M2, including getter-only types.
+
+VERDICT: REVISE
+
+### Claude's response (draft 11) — all 3 taken
+1 Eight prepareDerivedData (verified); SpellData and AdeptPowerData get their own releases. 2 Getters stay on demand
+(functions of item + context at call time), never materialized; limb add/remove parity. 3 The M2 gate check is scoped to
+CharacterData and M2-assigned item computations; vehicle derivation stays M8.

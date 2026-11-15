@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 10 (2026-11-15), after Codex rounds 1–9 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 11 (2026-11-15), after Codex rounds 1–10 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -142,7 +142,7 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
 ## 4. Extraction order (one release each; D2)
 - **M2a** context, adapter, declared reads, normaliser + schema export, the parity harness (§5) with its golden
   projections, and the consumable package — and NO derivation moved (round 6 #1: D2's one derivation per release).
-- **M2a.1 … M2a.n** item preparation, ONE item type per release (the 9 item `prepareDerivedData` →
+- **M2a.1 … M2a.n** item preparation, ONE item type per release (the 8 item `prepareDerivedData` (round 10 #1: eight, not nine) →
   `module/derive/items/*.mjs`, the data model calling it): one item type per release, no pairing. Each release passes
   the full parity gate on its own.
 - **M2b** attributes: racial modifiers, `_collectItemModifiers`, `_calculateAttributeValues`, limb averages,
@@ -157,11 +157,15 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
 - **Item getters** (round 9 #4): EVERY prototype getter on an item data model is inventoried and assigned to its item
 type's M2a.n release, with projection parity cases — `parsedDamageCode` (weapon), `parsedDrainCode` and `drainTarget`
 (spell), `actualEssenceCost` (cyberware), `actualBodyCost` (bioware), `totalCost`, `signedValue` and any other; the
-pure item record exposes each as a derived field, so a plain spell or weapon record has the same readouts.
+getter-only types (round 10 #1: `SpellData` and `AdeptPowerData` have computed getters but no preparation) get
+their own gated M2a.n releases. A getter stays ON DEMAND (round 10 #2): the pure layer exports it as a function of the
+item and the context at call time, never materialized during item preparation, because `actualEssenceCost` must see
+the limb markers the actor assigns later (parity cases: a cyberlimb's Essence with an option added and removed).
 - **M2j** skills and foci (round 6 #2): `_applySkillsofts`, `_applyAdeptSkills`, `_applyWeaponFoci`,
   `_applyUnarmedPower` (§1.2), after M2f's pools as today.
 **The M2 gate** (what M3 waits for): every block in docs/DERIVE-INVENTORY.md's milestone column moved, M2a–M2j
-released, and a Vitest that fails while any `prepareDerivedData` still computes instead of calling `module/derive/`.
+released, and a Vitest that fails while `CharacterData` or an M2-assigned item computation (incl. the getter-only
+types) still computes instead of calling `module/derive/` (round 10 #3: vehicle derivation is M8's, out of scope).
 **One computation per release** (round 7 #2, D2): each bullet above is a GROUP; every computation it names
 (racial modifiers, item-modifier collection, limb averages, articulation, cybermancy, CCSS …; each item type in
 M2a.n — no pairing) ships in its own gated release, its call kept at its current preparation position.

@@ -256,3 +256,26 @@ VERDICT: REVISE
 Both are Part 5a's network state, built after the reader audit. 1 The graph follows each RC deck's subscribers and
 affiliated vehicles (fixture: a subscriber-only drone). 2 rcNet registered path by path (vKey derivedKeys, operator and
 vehicle refs, message ids external, connection/since/IVIS spends/learning keys transient); new-id fixture.
+
+## Round 14 — Codex (draft 14, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+**Draft 14 needs revision.** Three material gaps remain:
+
+1. **Hidden vehicle Stress is lost.** The balance and reveal receipts live in the world setting `r2HiddenStress`, while the exported vehicle carries only `hiddenStressRolled`. A new-world import would have neither the balance nor a reason to roll it again. A pending reveal could also lose an earned Stress change. [Code](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-quality.mjs:2) · [Plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:155)  
+   **Fix:** Add a GM-only, journalled supplement for each exported vehicle’s hidden-Stress record, and refuse export during a pending reveal.
+
+2. **An unfinished rigger dump depends on a ChatMessage outside the bundle.** `rigDumps` can be `pending` or `open`; reconciliation relies on its deck UUID and recorded card ID. After a new-world import, an `open` record with a card ID will not post a replacement card, leaving its resistance and Willpower actions unavailable. The plan’s quiescence and registry do not name this state. [Code](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rig-dump.mjs:39) · [Plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:50)  
+   **Fix:** Register `rigDumps` references and refuse export until every dump and its actionable card steps are settled; include its reconciler in barrier draining.
+
+3. **Two RC bindings escape the stated registry checks.** A signal amplifier or IVIS master binds to a deck through `flags.sr2e.deckId`; with new item IDs, that equipment stops working. `rcNet.unreachable` also uses vehicle-derived keys and affects control, but the explicit RC adapter omits it. Both are read through direct flag access, which the proposed write and model-field scans do not cover. [Readers](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:59) · [Registry plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:136)  
+   **Fix:** Remap `deckId`, discard and recompute `unreachable` on cross-world import, and test a multi-deck character with both bound devices.
+
+The M1a–M1d split has appropriate round-trip gates, but M1b’s new-ID gate needs these cases before import ships.
+
+VERDICT: REVISE
+
+### Claude's response (draft 15) — all 3 taken
+1 Verified (vehicle-quality.mjs: GM-only world setting): a GM export carries the unrevealed balance in a GM-only bundle
+section, a player export omits it and the import report says so (receipt cleared so the GM can re-roll); a pending reveal
+refuses export. 2 Verified (rig-dump.mjs): pending/open dumps refuse export, reconcileDumps joins the barrier drain,
+deckUuid ref / card external. 3 Verified (rc-net.mjs): deckId is a ref, unreachable transient (recomputed); fixture.
