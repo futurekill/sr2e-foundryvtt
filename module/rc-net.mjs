@@ -271,17 +271,28 @@ export function nmpDice(actor) {
   const sp = sk?.system?.specialization;
   return /non.?matrix programming/i.test(sp?.name ?? "") ? Number(sp.rating) || 0 : 0;
 }
-/** The most IVIS Test dice the operator may roll: the Vehicle Tactics specialization, or what a default to the Tactics
- *  Concentration or Military Theory gives (SRComp p.48 Skill Web; the TN rises, never the dice). c5a r2 #2. */
-export function ivisDiceMax(actor) {
-  let max = vehicleTacticsDice(actor);
+/**
+ * The legal IVIS Test paths (R2 p.66: "Skill Web modifiers apply if the rigger must default to the Tactics
+ * Concentration or Military Theory Skill"; SRComp p.48: a Specialization is half a dot (+1) from its Concentration, a
+ * Concentration one dot (+2) from its general skill): Vehicle Tactics at TN 5, the Tactics Concentration at TN 6,
+ * Military Theory at TN 8. R2's own instruction wins over p.48's "no modifier for your own general skill" (c5a r3 #1).
+ */
+export function ivisPaths(actor) {
+  const paths = [], add = (label, dice, tn) => { if (dice > 0) paths.push({ label, dice, tn }); };
+  add("Vehicle Tactics", vehicleTacticsDice(actor), 5);
+  let conc = 0, gen = 0;
   for (const sk of actor?.items?.filter(i => i.type === "skill") ?? []) {
     const s = sk.system ?? {};
-    if (/military theory|tactics/i.test(sk.name)) max = Math.max(max, Number(s.rating) || 0);
-    if (/tactics/i.test(s.concentration?.name ?? "")) max = Math.max(max, Number(s.concentration.rating) || 0);
+    if (/^tactics$/i.test(s.concentration?.name ?? "")) conc = Math.max(conc, Number(s.concentration.rating) || 0);
+    if (/^tactics$/i.test(sk.name)) conc = Math.max(conc, Number(s.rating) || 0);
+    if (/^military theory$/i.test(sk.name)) gen = Math.max(gen, Number(s.rating) || 0);
   }
-  return max;
+  add("Tactics (default, +1 TN)", conc, 6);
+  add("Military Theory (default, +3 TN)", gen, 8);
+  return paths;
 }
+/** Is an IVIS Test card legal: its own dice and TN fit one path, with no situational misc dice? */
+export const ivisCardLegal = (actor, test) => !tookMisc(test) && ivisPaths(actor).some(p => ownDice(test) <= p.dice && num(test?.tn) >= p.tn);
 /** A test card's own dice (not Karma Pool dice) and whether it took situational misc dice. */
 const ownDice = (test) => (test?.dice ?? []).filter(d => d.sourceKey === "base").length;
 const tookMisc = (test) => (test?.dice ?? []).some(d => d.sourceKey === "misc");
@@ -495,10 +506,9 @@ export function registerRcNet() {
     if (cmd.ivisMessageId) {
       const im = game.messages.get(cmd.ivisMessageId), it = im?.flags?.sr2e?.test;
       if (!it || im.flags.sr2e.rcIvis?.deckUuid !== deck.uuid || it.actorUuid !== net.operator) throw new Error("that isn't the operator's IVIS Test card");
-      // Rolled as the rules say (c5a r2 #2): TN 5 or more (a Skill Web default only raises it), no more dice than the
-      // operator's Vehicle Tactics (or the skill defaulted to), no situational misc dice.
+      // Rolled as the rules say (c5a r2 #2, r3 #1): dice and TN together on one legal path, no situational misc dice.
       const opActor = fromUuidSync(net.operator);
-      if (num(it.tn) < 5 || ownDice(it) > ivisDiceMax(opActor) || tookMisc(it)) throw new Error("that IVIS Test wasn't rolled at TN 5 with the operator's Vehicle Tactics dice (Rigger 2 p.66)");
+      if (!ivisCardLegal(opActor, it)) throw new Error("that IVIS Test wasn't rolled on a legal path: Vehicle Tactics at TN 5, or a Skill Web default to Tactics (TN 6) or Military Theory (TN 8) (Rigger 2 p.66, SRComp p.48)");
       const toTest = Math.max(0, num(cmd.ivisToTest)), s = testTotalSuccesses(it);
       if (toTest > s) throw new Error("more IVIS successes on the test than the IVIS Test rolled");
       ivis = { pool: s - toTest, messageId: cmd.ivisMessageId };

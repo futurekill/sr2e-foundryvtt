@@ -19425,14 +19425,21 @@ export function registerSR2EQuenchTests() {
             iv = await ivCard(5, 5);
             roll = await comp(3, iv.testMessageId);   // group Pilot 2 + 1 IVIS success
             bad.lowTn = await comp(3, (await ivCard(5, 2)).testMessageId);
-            bad.tooMany = await comp(3, (await ivCard(RCN.ivisDiceMax(pc) + 1, 5)).testMessageId);   // one die past what the skill allows
+            bad.tooMany = await comp(3, (await ivCard(RCN.ivisPaths(pc)[0].dice + 1, 5)).testMessageId);   // one die past Vehicle Tactics
             bad.doubleDip = await comp(4, (await ivCard(5, 5)).testMessageId);
           } finally { CONFIG.Dice.randomUniform = orig; }
           const pool = iv.successes - 1;
           const args = { deckUuid: deck.uuid, vehicleUuids: [d1.uuid, d2.uuid], text: "sweep the lot", messageId: roll.testMessageId };
           assert.equal(pool, 4, "5 successes at TN 5, one put on the test");
+          // c5a r3 #1: a default raises the TN — Military Theory alone is 6 dice at TN 8, never TN 5.
+          const mt = await Actor.create({ name: "Quench MT only", type: "character" }); made.push(mt);
+          await mt.createEmbeddedDocuments("Item", [{ name: "Military Theory", type: "skill", system: { rating: 6, category: "knowledge" } }]);
+          const card = (n, tn) => ({ tn, dice: Array.from({ length: n }, () => ({ sourceKey: "base" })) });
+          assert.deepEqual(RCN.ivisPaths(mt).map(p => [p.dice, p.tn]), [[RCN.ivisPaths(mt)[0].dice, 8]], "only the Military Theory path");
+          assert.notOk(RCN.ivisCardLegal(mt, card(RCN.ivisPaths(mt)[0].dice, 5)), "its dice at TN 5 refused");
+          assert.ok(RCN.ivisCardLegal(mt, card(RCN.ivisPaths(mt)[0].dice, 8)), "at TN 8 legal");
           let err = null;
-          for (const [k, re] of [["lowTn", /TN 5/], ["tooMany", /Vehicle Tactics dice/], ["doubleDip", /more dice/]]) {
+          for (const [k, re] of [["lowTn", /legal path/], ["tooMany", /legal path/], ["doubleDip", /more dice/]]) {
             err = null; try { await call("rcGroupOrder", { ...args, messageId: bad[k].testMessageId }); } catch (e) { err = e.message; }
             assert.match(err ?? "", re, `c5a r2 #2: ${k} refused`);
           }
@@ -19526,7 +19533,7 @@ export function registerSR2EQuenchTests() {
       });
 
       describe("Part 5a review fixes (c5a r2)", function () {
-        it("a player can't delete another character's deck (#1); a scoped Learning spend on a chase roll carries the veto flag (#3)", async function () {
+        it("a player can't delete another character's deck (r2 #1); chase cards carry the veto flag (r2 #3) and withhold a scoped pool from non-GM rollers (r3 #2)", async function () {
           this.timeout(30000);
           const VP = await import("../vehicle-play.mjs");
           const player = game.users.find(u => !u.isGM);
@@ -19539,6 +19546,13 @@ export function registerSR2EQuenchTests() {
           }
           const src = await (await fetch("systems/sr2e/module/chase.mjs")).text();
           assert.equal((src.match(/\.\.\.\(dp\.flags \?\? \{\}\)/g) ?? []).length, 2, "both chase cards (Driver Points, actions) carry askDronePools' flags");
+          // c5a r3 #2: a scoped pool on a chase roll is withheld unless the GM rolls (a veto can't undo a resolved roll).
+          assert.equal((src.match(/scopedOk: game\.user\.isGM/g) ?? []).length, 2, "both chase rolls pass scopedOk");
+          const LP = await import("../learning-pool.mjs");
+          const sar = await mk("Quench Scoped Drone", { vehicleType: "drone", pilot: 3, learningPool: { dice: 2, scope: "Search & Rescue" } });
+          assert.equal(LP.learningBalance(sar), 2);
+          assert.equal((await LP.askDronePools(sar, { scopedOk: false })).n, 0, "withheld: no dialog, no spend");
+          assert.equal(LP.learningBalance(sar), 2, "nothing spent");
         });
       });
 

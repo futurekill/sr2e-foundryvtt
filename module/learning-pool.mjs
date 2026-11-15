@@ -106,12 +106,17 @@ export function registerLearningPool() {
 /**
  * The drone's own pools for one of ITS tests other than the Driving Test dialog — a weapon attack on its Pilot or a
  * chase roll (c5a r1 #10): Learning Pool (a scoped pool only when declared in scope) and the IVIS group's shared pool.
- * Asks only when either has dice; spends through the GM's queues. Returns { n, label, flags }.
+ * Asks only when either has dice; spends through the GM's queues. `scopedOk: false` (chase rolls, which resolve at
+ * once) withholds a scoped pool unless the GM rolls. Returns { n, label, flags }.
  */
-export async function askDronePools(vehicle) {
-  const learn = learningUsable(vehicle) ? learningBalance(vehicle) : 0, ivis = RC.ivisBalance(vehicle);
-  if (!learn && !ivis) return { n: 0, label: "", flags: {} };
+export async function askDronePools(vehicle, { scopedOk = true } = {}) {
   const scope = vehicle.system.learningPool?.scope ?? "";
+  // A chase roll resolves at once, so a later veto can't undo it (c5a r3 #2): there a SCOPED pool is the GM's call,
+  // offered only when the GM rolls (their declaration needs no veto).
+  const blocked = !!scope && !scopedOk && learningUsable(vehicle);
+  if (blocked) ui.notifications.info(`${vehicle.name}'s Learning Pool is only “${scope}”: on a chase roll that's the GM's call — ask the GM to roll it (Rigger 2 p.67).`);
+  const learn = !blocked && learningUsable(vehicle) ? learningBalance(vehicle) : 0, ivis = RC.ivisBalance(vehicle);
+  if (!learn && !ivis) return { n: 0, label: "", flags: {} };
   const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
   const res = await foundry.applications.api.DialogV2.prompt({ window: { title: `${vehicle.name}: pool dice` },
     content: `${learn ? `<div class="form-group"><label>Learning Pool (max ${learn})</label><input type="number" name="learning" value="0" min="0" max="${learn}" style="width:52px"></div>

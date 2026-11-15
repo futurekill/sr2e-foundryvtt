@@ -1077,7 +1077,7 @@ export async function rollDriverPoints(combat, eid) {
     const { aid, inputs } = await gmCall("chaseDPStart", { combatId: combat.id, round: combat.round, eid, control });
     const paid = inputs.control ? await spendPosition(driver, inputs.control, aid, { combatId: combat.id, round: combat.round }) : 0;
     // A pilot-only drone's own Learning / IVIS Pool dice (R2 p.67; c5a r1 #10).
-    const dp = pilotOnly(e) ? await (await import("./learning-pool.mjs")).askDronePools(fromUuidSync(e.uuid)) ?? { n: 0, label: "" } : { n: 0, label: "" };
+    const dp = pilotOnly(e) ? await (await import("./learning-pool.mjs")).askDronePools(fromUuidSync(e.uuid), { scopedOk: game.user.isGM }) ?? { n: 0, label: "" } : { n: 0, label: "" };
     await gmCall("chaseArm", { combatId: combat.id, aid });
     const n = inputs.skill + paid + inputs.pr + dp.n;
     const roll = await new Roll(n > 0 ? `{${Array(n).fill("1d6x6").join(",")}}kh` : "0").evaluate();
@@ -1112,7 +1112,7 @@ export async function chaseAction(combat, eid, kind, { target = null, actorUuid 
     // A pilot-only drone rolls its own test: none of its operator's modifiers (5.0 droneCtx).
     const roller = kind !== "relocate" && pilotOnly(e) ? fromUuidSync(e.uuid) : actor;
     // Its own Learning / IVIS Pool dice (R2 p.67; c5a r1 #10).
-    const dp = roller.type === "vehicle" ? await (await import("./learning-pool.mjs")).askDronePools(roller) ?? { n: 0, label: "" } : { n: 0, label: "" };
+    const dp = roller.type === "vehicle" ? await (await import("./learning-pool.mjs")).askDronePools(roller, { scopedOk: game.user.isGM }) ?? { n: 0, label: "" } : { n: 0, label: "" };
     await roller.rollSuccessTest(inputs.dice + dp.n, inputs.tn, {
       label: `${KIND_LABEL[kind]} (R2 p.${{ accelerate: 45, brake: 45, position: 47, hide: 48, relocate: 49, ram: 47 }[kind]})${dp.label}`,
       sourceLabel: kind === "relocate" ? "Intelligence" : "Driving",

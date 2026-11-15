@@ -3,7 +3,7 @@
  * operator, subscribers and affiliation, reachability, each drone's mode, the primary, standing orders — with the
  * actions and their costs. Every change is a GM op in module/rc-net.mjs.
  */
-import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBalance, hasIvisMaster, vehicleTacticsDice, nmpDice } from "../rc-net.mjs";
+import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBalance, hasIvisMaster, ivisPaths, nmpDice } from "../rc-net.mjs";
 import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit } from "../rules/drone-rules.mjs";
 import { fluxRange } from "../rules/vehicle-sensor-rules.mjs";
 
@@ -99,20 +99,21 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!op) return warn("connect the deck first");
     const drones = Object.entries(net.affiliated ?? {}).filter(([k]) => k !== net.primary).map(([, a]) => fromUuidSync(a.uuid)).filter(Boolean);
     if (drones.length < 1) return warn("no drones to command (the primary needs none)");
-    const ivisOk = hasIvisMaster(this.deck), vt = vehicleTacticsDice(op);
+    const ivisOk = hasIvisMaster(this.deck), paths = ivisPaths(op);
     const res = await foundry.applications.api.DialogV2.prompt({ window: { title: "Group command" },
       content: `<p>One Complex Action; ONE Comprehension Test at the group's lowest Pilot, its result for every drone (Rigger 2 p.66).</p>
         ${drones.map(v => `<label style="display:block"><input type="checkbox" name="d_${v.id}" value="${v.uuid}" checked> ${esc(v.name)} (Pilot ${v.system.effective?.pilot ?? v.system.pilot ?? 0})</label>`).join("")}
         <div class="form-group"><label>Command</label><input name="text" style="flex:2"></div>
         <div class="form-group"><label>Complexity</label><select name="tn">${SKILL_SUCCESS_TABLE.map(r => `<option value="${r.tn}" ${r.key === "average" ? "selected" : ""}>${r.label} (${r.tn}${r.max ? `–${r.max}` : r.open ? "+" : ""})</option>`).join("")}</select></div>
-        ${ivisOk ? `<div class="form-group"><label title="Vehicle Tactics specialization vs TN 5; if you must default to Tactics or Military Theory, enter the Skill Web dice (SRComp p.48)">IVIS Test dice (TN 5)</label><input type="number" name="ivis" value="${vt}" min="0" style="width:52px"></div>` : "<p><em>No IVIS master unit on this deck: no IVIS Test.</em></p>"}`,
+        ${!ivisOk ? "<p><em>No IVIS master unit on this deck: no IVIS Test.</em></p>" : paths.length ? `<div class="form-group"><label title="Rigger 2 p.66; Skill Web defaults, SRComp p.48">IVIS Test</label><select name="ivis"><option value="">none</option>${paths.map((p, i) => `<option value="${i}" ${i ? "" : "selected"}>${esc(p.label)}: ${p.dice} dice vs TN ${p.tn}</option>`).join("")}</select></div>` : "<p><em>No Vehicle Tactics, Tactics or Military Theory: no IVIS Test.</em></p>"}`,
       ok: { label: "Roll", callback: (_e2, b) => new foundry.applications.ux.FormDataExtended(b.form).object } }).catch(() => null);
     if (!res) return;
     const group = Object.entries(res).filter(([k, v]) => k.startsWith("d_") && v).map(([k]) => drones.find(v => v.id === k.slice(2))).filter(Boolean);
     if (!group.length) return warn("choose at least one drone");
     let split = { test: 0, pool: 0 }, ivisMsg = "";
-    if (ivisOk && Number(res.ivis) > 0) {
-      const t = await op.rollSuccessTest(Number(res.ivis), 5, { label: "IVIS Test (Rigger 2 p.66)", tnContext: { kind: "skill", key: "tactics", skillCategory: "knowledge" },
+    const path = ivisOk && res.ivis !== "" && res.ivis != null ? paths[Number(res.ivis)] : null;
+    if (path) {
+      const t = await op.rollSuccessTest(path.dice, path.tn, { label: "IVIS Test (Rigger 2 p.66)", tnContext: { kind: "skill", key: "tactics", skillCategory: "knowledge" },
         flags: { sr2e: { rcIvis: { deckUuid: this.deck.uuid } } } });
       if (!t) return;
       ivisMsg = t.testMessageId;
