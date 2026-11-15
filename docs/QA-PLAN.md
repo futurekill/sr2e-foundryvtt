@@ -1304,3 +1304,17 @@ hardwiring; robot Initiative; Learning Pool keys, spends and veto; group orders 
 - [ ] A robot (design trait `robot`) rolls Initiative 2 × Pilot + dice; an ordinary network drone can't be added by a player.
 - [ ] MK-Guyver from the R2 Vehicle List: Learning Pool 2 (Search & Rescue) offered on its own Driving Test with the scope tick; GM veto on the card.
 
+## Rigger 2 electronic warfare against networks (Part 5b-1) — `sr2e.r2-advanced` batch
+Automated: interception (named channels, a card once, a low-TN card refused), a meaconing exchange (GM closes it
+unresisted) and its drone-test TN, regeneration, a detected read voiding the intercept, a lost command carrier refusing
+orders until reconnected.
+- [ ] Two riggers with connected RC decks (one drone affiliated to A). On B's deck panel, A's network appears under
+      **Other networks**; Intercept (name command) → the card rolls deck rating vs A's rating + 3.
+- [ ] Give A's deck an encryption module: Intercept is refused until **Break encryption** succeeds; a failure tells A.
+- [ ] MIJI… → meaconing / command (B needs a protocol emulation module): A gets a **Resist** card (deck Flux vs PE); the
+      result card shows the boxes; A's panel lists B under the command channel; A's drone's Driving Test TN rises.
+- [ ] Jamming needs an ECM suite on B's vehicle; jam A's simsense to 10 while A is jumped in → A is dumped (dump card).
+- [ ] Intrusion leaves a **bogus object** on A's panel; **Block** (ECCM) cancels its successes over attempts.
+- [ ] Regenerate (ECCM module): 2 successes clear one of that intruder's boxes; Reconnect a lost carrier (Control Systems).
+- [ ] Read a channel from B: sometimes A detects it — B's intercept disappears (frequencies switched).
+

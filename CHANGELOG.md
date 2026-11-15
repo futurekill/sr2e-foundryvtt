@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Electronic warfare against remote-control networks** (Rigger 2 p.68–72; Part 5b-1), under the Rigger 2 vehicle
+  ruleset, on the deck panel's new Electronic warfare section: **intercept** another network's command, simsense or
+  system channel (deck rating vs their rating + 3; break an **encryption** module first), **read** it (they may detect
+  you and switch frequencies), and attack it with **meaconing**, **intrusion** (a bogus object) or **jamming** — an
+  opposed Flux exchange whose net successes fill the channel's 10-box Signal Monitor. Degradation reaches the tests the
+  book names: a drone's own Driving and Gunnery tests, IVIS and Comprehension Tests, and — for simsense jamming on a
+  remotely rigged drone — every Success Test and the Initiative of its rigger, like damage. A full channel loses its
+  carrier (no orders over a lost command carrier; a full simsense channel dumps a jumped-in rigger). The defender
+  **regenerates** with ECCM, **reconnects** a lost carrier with Control Systems and **blocks** a bogus object with ECCM.
+
 ## 0.156.0 — 2026-11-15
 
 ### Added
