@@ -270,6 +270,21 @@ export function registerRcNet() {
     return true;
   }));
 
+  // Deleting a CONNECTED deck dumps its operator (5a.6, R2 p.64): the pending dump first, then the deletion, then the
+  // GM's reconcile verifies the deck is gone and opens the dump (an interrupted deletion is retried there).
+  gmOp("rcDeleteDeck", ({ deckUuid }, user) => rcQueue(async () => {
+    const deck = fromUuidSync(deckUuid);
+    if (!deck || !isRcDeck(deck)) return true;
+    if (!user.isGM && !deck.isOwner && !deckActor(deck)?.testUserPermission?.(user, "OWNER")) throw new Error("not your deck");
+    const net = netOf(deck), op = net?.connection?.state === "connected" && net.operator ? fromUuidSync(net.operator) : null;
+    const { pendDump, reconcileDumps } = await import("./rig-dump.mjs");
+    if (op) await pendDump(op, { cause: "deck-removed", deck });
+    await deck.delete({ sr2eRcDelete: true });
+    invalidate();
+    if (op) await reconcileDumps(op);
+    return true;
+  }));
+
   gmOp("rcReturn", ({ deckUuid }, user) => rcQueue(async () => {
     const deck = load(deckUuid, user), net = freshNet(deck);
     if (!net.primary) return net;

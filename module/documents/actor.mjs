@@ -1,4 +1,5 @@
 import { isRigger2 } from "../vehicle-mode.mjs";
+import { rigDumpActive } from "../rig-dump.mjs";
 import { spottingTnMod } from "../vehicle-indirect.mjs";
 import { vcrPerCircle } from "../rules/vehicle-r2-rules.mjs";
 import { neuralWillpower } from "../rules/quality-rules.mjs";
@@ -439,7 +440,8 @@ export class SR2EActor extends Actor {
     const sustainPenalty = policy ? 0 : (this.system.sustainPenalty ?? 0);
     // Dump shock (SR2E p.180): +2 to all TNs after being dumped from the Matrix.
     // Core only: VR2.0 dump shock is Stun damage instead (p.124); the flag is kept for a switch back.
-    const dumpShock = !policy && this.system.dumpShock && !isVR2() ? 2 : 0;
+    // Rigger dump shock (R2 p.64; 5a.6): +2 on ALL Success Tests while its disorientation lasts — under either Matrix.
+    const dumpShock = policy ? 0 : (this.system.dumpShock && !isVR2() ? 2 : 0) + (rigDumpActive(this) ? 2 : 0);
     // Over-spec'd cranial cyberdeck (Matrixware, Shadowtech p.54): an MPCP above
     // 1.5 × Intelligence costs +4 on EVERY action, "across the board". Like the
     // sustain penalty, resistance tests get no exemption from it.
@@ -2625,7 +2627,7 @@ export class SR2EActor extends Actor {
     // SR2E p.95): they take the bullet's brunt for the target behind them.
     const bonusDice  = Math.max(0, options.bonusDice ?? 0);
     const bodyDice   = env && env.attr !== "body"
-      ? (system[env.attr]?.value ?? 1) + bonusDice
+      ? (Number.isFinite(env.dice) ? env.dice : (system[env.attr]?.value ?? 1)) + bonusDice
       : (system.body?.value ?? 1) + dermalBonus + bonusDice;
     // `tnMod`: a resistance TN modifier the caller's rule names (R2 p.85 Safety Certified −1 / Passenger Trap +1 on
     // collision damage to a vehicle's occupants).

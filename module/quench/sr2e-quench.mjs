@@ -19287,6 +19287,45 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Rigger dump shock (Part 5a.6, R2 p.64)", function () {
+        it("deleting a connected deck dumps its operator once: +2 TN, (Rating+4)S Stun resisted with Willpower, Willpower (4) shortens it", async function () {
+          this.timeout(30000);
+          const RD = await import("../rig-dump.mjs"), { stepClick } = await import("../vehicle-damage.mjs");
+          const pc = await Actor.create({ name: "Quench Dumped Rigger", type: "character", system: { rigging: true, vehicleControlRig: 1, willpower: { base: 5 } } }); made.push(pc);
+          const [deck] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Dump Deck", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
+          const tn0 = pc.testTnModifiers().total;
+          await deck.delete();   // refused locally, routed through rc-control
+          for (let i = 0; i < 40 && pc.items.get(deck.id); i++) await new Promise(r => setTimeout(r, 100));
+          assert.notOk(pc.items.get(deck.id), "the deck is deleted by the op");
+          const [[eid, d]] = RD.dumpsOf(pc);
+          assert.equal(d.cause, "deck-removed");
+          assert.equal(d.state, "open");
+          assert.ok(d.effect && d.card, "effect and card once");
+          assert.ok(RD.rigDumpActive(pc));
+          assert.equal(pc.testTnModifiers().total - tn0, 2, "+2 on all Success Tests");
+          await RD.reconcileDumps(pc);
+          assert.equal(game.messages.filter(m => m.flags?.sr2e?.rigDump?.eid === eid).length, 1, "a second reconcile posts nothing");
+          const card = game.messages.get(d.card);
+          assert.equal(card.flags.sr2e.vsteps.dump.power, 6, "Rating 2 + 4");
+          const stun0 = pc.system.conditionMonitor.stun.value;
+          const api = foundry.applications.api.DialogV2, w = api.wait;
+          api.wait = async (cfg) => { cfg.buttons?.[0]?.callback?.(null, { form: { elements: {} } }); return "roll"; };
+          const ru = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => 0.99;   // all ones: S stands
+          try { await stepClick(card, "dump"); await stepClick(card, "dump"); } finally { api.wait = w; CONFIG.Dice.randomUniform = ru; }
+          const stun1 = pc.system.conditionMonitor.stun.value;
+          assert.notEqual(stun1, stun0, "Stun taken");
+          assert.ok(pc.getFlag("sr2e", "dmgReceipts")?.[(await import("../vehicle-play.mjs")).followId(`rigdump:${eid}`)], "receipted once");
+          const tests = game.messages.filter(m => m.flags?.sr2e?.test?.vstep?.effectId === `rigdump:${eid}` || m.flags?.sr2e?.vstep?.effectId === `rigdump:${eid}`);
+          assert.isAtMost(tests.length, 1, "the second click didn't roll again");
+          let k = 0; CONFIG.Dice.randomUniform = () => [0.01, 0.2][k++ % 2];   // 6 then 5 = 11 a die (never all sixes: they explode forever)
+          try { await RD.willClick(card); } finally { CONFIG.Dice.randomUniform = ru; }
+          const will = pc.getFlag("sr2e", "rigDumps")[eid].will;
+          assert.ok(will?.successes >= 1, "TN 6 (4 + the dump's own +2) still met");
+          assert.equal(will.turns, Math.ceil(Math.ceil(30 / will.successes) / 3));
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

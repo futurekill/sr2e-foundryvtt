@@ -102,6 +102,7 @@ import { onVehicleSocket, bindVehicleCardButtons, mayResistFor } from "./vehicle
 import { registerChase, onChaseSocket, bindChaseCard } from "./chase.mjs";
 import { registerChasePanel } from "./apps/chase-panel.mjs";
 import { registerVehicleDamage, bindVehicleDamageCard } from "./vehicle-damage.mjs";
+import { registerRigDump, bindRigDumpCard } from "./rig-dump.mjs";
 import { registerVehicleSensors } from "./vehicle-sensors.mjs";
 import { registerAmmoQueue } from "./vehicle-ammo.mjs";
 import { registerMissiles } from "./vehicle-missiles.mjs";
@@ -543,6 +544,7 @@ Hooks.once("init", async () => {
   registerFuel();
   registerSubsystems();
   registerRcNet();
+  registerRigDump();
   registerOptempo();
   game.sr2e = Object.assign(game.sr2e ?? {}, { hiddenStress: { reveal: revealHiddenStress, left: hiddenStressLeft } });
 
@@ -3034,6 +3036,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   bindVehicleCardButtons(message, html);
   bindChaseCard(message, html);
   bindVehicleDamageCard(message, html);
+  bindRigDumpCard(message, html);
 
   // Opposed melee: Defend rolls the defender's Combat Skill test and
   // resolves the exchange; Undefended concedes (0 defense successes).

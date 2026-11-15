@@ -489,6 +489,7 @@ export async function stepClick(message, key) {
     }
     power = o.power; level = o.level;
   }
+  const track = spec.track ?? "physical";
   const fkey = `${actor.uuid}|${rk}`;
   if (inflight.has(fkey)) return warn(`${actor.name} is already resisting this.`);
   inflight.add(fkey);
@@ -496,15 +497,18 @@ export async function stepClick(message, key) {
     const attempt = foundry.utils.randomID(16);
     const ok = await defenseQueue(actor.uuid, async () => {
       if (hasReceipt(actor, effectId)) return false;
-      await actor.update({ [`flags.sr2e.vstep.${rk}`]: { effectId, attempt, power, level } });
+      await actor.update({ [`flags.sr2e.vstep.${rk}`]: { effectId, attempt, power, level, track } });
       return true;
     });
     if (!ok) return warn(`${actor.name} has already resisted this.`);
     // Only the CURRENT attempt may apply (validated again in the damage queue).
     const current = () => actor.getFlag("sr2e", "vstep")?.[rk]?.attempt === attempt && !hasReceipt(actor, effectId);
-    const res = await actor.rollDamageResistance(power, level, "impact", "physical", {
+    // A step may name its track and resisting attribute (rigger dump shock: Stun, neural Willpower — R2 p.64, 5a.6).
+    const env = spec.attr ? { attr: spec.attr, armorFraction: 0, dice: spec.attr === "willpower" ? actor.neuralWillpower() : undefined } : undefined;
+    const res = await actor.rollDamageResistance(power, level, "impact", track, {
       noCombatPool: !spec.combatPool, armorCalc: spec.armor === "none" ? "none" : "impact", bonusDice: bonus, tnMod: spec.collisionTn ?? 0,
-      testFlags: { sr2e: { vstep: { attempt, effectId, power, level, actorUuid: actor.uuid } } },
+      ...(env ? { environmental: env } : {}),
+      testFlags: { sr2e: { vstep: { attempt, effectId, power, level, track, actorUuid: actor.uuid } } },
       damageExtra: { [`flags.sr2e.dmgReceipts.${rk}`]: effectId }, damageSkipIf: () => !current(), beforeRoll: current
     });
     // Fully resisted: no damage update carried the receipt.
@@ -523,7 +527,7 @@ async function applyFromCard(actor, card) {
   if (idx < 0) {
     await defenseQueue(actor.uuid, async () => { if (!hasReceipt(actor, v.effectId)) await actor.update({ [`flags.sr2e.dmgReceipts.${rk}`]: v.effectId }); });
   } else {
-    await commitDamage(actor, "physical", BOXES[STAGES[idx]], { extra: { [`flags.sr2e.dmgReceipts.${rk}`]: v.effectId }, skipIf: () => hasReceipt(actor, v.effectId) });
+    await commitDamage(actor, v.track ?? "physical", BOXES[STAGES[idx]], { extra: { [`flags.sr2e.dmgReceipts.${rk}`]: v.effectId }, skipIf: () => hasReceipt(actor, v.effectId) });
   }
   ui.notifications.info(`SR2E | ${actor.name}'s earlier roll is applied from its card.`);
 }
