@@ -1287,3 +1287,20 @@ threshold keeps its monthly overhead; "frequent" → tick the vehicle in the Adv
 - [ ] Add a cerebral booster Level 2 (Shadowtech): the pool becomes 3 (they add).
 - [ ] Roll Electronics (rating 4): the dialog offers Task Pool dice, at most 4; Firearms offers none; a Knowledge and a B/R skill offer it.
 - [ ] Spend 2: the pool shows 0/2; Reset Pools (or the next Combat Turn) brings it back.
+
+## Rigger 2 remote-control networks (Part 5a) — `sr2e.r2-advanced` batch
+Automated: subscribe/affiliate limits, connect, jump/return, modes, commands, jacking out; the chase (operator acts, Pilot
+dice, a jump makes a reserved roll stale); dump shock (deck deletion → effect, card, Stun once, Willpower re-times);
+hardwiring; robot Initiative; Learning Pool keys, spends and veto; group orders and IVIS; drone weapons on Pilot.
+- [ ] Rigger 2 ruleset: give a rigger an RC deck (R2 module), link two drones; Vehicles tab → open the deck panel.
+- [ ] Subscribe both, affiliate one (Rating 1: the second is refused), Connect: the drone shows **captain**.
+- [ ] Command it: the dialog shows Pilot + NMP dice; the card's successes appear as its standing order.
+- [ ] Jack in (VCR) → Jump in: **primary**; its Driving Test offers "Rigged (VCR)" only; Return; jack out returns too.
+- [ ] Add the IVIS master + receivers: Group command → IVIS Test → split → the group shows its pool; a drone's own
+      Driving Test offers IVIS Pool dice; End task removes it.
+- [ ] Put the drone in a chase (no driver allowed): the operator's DP roll uses the Pilot; jump in mid-roll → "not counted".
+- [ ] Fire the drone's weapon from its sheet in captain's chair: the card rolls the Pilot.
+- [ ] Delete the connected deck: the rigger gets the dump card (+2 TN shown on the next roll), resists Stun once, rolls Willpower.
+- [ ] A robot (design trait `robot`) rolls Initiative 2 × Pilot + dice; an ordinary network drone can't be added by a player.
+- [ ] MK-Guyver from the R2 Vehicle List: Learning Pool 2 (Search & Rescue) offered on its own Driving Test with the scope tick; GM veto on the card.
+
