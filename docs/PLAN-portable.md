@@ -1,6 +1,6 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 3 (2026-11-14), after Codex rounds 1–2 (13 + 8 findings, all taken); reader-audit additions (quiescence entries,
-the month counter) the same day. Implements milestone **M1** of the standalone
+_Draft 4 (2026-11-15), after Codex rounds 1–3 (13 + 8 + 6 findings, all taken); draft 3 added the reader audit
+(docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
 character backup._
@@ -50,7 +50,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   cybermancy operation without op-done; an unfinished dose (`resumeDoses` pending); an unsettled money queue entry; an
   open crash/impact record; a VR2 request the sequencer hasn't settled; and, from the reader audit
   (docs/PORTABLE-FLAG-INVENTORY.md), an interrupted Keep as edited (`keepEdited`), pending engine checks
-  (`pendingEngineChecks`), a vehicle follow-up not yet posted (`vfollow`), a pending VR2 sheaf (`vr2SheafPending`). The list is ONE function,
+  (`pendingEngineChecks`), a vehicle follow-up not yet posted (`vfollow`), a pending VR2 sheaf (`vr2SheafPending`); a
+  LIVE VR2 connection (round 3 #5: `liveOpen` rebuilds it from the durable `connOpen`/`connEnd` facts, so dropping the
+  transient session flags can't end it — the decker jacks out first, which writes `connEnd` with its consequences in
+  the source world); unsettled overhead/optempo money (round 3 #4: a receipt not `released`/settled, a refund `due`). The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
@@ -193,11 +196,19 @@ restore may keep ids (`keepId`) when they are free.
   become negative; the code that floors a clock (drugs.mjs `effectiveClock`'s `Math.max(0, …)`) changes to floor the
   ELAPSED time, not the instant, with a test.
 - `serverTime` (claim `at`, STUCK/TTL) shifts by Δserver.
-- **The overhead month counter** (reader audit): vehicle overhead is keyed by the world setting `vehicleOverheadMonth`,
-  not worldTime — `overhead.months.<m>`, `assessedThrough`, `optempoMonths.<m>`, the payer's `overheadDiscount.<m>` and the
-  month-bearing `vstress` receipts (`overhead-missed-<m>`, `overhead-restore-<m>`, `ostress-rev:overhead-missed-<m>`). The
-  bundle records the counter; ONE adapter shifts every one of those keys and values by Δmonth = destination counter −
-  exported counter, together (a Stress receipt left behind would penalise a missed month twice). Optempo adventure ids
+- **The overhead month counter** (reader audit; round 3 #4): vehicle overhead is keyed by the world setting
+  `vehicleOverheadMonth`, not worldTime. The bundle records the counter; ONE adapter shifts every month-bearing key and
+  value by Δmonth = destination counter − exported counter, together — on the vehicle: `overhead.months.<m>`,
+  `assessedThrough`, `optempoMonths.<m>`, the `vstress` receipts `overhead-missed-<m>` / `overhead-restore-<m>` /
+  `ostress-rev:overhead-missed-<m>`; on the payer: `overheadDiscount.<m>`, `overheadReceipts.<tx>` (`rows[].month`, the
+  `discount` month keys, a restore's `month`), `overheadRefunds.<tx>.done[]` (`<vehicleUuid>|<month>`: both parts
+  remapped). A Stress receipt or refund entry left behind would penalise or refund a month twice. Unsettled money is
+  refused by quiescence (§1.2), so the adapter only moves settled history.
+- **Substance report ids** (round 3 #3): `substanceReported` keys are `stepId(step)` — drug, type, the step's TIME and a
+  hash of its payload (rules/substances.mjs) — so a rebase changes them. The adapter folds the bundle's log before and
+  after the rebase/remap and maps each reported step, by its position in the fold, to its new id; `corrected` entries
+  (steps already gone) are carried as is — they never match a fresh step, so nothing is announced again. Quench: an
+  imported addict with reported Essence loss posts no report on the destination's next clock tick. Optempo adventure ids
   (a world setting) are `external` (`docType: Setting`) — dangling elsewhere, listed.
 - Time-bearing `derivedKey`s (cybermancy notice keys) are re-derived from the shifted time.
 - **Healing epoch** (round 2 #5): the healing clock clamps a cursor to the world's `healingClockEpoch`; an imported
@@ -207,12 +218,19 @@ restore may keep ids (`keepId`) when they are free.
   `sequence`) are rebased into the destination's sequence space preserving their order (offset = the destination's
   next sequence − the bundle's minimum), and — while holding the sequencer barrier — the sequencer's counter (`SEQ`,
   vr2ic.mjs) is advanced above every imported value before the graph is released.
+- **Drug-effect order** (round 3 #6): `drugsInForce` orders active drug effects by `_stats.createdTime`, and
+  `commitDamage` consumes absorption in that order — but `_stats` is not carried. M1a gives each drug effect an
+  explicit `flags.sr2e.drugOrder` (the creation time, written in its create data; the reader sorts by it, falling back
+  to `_stats.createdTime` for older effects, and a migration stamps existing ones from `_stats`); only its order matters,
+  so it is carried as is. Test: two active absorbers keep their consumption order across a new-id import and a
+  recovery replay.
 - **Combat durations** (`duration.combat`, `startRound`, `startTurn`): the combat is `transient` — on a new-world
   import the AE keeps its remaining rounds (`rounds − (combat.round − startRound)` at export, stored in the bundle)
   re-anchored to the next combat it joins, listed in the report.
 
 ### 2.6 Writes, `sr2eImport` and ownership
-- Every write carries `{ sr2eImport: importId }`. **Every** document hook with gameplay consequences — pre AND post,
+- Every write carries `{ sr2eImport: { importId, epoch } }` (round 3 #2: the ONE option shape, validated by the fence
+  in §2.4 — creates, updates, deletes, rollback and release alike). **Every** document hook with gameplay consequences — pre AND post,
   create, update AND delete, on Actor, Item, ActiveEffect and their embedded descendants, plus deferred callbacks
   they schedule (round 1 #7: shapeshift death results on `createActiveEffect`, vr2ic's sequencer/dataworm scheduling
   on effect creation, drugs' tombstones, receipt stripping and deletion veto) — returns early on it. A **hook
@@ -243,12 +261,16 @@ restore may keep ids (`keepId`) when they are free.
 - **Roll-forward** per step: absent → create; equals `after` → done; equals `before` → re-apply; anything else →
   divergent: STOP, list it, the GM chooses (rollback or keep as is). Rollback writes `before` back only where the
   document equals `after` or `before`, listing divergences. Both only while the actors are still fenced.
-- **One recovery owner** (round 2 #3): the lease is a CLIENT INSTANCE (`{ userId, instanceId, heartbeat }`, the
-  instance id random per page load, so two tabs of the same GM differ), renewed while working. A takeover only after
-  the heartbeat is stale or the old instance has acknowledged a handover request (the drained-handover of the barrier
-  protocol); the takeover bumps the journal `epoch`, and the pre-hook veto refuses every write carrying an older
-  epoch, so the old owner's in-flight write can't land. Imports and recovery are serialized per world (one import at a
-  time). Recovery runs on GM `ready` and from a button.
+- **One recovery owner** (round 2 #3; round 3 #1): the lease is a CLIENT INSTANCE (`{ userId, instanceId, heartbeat }`,
+  the instance id random per page load, so two tabs of the same GM differ), renewed while working. The epoch check in
+  the pre-hook runs on the REQUESTING client, so it can't revoke a write already past it — takeover therefore needs
+  proof the old owner has nothing in flight: either (a) the old instance ACKNOWLEDGES a handover request (it stops,
+  awaits its own pending writes, then writes `importAck.<importId> = { epoch, drained: true }` on its User), or (b) the
+  server reports the old owner's USER inactive (a socket's requests are processed in order before its disconnect, so a
+  disconnected client has nothing left to land) and its heartbeat is stale. A stale heartbeat alone (a frozen tab of a
+  still-connected user) is NOT enough: recovery stays blocked, naming the instance, until it acks or disconnects (the GM
+  can close that tab). Only then the takeover bumps the `epoch` (defense in depth for writers that ignore the barrier).
+  Imports and recovery are serialized per world (one import at a time). Recovery runs on GM `ready` and from a button.
 - **Commit, then release** (round 2 #3): `written` → `committed` is persisted while every actor is STILL fenced (the
   import's decision point: before it, recovery may roll back; after it, only forward); then `releasing` unfences the
   actors one by one, each release its own journalled step; then the barrier is lifted and the journal `closed`. A crash
@@ -286,8 +308,8 @@ confirmation. Tests: a removed sustained-spell effect, item effect and flag stay
 ## Key decisions & tradeoffs
 - Quiescence over capturing in-flight transactions: refusing to export a half-finished operation is simpler and safer
   than adapting its recovery across worlds; the refusal names what to finish.
-- The fence is a commit-time veto in pre-hooks on every client (plus admission skips), not a drain protocol: work past
-  an `await` can't commit, so no cross-client acknowledgement is needed.
+- The fence is the barrier protocol (§2.4: close admission, drain and acknowledge, then fence and verify) with the
+  pre-hook veto as defense in depth; recovery takeover needs the old owner's drained ack or its disconnect (§2.7).
 - The registry classifies SHAPES (AST scan) with per-event adapters; unknown shapes are opaque and only block
   identity-changing imports that would carry a bundle identity.
 - Migration runner first (M1a), since import depends on it.

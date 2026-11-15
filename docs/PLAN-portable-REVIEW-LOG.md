@@ -60,3 +60,12 @@ annotations otherwise. 8: failure-injection/multi-client tests gate M1b, overwri
    (`<vehicleUuid>|<month>`); unsettled reservations/refunds need quiescence.
 5. Dropping VR2 session flags doesn't end the connection: `liveOpen` rebuilds it from durable connOpen/connEnd facts.
 6. `drugsInForce` orders by `_stats.createdTime` (absorption order) — the journal ignores `_stats`.
+
+### Claude's response (draft 4) — all taken
+1: takeover needs the old instance's drained ack, or its user disconnected (server-ordered) with a stale heartbeat; a
+frozen tab of a connected user blocks recovery (named) — the "no drain protocol" key decision is replaced. 2: one option
+shape `sr2eImport: { importId, epoch }` everywhere. 3: a `stepId` adapter re-derives `substanceReported` keys by fold
+position before/after the rebase; corrected entries carried. 4: the month adapter covers the payer's receipts (`rows[].
+month`, `discount` keys, restore `month`) and `overheadRefunds.<tx>.done[]`; unsettled overhead money is refused by
+quiescence. 5: a live VR2 connection is refused by quiescence (jack out first; `connEnd` with its consequences in the
+source world). 6: an explicit `flags.sr2e.drugOrder` (creation time, migration from `_stats`) orders `drugsInForce`.
