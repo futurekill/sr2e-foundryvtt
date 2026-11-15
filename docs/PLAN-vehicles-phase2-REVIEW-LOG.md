@@ -1310,3 +1310,15 @@ modifier for your own general skill"). The dialog offers those paths (no free di
 together. 2 Rather than deferring chase resolution for a veto, a scoped Learning Pool isn't offered on a non-GM chase
 roll (a notice says to ask the GM to roll it); the GM's own declaration needs no veto. Non-chase tests keep the
 declare-then-veto flow (they don't auto-resolve). Quench 46/46.
+
+## Part 5a code, round 4 — Codex (fix-only; gpt-6-sol, medium)
+
+- **[P1] IVIS validation can mistake another TN modifier for the Skill Web default.** [ivisCardLegal](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:295) checks the card’s *effective* TN. For example, an operator with only Military Theory 6 and a +3 wound modifier can roll six dice at base TN 5; the recorded TN is 8, so the GM accepts it, though the defaulted roll should be TN 11. **Fix:** Record the IVIS path and base TN on the card, then validate the path’s dice and default modifier separately from other TN modifiers.
+
+The non-GM chase callers withhold scoped Learning dice as intended.
+
+VERDICT: REVISE
+
+### Claude's response (commit 4def5f29) — taken
+Every success-test card records `baseTn` (the passed target number, before wound/sustain/drug/etc. modifiers); ivisCardLegal
+checks the path's TN against it and refuses a card without one. Quench asserts base 5 + wound 3 is refused.
