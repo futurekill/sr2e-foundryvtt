@@ -19371,6 +19371,29 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Learning Pool (Part 5a.4, R2 p.67)", function () {
+        it("refreshes per Turn under a persisted key; spends count against it; a GM veto voids a scoped spend", async function () {
+          this.timeout(20000);
+          const LP = await import("../learning-pool.mjs");
+          const robo = await mk("Quench Learner", { vehicleType: "drone", pilot: 3, design: { traits: ["drone", "robot"] }, learningPool: { dice: null, scope: "Search & Rescue" } });
+          assert.equal(LP.learningBalance(robo), 3, "Pilot 3");
+          const free = await LP.spendLearning(robo, 2, { scope: "Search & Rescue" });
+          assert.equal(free.n, 2);
+          assert.equal(LP.learningBalance(robo), 3, "outside combat every test gets the full pool");
+          const combat = await Combat.create({ scene: null, active: false }); combats.push(combat);
+          await combat.createEmbeddedDocuments("Combatant", [{ actorId: robo.id }]);
+          await combat.startCombat();
+          for (let i = 0; i < 30 && !String(robo.getFlag("sr2e", "learningKey") ?? "").startsWith(combat.id); i++) await new Promise(r => setTimeout(r, 100));
+          assert.ok(String(robo.getFlag("sr2e", "learningKey")).startsWith(`${combat.id}:1:`), "the Turn's key");
+          const s = await LP.spendLearning(robo, 2, { scope: "Search & Rescue" });
+          assert.equal(LP.learningBalance(robo), 1);
+          assert.equal((await LP.spendLearning(robo, 5)).n, 1, "never more than the balance");
+          assert.equal(LP.learningBalance(robo), 0);
+          await call("learningVeto", { vehicleUuid: robo.uuid, eventId: s.eventId });
+          assert.equal(LP.learningBalance(robo), 2, "the vetoed spend is void");
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

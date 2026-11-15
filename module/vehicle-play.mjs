@@ -2,6 +2,7 @@
  * Vehicles in play, core rulebook (docs/PLAN-vehicles-phase2.md Part 1): who controls a vehicle, the ONE vehicle
  * damage commit (the active GM's per-vehicle queue) with its crash triggers, and Control Pool spends.
  */
+import * as LP from "./learning-pool.mjs";
 import { itemOperable } from "./rules/vehicle-subsystem-rules.mjs";
 import * as RC from "./rc-net.mjs";
 import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
@@ -893,6 +894,7 @@ export async function promptDrivingTest(driver, vehicle) {
   const sk = driver ? driver._vehicleSkill(vehicle) : null;
   const poolMax = driver && isPoolClient(driver) ? Math.min(driver.system.dicePools?.control?.value ?? 0, sk.cap) : 0;
   const maxStressDice = driver ? stressDice(99, vehicle.system.effective?.body ?? vehicle.system.body).dice : 0;
+  const learnMax = modes.includes("drone") && LP.learningUsable(vehicle) ? LP.learningBalance(vehicle) : 0;
   const sel = (name, opts, v = "") => `<select name="${name}">${opts.map(([k, l]) => `<option value="${k}" ${k === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
   const label = { rigged: "Rigged (VCR)", datajack: "Datajack (−1)", manual: "Manual", drone: "The drone itself (Pilot)" };
   return foundry.applications.api.DialogV2.prompt({
@@ -910,6 +912,8 @@ export async function promptDrivingTest(driver, vehicle) {
         ${offRoadRating == null ? `<div class="form-group"><label>Off-road Handling:</label><input type="number" name="offRoadHandling" placeholder="GM" style="width:52px;"></div>` : "<span></span>"}` : ""}
       ${driver?.qualityValues()["vehicle-empathy"] ? `<label style="font-size:12px;" title="Vehicle Empathy (Rigger 2 p.16): Handling −1 in physical contact — manual controls, or jacked into this vehicle itself; never rigging a drone remotely"><input type="checkbox" name="contact" checked> In physical contact (Empathy)</label>` : ""}
       ${poolMax ? `<div class="form-group"><label>Control Pool (rigged, max ${poolMax}):</label><input type="number" name="control" value="0" min="0" max="${poolMax}" style="width:52px;"></div>` : ""}
+      ${learnMax ? `<div class="form-group"><label title="The drone's own test only (Rigger 2 p.67)">Learning Pool (the drone itself, max ${learnMax}):</label><input type="number" name="learning" value="0" min="0" max="${learnMax}" style="width:52px;"></div>
+        ${vehicle.system.learningPool?.scope ? `<label style="font-size:12px;"><input type="checkbox" name="inScope"> This test is within “${esc(vehicle.system.learningPool.scope)}” (the GM may veto)</label>` : ""}` : ""}
       ${maxStressDice ? `<div class="form-group"><label>Push it: +dice (2 Stress each, max ${maxStressDice}):</label><input type="number" name="stressDice" value="0" min="0" max="${maxStressDice}" style="width:52px;"></div>` : ""}
       <p style="grid-column:1/-1;font-size:10px;color:#aaa1c0;margin:4px 0 0;">Rigger 2 p.20–21: Handling + the Driving Test Modifiers Table; the vehicle's Autonav adds dice.
         Control Pool dice here can't resist damage. A failed test or many 1s can cost Stress (p.26).</p></div>`,
@@ -919,7 +923,8 @@ export async function promptDrivingTest(driver, vehicle) {
         otherMod: parseInt(e.otherMod.value) || 0, unfamiliar: e.unfamiliar.checked, combat: e.combat.checked, offRoad: !!e.offRoad?.checked,
         offRoadHandling: e.offRoadHandling?.value === "" || e.offRoadHandling == null ? null : parseInt(e.offRoadHandling.value),
         contact: e.contact ? e.contact.checked : true,
-        control: parseInt(e.control?.value) || 0, stressDice: parseInt(e.stressDice?.value) || 0 };
+        control: parseInt(e.control?.value) || 0, stressDice: parseInt(e.stressDice?.value) || 0,
+        learning: parseInt(e.learning?.value) || 0, inScope: !!e.inScope?.checked };
     } }
   });
 }
@@ -950,10 +955,15 @@ export async function rollDrivingTest(driver, vehicle, o) {
     (await import("./vehicle-quality.mjs")).hiddenStressPrompt(vehicle, "pushed with Stress dice").catch(() => {});   // R2 p.84
   }
   const roller = drone ? vehicle : driver;   // a drone's own test carries none of its operator's modifiers (5.0 droneCtx)
+  // The drone's Learning Pool (p.67; 5a.4): its own test only; a scoped pool only on a declared in-scope test.
+  const scope = sys.learningPool?.scope ?? "";
+  const learn = drone && o.learning > 0 && (!scope || o.inScope) ? await LP.spendLearning(vehicle, o.learning, { scope }) : { n: 0 };
   const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;
   // A simsense interface (datajack, rig) is an electronic device: Computer Illiterate (p.15).
-  const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice, tn, { label, paidPoolDice: paid ? { control: paid } : undefined,
+  const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice + learn.n, tn, { label: label + (learn.n ? `, +${learn.n} Learning Pool${scope ? ` (declared: ${scope})` : ""}` : ""),
+    paidPoolDice: paid ? { control: paid } : undefined,
+    ...(learn.n ? { flags: { sr2e: { learningSpend: { vehicleUuid: vehicle.uuid, eventId: learn.eventId, n: learn.n, scope } } } } : {}),
     tnContext: { kind: "skill", key: sk.key ?? "", skillCategory: "active", electronic: o.mode === "rigged" || o.mode === "datajack" },
   });
   if (!res) return null;
