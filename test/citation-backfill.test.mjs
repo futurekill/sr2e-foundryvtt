@@ -19,6 +19,12 @@ describe("citation backfill: the parsing rule (docs/PLAN-citations.md §3)", () 
     expect(proposeCitation("Assault rifle (SR2E p.94). SA/BF/FA.", "sr2").pick).toEqual({ book: "sr2", page: "94" });
     expect(proposeCitation("Design specifications p.110: a drone frame.", "r2").pick).toEqual({ book: "r2", page: "110" });
   });
+  it("an explicit own-book reference beats another book's parenthetical cross-reference", () => {
+    expect(proposeCitation("Like physical barrier (SR2 p.158), but protects against bladed weapons. Grimoire (2nd ed.) p.131.", "grim").pick)
+      .toEqual({ book: "grim", page: "131" });
+    expect(proposeCitation("The reverse of increase reflexes (SR2 p.155): loses 2 dice. Grimoire (2nd ed.) p.129.", "grim").pick)
+      .toEqual({ book: "grim", page: "129" });
+  });
   it("no page → no pick", () => {
     expect(proposeCitation("A heavy fighting knife. SSC.", "ssc").pick).toBe(null);
   });

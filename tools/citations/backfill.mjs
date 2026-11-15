@@ -54,6 +54,17 @@ export function proposeCitation(text, own) {
   }
   for (const s of sources) for (const p of s.pages) cands.push({ book: s.book, page: p.page, table: p.table });
   const ownSources = sources.filter(s => s.book === own);
+  // A page reference whose clause NAMES the own book ("… Grimoire (2nd ed.) p.131") beats another book's parenthetical
+  // cross-reference ("Like physical barrier (SR2 p.158)").
+  if (!ownSources.length && sources.length) {
+    for (const m of text.matchAll(PG)) {
+      const clause = text.slice(0, m.index).split(/[.;]\s(?![^(]*\))/).at(-1);
+      if (bookOf(clause.replace(/\([^()]*\)/g, " ")) === own || bookOf(clause.slice(-40)) === own && !/\(\s*$/.test(clause)) {
+        cands.push({ book: own, page: normalizePage(m[2]), table: !!m[1] });
+        return finish({ book: own, page: normalizePage(m[2]) }, cands, "named");
+      }
+    }
+  }
   if (ownSources.length || sources.length) {
     const s = (ownSources.length ? ownSources : sources).at(-1);
     const desc = s.pages.filter(p => !p.table);
