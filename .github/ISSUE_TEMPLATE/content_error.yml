@@ -1,0 +1,57 @@
+name: "📖 Wrong or missing book content"
+description: A stat, price, page citation, description, journal or scene doesn't match the SR2 core rulebook, or something from the book is missing.
+title: "[Content] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every entry in the system compendia is transcribed from the book and cites its page (shown on the item sheet).
+        Please quote the book page so it can be checked against the print.
+
+  - type: input
+    id: entry
+    attributes:
+      label: Entry
+      description: The item, actor, journal or scene, and which compendium it's in.
+      placeholder: "Example Item (Gear compendium)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What's wrong?
+      options:
+        - A stat or rating is wrong
+        - The price, Availability or Street Index is wrong
+        - The page citation is wrong
+        - Description / journal text is wrong or garbled
+        - Art or a scene is wrong
+        - Something from the book is missing
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: module_says
+    attributes:
+      label: What the system has
+      placeholder: "Cost 1,500¥, Availability 4/48 hrs"
+    validations:
+      required: true
+
+  - type: textarea
+    id: book_says
+    attributes:
+      label: What the book says
+      description: Book + page, and the printed values. A photo of the table helps.
+      placeholder: "SR2 core p.254 (Street Gear): Cost 1,200¥, Availability 4/48 hrs"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SR2E system version
+      placeholder: "1.0.0"
