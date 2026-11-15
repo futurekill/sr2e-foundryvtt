@@ -1209,3 +1209,8 @@ VERDICT: REVISE
 the marker). 2: every pending coast step carries a version `v`; a delivery clears `pending` only when the live step still
 has the version it delivered, in the vehicle queue — a late landing written meanwhile survives for its own delivery.
 Quench `sr2e.r2-advanced` 16/16.
+
+## Part 6a code, round 4 — Codex (fix-only, fresh session): APPROVED
+"No material findings in the scoped fix. Engine replacement clears the refuelled dead-engine episode; versioned pending
+steps prevent an older delivery from deleting a late landing." Part 6a is APPROVED; released as sr2e 0.155.0 from
+release/0.155.0.
