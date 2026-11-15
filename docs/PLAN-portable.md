@@ -1,5 +1,6 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 3 (2026-11-14), after Codex rounds 1–2 (13 + 8 findings, all taken). Implements milestone **M1** of the standalone
+_Draft 3 (2026-11-14), after Codex rounds 1–2 (13 + 8 findings, all taken); reader-audit additions (quiescence entries,
+the month counter) the same day. Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
 character backup._
@@ -47,7 +48,9 @@ from their synthetic source. A reference to something not exported → `unresolv
 - **Quiescence first.** Export refuses — naming each — while the graph has an OPEN multi-document transaction: an open
   import journal or fence; a vehicle customization request admitted but not delivered or released (`custRequests`); a
   cybermancy operation without op-done; an unfinished dose (`resumeDoses` pending); an unsettled money queue entry; an
-  open crash/impact record; a VR2 request the sequencer hasn't settled. The list is ONE function,
+  open crash/impact record; a VR2 request the sequencer hasn't settled; and, from the reader audit
+  (docs/PORTABLE-FLAG-INVENTORY.md), an interrupted Keep as edited (`keepEdited`), pending engine checks
+  (`pendingEngineChecks`), a vehicle follow-up not yet posted (`vfollow`), a pending VR2 sheaf (`vr2SheafPending`). The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
@@ -190,6 +193,12 @@ restore may keep ids (`keepId`) when they are free.
   become negative; the code that floors a clock (drugs.mjs `effectiveClock`'s `Math.max(0, …)`) changes to floor the
   ELAPSED time, not the instant, with a test.
 - `serverTime` (claim `at`, STUCK/TTL) shifts by Δserver.
+- **The overhead month counter** (reader audit): vehicle overhead is keyed by the world setting `vehicleOverheadMonth`,
+  not worldTime — `overhead.months.<m>`, `assessedThrough`, `optempoMonths.<m>`, the payer's `overheadDiscount.<m>` and the
+  month-bearing `vstress` receipts (`overhead-missed-<m>`, `overhead-restore-<m>`, `ostress-rev:overhead-missed-<m>`). The
+  bundle records the counter; ONE adapter shifts every one of those keys and values by Δmonth = destination counter −
+  exported counter, together (a Stress receipt left behind would penalise a missed month twice). Optempo adventure ids
+  (a world setting) are `external` (`docType: Setting`) — dangling elsewhere, listed.
 - Time-bearing `derivedKey`s (cybermancy notice keys) are re-derived from the shifted time.
 - **Healing epoch** (round 2 #5): the healing clock clamps a cursor to the world's `healingClockEpoch`; an imported
   actor gets an actor-local baseline (`healClock.<key>.importEpoch` = the rebased cursor) that the clamp honours, so the

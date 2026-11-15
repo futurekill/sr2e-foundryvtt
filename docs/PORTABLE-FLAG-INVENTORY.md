@@ -211,3 +211,112 @@ Counts: 80 exported (actor/item/effect), 52 chat/combat/scene/user only,
   to confirm in the reader audit.
 - **Combat-scoped data** (`engaged`, `spellEffect.timing`) reads as empty/stale in another world — acceptable, listed.
 
+## Reader audit of the exported rows (2026-11-14)
+
+Every `exported` row the first pass left unreviewed (79), classified by reading its writers and readers. Kinds as in
+docs/PLAN-portable.md §1.4; "ref|external Actor" = `ref` when the target is in the bundle, else `external`.
+
+| Flag | On | Reader audit |
+|---|---|---|
+| `acquiredQuantity` | item | data |
+| `aidStudyUsed` | actor | data (canonical spell names, not ids) |
+| `baseConvert` | actor (vehicle) | data ({status, diff}) |
+| `bioHealGen` | item | data (generation counter) |
+| `burning` | actor | data + external Actor (casterUuid) + transient (clock.combatId/lastSeq; kind:"combat"); instance = random token, data |
+| `chase` | combat only (actor hit was a code comment) | not exported — reclassify |
+| `chaseSpend` | actor | transient (keys = chase action ids on a Combat; values pool counts or "void") |
+| `coreDinabWear` | actor (frame) | derivedKey `<upload>_<useId>` (frame upload id = deterministicId of the frame actor) |
+| `crashPhase` | actor (vehicle) | transient (phaseKeyFor: combat phase key) |
+| `crashes` | actor (vehicle) | event-like records: fid (vfollow id, derivedKey), occupants[] (actor uuids: ref when in bundle, else external Actor), attempts (message ids → external ChatMessage) |
+| `custDelivery` | actor (vehicle) | keys = request ids = deterministicId of the delivered item (keepId); values data |
+| `custReceipts` | actor (payer character, or the vehicle when GM no-charge) | keys = request ids (ref via the deterministic item id; payer and vehicle both in bundle when the vehicle is exported, else external Actor key on the payer); values data (amount, gm user id → external User) |
+| `custRequests` | actor (vehicle) | record: id (deterministicId source), uuid (compendium catalog uuid → data, external Compendium), payer (actor uuid: ref/external Actor), userId (external User), writer (user id), created (serverTime) |
+| `cymJournal` | JournalEntry only | not exported — reclassify (inbound journal; its pages carry `key` = pageKey(actor, opId) → inbound list) |
+| `cymReceipts` | actor | keys = opId (cybermancy op ids, event identities from cym:* records); values data |
+| `decompressed` | item (program) | data — compares to system.loadGen (both carried) |
+| `departed` | actor (spirit/nature spirit) | data (boolean) |
+| `designMod` | item (vehicle_mod) | data (boolean) |
+| `detachedFrom` | world actor (detached nature-spirit copy) | external Token (uuid of the source token) — a world actor not in a character bundle; only when the spirit itself is exported |
+| `dinabWear` | item (program) | derivedKey `<loadGen>_<useId>` (useId = a VR2 use id; loadGen carried) — keys counted by prefix only |
+| `doseCommits` | item (drug) | keys = exposureId (random event identity, kept; once() claims derive from it); value = dose plan with actorUuid → ref (the holder); in-flight → quiescence should refuse while any is open (openCommits) |
+| `drug` | item | data (drug definition flag; the `drug` hits in rules/ are substance-log payload fields, data) |
+| `drugAbsorb` | actor | keys = exposureId (kept); values data |
+| `edVs` | actor (vehicle target) | keys = followId(observer uuid) → derivedKey; record observerUuid (ref/external Actor), deviceId (item id on the target → ref), deviceGen/link/receiver gens → data/derived; combat-adjacent → transient candidate |
+| `engineStress` | actor (vehicle) | keys = record ids (random, kept); values data + `at` serverTime (display only) |
+| `evalKarma` | actor | keys = tx (random, kept); value itemId → ref (item); pairs with item flag evalRestores.<tx> |
+| `ewGen` | actor (vehicle) | keys deviceId (item id → ref key) and `<deviceId>~<recipientKey>` (derivedKey: item id + followId(recipient uuid)); values counters |
+| `ewOn` | actor (vehicle) | keys deviceId → ref key (item id); values data |
+| `fetishFor` | item (gear) | ref (spell item id on the same actor) |
+| `fighting` | actor (spirit) | data (boolean) |
+| `fluxBoosts` | actor (vehicle) | keys = device item ids → ref keys; values data |
+| `healClock` | actor | derivedKey (stateKey(owning actor uuid)) — values: episodes/revisions + worldTime cursors (clock rebase §2.5) |
+| `healNote` | actor | keys = course key (data); value { id: JournalEntryPage id → external JournalEntryPage (Calendaria note; inbound), course, visibility } |
+| `jamEvent` | actor (vehicle) | deviceId → ref (item id); deviceGen data; id random; dice data |
+| `jamVs` | actor (vehicle) | keys followId(observer uuid) → derivedKey; observerUuid ref/external Actor; transient candidate (sensor contacts) |
+| `keepEdited` | actor (vehicle) | in-flight plan: items[] = item ids → ref; quiescence: refuse export while present (resumeKeepAsEdited) |
+| `locks` | actor (vehicle) | keys followId(target) → derivedKey; targetUuid (usually external Actor/Token: an enemy); deviceId ref; at serverTime → transient (sensor lock on a table target) |
+| `matrixSessions` | actor | transient (jackpoint RegionBehavior uuid, originToken, destScene/destRegion, user) — removed on import per plan |
+| `mbwApplied` | actor | keys = claimId(resultKey) → deterministicId-derived keys from mbw event keys (event adapter must re-derive) |
+| `net` | placed Token only | not exported — reclassify (token flag; references cardId message) |
+| `overhead` | actor (vehicle) | months keyed by calendar month index (worldTime-derived → clock rebase §2.5); months.<m>.payer actor uuid (ref/external Actor), .tx (receipt key on the payer, kept); optempoMonths.<m>.adventures[] = ids in the world setting vehicleAdventures → external (world setting) — dangling on another world; assessedThrough month (worldTime-derived) |
+| `overheadDiscount` | actor (payer) | keys = calendar month (worldTime-derived); values data |
+| `overheadReceipts` | actor (payer) | keys tx (kept); vehicleUuid → ref/external Actor; adventure → external (setting); at serverTime |
+| `paid` | item | data (money provenance); the ritual/optempo hits are other records' fields |
+| `pendingEngineChecks` | actor (vehicle) | in-flight (gmEnginePass) → quiescence: refuse export while non-empty |
+| `permDmg` | actor | derivedKey (permKey(uuid)) — paired with permdmg:<uuid>:… recordEvent records (event adapter) |
+| `persona` | placed Token only | not exported — reclassify (transient persona tokens) |
+| `phaseSeq` | Combat only | not exported — reclassify (it was the combat flag; actor/item hits were reads via combat) |
+| `poolRefresh` | actor + item (focus) | transient (receipt "<combatId>:<round>") — harmless stale; carry as is |
+| `positionReserve` | actor | transient ({ combatId, round, byTest.<chase action id> }) |
+| `presentSince` | actor (spirit) | worldTime (clock rebase) |
+| `repairJob` | actor (vehicle) | in-flight job: target.recordId (subsystem record id, kept with flags.sr2e.subsystems) or item id → ref; repairerUuid → ref/external Actor; quiescence: an open job (state ≠ done) is long-running by design → carry, don't refuse |
+| `resetSeq` | actor | data (counter in phase keys; transient meaning) |
+| `ritualDrain` | actor (ritual member) | keys = ritual ids (records on the leader; external unless the leader is in the bundle) — receipt markers, compare keys only |
+| `rule` | item | data (content identity tag) |
+| `scars` | actor | array of { id (random, kept), severity, source, at: worldTime (rebase), treatedTo } |
+| `sensorReceipts` | actor (vehicle) | keys followId(eventId) (random event → kept); values carry deps/target uuids → external Actor (targets); transient-ish |
+| `shift` | actor | derivedKey (shiftKey(uuid)) + death-check records (recordEvent shapeshift adapter) |
+| `spellRes` | actor | keys rid (derived from cast test message id + target → external ChatMessage-derived key, compare only); grantIds (message-flag grant ids, external); at serverTime; resistTestId external ChatMessage |
+| `startingMoneyGranted` | actor | data (boolean) |
+| `stepSpend` | actor | keys attemptId (crash/resist attempt ids, `wr-<id>`) — receipts, compare-only, pruned to 20 → carry as is |
+| `substanceClock` | actor | worldTime (rebase) |
+| `substanceLog` | actor | event (keys exposureId; payload: item ids → ref, t worldTime → rebase, message ids → external ChatMessage) |
+| `substanceNotes` | actor | keys drug (data); value { id: Calendaria note page id → external JournalEntryPage (inbound), t worldTime, name, visibility } |
+| `summoned` | actor (spirit) | data (boolean) |
+| `toxinDone` | actor | keys `<exposureId>_<seq>` → derivedKey of kept ids → carry as is |
+| `txConditions` | actor (vehicle) | keys deviceId → ref keys (item ids) |
+| `vdmg` | actor (vehicle) | receipt keys: opaque event ids, some embedding combat/message/vehicle ids (`idle-<vehicleId>-…`, `pd-<msgId>-<followId>`) — compare-only: a changed vehicle id only stops a PAST receipt matching → carry as is |
+| `vfollow` | actor (vehicle) | keys followId(eventId) (opaque, kept); values: crash/feedback/subsystem follow-ups with messageId → external ChatMessage, attack context (attacker uuid → external Actor); in-flight (state pending/posted) → quiescence or carry (the GM delivery re-posts) |
+| `vr2Entered` | actor | keys = scope (host/grid actor id → external Actor key); value conn id (VR2 connection fact id, kept) |
+| `vr2Known` | actor | keys = place (host/grid) actor ids → external Actor keys |
+| `vr2Maneuvers` | actor | position/parriedBy (keys = attacker keys `deck:<uuid>@<conn>` → derivedKey/external), lostSight.<k> (k = maneuver key) — combat-scoped Matrix state → transient |
+| `vr2Mapped` | actor | keys = host actor ids → external Actor keys; values conn ids (kept) |
+| `vr2Session` | actor (decker/frame/SK) | live session: host uuids → external Actor, conn/session ids (kept), worldTime (forgetAt) → rebase; transient on import per plan (a jack-in can't move worlds) |
+| `vr2SheafPending` | actor | in-flight: hostUuid → external Actor, sessionId → quiescence or drop as transient |
+| `vr2Tallies` | actor | keys = scope (host/grid actor ids → external Actor keys); ledger entries with forgetAt (worldTime → rebase) |
+| `vresist` | actor (vehicle) | keys followId(eventId) (opaque, kept); value attempt id ↔ a chat card (external ChatMessage) — in-flight attempt → stale on import (card gone) → harmless |
+| `vstep` | actor | keys rk (resistance step keys built from effect/event ids; kept); attempt ↔ chat card (external) |
+| `vstress` | actor (vehicle) | receipt keys: eventIds, `rule1-<messageId>` (external, compare-only), `overhead-missed-<month>` / `overhead-restore-<month>` (month part worldTime-derived → must move WITH overhead.months under a clock rebase), plus `ostress-rev:` reversals |
+
+### Findings from the reader audit
+- **Five rows are not exported** (the heuristic matched comments or reads through another document): `chase`, `phaseSeq`
+  (Combat), `cymJournal` (JournalEntry), `net`, `persona` (placed tokens).
+- **A fourth clock: the overhead month counter.** `flags.sr2e.overhead.months.<m>`, `assessedThrough`, `optempoMonths.<m>`,
+  the payer's `overheadDiscount.<m>`, and the `vstress` receipts `overhead-missed-<m>` / `overhead-restore-<m>` /
+  `ostress-rev:overhead-missed-<m>` are keyed by the WORLD SETTING `vehicleOverheadMonth`, not worldTime. Importing into a
+  world at another month would assess or bill the wrong months. The plan needs Δmonth = destination counter − exported
+  counter (captured in the bundle metadata), applied to all those keys and values TOGETHER (one adapter: the month parts
+  of the Stress receipts must move with the months or a missed month is penalised twice).
+- **Optempo adventures are world-setting ids** (`optempoMonths.<m>.adventures[]`, `overheadReceipts.<tx>.adventure`): an
+  `external` kind with no document type (`docType: Setting`) — dangling on another world and listed for the GM.
+- **Quiescence candidates the plan doesn't list yet**: open `doseCommits` (a dose mid-finish), `keepEdited` (an
+  interrupted Keep as edited), `pendingEngineChecks`, `vfollow` entries not yet posted, `vr2SheafPending`. Each has a
+  resumable finisher, so export should refuse while any is present (naming it), like the other in-flight work.
+- **Receipt keys are compare-only** (confirmed): `vdmg`, `vstress` (non-month), `stepSpend`, `toxinDone`, `ritualDrain`,
+  `spellRes`, `chaseSpend`, `sensorReceipts`, `vresist`, `vstep`. Some embed ids (`idle-<vehicleId>-…`, `pd-<msgId>-…`,
+  `rule1-<msgId>`); after an identity change a past receipt just never matches again — no reader iterates them to act.
+  Carried as is (`opaque`, no scan refusal needed for these shapes).
+- **followId-keyed sensor records** (`edVs`, `jamVs`, `locks`, `ewGen` link keys) key on another actor's uuid (usually an
+  enemy on the map): `transient` — removed on import, the sensors sweep re-derives contacts.
+- **Combat-scoped** (`positionReserve`, `poolRefresh`, `crashPhase`, `burning.clock`, `vr2Maneuvers`): stale in another
+  world but harmless (each compares to the live combat id) — `transient`, kept on a same-world restore.
