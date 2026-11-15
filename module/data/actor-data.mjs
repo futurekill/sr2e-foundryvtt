@@ -2148,7 +2148,15 @@ export class VehicleData extends SR2EDataModel {
       otherFeatures: new fields.StringField({ initial: "", blank: true }),
       seatingExtra: new fields.NumberField({ initial: 0, min: 0 }),
       designPointValue: new fields.NumberField({ initial: 0, min: 0 }),
-      streetIndex: new fields.NumberField({ initial: 0, min: 0 })
+      streetIndex: new fields.NumberField({ initial: 0, min: 0 }),
+      // Rigger 2 p.67 (5a.4): a robotic Learning Pool — blank dice = the Pilot Rating for a robot, 0 otherwise; a scope
+      // ("Search & Rescue") limits it to tests the roller declares within it. Printed non-robots have one too.
+      learningPool: new fields.SchemaField({
+        dice: new fields.NumberField({ integer: true, initial: null, nullable: true, min: 0 }),
+        scope: new fields.StringField({ initial: "", blank: true })
+      }),
+      // Robots only (p.67): added to the robot's own tests as an NPC's Threat dice are (core p.187); 0 = none.
+      threatRating: new fields.NumberField({ integer: true, initial: 0, min: 0 })
     };
   }
 
@@ -2243,6 +2251,14 @@ export class VehicleData extends SR2EDataModel {
   }
 
   /** Initiative penalty from vehicle damage (p.109). */
+  /** A robot (R2 p.67; 5a.4): the design trait the R2 module stamps on its robots. */
+  get isRobot() { return (this.design?.traits ?? []).includes("robot"); }
+  /** The Learning Pool's size: the printed dice, else the Pilot Rating for a robot (p.67). */
+  get learningPoolDice() {
+    const d = this.learningPool?.dice;
+    return d != null ? d : this.isRobot ? (this.effective?.pilot ?? this.pilot ?? 0) : 0;
+  }
+
   get damageInitMod() {
     return CONFIG.SR2E.vehicleDamageMods[this.damageLevel]?.init ?? 0;
   }

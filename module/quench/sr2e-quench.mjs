@@ -19356,6 +19356,21 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Robots (Part 5a.4, R2 p.65, p.67)", function () {
+        it("a robot rolls 2 × Pilot + (Learning Pool + 1, max 4)D6; any other vehicle has no Initiative of its own", async function () {
+          const robo = await mk("Quench Robot", { vehicleType: "drone", pilot: 3, design: { traits: ["drone", "robot"] } });
+          let p = robo._getInitiativeParts();
+          assert.equal(p.base, 6, "Reaction 2 × Pilot");
+          assert.equal(p.dice, 4, "Learning Pool = Pilot 3 → 4 dice (max 4)");
+          await robo.update({ "system.learningPool.dice": 1 });
+          assert.equal(robo._getInitiativeParts().dice, 2, "a printed pool of 1 → 2 dice");
+          const plain = await mk("Quench Plain Drone", { vehicleType: "drone", pilot: 3 });
+          p = plain._getInitiativeParts();
+          assert.equal(p.base + p.dice, 0);
+          assert.equal(plain.system.learningPoolDice, 0, "no pool for an ordinary drone unless printed");
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

@@ -162,6 +162,15 @@ let TX = null;   // vehicle-sensors.mjs, loaded once (it imports the play layer;
 export function registerRcNet() {
   registerRcIndexHooks();
   import("./vehicle-sensors.mjs").then(m => { TX = m; });
+  // A non-robot network drone has no Initiative (p.65; 5a.4): it acts in its operator's phases. Players are refused;
+  // the GM is warned and may add it anyway.
+  Hooks.on("preCreateCombatant", (cb, data, options, userId) => {
+    const a = cb.actor;
+    if (a?.type !== "vehicle" || a.system.isRobot || !isAffiliated(a) || userId !== game.user.id) return;
+    const msg = `${a.name} is a network drone: it has no Initiative and acts in its operator's phases (Rigger 2 p.65)`;
+    if (!game.user.isGM) { ui.notifications.warn(msg); return false; }
+    ui.notifications.warn(`${msg} — added on the GM's say-so.`);
+  });
   Hooks.on("updateToken", (tok, ch) => {
     if (!("x" in ch || "y" in ch || "elevation" in ch)) return;
     rangeSweep(tok.actor).catch(err => console.error("SR2E | rc range sweep", err));

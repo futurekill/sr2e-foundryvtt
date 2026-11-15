@@ -1,4 +1,5 @@
 import { isRigger2 } from "../vehicle-mode.mjs";
+import { robotReaction, robotInitiativeDice } from "../rules/drone-rules.mjs";
 import { rigDumpActive } from "../rig-dump.mjs";
 import { spottingTnMod } from "../vehicle-indirect.mjs";
 import { vcrPerCircle } from "../rules/vehicle-r2-rules.mjs";
@@ -1094,6 +1095,17 @@ export class SR2EActor extends Actor {
       const p = system.kind === "sk" ? { base: system.coreRating ?? 0, dice: skInitDice(system.skInit) } : frameInitiativeParts(system);
       notes.push(system.kind === "sk" ? "SK" : p ? "smart frame" : "a dumb frame has no Initiative");
       return { base: p?.base ?? 0, dice: p?.dice ?? 0, rigged: false, matrix: true, notes };
+    }
+
+    // Rigger 2 p.65, p.67 (5a.4): a robot is a combatant — Reaction 2 × Pilot, Learning Pool + 1 dice (max 4, not drawn
+    // from the pool), less its damage modifier. Any other vehicle has no Initiative of its own (it acts in its
+    // driver's or operator's phases).
+    if (this.type === "vehicle") {
+      if (!system.isRobot) { notes.push("acts in its driver's or operator's phases (Rigger 2 p.65)"); return { base: 0, dice: 0, rigged: false, notes }; }
+      const pilot = system.effective?.pilot ?? system.pilot ?? 0;
+      const base = Math.max(0, robotReaction(pilot) + (system.damageInitMod ?? 0));
+      notes.push(`robot: Reaction 2 × Pilot ${pilot}`);
+      return { base, dice: robotInitiativeDice(system.learningPoolDice), rigged: false, notes };
     }
 
     if (system.matrixMode && (system.cyberdeck?.mpcp ?? 0) > 0) {
