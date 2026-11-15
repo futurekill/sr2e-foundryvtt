@@ -109,6 +109,7 @@ import { registerIndirect } from "./vehicle-indirect.mjs";
 import { registerHiddenStress, revealHiddenStress, hiddenStressLeft } from "./vehicle-quality.mjs";
 import { registerFuel } from "./vehicle-fuel.mjs";
 import { registerSubsystems } from "./vehicle-subsystems.mjs";
+import { registerRcNet } from "./rc-net.mjs";
 import { registerOptempo } from "./vehicle-optempo.mjs";
 
 /**
@@ -541,6 +542,7 @@ Hooks.once("init", async () => {
   registerHiddenStress();
   registerFuel();
   registerSubsystems();
+  registerRcNet();
   registerOptempo();
   game.sr2e = Object.assign(game.sr2e ?? {}, { hiddenStress: { reveal: revealHiddenStress, left: hiddenStressLeft } });
 

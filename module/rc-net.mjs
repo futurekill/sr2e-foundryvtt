@@ -1,0 +1,225 @@
+/**
+ * Rigger 2 remote-control networks (R2 p.62–67; docs/PLAN-vehicles-phase2.md Part 5.0 / 5a). Under the Rigger 2 ruleset only.
+ *   - A network = a deck item (rule `rc-deck`) + its record `flags.sr2e.rcNet = { rev, operator, connection: { state, gen },
+ *     subscribers: [vehicleUuid], affiliated: { <vKey>: { since, hardwired } }, primary, standingOrders, … }`.
+ *   - ONE control truth: an affiliated, reachable vehicle of a CONNECTED network is controlled by that network's operator
+ *     (`controllerOf` in vehicle-play.mjs asks `networkControllerOf` first). Affiliation and Part 1 crew control exclude
+ *     each other both ways.
+ *   - Every write runs on the active GM in the world-wide queue `rc-control` (Part 1's `vehicle-control` op shares it);
+ *     each op writes ONE deck update and bumps `rev`.
+ */
+import { gmOp, gmCall, followId } from "./vehicle-play.mjs";
+import { enqueueAttack } from "./engagement.mjs";
+import { isRigger2 } from "./vehicle-mode.mjs";
+import { rcRuleOf, deckLimits, networkCapable, droneMode } from "./rules/drone-rules.mjs";
+import { baseFlux, fluxRange } from "./rules/vehicle-sensor-rules.mjs";
+
+const RC = "rc-control";
+export const rcQueue = (fn) => enqueueAttack(RC, fn);
+export const vKey = (uuid) => followId(uuid);
+export const netOf = (deck) => deck?.flags?.sr2e?.rcNet ?? null;
+export const isRcDeck = (item) => rcRuleOf(item) === "rc-deck";
+const num = (n) => Number(n) || 0;
+
+/* ── The index (5.0): every deck with a record, by affiliated vehicle and by operator ─────────────────────────────── */
+
+let INDEX = null;
+const invalidate = () => { INDEX = null; };
+function allActors() {
+  const out = [...(game.actors ?? [])];
+  for (const s of game.scenes ?? []) for (const t of s.tokens) if (!t.actorLink && t.actor) out.push(t.actor);
+  return out;
+}
+/** `{ byVehicle: Map<vKey, deck>, byOperator: Map<actorUuid, deck[]>, decks: deck[] }`, rebuilt lazily after any change. */
+export function rcIndex() {
+  if (INDEX) return INDEX;
+  const byVehicle = new Map(), byOperator = new Map(), decks = [];
+  for (const a of allActors()) for (const i of a.items ?? []) {
+    const net = netOf(i);
+    if (!net || !isRcDeck(i)) continue;
+    decks.push(i);
+    for (const k of Object.keys(net.affiliated ?? {})) {
+      // At most one network per vehicle: the earlier `since` wins (an imported duplicate is reported by the GM pass).
+      const prior = byVehicle.get(k);
+      if (!prior || sinceOrder(net.affiliated[k]) < sinceOrder(netOf(prior)?.affiliated?.[k])) byVehicle.set(k, i);
+    }
+    if (net.operator) byOperator.set(net.operator, [...(byOperator.get(net.operator) ?? []), i]);
+  }
+  return (INDEX = { byVehicle, byOperator, decks });
+}
+const sinceOrder = (a) => num(a?.at);
+export function registerRcIndexHooks() {
+  for (const h of ["createItem", "updateItem", "deleteItem", "createActor", "deleteActor", "updateActor", "createToken",
+    "deleteToken", "updateToken", "createScene", "deleteScene", "canvasReady"]) Hooks.on(h, invalidate);
+}
+
+/* ── Derived reads ─────────────────────────────────────────────────────────────────────────────────────────────── */
+
+const deckActor = (deck) => deck?.parent ?? null;
+/** The deck's transmitter Flux (p.30; 5a.1): an RC deck is Flux 2, raised by a signal amplifier bound to it (R2 p.99). */
+export function deckFlux(deck) {
+  const owner = deckActor(deck);
+  const amp = (owner?.items ?? []).filter(i => rcRuleOf(i) === "signal-amplifier" && (i.flags?.sr2e?.deckId ?? soleDeckId(owner)) === deck.id)
+    .reduce((m, i) => Math.max(m, num(i.system.rating)), 0);
+  return baseFlux("rcDeck", num(deck?.system?.rating)) + amp;
+}
+const soleDeckId = (actor) => { const d = (actor?.items ?? []).filter(isRcDeck); return d.length === 1 ? d[0].id : null; };
+
+/** Reachability (5a.1): the vehicle within the deck's range from its holder; an unknown distance counts as reachable. */
+export async function reachable(deck, vehicle) {
+  const holder = deckActor(deck);
+  if (!holder || !vehicle || holder === vehicle) return true;
+  const { distanceBetween } = await import("./vehicle-sensors.mjs");
+  const d = distanceBetween(holder, vehicle);
+  if (d == null) return true;
+  const r = fluxRange(deckFlux(deck));
+  const range = typeof r === "object" && r ? r.low : r;
+  return range == null ? false : d <= range;
+}
+/** Synchronous variant for hot paths (controllerOf): the last value the GM's range sweep recorded, default reachable. */
+const reachKnown = (deck, vehicle) => netOf(deck)?.unreachable?.[vKey(vehicle.uuid)] !== true;
+
+/** The network a vehicle is affiliated with (any connection state), or null. */
+export const networkOf = (vehicle) => (vehicle?.uuid ? rcIndex().byVehicle.get(vKey(vehicle.uuid)) ?? null : null);
+
+/** The live controller through a network (5.0): the operator of the CONNECTED network, the vehicle reachable; else null. */
+export function networkControllerOf(vehicle) {
+  if (!isRigger2()) return null;
+  const deck = networkOf(vehicle);
+  const net = netOf(deck);
+  if (!net || net.connection?.state !== "connected" || !net.operator || !reachKnown(deck, vehicle)) return null;
+  return fromUuidSync(net.operator) ?? null;
+}
+/** Is the vehicle affiliated with any network (Part 1 crew control is then refused, and vice versa)? */
+export const isAffiliated = (vehicle) => isRigger2() && !!networkOf(vehicle);
+
+/** The operator's primary drone key across every network they run (one primary per rigger, 5a.2), or null. */
+export function primaryOf(operatorUuid) {
+  for (const d of rcIndex().byOperator.get(operatorUuid) ?? []) if (netOf(d)?.primary) return netOf(d).primary;
+  return null;
+}
+/** A drone's mode for its live operator (5a.2): primary / secondary / captain, or null when not network-controlled. */
+export function droneModeOf(vehicle) {
+  const op = networkControllerOf(vehicle);
+  return op ? droneMode({ droneKey: vKey(vehicle.uuid), primaryKey: primaryOf(op.uuid) }) : null;
+}
+/** Rigged into a networked vehicle (5a.7 dispatch): it is the operator's primary AND the operator is still eligible. */
+export function riggedIntoNetworked(character, vehicle) {
+  const op = networkControllerOf(vehicle);
+  return !!op && op === character && primaryOf(op.uuid) === vKey(vehicle.uuid) && rigEligible(op);
+}
+/** Jacked in with an active VCR (R2 p.16): what jumping and rigging need. */
+export const rigEligible = (actor) => !!actor?.system?.rigging && num(actor.system.vehicleControlRig) > 0;
+
+/* ── The ops (GM, queue `rc-control`) ──────────────────────────────────────────────────────────────────────────── */
+
+const mayRun = (user, deck) => !!(user?.isGM || deck?.isOwner || deckActor(deck)?.testUserPermission?.(user, "OWNER")
+  || (netOf(deck)?.operator && fromUuidSync(netOf(deck).operator)?.testUserPermission?.(user, "OWNER")));
+const freshNet = (deck) => foundry.utils.deepClone(netOf(deck) ?? { rev: 0, operator: null, connection: { state: "disconnected", gen: 0 },
+  subscribers: [], affiliated: {}, primary: null, standingOrders: {} });
+async function save(deck, net) {
+  net.rev = num(net.rev) + 1;
+  await deck.update({ "flags.sr2e.==rcNet": net });
+  invalidate();
+  return net;
+}
+function load(deckUuid, user) {
+  const deck = fromUuidSync(deckUuid);
+  if (!isRigger2()) throw new Error("remote-control networks are Rigger 2 rules");
+  if (!deck || !isRcDeck(deck)) throw new Error("not a remote-control deck");
+  if (!mayRun(user, deck)) throw new Error("not your deck");
+  return deck;
+}
+const combatNow = () => { const c = game.combat; return c?.started ? { combatId: c.id, round: c.round } : null; };
+
+export function registerRcNet() {
+  registerRcIndexHooks();
+
+  // Subscribe / unsubscribe (p.62): ≤ 2 × rating; editing the list is not an action. Unsubscribing disaffiliates.
+  gmOp("rcSubscribe", ({ deckUuid, vehicleUuid, on }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), v = fromUuidSync(vehicleUuid);
+    if (v?.type !== "vehicle") throw new Error("not a vehicle");
+    const net = freshNet(deck), k = vKey(v.uuid);
+    if (on) {
+      if (net.subscribers.includes(v.uuid)) return net;
+      if (net.subscribers.length >= deckLimits(deck.system.rating).subscribers) throw new Error(`a Rating ${num(deck.system.rating)} deck holds ${deckLimits(deck.system.rating).subscribers} subscribers (Rigger 2 p.62)`);
+      net.subscribers.push(v.uuid);
+    } else {
+      if (net.affiliated[k]?.hardwired) throw new Error("a hardwired vehicle can't be removed (Rigger 2 p.64)");
+      net.subscribers = net.subscribers.filter(u => u !== v.uuid);
+      delete net.affiliated[k];
+      if (net.primary === k) net.primary = null;
+    }
+    return save(deck, net);
+  }));
+
+  // Affiliate / disaffiliate (p.64): a Simple Action each; ≤ rating; network-capable; one network per vehicle; never a
+  // vehicle under Part 1 crew control; R5-1 — affiliated this Combat Turn, it sits out the rest of the Turn.
+  gmOp("rcAffiliate", ({ deckUuid, vehicleUuid, on }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), v = fromUuidSync(vehicleUuid);
+    if (v?.type !== "vehicle") throw new Error("not a vehicle");
+    const net = freshNet(deck), k = vKey(v.uuid);
+    if (!on) {
+      if (!net.affiliated[k]) return net;
+      if (net.affiliated[k].hardwired) throw new Error("a hardwired vehicle stays affiliated (Rigger 2 p.64)");
+      delete net.affiliated[k];
+      if (net.primary === k) net.primary = null;
+      return save(deck, net);
+    }
+    if (net.affiliated[k]) return net;
+    if (!net.subscribers.includes(v.uuid)) throw new Error("subscribe the vehicle first (Rigger 2 p.62)");
+    if (Object.keys(net.affiliated).length >= deckLimits(deck.system.rating).affiliated) throw new Error(`a Rating ${num(deck.system.rating)} deck affiliates ${deckLimits(deck.system.rating).affiliated} vehicles at once (Rigger 2 p.64)`);
+    const { riggerAdapted } = await import("./vehicle-play.mjs");
+    if (!networkCapable({ adapted: riggerAdapted(v), pilot: v.system.effective?.pilot ?? v.system.pilot })) throw new Error(`${v.name} isn't network-capable: it needs rigger adaptation and a Pilot Rating (Rigger 2 p.65)`);
+    const other = networkOf(v);
+    if (other && other !== deck) throw new Error(`${v.name} is already affiliated with another network`);
+    if (game.actors.some(a => a.type === "character" && (a.system.controlledVehicles ?? []).includes(v.uuid))) throw new Error(`${v.name} is under a crew's control (Rigger 2 p.64)`);
+    if (!(await reachable(deck, v))) throw new Error(`${v.name} is out of the deck's range (Rigger 2 p.64)`);
+    net.affiliated[k] = { since: combatNow(), at: Date.now(), hardwired: false, uuid: v.uuid };
+    return save(deck, net);
+  }));
+
+  // Connect / disconnect (5.0): the only operator transitions. A disconnect keeps subscribers and affiliations and
+  // clears the primary (the drones act on their last order or hold).
+  gmOp("rcConnect", ({ deckUuid, operatorUuid }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), op = fromUuidSync(operatorUuid);
+    if (!op || !["character", "npc"].includes(op.type)) throw new Error("the operator must be a character or an NPC");
+    if (!user.isGM && !op.testUserPermission(user, "OWNER")) throw new Error("not your character");
+    const holder = deckActor(deck);
+    if (holder?.type !== "vehicle" && holder !== op) throw new Error("only its owner runs a carried or implanted deck");
+    const net = freshNet(deck);
+    net.operator = op.uuid; net.connection = { state: "connected", gen: num(net.connection?.gen) + 1 };
+    return save(deck, net);
+  }));
+  gmOp("rcDisconnect", ({ deckUuid }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), net = freshNet(deck);
+    if (net.connection?.state !== "connected") return net;
+    net.connection = { state: "disconnected", gen: num(net.connection.gen) + 1 }; net.primary = null;
+    return save(deck, net);
+  }));
+
+  // Jump into a drone / return to the captain's chair (p.65): Simple Actions; one primary per rigger across all
+  // networks; jumping needs the operator jacked in with a VCR.
+  gmOp("rcJump", ({ deckUuid, vehicleUuid }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), v = fromUuidSync(vehicleUuid);
+    if (v?.type !== "vehicle") throw new Error("not a vehicle");
+    const net = freshNet(deck), k = vKey(v.uuid);
+    if (net.connection?.state !== "connected" || !net.operator) throw new Error("connect the deck first");
+    if (!net.affiliated[k]) throw new Error("affiliate the drone first");
+    const op = fromUuidSync(net.operator);
+    if (!rigEligible(op)) throw new Error(`${op?.name} must be jacked in with a vehicle control rig to jump in (Rigger 2 p.65)`);
+    const elsewhere = (rcIndex().byOperator.get(op.uuid) ?? []).find(d => d !== deck && netOf(d)?.primary);
+    if (elsewhere) throw new Error(`${op.name} is already jumped into a drone on another network — return first (Rigger 2 p.65)`);
+    net.primary = k;
+    return save(deck, net);
+  }));
+  gmOp("rcReturn", ({ deckUuid }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), net = freshNet(deck);
+    if (!net.primary) return net;
+    net.primary = null;
+    return save(deck, net);
+  }));
+}
+
+/** Client helpers. */
+export const rc = (op, args) => gmCall(op, args);

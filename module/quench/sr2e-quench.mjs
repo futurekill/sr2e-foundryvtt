@@ -19160,6 +19160,42 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Remote-control networks (Part 5a.1–5a.2, R2 p.62–65)", function () {
+        it("subscribe, affiliate, connect: the operator controls; crew control excluded; jump → primary/secondary; limits; disconnect", async function () {
+          this.timeout(30000);
+          const RCN = await import("../rc-net.mjs"), VP = await import("../vehicle-play.mjs");
+          const pc = await Actor.create({ name: "Quench Rigger X", type: "character", system: { rigging: true, vehicleControlRig: 2 } }); made.push(pc);
+          const [deck] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench RC Deck", type: "gear", system: { rating: 1 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          const d1 = await mk("Quench Drone A", { vehicleType: "drone", pilot: 2 }), d2 = await mk("Quench Drone B", { vehicleType: "drone", pilot: 2 });
+          await pc.update({ "system.linkedVehicles": [d1.uuid, d2.uuid] });
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d1.uuid, on: true });
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true });
+          let err = null;
+          try { await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: (await mk("Quench Drone C", { vehicleType: "drone", pilot: 1 })).uuid, on: true }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /2 subscribers/, "rating 1: 2 subscribers");
+          await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d1.uuid, on: true });
+          err = null; try { await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /affiliates 1/, "rating 1: one affiliated");
+          assert.equal(VP.controllerOf(d1), null, "not connected: nobody controls it");
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
+          assert.equal(VP.controllerOf(d1), pc, "the operator controls the affiliated drone");
+          assert.equal(RCN.droneModeOf(d1), "captain");
+          err = null; try { await call("control", { characterUuid: pc.uuid, vehicleUuid: d1.uuid, on: true }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /affiliated/, "Part 1 crew control refused for an affiliated vehicle");
+          await call("rcJump", { deckUuid: deck.uuid, vehicleUuid: d1.uuid });
+          assert.equal(RCN.droneModeOf(d1), "primary");
+          assert.ok(VP.riggedInto(pc, d1), "rigged into its primary");
+          await deck.update({ "system.rating": 2 });
+          await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d2.uuid, on: true });
+          assert.equal(RCN.droneModeOf(d2), "secondary", "another drone while jumped");
+          assert.notOk(VP.riggedInto(pc, d2), "a secondary isn't rigged");
+          await call("rcDisconnect", { deckUuid: deck.uuid });
+          assert.equal(VP.controllerOf(d1), null, "disconnected: it holds");
+          assert.equal(RCN.netOf(deck).primary, null, "the primary cleared");
+          assert.ok(RCN.netOf(deck).affiliated[RCN.vKey(d1.uuid)], "affiliations kept");
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

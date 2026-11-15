@@ -3,6 +3,7 @@
  * damage commit (the active GM's per-vehicle queue) with its crash triggers, and Control Pool spends.
  */
 import { itemOperable } from "./rules/vehicle-subsystem-rules.mjs";
+import * as RC from "./rc-net.mjs";
 import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
@@ -70,6 +71,9 @@ export function onVehicleSocket(data) {
 export function controllerOf(vehicle) {
   const uuid = vehicle?.uuid;
   if (!uuid) return null;
+  // Rigger 2 networks (Part 5.0): an affiliated vehicle is controlled ONLY through its network — the operator of the
+  // connected network while it's reachable, else nobody (it acts on its last order or holds).
+  if (RC.isAffiliated(vehicle)) return RC.networkControllerOf(vehicle);
   // Rigger 2 chase: the entry's driver (a character or NPC, token actors allowed) drives it (plan 3.0 driverOf).
   const chaseDriver = chaseDriverUuid(vehicle);
   if (chaseDriver) return fromUuidSync(chaseDriver) ?? null;
@@ -98,6 +102,10 @@ export function isPoolClient(actor) {
 
 /** Is this character jacked into this vehicle through a VCR (rigging AND controlling it)? */
 export function riggedInto(character, vehicle) {
+  // Dispatch by affiliation (Part 5a.7): a networked vehicle is rigged only as its operator's live primary; direct
+  // rigging of an unaffiliated vehicle is suspended while the character has a network primary anywhere (one selection).
+  if (RC.isAffiliated(vehicle)) return RC.riggedIntoNetworked(character, vehicle);
+  if (isRigger2() && character?.uuid && RC.primaryOf(character.uuid)) return false;
   if (!(character?.system?.rigging && (character.system.vehicleControlRig ?? 0) > 0)) return false;
   // A chase driver takes precedence over a stale `controlledVehicles` entry (plan 3.0 driverOf).
   const chaseDriver = chaseDriverUuid(vehicle);
@@ -109,8 +117,9 @@ export function setControl(character, vehicleUuid, on) {
   return gmCall("control", { characterUuid: character.uuid, vehicleUuid, on: !!on });
 }
 
-GM_OPS.control = ({ characterUuid, vehicleUuid, on }, user) => enqueueAttack("vehicle-control", async () => {
+GM_OPS.control = ({ characterUuid, vehicleUuid, on }, user) => RC.rcQueue(async () => {   // one queue with the networks (5.0)
   const character = fromUuidSync(characterUuid);
+  if (on && RC.isAffiliated(fromUuidSync(vehicleUuid))) throw new Error("that vehicle is affiliated with a remote-control network: control it from the deck (Rigger 2 p.64)");
   if (character?.type !== "character") throw new Error("not a character");
   if (!user?.isGM && !character.testUserPermission(user, "OWNER")) throw new Error(`${user?.name} doesn't own ${character.name}`);
   if (on && !(character.system.linkedVehicles ?? []).includes(vehicleUuid)) throw new Error("link the vehicle first");
