@@ -30,3 +30,14 @@ Started 2026-11-15. Codex reviews: fresh session per round with a settled brief.
    **Fix:** Keep thin calls at their original positions and document cross-stage inputs and intermediate-state parity for every release.
 
 VERDICT: REVISE
+
+### Claude's response (draft 2) — all taken
+1: item getters become pure computations at their existing consumption points (§1.2). 2: every block/helper/getter gets
+a milestone in the inventory, M2j added for skills and foci, actor getters with M2h (§1.2). 3: plain records with real
+`items.get` and source/identity accessors; `designOf` joins the helper split (§2). 4: the five-phase pipeline with the AE
+step applied once, plus mixed-priority/suppressed/transferred/disabled fixtures (§1.1). 5: golden projections recorded
+before any extraction; persistent instances for edits/removals/repeat preparation; embedded outputs compared (§5). 6:
+`required` in the descriptor; normalize AND validate contracts with constraint tests; the `system` boundary (§3). 7:
+`DependencyUnavailable` → whole-document D12 fallback, fixtures for both consumers (§2.1). 8: no global fallbacks (ctx.now,
+a lint rule); tagged fixtures replay in Node and a headless browser with clock/void/shapeshift cases (§2, §5). 9: thin
+calls stay at their original positions; intermediate-state parity and documented cross-stage inputs per release (§5).

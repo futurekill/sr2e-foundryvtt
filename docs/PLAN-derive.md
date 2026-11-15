@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 1 (2026-11-15). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 2 (2026-11-15), after Codex round 1 (9 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -26,6 +26,27 @@ rulesets, R2 options, cyber options), `this.parent` (items, `_source`, flags, ef
 registered by content modules at `init`), and other documents (bound elementals for the sustain penalty). First pass done: `docs/DERIVE-INVENTORY.md` (2026-11-15, CharacterData); the item models are the next pass. It records every method, its inputs, its outputs, its
 both-directions assignments (CLAUDE.md "Derived state must be cleared").
 
+### 1.1 The preparation pipeline, made explicit (round 1 #4)
+One order, the same in Foundry and in the pure path: (1) **source reset** — the working copy is rebuilt from `source`
+(Foundry does this for the actor's system; embedded items are NOT re-initialized, so their derived fields are reassigned
+both ways, CLAUDE.md); (2) **base preparation** (`prepareBaseData`: racial modifiers); (3) **embedded preparation**
+(each item's `prepareDerivedData`, with its item context); (4) **Active Effects**: the eligible effects (actor +
+item-transferred, not disabled, not suppressed), ordered as Foundry orders them (priority, then mode), applied ONCE —
+only the supported keys; (5) **actor derivation** (`prepareDerivedData`). In Foundry the adapter runs inside the data
+model's own hooks at those points, so nothing is applied twice; the standalone path runs all five. Fixtures: mixed
+priorities, ADD vs OVERRIDE on one key, a suppressed effect, a transferred effect, a disabled event marker (never
+applied).
+
+### 1.2 Every block has a milestone (round 1 #2)
+`docs/DERIVE-INVENTORY.md` gains a column assigning EVERY preparation block, helper, item getter and actor getter to a
+milestone, and each keeps its execution position (a thin call where the code is today, round 1 #9). Beyond §4's list:
+`_applySkillsofts`, `_applyAdeptSkills`, `_applyWeaponFoci`, `_applyUnarmedPower` → **M2j** (skills and foci, after
+M2f's pools, as today); the actor getters (`woundPenalty`, `sustainPenalty`, `mpcpOverloadPenalty`, `bodyOverstressTN`,
+`astralReaction`, `isMagical`/`isDecker`/`isRigger`) → **M2h** with the monitors; the item getters `actualEssenceCost`,
+`actualBodyCost`, adept `totalCost` (round 1 #1) → pure computations evaluated at their EXISTING consumption points,
+after the actor has assigned the markers they read (`limbEssence`, `limbDiscount`) — never snapshotted at item
+preparation.
+
 ## 2. The context and its Foundry adapter (M2a)
 - `module/derive/context.mjs`: `DeriveContext = { source, system, items, effects, events, flags, uuid, now, settings,
   registries, lookup }` exactly as D9 defines it (`source` immutable actor + embedded sources; `system` the working copy
@@ -37,21 +58,38 @@ both-directions assignments (CLAUDE.md "Derived state must be cleared").
 - **Settings and rulesets come from the context, never globals**: `isVR2()`, `isRigger2()`, `r2Option()`,
   `game.settings.get(...)` calls inside code that moves into `module/derive/` are replaced by `ctx.settings` reads;
   the global helpers stay for live-play code.
+- **Plain records, real accessors** (round 1 #3): the item context's `owner` is a plain record with `items.get(id)`
+  (a Map-backed collection, not an array) and each item's `_source`, `flags`, `_stats.compendiumSource` and `uuid`, so
+  cyberware's `parent.parent.items.get(id)._source.system` and QualityData's compendium source move verbatim; the
+  transitive helpers move with them (`designOf` for ProgramData joins the helper-split list).
 - **Localization stays out**: derivation labels attribute sources through `game.i18n` today (three methods); the pure
   layer returns label keys + params and the adapters localize (docs/DERIVE-INVENTORY.md "Hidden reads").
 - **Helpers split first**: flag-only helpers that live in Foundry-coupled modules (`substancesOf`, `drugsInForce`,
   `workingImplant`, `eventsOf`, `programmingState`, `effectChanges`, `elementalHolderOf` → `lookup`, `variableLTGOn`)
   move to pure files with re-exports, in the release that first needs them (inventory "Helpers to split").
+- **No hidden globals, ever** (round 1 #8): `globalThis.game?.time?.worldTime ?? 0` in `_wareCyberInteractions` (and any
+  `?? default` fallback on a global) becomes `ctx.now`; a lint rule forbids `game`, `CONFIG`, `globalThis.game`,
+  `fromUuidSync`, `canvas` under `module/derive/**`.
 - **Declared reads**: each derive function exports `reads = [...]` (context paths). In tests the context is wrapped
   in a recording Proxy; a parity test fails when a function reads a path it didn't declare (D9). Production uses the
   plain object (no Proxy cost).
 
+## 2.1 Unavailable dependencies (round 1 #7)
+`lookup(ref)` returning `unavailable` THROWS `DependencyUnavailable` out of the derive function that asked; the
+adapter catches it and the whole document falls back to D12 (view-only from its snapshot) — never a plausible wrong
+number. `absent` is a normal result (genuinely empty or deleted). Consumers named: `_applyCybermancy` (a spell origin),
+`sustainPenalty` → `elementalHolderOf` (a bound elemental). Fixtures for both: resolved, absent, unavailable.
+
 ## 3. Source normalisation (M2a; round 7 #1 of the chargen plan)
 The creator starts from minimal or raw sources, Foundry from instantiated ones. A build step
 (`tools/derive/schema-export.mjs`, run in Foundry by a Quench helper and committed) exports each TypeDataModel's field
-tree as a plain descriptor (`schema/data-models.json`: type, initial, nullable, blank, integer, min/max, choices,
-nested fields, arrays). `module/derive/normalize.mjs` applies it like Foundry's `cleanData` (defaults, coercion,
-clamping — Foundry 13 CLAMPS out-of-range numbers, CLAUDE.md "NPC Essence"; the `blank` rule; nested defaults). A
+tree as a plain descriptor (`schema/data-models.json`: type, required, initial, nullable, blank, integer, min/max,
+choices, nested fields, arrays) — round 1 #6. `module/derive/normalize.mjs` applies it like Foundry's `cleanData` (defaults, coercion,
+clamping — Foundry 13 CLAMPS out-of-range numbers, CLAUDE.md "NPC Essence"; the `blank` rule; nested defaults). Two versioned contracts (round 1 #6): `normalizeSystem` (defaults, coercion,
+clamping) and `validateSystem` (required, null, blank, choices — the errors Foundry raises); the boundary is the
+`system` object (document-level fields — name, img, ownership, `_stats` — are the adapters' job). Tests: missing,
+null, blank, invalid-choice, string-number coercion and out-of-range clamping cases for every constraint kind, each
+compared with Foundry's own result. A
 Quench test compares `normalizeSource(type, raw)` with `new Actor/Item(raw).toObject()` for a minimal new actor of
 every type and EVERY raw `packs-src` item of the system and the content modules; a CI check fails when
 `schema/data-models.json` is stale against the live models.
@@ -72,6 +110,12 @@ Each step: move the code verbatim behind the context, the data model calls it, p
 behaviour change, CHANGELOG "Changed (internal)" only.
 
 ## 5. The parity harness
+**Golden projections** (round 1 #5): before M2a moves anything, the harness records the CURRENT code's prepared
+projections (actor AND embedded items) for every fixture into `test/fixtures/derive/golden/` (with the system version);
+each extraction release must reproduce them exactly — so a regression shared by the thin caller and the pure path still
+fails. Edits, mechanism removals and repeated preparation run on PERSISTENT working instances (the same objects
+prepared again), not fresh copies, so stale item fields show up.
+
 Quench batch `sr2e.derive-parity` (the Foundry path needs Foundry): for each fixture, prepare the actor in Foundry,
 then run the pure path on `contextFromActor` of a FRESH, unprepared copy of the same sources, and compare the D12
 projection (`module/portable` shares it) field by field. Fixtures (the chargen plan's M2 gate): every pregen in
@@ -80,8 +124,13 @@ removals (a ware item, a skillsoft, a VCR, a deck, a bonded focus — the deriva
 Active Effects on/off (supported keys and an unsupported one, actor and item-transferred); module-enabled characters
 (Cybertechnology, Shadowtech, Companion qualities); an elemental sustaining its magician's spell via `lookup`, and the
 same with the elemental unavailable. Vitest adds the Node side: every `module/derive/**` file imports with NO Foundry
-globals defined, and the declared-reads check over recorded contexts (fixtures exported by the Quench batch as JSON
-into `test/fixtures/derive/`, refreshed by a script).
+globals defined, and the declared-reads check over recorded contexts; the fixtures (tagged with the D12 codec so Sets,
+Maps and references survive JSON, round 1 #8) REPLAY through a plain-data `lookup` resolver in Node and in a headless
+browser (the puppeteer-core setup the wiki media uses) and must match the golden projections — including nonzero
+clocks, a substance clock different from world time, voided permanent-damage records and a shapeshifter in animal
+form. **Intermediate-state parity** (round 1 #9): each release also compares the working copy right after its own
+stage, and documents the cross-stage inputs it reads (e.g. M2b's cybermancy reads the signed Essence assigned before
+it, still in its original position).
 
 ## 6. Content modules (D1 "registration as pure adapters")
 Each content module that registers tables at `init` (spirit types, totem groups, vehicle list rows, Workshop tables,
