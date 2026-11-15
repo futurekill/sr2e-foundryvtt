@@ -69,3 +69,23 @@ export function dumpDuration(successes) {
   const s = Math.max(0, Math.floor(Number(successes) || 0));
   return s === 0 ? 10 : Math.ceil(Math.ceil(30 / s) / 3);
 }
+
+/* ── Equipment identity (5a.5 "equipment recognition"): a rule key, else the compendium source; never names ───── */
+const R2 = (pack, id) => `Compendium.sr2e-rigger-2.${pack}.Item.${id}`;
+/** Owned copies made before the R2 module carried rule keys: compendium source UUID → rule key. */
+export const RC_ITEM_SOURCES = Object.freeze({
+  [R2("r2-cyberware", "ae8708480e4d5c81")]: "rc-deck", [R2("r2-sensors", "8b1caacf6d618abf")]: "rc-deck",
+  [R2("r2-cyberware", "a900a354a8ad9f08")]: "ivis-master", [R2("r2-sensors", "6350e2356aeaffd9")]: "ivis-master",
+  [R2("r2-cyberware", "5dae0af1c39908b3")]: "protocol-emulation", [R2("r2-sensors", "50be507a307a868d")]: "protocol-emulation",
+  [R2("r2-cyberware", "8c3d540fb5063dc7")]: "decryption", [R2("r2-sensors", "8cfbe8773299073c")]: "decryption",
+  [R2("r2-cyberware", "dcf4e3de552be1dc")]: "rc-encryption", [R2("r2-sensors", "4c60b0e537ad3b3d")]: "rc-encryption",
+  [R2("r2-cyberware", "4b5b045f8e6a960d")]: "rc-eccm", [R2("r2-sensors", "374ee094513653e6")]: "rc-eccm",
+  [R2("r2-sensors", "1248dd786a64f11d")]: "storage-memory", [R2("r2-sensors", "f1ea71293c020c76")]: "signal-amplifier",
+  [R2("r2-sensors", "b66660e8b69306df")]: "hitcher-jacks"
+});
+/** The remote-control rule key of an item: its `flags.sr2e.rule`, else its compendium source (RC_ITEM_SOURCES), else "". */
+export function rcRuleOf(item) {
+  const r = item?.flags?.sr2e?.rule;
+  if (r) return r;
+  return RC_ITEM_SOURCES[item?._stats?.compendiumSource ?? item?.flags?.core?.sourceId ?? ""] ?? "";
+}

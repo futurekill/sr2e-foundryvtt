@@ -41,3 +41,12 @@ describe("Rigger 2 networks and drones (R2 p.62–67; plan 5a)", () => {
     expect([0, 1, 2, 3, 4, 10].map(dumpDuration)).toEqual([10, 10, 5, 4, 3, 1]);
   });
 });
+
+import { rcRuleOf } from "../module/rules/drone-rules.mjs";
+describe("remote-control equipment identity", () => {
+  it("rule key first, then the compendium source, never the name", () => {
+    expect(rcRuleOf({ flags: { sr2e: { rule: "rc-deck" } } })).toBe("rc-deck");
+    expect(rcRuleOf({ _stats: { compendiumSource: "Compendium.sr2e-rigger-2.r2-sensors.Item.8b1caacf6d618abf" } })).toBe("rc-deck");
+    expect(rcRuleOf({ name: "Remote Control Deck" })).toBe("");
+  });
+});
