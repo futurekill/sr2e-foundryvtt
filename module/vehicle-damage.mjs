@@ -18,6 +18,7 @@ import { findEntry, findAboard } from "./chase-state.mjs";
 import { isRigger2, vehicleQuality } from "./vehicle-mode.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { impactDamage } from "./rules/vehicle-play-rules.mjs";
+import { itemOperable } from "./rules/vehicle-subsystem-rules.mjs";
 import { STAGES, r2Impact, stageDown, occupantImpact, crashTestTN, terrainControlCap, wallCollision, pedestrianImpact } from "./rules/vehicle-combat-rules.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -25,7 +26,8 @@ const BOXES = { L: 1, M: 3, S: 6, D: 10 };
 const vq = (uuid, fn) => enqueueAttack(`vdmg:${uuid}`, fn);
 const warn = (m) => ui.notifications.warn(`SR2E | ${m}`);
 const cardWith = (key, value) => game.messages.find(m => foundry.utils.getProperty(m, `flags.sr2e.${key}`) === value) ?? null;
-const named = (v, re) => !!v?.items?.some(i => i.type === "vehicle_mod" && re.test(i.name) && ["", "done", "factory"].includes(i.system.custom?.state ?? ""));
+const named = (v, re) => !!v?.items?.some(i => i.type === "vehicle_mod" && re.test(i.name) && ["", "done", "factory"].includes(i.system.custom?.state ?? "")
+  && itemOperable(i));   // a Serious/Deadly APPS or crash cage protects nobody (subsystem damage; Codex 6a r2 #5)
 /** APPS and a crash cage (R2 p.50): matched by name — the Rigger 2 catalog gives them no modKey. */
 export const hasApps = (v) => named(v, /\bAPPS\b|Advanced Passenger Protection/i);
 export const hasCrashCage = (v) => named(v, /crash cage/i);
@@ -150,7 +152,7 @@ async function crashOp({ vehicleUuid, cid, step, op, attemptId = null, messageId
   if (vehicle?.type !== "vehicle") throw new Error("not a vehicle");
   if (!mayDriveFor(user, vehicle)) throw new Error(`${user?.name} may not roll for ${vehicle.name}`);
   const message = messageId ? game.messages.get(messageId) : null;
-  let read = null;
+  let read = null, landNow = false;
   if (op === "record") {
     if (message?.getFlag("sr2e", "crashStep")?.attemptId !== attemptId) throw new Error("that card isn't this roll");
     await closeTest(message);
@@ -201,6 +203,11 @@ async function crashOp({ vehicleUuid, cid, step, op, attemptId = null, messageId
         if (c.cause === "fuel" && out?.state === "coasting") {
           if (read > 0) upd["flags.sr2e.fuelOut.landing"] = c.fid;
           else upd["flags.sr2e.fuelOut.state"] = "crashed";
+        } else if (c.cause === "fuel" && out?.state === "stopped" && read > 0 && c.fid === `fuel-${out.id}` && !out.landing) {
+          // Resolved after the deceleration already ended (Codex 6a r2 #1): the landing is due now, through the same
+          // recoverable pending step the fuel stage delivers.
+          Object.assign(upd, { "flags.sr2e.fuelOut.landing": c.fid, "flags.sr2e.fuelOut.pending": { speed: 0, crash: false, travelled: out.travelled ?? 0, land: true } });
+          landNow = true;
         }
       } else {
         const r2 = c.ruleset === "rigger2";
@@ -213,11 +220,12 @@ async function crashOp({ vehicleUuid, cid, step, op, attemptId = null, messageId
       }
       const next = upd[`${base}.state`];   // read before update(): Foundry mutates the change object
       await vehicle.update(upd);
-      return { state: next };
+      return { state: next, landNow };
     }
     throw new Error("unknown crash op");
   });
   if (out.state === "resolving") await applyCrash(vehicle, cid);
+  if (out.landNow) await (await import("./vehicle-fuel.mjs")).deliverCoastStep(vehicle, game.combat ?? null);
   return out;
 }
 

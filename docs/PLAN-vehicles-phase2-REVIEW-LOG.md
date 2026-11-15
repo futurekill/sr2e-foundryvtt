@@ -1162,3 +1162,35 @@ one on ready). 15: Karma points are indivisible — standing bills keep ceil(cov
 16: credit is refunded and ledgered per month (`creditByMonth`). 17: a month with a restoration under way waits; the
 reversal lands in the same update as the supersession through `stressPatch`; a superseded month can't be restored.
 Quench `sr2e.r2-advanced` 13/13 (+3), vehicle/combat batches 128/128; Vitest 1690 (+2).
+
+
+## Part 6a code, round 2 — Codex (fix-only, fresh session): REVISE, 6 findings
+1. **Late fuel Crash Tests lose the emergency landing** — vehicle-damage.mjs:201. If deceleration finishes before the player resolves the test—including when the test becomes due on the final coast Turn—the episode is already `stopped`. Success records no landing, permanently skipping its 6L resistance and Stress.
+   **Fix:** Record successful landing obligations for the matching stopped episode and deliver them immediately, using the existing landing receipt.
+
+2. **Refuelling can revive a Deadly engine** — vehicle-fuel.mjs:30. When an already fuel-exhausted vehicle suffers Deadly engine damage, `engineOut` returns without recording the engine cause. Refuelling then deletes `fuelOut`, permitting powered actions despite the live Deadly engine record.
+   **Fix:** Preserve engine failure on an existing episode and prevent refuelling from clearing that restriction.
+
+3. **Crash damage suppresses engine failure itself** — vehicle-subsystems.mjs:134. Filtering Deadly engine hits out of `hits` prevents both the additional Crash Test and `engineOut`. A surviving vehicle whose crash destroys its engine can subsequently accelerate.
+   **Fix:** Suppress only crash escalation for crash-origin damage; still apply the engine’s loss of power.
+
+4. **Destroyed sensors reappear as working built-in sensors** — vehicle-sensors.mjs:97. With `sensorInstalled: true`, destroying the installed Sensors item makes `workingSensorItem` return null; the fallback then creates an operational `builtin-sensor`. Sensor operations remain available.
+   **Fix:** Distinguish an absent Sensors item from an installed but disabled one before creating the built-in fallback.
+
+5. **Destroyed APPS still protects occupants** — vehicle-damage.mjs:28. A Serious/Deadly APPS subsystem record does not affect `named`/`hasApps`; subsequent crash resistance still receives APPS protection. The operability fix therefore misses an actual equipment consumer.
+   **Fix:** Require `itemOperable(i)` in the equipment lookup used by `hasApps` and `hasCrashCage`.
+
+6. **Chase movement can also be billed as idle time** — vehicle-fuel.mjs:204. An idle-mode drone that moves in a chase receives a moving interval, but `sameMode` is false, leaving `fuelCursor.at` unchanged. Switching its mode afterward invokes `settleIdle`, charging idle fuel for the same seconds already billed by distance.
+   **Fix:** Mark chase movement intervals as covered for idle accounting as well, while retaining the separate movement cursor for delayed movement submissions.
+
+VERDICT: REVISE
+
+### Claude's response — all taken
+1: a fuel Crash Test passed after the episode already stopped (its fid matching the episode) records the landing with a
+pending landing step in the same update and delivers it at once through `deliverCoastStep` (the same receipted
+follow-up `fuel-<id>:landing`). 2: `engineOut` on a vehicle already out of fuel records `fuelOut.engineDead`; refuelling
+never clears an episode with a dead engine; `replaceEngine` clears the marker (or the engine episode). 3: crash-origin
+damage suppresses only the crash escalation — the dead engine's loss of power still applies. 4: an installed Sensors
+item put out of action is never replaced by working stock sensors. 5: `hasApps` / `hasCrashCage` require an operable
+item. 6: every billed interval advances the idle cursor (`at`); `movedTo` still tracks movement coverage separately.
+Quench `sr2e.r2-advanced` 16/16 (+1).
