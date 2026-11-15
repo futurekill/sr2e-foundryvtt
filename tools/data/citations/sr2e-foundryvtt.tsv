@@ -1,0 +1,97 @@
+name	_id	book	page	checked
+Ex-Explosive Rounds	62247745b5876234	ff	51	render (EX Explosive; the item note says SSC, but it is Fields of Fire)
+Tracers	58425afd6d7cacf3	ff	51	render (Tracer; NOTE the item says "treat as regular rounds" but p.51 gives a TN modifier — content to fix)
+Arms Dealer	af696156c9fc603c	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Corp Contact	0931eaa89f5b644b	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Decker	86a41f27bfef9aa8	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+DocWagon Contact	ab2344e914739348	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Fence	f95225db373cb94a	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Gang Member	8cda90db862c86b1	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Info Broker	6f7a3c95cabdba3b	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Lone Star Contact	f030dfb127bfdc5e	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Shadowrunner	124a612a7ae6f7c7	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Shaman	6b216fdbb8b737f5	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Tech Specialist	5bc3c9888a4ba83d	none		GM-invented contact archetype (its notes: NOT printed in the core book)
+Area Knowledge	cd505476b9e4264b	sr2	73	render: not printed individually — cites the Knowledge Skills rule it implements
+Armed Combat	458c41ec9273b3a5	sr2	70	render
+Bike	21fe66be66e752df	sr2	72	render
+Biotech	255fb17c689a46e1	sr2	71	render
+Car	c967d9078ffe2312	sr2	72	render
+Computer	e22d05a31610fad0	sr2	71	render
+Conjuring	f371744d08bfd1c6	sr2	71	render
+Corporate Politics	1df2311fe9f99b9f	sr2	73	render: not printed individually — cites the Knowledge Skills rule it implements
+Demolitions	edd1dc6f23e0f508	sr2	70	render
+Electronics	4e616c03d3de2f90	sr2	71	render
+Etiquette	e6063066f9af402d	sr2	72	render
+Firearms	2e45bcab9ddd0ceb	sr2	70	render
+Gunnery	8ca169683b2f1098	sr2	70	render
+Leadership	0c841e7932becd1e	sr2	72	render
+Magical Theory	4b6eca67ceff67c4	sr2	73	render (Parazoology: a Biology concentration)
+Negotiation	508cffffdde08080	sr2	72	render
+Parazoology	0ac1eaba103bb924	sr2	73	render (Parazoology: a Biology concentration)
+Projectile Weapons	a19bda51f647d87f	sr2	70	render
+Shadowrunner Lore	2cf8b5d43bb1f95a	sr2	73	render: not printed individually — cites the Knowledge Skills rule it implements
+Sorcery	3d351028fde8292e	sr2	71	render
+Sprawl Life	34e55da8cb1d9f18	sr2	73	render: not printed individually — cites the Knowledge Skills rule it implements
+Stealth	37099fb6f4d12149	sr2	71	render
+Throwing Weapons	6c685bf6e98032c6	sr2	70	render
+Unarmed Combat	ce6debad3781958d	sr2	70	render
+Underworld	4b8066c1f1246155	sr2	73	render: not printed individually — cites the Knowledge Skills rule it implements
+Analyze Device	011f9a4aab7486da	sr2	153	render (printed folio, 95 dpi)
+Analyze Truth	6483fb3466fd98e1	sr2	153	render (printed folio, 95 dpi)
+Armor	5a4b6148ada83051	sr2	158	render (printed folio, 95 dpi)
+Barrier	9aba6f3f30401cd1	sr2	158	render (printed folio, 95 dpi)
+Chaos	aa22169bd504ecee	sr2	155	render (printed folio, 95 dpi)
+Chaotic World	667ce7cf5dc0963e	sr2	155	render (printed folio, 95 dpi)
+Clairaudience	8e4c34246d57fff1	sr2	153	render (printed folio, 95 dpi)
+Clairvoyance	80ff0b4e488b9503	sr2	153	render (printed folio, 95 dpi)
+Combat Sense	00ce1d3d4e71277e	sr2	153	render (printed folio, 95 dpi)
+Confusion	a0ca876b9fa87236	sr2	155	render (printed folio, 95 dpi)
+Control Actions	9780e0ef2d1df0c2	sr2	156	render (printed folio, 95 dpi)
+Control Emotion	c3878da2a21ffcce	sr2	156	render (printed folio, 95 dpi)
+Control Thoughts	997990a1d546d2b4	sr2	157	render (printed folio, 95 dpi)
+Detect Enemies	3915434f4ff64edc	sr2	153	render (printed folio, 95 dpi)
+Detect Individual	9c2a88acb4ea7fb0	sr2	153	render (printed folio, 95 dpi)
+Detect Life	7dcde7bc8725cf58	sr2	153	render (printed folio, 95 dpi)
+Detect Life Form	853e4c2cf70def56	sr2	153	render (printed folio, 95 dpi)
+Detect Object	bd8f7046cfff708b	sr2	153	render (printed folio, 95 dpi)
+Entertainment	2ab84dc3b191f676	sr2	156	render (printed folio, 95 dpi)
+Fireball	8c3df61862ab4038	sr2	151	render (printed folio, 95 dpi)
+Flame Bomb	eafe65e8746af5ee	sr2	158	render (printed folio, 95 dpi)
+Flamethrower	fc327a2be319d6f0	sr2	158	render (printed folio, 95 dpi)
+Hellblast	b59cee75fc467961	sr2	151	render (printed folio, 95 dpi)
+Hibernate	c4874e5c37b58e24	sr2	157	render (printed folio, 95 dpi)
+Ice Sheet	f9c3aa0f3925e6b3	sr2	158	render (printed folio, 95 dpi)
+Ignite	d68b66bae6b5baa0	sr2	158	render (printed folio, 95 dpi)
+Improved Invisibility	99b6b6e2bdb1785d	sr2	156	render (printed folio, 95 dpi)
+Invisibility	502545b83efdc229	sr2	156	render (printed folio, 95 dpi)
+Levitate Item	5a28a2f1ccde418d	sr2	157	render (printed folio, 95 dpi)
+Levitate Person	31a89b01865321b1	sr2	157	render (printed folio, 95 dpi)
+Light	0752942bb850815e	sr2	158	render (printed folio, 95 dpi)
+Magic Fingers	e06ab4441ef4c2e1	sr2	157	render (printed folio, 95 dpi)
+Mana Barrier	4682c868826f897f	sr2	158	render (printed folio, 95 dpi)
+Mana Bolt	dcaecbe4520180b7	sr2	151	render (printed folio, 95 dpi)
+Mana Dart	1241481240942f85	sr2	151	render (printed folio, 95 dpi)
+Mana Missile	e0537cbfa224e082	sr2	151	render (printed folio, 95 dpi)
+Manaball	35196693267b9409	sr2	151	render (printed folio, 95 dpi)
+Mask	7c3406b2d48e0b87	sr2	156	render (printed folio, 95 dpi)
+Mind Probe	dfdd0378ff265826	sr2	153	render (printed folio, 95 dpi)
+Personal Combat Sense	62f7b4e2d0c8901f	sr2	153	render (printed folio, 95 dpi)
+Poltergeist	bd80ab3d02971c69	sr2	157	render (printed folio, 95 dpi)
+Power Bolt	ce6373a1e31169dc	sr2	151	render (printed folio, 95 dpi)
+Power Dart	8dbb493d640865e8	sr2	151	render (printed folio, 95 dpi)
+Power Missile	be1ef5b282d2983b	sr2	151	render (printed folio, 95 dpi)
+Powerball	7de87da04f13c49b	sr2	151	render (printed folio, 95 dpi)
+Ram	5997ac8fe972f5cf	sr2	151	render (printed folio, 95 dpi)
+Shadow	ceda7a6a9be9a9b2	sr2	158	render (printed folio, 95 dpi)
+Sleep	4771d8048d316e8a	sr2	151	render (printed folio, 95 dpi)
+Spark	3355d9cbf49df041	sr2	158	render (printed folio, 95 dpi)
+Stimulation	21f639eafe621235	sr2	156	render (printed folio, 95 dpi)
+Stink	6a9628f4ac7173a1	sr2	156	render (printed folio, 95 dpi)
+Bounty Hunter	3f880f4a597a2479	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed
+Bounty Hunter	c72a895b6ab1ac32	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed
+Corp Security Chief	175331573e4e0d95	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed
+Gang Lieutenant	2b4da687bd28d9c8	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed
+Jilted Fixer	5053ab3c32d86818	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed
+Rival Shadowrunner	09ef11fa622e2100	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed
+Vengeful Ex-Employer	6a63229e3d6bf7ef	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed
