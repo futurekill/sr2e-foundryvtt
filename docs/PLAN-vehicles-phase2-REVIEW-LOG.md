@@ -1076,3 +1076,55 @@ validate on the spotter's working FDDM. 9: failed spotting posts an area-effect 
 mode (the round spent through the ammo queue). 10: the ammo queue admits the controller's player. 11: the GM closes a
 cancelled/settled plan whose reserve is gone. 12: Gunnery for sensor/indirect/missile modes.
 Quench `sr2e.sensors` 23/23 (+ a relock test); vehicle batches 93/93.
+
+## Part 5 plan, round 17 — Codex (draft 17, fresh session): REVISE, 1 finding
+1. Round 16's dispatch permits simultaneous direct rigging of unaffiliated vehicle A and a network primary B.
+
+### Claude's response (draft 18)
+Taken: under R2 direct rigging of an unaffiliated vehicle is suspended while the character has a network primary
+anywhere; jump/return invalidate their direct-vehicle chase reservations through the operator stamp.
+
+## Part 5 plan, round 18 — Codex (draft 18, fresh session): APPROVED
+"No material unresolved findings. Draft 18 covers the supplied rules and settled rulings, specifies recoverable control
+and EW transitions, and identifies the caller changes needed to preserve existing vehicle behavior." Part 5 plan is
+APPROVED after 18 rounds.
+
+## Part 4b code, round 2 — Codex (fix-only, fresh session): REVISE, 6 findings
+1. A blast missile's launch reads resolved as soon as the per-target resistance rows are posted (round released early).
+2. A non-blast miss creates an unresolvable `rangedDamage` card (zero successes, no button) — the round hangs.
+3. A retry after the test posted but before its damage card silently marks the launch struck with no damage.
+4. Two same-user clients can both roll the same armed attempt (the in-flight guard is per client).
+5. `missileLaunch` doesn't bind `sourceVehicleUuid` to the authorized platform (borrowed lock / guidance bonus).
+6. Gunnery modes still fall back to the weapon skill when the character lacks Gunnery.
+
+### Claude's response — all taken
+1: a struck blast/spread is `resolved` only when its launcher has an outcome card and every resist row on it is done
+(`resolvedRows` / a `resolvesRow` outcome); the round resumes on row outcomes too. 2: a ranged card whose test has no
+successes is finalized by the closing stage (a "missed" card that `resolves` it and `closesTests` the test, so Karma
+can't revive it later). 3: `missileDone` marks `struck` only when the damage card exists; otherwise the attempt stays
+`rolling` and its runner's retry finishes the SAME attack from the posted test (`_rollWeaponAttack` `resumeTest`: no
+spend, roll or recoil — only the dependent card). 4: `missileArm` takes a per-client runner id: the attempt's runner
+retries freely, another client (same user too) is refused until the claim is 60 s stale; the Combat Pool is chosen
+before arming so the claimed window is just the roll. 5: a player's `sourceVehicleUuid` must be the holder or a vehicle
+the gunner controls; the lock snapshot is taken GM-side. 6: sensor/indirect/missile modes resolve Gunnery only (or
+its Skill Web defaulting, p.69 — e.g. Firearms at +4 TN), never the weapon's skill or the name fallback.
+Quench `sr2e.sensors` 28/28 (+5 tests), vehicle/combat batches 140/140; Vitest 1688.
+
+## Part 6a code, round 1 — Codex (fresh session): REVISE, 17 findings
+1. Subsystem damage doesn't reach equipment operability (transmitters, hasWorkingMod, Autonav dice).
+2. A Deadly engine keeps powered movement after a passed Crash Test.
+3. replaceEngine doesn't bump subsysGen.engine.
+4. A passed Crash Test blocks a later automatic crash for the same event.
+5. Subsystem consequences of crash damage open a crash on a crash.
+6. An interrupted subsystemRoll loses its consequences.
+7. Crash/impact/ram/spell damage commits carry no attack context.
+8. A crashed or landed aircraft keeps coasting; landing applied before deceleration ends.
+9. fuelAdvanceStage: Turn receipt saved before the speed/crash effects (lost on reload).
+10. Drone mode changes discard unsettled movement; dialog travel/idle omit intervals.
+11. The exhaustion Turn's movement differs on a retried closing.
+12. Per-debit rounding to 0.001 L swallows idle consumption.
+13. Stationary drones in a chase lose their idle debit.
+14. adventureClose saves `closed` before the vehicle rows (not recoverable).
+15. Refunds drop partially used Karma points.
+16. Multi-month refunds restore credit to the wrong month.
+17. Optempo Stress reversal ignores pending restorations; superseded before reversal; overhead counter untouched.
