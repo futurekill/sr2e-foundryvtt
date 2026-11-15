@@ -59,8 +59,8 @@ Foundry and the chargen (D1: the system is the shared package).
      (the citation is where the rules are; the price table only when the item has no other entry);
   2. else the first page reference with no other book named just before it and not inside a "see …"/"(p.N)"
      cross-reference — attributed to the repo's own book.
-  Coverage of this rule over the current notes: 1,247 items placed (source parentheticals 457, first references
-  790), the rest are the gaps the overrides fill. Several candidate pages with no source parenthetical → reported as
+  Coverage of this rule over the current notes: 1,127 items placed (source parentheticals 457, first references
+  670), the rest are the gaps the overrides fill. Several candidate pages with no source parenthetical → reported as
   ambiguous, nothing written.
 - **Description page, not table page** is the convention throughout (overrides included). A repo with its own
   coverage map (Cybertechnology `docs/COVERAGE.md`, which lists the TABLE page for tabled entries) is cross-checked:
