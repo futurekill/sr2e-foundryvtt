@@ -220,6 +220,31 @@
       }
     },
     {
+      "_id": "ec7d380ca47d6ceb",
+      "name": "Run a drone network (Rigger 2)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 900000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a rigger controls several drones through a remote-control deck — commanding them from the captain&#39;s chair,\njumping into one, and running a group with BattleTac IVIS (Rigger 2 pp.62–67). Needs the Rigger 2 vehicle ruleset.</p>\n<p><img src=\"systems/sr2e/assets/guides/rc-deck-panel.png\" alt=\"The deck panel: connected, jumped into the Roto-Drone as primary, the Doberman holding a standing order; drones affiliated during a running combat sit out that Turn (Rigger 2 p.64)\"></p>\n<p><strong>Set up</strong></p>\n<ol>\n<li>Give the rigger an RC deck (Rigger 2 module) and link the drones on the <strong>Vehicles</strong> tab.</li>\n<li>Open the deck&#39;s panel from the Vehicles tab. Pick each drone and click <strong>Subscribe</strong>, then <strong>Affiliate</strong> (a Simple\nAction each; at most the deck&#39;s Rating at once).</li>\n<li>Click <strong>Connect</strong>. Your drones are now in the <strong>captain&#39;s chair</strong>.</li>\n</ol>\n<p><strong>Run it</strong></p>\n<ul>\n<li><strong>Command</strong> a drone: describe the order; the GM rates it (Skill Success Table); the drone rolls its Comprehension\nTest. The successes show as its standing order.</li>\n<li><strong>Group command</strong>: tick the drones and give one order. With an IVIS master unit on the deck (and receivers in the\ndrones) you roll the IVIS Test first (pick Vehicle Tactics, or a Tactics / Military Theory default at a higher TN)\nand split its successes between the test and the group&#39;s IVIS Pool.</li>\n<li><strong>Jump in</strong> (jacked in, with a VCR) to drive one drone rigged with your pools; <strong>Return to the captain&#39;s chair</strong> to\nleave it. Your other drones become secondaries meanwhile.</li>\n<li><strong>Fire a drone&#39;s weapon</strong> from its sheet: the primary uses your Gunnery; any other drone rolls its Pilot.</li>\n</ul>\n<p><em>Tips</em></p>\n<ul>\n<li>In a chase, add the drone without a driver: you act for it.</li>\n<li>A deck installed in a vehicle can be <strong>Hardwired</strong> to it from the panel.</li>\n<li>Deleting a connected deck dumps you: resist the Stun and roll Willpower from the card.</li>\n<li>More in <a href=\"https://github.com/futurekill/sr2e-foundryvtt/wiki/Vehicles-and-Rigging\">Vehicles and Rigging</a>.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "cea7482c9dfe283b",
       "name": "Play a rigger by the Rigger 2 rules",
       "type": "text",
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },
@@ -634,7 +659,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2500000,
+      "sort": 2600000,
       "ownership": {
         "default": -1
       },
@@ -659,7 +684,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2600000,
+      "sort": 2700000,
       "ownership": {
         "default": -1
       },
@@ -684,7 +709,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2700000,
+      "sort": 2800000,
       "ownership": {
         "default": -1
       },
@@ -709,7 +734,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2800000,
+      "sort": 2900000,
       "ownership": {
         "default": -1
       },

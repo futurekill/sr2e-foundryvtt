@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.156.0 — 2026-11-15
 
 ### Added
 - **Citations** (for the character generator; docs/PLAN-citations.md): every item type and vehicle can record where it's
