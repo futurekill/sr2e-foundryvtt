@@ -19593,6 +19593,54 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("A filled channel's authority (Part 5b-2, R2 p.70)", function () {
+        it("meaconing that fills the command channel hands it to the intruder: they command the drone, the owner can't; reconnecting ends it", async function () {
+          this.timeout(40000);
+          const RCN = await import("../rc-net.mjs"), EWX = await import("../ew.mjs");
+          const sk = (cs) => [{ name: "Electronics", type: "skill", system: { rating: 5, category: "active", concentration: { name: "Control Systems", rating: cs } } }];
+          const A = await Actor.create({ name: "Quench Auth Owner", type: "character" }); made.push(A);
+          const B = await Actor.create({ name: "Quench Auth Intruder", type: "character" }); made.push(B);
+          await A.createEmbeddedDocuments("Item", sk(9)); await B.createEmbeddedDocuments("Item", sk(5));
+          const mA = await A.createEmbeddedDocuments("Item", [{ name: "Quench Owner Deck", type: "gear", system: { rating: 1 }, flags: { sr2e: { rule: "rc-deck" } } },
+            { name: "Quench ECCM", type: "gear", system: { rating: 8 }, flags: { sr2e: { rule: "rc-eccm" } } }]);
+          const mB = await B.createEmbeddedDocuments("Item", [{ name: "Quench Intruder Deck", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "rc-deck" } } },
+            { name: "Quench PE", type: "gear", system: { rating: 3 }, flags: { sr2e: { rule: "protocol-emulation" } } }]);
+          const dA = mA.find(i => i.flags.sr2e.rule === "rc-deck"), dB = mB.find(i => i.flags.sr2e.rule === "rc-deck");
+          const drone = await mk("Quench Auth Drone", { vehicleType: "drone", pilot: 2 });
+          await call("rcSubscribe", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, on: true });
+          await call("rcAffiliate", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, on: true });
+          await call("rcConnect", { deckUuid: dA.uuid, operatorUuid: A.uuid });
+          await call("rcConnect", { deckUuid: dB.uuid, operatorUuid: B.uuid });
+          const orig = CONFIG.Dice.randomUniform;
+          const roll = (actor, kind, dice, tn) => actor.rollSuccessTest(dice, tn, { label: `Quench ${kind}`, flags: { sr2e: { ew: { kind } } } }).then(r => r.testMessageId);
+          const order = (text) => drone.rollSuccessTest(2, 4, { label: "Quench Comprehension", flags: { sr2e: { rcCommand: { deckUuid: dA.uuid, vehicleUuids: [drone.uuid] } } } }).then(r => r.testMessageId);
+          try {
+            CONFIG.Dice.randomUniform = () => 0.2;   // every die a 5
+            await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: ["command"], messageId: await roll(B, "intercept", 2, 4) });
+            await dA.update({ "flags.sr2e.rcNet.monitors": { command: { entries: { seed: { op: "meaconing", attackerKey: dB.uuid, attackerRating: 2, boxes: 9, at: 1 } } } } });
+            const { aid, tns } = await call("ewMijiStart", { op: "meaconing", intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "command" });
+            await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid, side: "intruder", messageId: await roll(B, "miji", RCN.netOf(dA).ew[aid].intruderFlux, tns.intruder) });
+            const out = await call("ewMijiResolve", { targetDeckUuid: dA.uuid, aid });
+            assert.ok(out.full, "the channel fills");
+            assert.equal(EWX.channelActor(dA, "command"), B, "the intruder performs the command channel");
+            assert.equal(EWX.channelActor(dA, "system"), A, "only that channel");
+            await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "come to me", messageId: await order() });
+            assert.equal(RCN.netOf(dA).standingOrders[RCN.vKey(drone.uuid)].by, B.uuid, "the intruder's order stands");
+            let err = null; try { await call("rcOrder", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "no", messageId: await order() }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /command carrier is lost/, "the owner is shut out");
+            await call("ewRegen", { deckUuid: dA.uuid, channel: "command", attackerKey: dB.uuid, messageId: await roll(A, "regen", 8, 5) });   // 8 successes: 4 boxes
+            const n = EWX.controlSystemsDice(A);
+            let i = 0; CONFIG.Dice.randomUniform = () => (i++ < n ? 0.0 : 0.2);   // every die a 6 then a 5 (11): no endless explosion
+            const boxes = EWX.channelBoxesOf(RCN.netOf(dA), "command");
+            const rc2 = await call("ewReconnect", { deckUuid: dA.uuid, channel: "command", messageId: await roll(A, "reconnect", EWX.controlSystemsDice(A), 4 + 3) });
+            assert.ok(rc2.ok, `${EWX.controlSystemsDice(A)} successes > ${boxes} boxes`);
+            assert.equal(EWX.channelActor(dA, "command"), A, "the owner has it back");
+            err = null; try { await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "x", messageId: await order() }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /don't hold/);
+          } finally { CONFIG.Dice.randomUniform = orig; }
+        });
+      });
+
       describe("Part 5a review fixes (c5a r2)", function () {
         it("a player can't delete another character's deck (r2 #1); chase cards carry the veto flag (r2 #3) and withhold a scoped pool from non-GM rollers (r3 #2)", async function () {
           this.timeout(30000);

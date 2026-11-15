@@ -12,6 +12,11 @@
   remotely rigged drone — every Success Test and the Initiative of its rigger, like damage. A full channel loses its
   carrier (no orders over a lost command carrier; a full simsense channel dumps a jumped-in rigger). The defender
   **regenerates** with ECCM, **reconnects** a lost carrier with Control Systems and **blocks** a bogus object with ECCM.
+- **Taking over a channel** (Rigger 2 p.70; Part 5b-2): meaconing or intrusion that fills a channel to 10 hands its
+  operations to the intruder — a captured **command** channel lets them command the network's drones (the drone's
+  Comprehension Test, their skills) while the owner can't, a captured **system** channel feeds them its data without a
+  detection roll, and a captured **simsense** channel shuts the owner out. It lasts until the owner reconnects that
+  carrier, the frequencies switch, or the intruder disconnects.
 
 ## 0.156.0 — 2026-11-15
 

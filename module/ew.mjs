@@ -7,7 +7,7 @@
  *     current freqGen), `flags.sr2e.ewDecrypted.<netKey>` = freqGen.
  * Every roll is a success-test card the player makes on their own client; the op checks it against the rules (its own
  * dice and base TN, no situational misc dice) and settles each card once (the target network's `usedCards`).
- * Part 5b-2 adds a filled channel's authority (5b.0) and the interference contest (5b.4).
+ * A filled channel's authority (5b.0) is `rcNet.channelAuthority.<channel>`; the interference contest (5b.4) is separate.
  */
 import { gmOp, gmCall } from "./vehicle-play.mjs";
 import * as RC from "./rc-net.mjs";
@@ -64,6 +64,29 @@ export function interceptOf(intruderDeck, targetDeck) {
 }
 export const carrierLost = (net, channel) => net?.carriers?.[channel] === "lost";
 export const channelBoxesOf = (net, channel) => EW.channelBoxes(net?.monitors?.[channel]);
+
+/**
+ * A filled channel's authority (p.70; 5b.0): a meaconing or intrusion entry that fills a channel to 10 lets its intruder
+ * perform that channel's operations through their own deck. Valid only while the intruder's deck is still connected
+ * under the same operator and its intercept still matches the target's frequencies; the owner's reconnection ends it.
+ * Returns { actor, deck, auth } for the intruder, or null.
+ */
+export function channelAuthority(targetDeck, channel) {
+  const net = RC.netOf(targetDeck), auth = net?.channelAuthority?.[channel];
+  if (!auth || num(auth.freqGen) !== freqGen(net)) return null;
+  const deck = fromUuidSync(auth.deckUuid ?? ""), inet = RC.netOf(deck);
+  if (!deck || inet?.connection?.state !== "connected" || inet.operator !== auth.operator) return null;
+  if (!interceptOf(deck, targetDeck)?.channels?.includes(channel)) return null;
+  const actor = fromUuidSync(auth.operator);
+  return actor ? { actor, deck, auth } : null;
+}
+/** Who performs a channel's operations (5b.0): the intruder while their authority stands, else the network's operator. */
+export function channelActor(targetDeck, channel) {
+  const a = channelAuthority(targetDeck, channel);
+  if (a) return a.actor;
+  const op = RC.netOf(targetDeck)?.operator;
+  return op ? fromUuidSync(op) : null;
+}
 
 /** The degradation a drone's own test takes (5b.3): command and system channels, meaconing; not when it's the primary. */
 export function droneTestMod(vehicle) {
@@ -183,15 +206,17 @@ export function registerEw() {
     if (!rec?.channels?.includes(channel)) throw new Error(`you haven't intercepted its ${channel} channel`);
     const net = RC.freshNet(target);
     const { SR2ESuccessRoll } = await import("./dice/sr2e-roll.mjs");
-    const det = await SR2ESuccessRoll.successTest(num(target.system.rating), Math.max(2, ewSkillDice(op)));
+    // A captured system channel delivers its data to the intruder freely (p.70; 5b.0): no detection roll.
+    const free = channel === "system" && channelAuthority(target, "system")?.actor === op;
+    const det = free ? { successes: 0 } : await SR2ESuccessRoll.successTest(num(target.system.rating), Math.max(2, ewSkillDice(op)));
     const what = channel === "system" ? Object.values(net.affiliated ?? {}).map(a => fromUuidSync(a.uuid)).filter(Boolean)
       .map(v => `${esc(v.name)}: ${v.system.conditionMonitor?.value ?? 0}/${v.system.conditionMonitor?.max ?? 10} damage`).join("; ")
       : channel === "command" ? Object.entries(net.standingOrders ?? {}).map(([, o]) => `“${esc(o.text)}”`).join("; ") || "no orders on record"
       : "what the drones sense (the GM describes it)";
-    if (det.successes > 0) { net.alert = num(net.alert) + 1; net.freqGen = freqGen(net) + 1; }
+    if (det.successes > 0) { net.alert = num(net.alert) + 1; net.freqGen = freqGen(net) + 1; delete net.channelAuthority; }   // every intercept and authority ends
     await RC.save(target, net);
     await card(`${esc(op.name)} reads ${esc(target.name)}'s ${channel} channel: ${what} (Rigger 2 p.69).`, op);
-    await card(`${esc(target.name)}'s network: detection ${det.successes} success${det.successes === 1 ? "" : "es"} vs TN ${Math.max(2, ewSkillDice(op))}${det.successes > 0 ? " — someone is listening: frequencies switched (every intercept is lost)." : "."}`,
+    if (!free) await card(`${esc(target.name)}'s network: detection ${det.successes} success${det.successes === 1 ? "" : "es"} vs TN ${Math.max(2, ewSkillDice(op))}${det.successes > 0 ? " — someone is listening: frequencies switched (every intercept is lost)." : "."}`,
       fromUuidSync(net.operator ?? ""));
     return { detected: det.successes > 0 };
   }));
@@ -240,6 +265,28 @@ export function registerEw() {
     return settleMiji(target, net, aid);
   }));
 
+  // A captured command channel (p.70; 5b.0): the intruder commands the network's drones with their own deck and skills;
+  // the drone's Comprehension Test as usual. Re-validated here, in rc-control, at commit.
+  gmOp("ewCommand", ({ intruderDeckUuid, targetDeckUuid, vehicleUuid, text = "", messageId }, user) => RC.rcQueue(async () => {
+    const { target, op } = loadPair(intruderDeckUuid, targetDeckUuid, user);
+    if (channelAuthority(target, "command")?.actor !== op) throw new Error("you don't hold their command channel (fill it with meaconing or intrusion, Rigger 2 p.70)");
+    const v = fromUuidSync(vehicleUuid), net = RC.freshNet(target), k = RC.vKey(vehicleUuid);
+    if (v?.type !== "vehicle" || !net.affiliated?.[k]) throw new Error("that drone isn't on their network");
+    const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test, cmd = msg?.flags?.sr2e?.rcCommand;
+    if (!test || cmd?.deckUuid !== target.uuid || test.actorUuid !== v.uuid || (cmd.vehicleUuids ?? []).join() !== v.uuid)
+      throw new Error("that isn't this drone's Comprehension Test card");
+    const { comprehensionTest } = await import("./rules/drone-rules.mjs");
+    const pilot = v.system.effective?.pilot ?? v.system.pilot ?? 0;
+    const allowed = comprehensionTest({ pilot, specDice: RC.nmpDice(op) }).dice;
+    if ((test.dice ?? []).filter(d => d.sourceKey === "base").length > allowed || (test.dice ?? []).some(d => d.sourceKey === "misc"))
+      throw new Error("that Comprehension Test has more dice than the drone's Pilot allows");
+    RC.useCard(net, messageId);
+    const successes = await successesOf(test);
+    net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1, by: op.uuid };
+    await RC.save(target, net);
+    return { successes };
+  }));
+
   // 5b.5: regenerate — ECCM rating dice vs that intruder's deck/ECM rating + 3; every 2 successes clear one of ITS boxes.
   gmOp("ewRegen", ({ deckUuid, channel, attackerKey, messageId }, user) => RC.rcQueue(async () => {
     const deck = ownDeck(deckUuid, user), net = RC.freshNet(deck), op = fromUuidSync(net.operator ?? "");
@@ -266,7 +313,7 @@ export function registerEw() {
     const test = checkCard(net, messageId, { kind: "reconnect", actor: op, maxDice: controlSystemsDice(op),
       minTn: EW.reconnectTn({ boxes, damageMod: op?.system?.woundPenalty ?? 0 }) });
     const ok = EW.reconnectOk(await successesOf(test), boxes);
-    if (ok) delete net.carriers[channel];
+    if (ok) { delete net.carriers[channel]; if (net.channelAuthority) delete net.channelAuthority[channel]; }   // the intruder's authority ends (5b.0)
     await RC.save(deck, net);
     return { ok };
   }));
@@ -317,6 +364,10 @@ async function settleMiji(target, net, aid) {
   let dumpOf = null;
   if (full) {
     (net.carriers ??= {})[x.channel] = "lost";
+    // Meaconing or intrusion that fills the channel hands its operations to the intruder (p.70; 5b.0). Jamming's own
+    // 10-box effects stand instead (specific over general).
+    if (x.op === "meaconing" || x.op === "intrusion")
+      (net.channelAuthority ??= {})[x.channel] = { deckUuid: x.intruderDeck, operator: x.intruderOp, eventId: aid, freqGen: freqGen(net), at: Date.now() };
     const operator = fromUuidSync(net.operator ?? "");
     if (x.channel === "simsense" && net.primary && operator) {
       const { pendDump } = await import("./rig-dump.mjs");

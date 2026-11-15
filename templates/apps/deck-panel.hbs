@@ -86,6 +86,8 @@
         {{#if gmChooses}}{{#if ../gm}}<button type="button" data-action="ewChoose" data-uuid="{{uuid}}">Choose {{gmChooses}} channel(s)</button>{{else}}<em>(the GM chooses {{gmChooses}} more)</em>{{/if}}{{/if}}
         {{#if encrypted}}<button type="button" data-action="ewDecrypt" data-uuid="{{uuid}}" title="Electronic Warfare + decryption vs encryption + 4 (p.69)">Break encryption</button>{{/if}}
         <button type="button" data-action="ewIntercept" data-uuid="{{uuid}}" title="Complex Action: deck rating vs their rating + 3 (p.68)">Intercept</button></p>
+      {{#if held.length}}<p>&nbsp;&nbsp;You hold their {{#each held}}{{this}} {{/each}}channel (p.70).
+        {{#each drones}}<button type="button" data-action="ewCommand" data-target="{{../uuid}}" data-uuid="{{uuid}}" title="Their drone's Comprehension Test, your skills">Command {{name}}</button> {{/each}}</p>{{/if}}
     {{/each}}
     {{/if}}
   </section>

@@ -24,7 +24,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       unsubscribe: DeckPanel.#unsubscribe, affiliate: DeckPanel.#affiliate, jump: DeckPanel.#jump, ret: DeckPanel.#return,
       command: DeckPanel.#command, hardwire: DeckPanel.#hardwire, groupCommand: DeckPanel.#groupCommand, ivisEnd: DeckPanel.#ivisEnd,
       ewDecrypt: DeckPanel.#ewDecrypt, ewIntercept: DeckPanel.#ewIntercept, ewChoose: DeckPanel.#ewChoose, ewRead: DeckPanel.#ewRead,
-      ewMiji: DeckPanel.#ewMiji, ewRegen: DeckPanel.#ewRegen, ewReconnect: DeckPanel.#ewReconnect, ewBlock: DeckPanel.#ewBlock }
+      ewMiji: DeckPanel.#ewMiji, ewRegen: DeckPanel.#ewRegen, ewReconnect: DeckPanel.#ewReconnect, ewBlock: DeckPanel.#ewBlock, ewCommand: DeckPanel.#ewCommand }
   };
   static PARTS = { body: { template: "systems/sr2e/templates/apps/deck-panel.hbs", scrollable: [".deck-body"] } };
 
@@ -160,8 +160,12 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const bogus = Object.entries(net.bogus ?? {}).map(([eid, b]) => ({ eid, channel: b.channel, net: b.net, cancelled: b.cancelled ?? 0, by: nameOf(b.attackerKey) }));
     const targets = net.operator ? RCX.rcIndex().decks.filter(d => d !== this.deck && netOf(d)?.connection?.state === "connected").map(d => {
       const rec = EWX.interceptOf(this.deck, d);
+      const me = netOf(this.deck)?.operator;
+      const held = EW.CHANNELS.filter(ch => EWX.channelAuthority(d, ch)?.actor?.uuid === me);
+      const drones = held.includes("command") ? Object.values(netOf(d)?.affiliated ?? {}).map(a => fromUuidSync(a.uuid)).filter(Boolean)
+        .map(v => ({ uuid: v.uuid, name: v.name })) : [];
       return { uuid: d.uuid, name: `${d.parent?.name ?? "?"} — ${d.name}`, encrypted: !!EWX.moduleRating(d, "rc-encryption"),
-        channels: rec?.channels ?? [], gmChooses: rec?.gmChooses ?? 0, intercepted: !!rec?.channels?.length };
+        channels: rec?.channels ?? [], gmChooses: rec?.gmChooses ?? 0, intercepted: !!rec?.channels?.length, held, drones };
     }) : [];
     return { channels, bogus, alert: net.alert ?? 0, targets, any: channels.some(c => c.boxes || c.lost) || bogus.length > 0 };
   }
@@ -228,6 +232,22 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       label: `Re-connect the ${ch} carrier (Control Systems; Rigger 2 p.72)` });
     if (id) return rc("ewReconnect", { deckUuid: this.deck.uuid, channel: ch, messageId: id })
       .then(r => ui.notifications.info(r.ok ? `The ${ch} carrier is back.` : "Not enough successes.")).catch(warn);
+  }
+  /** Command a drone through their captured command channel (p.70; 5b.0): the drone's Comprehension Test, your skills. */
+  static async #ewCommand(_e, el) {
+    const target = fromUuidSync(el.dataset.target), v = fromUuidSync(el.dataset.uuid), op = this.#op;
+    if (!v || !op) return;
+    const pilot = v.system.effective?.pilot ?? v.system.pilot ?? 0;
+    const res = await foundry.applications.api.DialogV2.prompt({ window: { title: `Command — ${v.name} (captured channel)` },
+      content: `<p>You hold their command channel (Rigger 2 p.70): the drone's Comprehension Test, Pilot ${pilot} + your Non-Matrix Programming.</p>
+        <div class="form-group"><label>Command</label><input name="text" style="flex:2"></div>
+        <div class="form-group"><label>Complexity</label><select name="tn">${SKILL_SUCCESS_TABLE.map(r => `<option value="${r.tn}" ${r.key === "average" ? "selected" : ""}>${r.label} (${r.tn})</option>`).join("")}</select></div>`,
+      ok: { label: "Roll Comprehension", callback: (_e2, b) => new foundry.applications.ux.FormDataExtended(b.form).object }, rejectClose: false }).catch(() => null);
+    if (!res) return;
+    const t = comprehensionTest({ pilot, specDice: nmpDice(op), tableTn: Number(res.tn) || 4 });
+    const roll = await v.rollSuccessTest(t.dice, t.tn, { label: `Comprehension Test: "${esc(res.text || "command")}" (captured channel; Rigger 2 p.66, p.70)`,
+      flags: { sr2e: { rcCommand: { deckUuid: target.uuid, vehicleUuids: [v.uuid] } } } });
+    if (roll) return rc("ewCommand", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, vehicleUuid: v.uuid, text: res.text ?? "", messageId: roll.testMessageId }).catch(warn);
   }
   static async #ewBlock(_e, el) {
     const op = this.#op, b = netOf(this.deck)?.bogus?.[el.dataset.eid];

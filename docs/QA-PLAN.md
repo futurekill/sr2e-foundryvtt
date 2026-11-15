@@ -1317,4 +1317,7 @@ orders until reconnected.
 - [ ] Intrusion leaves a **bogus object** on A's panel; **Block** (ECCM) cancels its successes over attempts.
 - [ ] Regenerate (ECCM module): 2 successes clear one of that intruder's boxes; Reconnect a lost carrier (Control Systems).
 - [ ] Read a channel from B: sometimes A detects it — B's intercept disappears (frequencies switched).
+- [ ] (5b-2) Fill A's command channel with meaconing: B's panel says "You hold their command channel" with a Command
+      button per drone; B's order becomes the drone's standing order; A's Command is refused; A regenerates and
+      Reconnects → B loses it. Automated in "A filled channel's authority".
 
