@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 3 (2026-11-15), after Codex rounds 1–2 (9 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 4 (2026-11-15), after Codex rounds 1–3 (9 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -44,7 +44,9 @@ applied).
 milestone, and each keeps its execution position (a thin call where the code is today, round 1 #9). Beyond §4's list:
 `_applySkillsofts`, `_applyAdeptSkills`, `_applyWeaponFoci`, `_applyUnarmedPower` → **M2j** (skills and foci, after
 M2f's pools, as today); the actor getters (`woundPenalty`, `sustainPenalty`, `mpcpOverloadPenalty`, `bodyOverstressTN`,
-`astralReaction`, `isMagical`/`isDecker`/`isRigger`) → **M2h** with the monitors; the item getters `actualEssenceCost`,
+`isMagical`/`isDecker`/`isRigger`) → **M2h** with the monitors, except `astralReaction` → **M2d** (round 3 #1: M2d's
+Initiative reads it when projecting — a plain system would give `undefined + 15`; fixtures: a projecting magician and a
+projecting shapeshifter, Node and browser); the item getters `actualEssenceCost`,
 `actualBodyCost`, adept `totalCost` (round 1 #1) → pure computations evaluated at their EXISTING consumption points,
 after the actor has assigned the markers they read (`limbEssence`, `limbDiscount`) — never snapshotted at item
 preparation.
@@ -89,12 +91,22 @@ adapter catches it and the whole document falls back to D12 (view-only from its 
 number. `absent` is a normal result (genuinely empty or deleted). Consumers named: `_applyCybermancy` (a spell origin),
 `sustainPenalty` → `elementalHolderOf` (a bound elemental). Fixtures for both: resolved, absent, unavailable.
 
+**Document methods on plain records** (round 3 #2): every derive-path read through a Document METHOD becomes an
+explicit data read — `chargenBudgetOf` (actor-sheet.mjs) calls `i.getFlag(…)` on every item and `liveBoundSpirits`
+(elementals.mjs) uses `a.getFlag?.(…)` to exclude departed spirits (on a plain record the optional call silently
+returns undefined, so a departed sustaining elemental would exempt its caster from the sustaining penalty). Both read
+`flags.sr2e.*` directly; a lint rule in module/derive/ forbids `getFlag`/`?.(` method calls on context records.
+Fixtures: the recorded ammunition value in the chargen budget, and a resolved-but-departed sustaining elemental.
+
 ## 3. Source normalisation (M2a; round 7 #1 of the chargen plan)
 The creator starts from minimal or raw sources, Foundry from instantiated ones. A build step
 (`tools/derive/schema-export.mjs`, run in Foundry by a Quench helper and committed) exports each TypeDataModel's field
 tree as a plain descriptor (`schema/data-models.json`: type, required, initial, nullable, blank, integer, min/max,
 choices, nested fields, arrays) — round 1 #6. `module/derive/normalize.mjs` applies it like Foundry's `cleanData` (defaults, coercion,
-clamping — Foundry 13 CLAMPS out-of-range numbers, CLAUDE.md "NPC Essence"; the `blank` rule; nested defaults). Two versioned contracts (round 1 #6): `normalizeSystem` (defaults, coercion,
+clamping — Foundry 13 CLAMPS out-of-range numbers, CLAUDE.md "NPC Essence"; the `blank` rule; nested defaults;
+StringField TRIMMING, round 3 #3: v13's `StringField` defaults to `trim: true` and trims before cleaning, so the
+descriptor records each field's effective `trim` and the normaliser applies it — `system.race: " troll "` must become
+`"troll"` or racial modifiers are lost; whitespace-only and padded-string parity cases). Two versioned contracts (round 1 #6): `normalizeSystem` (defaults, coercion,
 clamping) and `validateSystem` (required, null, blank, choices — the errors Foundry raises); the boundary is the
 `system` object (document-level fields — name, img, ownership, `_stats` — are the adapters' job). Tests: missing,
 null, blank, invalid-choice, string-number coercion and out-of-range clamping cases for every constraint kind, each

@@ -59,3 +59,21 @@ VERDICT: REVISE
 mixed-mode and actor/transferred-tie fixtures. 2: `applyLanguageRatings` extracted in M2a, every actor call replaced;
 LinguaSoft fixtures. 3: `programUnusable`'s raw membership becomes `ctx.events.hasMarker`, inventoried, with a spent
 one-shot fixture.
+
+## Round 3 — Codex (draft 3)
+
+1. **`astralReaction` is extracted after its first pure consumer.** [§1.2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:47) schedules it for M2h, but M2d moves initiative computation, which reads `this.astralReaction` when projecting ([code](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:531)). A plain working system produces `undefined + 15`, while the Foundry model still succeeds. This is a defect in the earlier milestone-assignment resolution.
+   **Fix:** Extract the pure astral-Reaction computation by M2d and add projecting magician and shapeshifter parity fixtures.
+
+2. **Document methods remain outside the plain-record contract.** `chargenBudgetOf` calls `i.getFlag(...)` for every item ([code](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/sheets/actor-sheet.mjs:566)); M2i therefore throws on plain items. More subtly, `liveBoundSpirits` uses optional `a.getFlag?.(...)` to exclude departed spirits ([code](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/elementals.mjs:55)). A resolved plain elemental with `flags.sr2e.departed` can incorrectly exempt its caster from sustaining penalties. Resolved/absent/unavailable fixtures alone do not exercise this.
+   **Fix:** Replace these document-method reads with explicit flag reads and test recorded ammunition value plus a resolved-but-departed sustaining elemental.
+
+3. **The normalisation contract omits string trimming.** [§3](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:95) lists neither `trim` nor whitespace tests. Installed Foundry v13’s `StringField` defaults to `trim: true` and trims before cleaning. For example, raw `system.race: " troll "` becomes `"troll"` in Foundry; preserving the whitespace outside Foundry loses racial modifiers and maximums. Catalog and empty-string fixtures need not expose this.
+   **Fix:** Export effective trimming semantics and add whitespace-only and padded-string normalisation parity cases.
+
+VERDICT: REVISE
+
+### Claude's response (draft 4) — all taken
+1: `astralReaction` moves to M2d with projecting magician/shapeshifter fixtures. 2: the two Document-method reads become
+explicit flag reads, a lint rule forbids method calls on context records, with the two fixtures. 3: the normaliser applies
+each StringField's effective `trim`; padded/whitespace parity cases.

@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 7 (2026-11-15), after Codex rounds 1–6 (13 + 8 + 6 + 3 + 3 + 2 findings, all taken); draft 3 added the reader audit
+_Draft 8 (2026-11-15), after Codex rounds 1–7 (13 + 8 + 6 + 3 + 3 + 2 + 3 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -56,7 +56,11 @@ from their synthetic source. A reference to something not exported → `unresolv
   the source world); unsettled overhead/optempo money (round 3 #4: a receipt not `released`/settled, a refund `due`); a missile launch
   not yet terminal (round 6 #2: `flags.sr2e.launches.<id>` not `resolved`/`lost`/`cancelled`) or a Combat
   `launchAdmit` entry still `reserved` for any exported holder — its recovery lives on the Combat and its chat cards,
-  outside the bundle; fixtures for admission, ammunition spend, launch creation and unresolved impact. The list is ONE function,
+  outside the bundle; fixtures for admission, ammunition spend, launch creation and unresolved impact. An adventure
+  CLOSED in `vehicleAdventures` but not `applied` with a row for any exported vehicle (round 7 #2: the decision lives in
+  the world setting and its charges/supersession are delivered after it; fixtures before and between row deliveries);
+  a coasting episode with `fuelOut.pending` (round 7 #3: its speed change, stall Crash Test or landing is earned but
+  delivered only by the next combat stage; fixtures interrupted before the crash and before the landing delivery). The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
@@ -219,7 +223,9 @@ restore may keep ids (`keepId`) when they are free.
   `assessedThrough`, `optempoMonths.<m>`, the `vstress` receipts `overhead-missed-<m>` / `overhead-restore-<m>` /
   `ostress-rev:overhead-missed-<m>`; on the payer: `overheadDiscount.<m>`, `overheadReceipts.<tx>` (`rows[].month`, the
   `discount` month keys, a restore's `month`), `overheadRefunds.<tx>.done[]` (`<vehicleUuid>|<month>`: both parts
-  remapped). A Stress receipt or refund entry left behind would penalise or refund a month twice. Unsettled money is
+  remapped) and `overheadRefunds.<tx>.creditByMonth.<m>` (round 7 #1: `overheadRefund` subtracts prior refunds by these
+  month keys, so an unshifted ledger refunds a settled partial refund again — fixture: a settled partial refund, then
+  another supersession after import). A Stress receipt or refund entry left behind would penalise or refund a month twice. Unsettled money is
   refused by quiescence (§1.2), so the adapter only moves settled history.
 - **The drone fuel clock** (round 6 #1): `fuelClock = { combatId, L, offset }` reads `L` while `combatId` is set, else
   `worldTime + offset`. One adapter makes the export's logical now explicit (`logicalNow` at the snapshot), detaches

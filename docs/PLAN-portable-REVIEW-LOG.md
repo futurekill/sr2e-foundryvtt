@@ -122,3 +122,23 @@ VERDICT: REVISE
 1: a fuel-clock adapter: the logical now at the snapshot, the combat detached, `offset` set so the destination's first
 logical now is that value rebased; cursors, `movedTo`, pending intervals and round spans shifted together; a Quench case.
 2: quiescence refuses non-terminal launches and reserved `launchAdmit` entries for exported holders, with fixtures.
+
+## Round 7 — Codex (draft 7)
+
+1. **The month adapter omits `overheadRefunds.<tx>.creditByMonth` (§2.5).** This leaves round 3’s refund resolution incomplete. [overheadRefund()](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-overhead-rules.mjs:136) subtracts prior refunds by these month keys; the aggregate `credit` does not prevent another refund. A read-only reproduction rebasing month 10 → 1 returned **200 credit instead of 100** when that ledger was left unchanged. A previously settled partial refund can therefore be refunded again when another vehicle covered by the payment is superseded.
+
+   **Fix:** Rebase `creditByMonth` keys with the receipt and discount keys, and test a settled partial refund followed by another supersession after import.
+
+2. **Quiescence misses an adventure-close transaction whose authoritative decision lives outside the bundle (§1.2).** [vehicle-optempo.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-optempo.mjs:80) persists the adventure’s decision in `vehicleAdventures` before delivering vehicle charges and overhead changes; `applied` is written afterward. Export during that gap can pass the listed checks because no actor-local payment or refund is pending yet. The destination lacks the world-setting decision needed to finish the operation, losing charges or overhead supersession. Treating adventure references as dangling does not preserve this obligation.
+
+   **Fix:** Refuse export when a closed, unapplied adventure contains a row for any exported vehicle, with fixtures before and between row deliveries.
+
+3. **Quiescence misses undelivered coasting consequences (§1.2).** [fuelAdvanceStage()](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-fuel.mjs:362) advances `turnsProcessed` and persists `fuelOut.pending` before delivering speed changes, a stall crash test, or emergency-landing damage. At that point no crash/impact or `vfollow` record need exist, so the current refusal list does not catch it. [deliverCoastStep()](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-fuel.mjs:374) requires combat-stage processing; the fuel-clock adapter’s combat detachment leaves that already-earned consequence stranded until another applicable combat processes it.
+
+   **Fix:** Refuse export while `fuelOut.pending` exists, testing interruptions before crash and landing delivery independently of fuel-clock rebasing.
+
+VERDICT: REVISE
+
+### Claude's response (draft 8) — all taken
+1: `creditByMonth` keys shift with the other month keys; fixture as suggested. 2: quiescence refuses a closed, unapplied
+adventure with a row for an exported vehicle. 3: quiescence refuses `fuelOut.pending`; fixtures before crash and landing delivery.
