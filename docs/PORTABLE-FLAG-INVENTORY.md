@@ -129,6 +129,9 @@ Counts: 80 exported (actor/item/effect), 52 chat/combat/scene/user only,
 | `ramApplied` | exported ✓ | ? | messageRef keys (vehicle) ✓ | combat-spells.mjs:586 |
 | `rangedDamage` | not exported | message | — | documents/item.mjs:1264 sr2e.mjs:2400 sr2e.mjs:2418 |
 | `repairJob` | exported | actor | data? | vehicle-play.mjs:757 vehicle-play.mjs:763 vehicle-play.mjs:773 vehicle-play.mjs:790 +2 |
+| `subsystems` | actor (vehicle) | records `{ target: { kind, id, gen }, … }`: `target.id` → ref (embedded item) when `kind` is `item`, data for `builtin`; also copied in `vfollow.<fid>.subsystem.rolled.made[].target.id` (same shape). Added at PLAN-portable round 9 #2 |
+| `subsysGen` | actor (vehicle) | built-in target generations: data, carried with `subsystems` |
+| `guidance` | actor (spotter) | indirect-fire spotting records; `acquired`/`committed` are bound to their Combat → quiescence refuses export until `ended`/`lost` (PLAN-portable round 9 #4) |
 | `resetSeq` | exported | actor | data? | engagement.mjs:52 |
 | `resolvedRows` | not exported ✓ | ? | — (message) ✓ | sr2e.mjs:2451 |
 | `resolves` | not exported | message | — | astral-combat.mjs:14 documents/item.mjs:337 sr2e.mjs:2305 vehicle-damage.mjs:565 |

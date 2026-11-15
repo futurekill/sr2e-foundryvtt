@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 9 (2026-11-15), after Codex rounds 1–8 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 findings, all taken); draft 3 added the reader audit
+_Draft 10 (2026-11-15), after Codex rounds 1–9 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 findings, all taken); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -64,7 +64,12 @@ from their synthetic source. A reference to something not exported → `unresolv
   vehicle-ammo RELOAD not `closed` (round 8 #1: vehicle-ammo.mjs's five-step transaction across weapon, reserve and
   eject items stays open in `planned`/`ready`/`settled`/`cancelled`, and `reconcileReloads` resumes it; its reference
   shapes `reloadPlans.ammoItemId`, `ejectTo`, `reserveReceipts.props.loadedSourceId` and `system.ammo.sourceId` /
-  `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation). The list is ONE function,
+  `loadedSourceId` join the registry; fixtures interrupted at debit, settlement, escrow release and cancellation); a ROLLED subsystem follow-up
+  (`vfollow.<fid>.subsystem.rolled`) without `consequencesDone` (round 9 #3: its crash, engine and passenger
+  consequences replay from the source world's follow-up; fixture interrupted between the roll and the consequences); an
+  ACTIVE indirect-fire guidance record (round 9 #4: `flags.sr2e.guidance.<id>` in `acquired` or `committed` — its +2 TN
+  and its cleanup are bound to the source Combat — so export waits until it is `ended` or `lost`; fixtures for a
+  committed spotting with a terminal missile awaiting cleanup). The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
@@ -122,7 +127,13 @@ location — a parent-aware path: `actor.<path>`, `actor.items[].<path>`, `actor
 - `worldTime` / `serverTime` / `monotonic` / `duration` — clocks (§2.5);
 - `opaque` — unknown: carried as is; an identity-CHANGING import refuses when a scan finds a uuid/id of an exported
   document inside it, naming it; same-id restores pass.
-Effects' `origin` and system fields holding ids (`linkedWeaponId`-style) are registry entries too.
+Effects' `origin` and system fields holding ids (`linkedWeaponId`-style) are registry entries too. So are the Rigger 2
+subsystem bindings (round 9 #2; missed by the reader audit, now added to docs/PORTABLE-FLAG-INVENTORY.md):
+`flags.sr2e.subsystems.<id>.target.id` is a `ref` to an embedded item when `target.kind` is `item` (`data` for a
+`builtin` target, whose `gen` stays with `subsysGen`), and its copies in `vfollow.<fid>.subsystem.rolled.made[].target.id`
+are the same shape; `recordLive` drops a record whose item id is gone, so an unmapped id would silently heal the damage.
+Fixtures: an exported vehicle with an item-bound and a built-in subsystem record, imported with new ids, keeps both
+effects (and a settled rolled follow-up keeps its `made[]` ids matching the records).
 
 **Inbound references** — documents outside the bundle that point AT the actor (Calendaria healing/substance notes:
 reminders the clocks re-create) — are not exported; an import under new ids lists them so the GM can relink.
@@ -197,10 +208,14 @@ restore may keep ids (`keepId`) when they are free.
   reconciler run for them (round 5 #2: move-by-wire `reconcile`, the cybermancy reconcilers, the healing and substance
   clocks, the shapeshift and permanent-damage passes run from timers and hooks, outside the queues): each registers its
   run in `portable/inflight.mjs` (`track(actorUuid, promise)`, the WHOLE run incl. its journal-page and chat writes),
-  cancels its pending timers for barrier actors, and re-schedules on unfence; the client awaits those promises, then writes
-  `flags.sr2e.importAck.<importId> = epoch` on its User document (one per client instance, keyed by a per-page-load
-  instance id); the GM waits for every connected client's ack (a client that disconnects is dropped from the wait; one
-  that never answers blocks the import, which the GM may cancel — never proceed without it); (3) **fence and verify** —
+  cancels its pending timers for barrier actors, and re-schedules on unfence; the client awaits those promises, then marks itself drained. Acks are PER
+  INSTANCE (round 9 #1: two tabs of one user must not share a slot): every page load has an `instanceId`; on seeing the
+  barrier it writes `flags.sr2e.importAck.<importId>.<instanceId> = { epoch, state: "seen" }` on its User document at
+  once, and `state: "drained"` after its drain. The GM's roster is the set of `seen` instances: it collects for a fixed
+  window after `closing` (so a slower second tab still registers), requires at least one `seen` instance for every
+  connected user, then waits for EVERY rostered instance to reach `drained` at this epoch (an instance whose user
+  disconnects is dropped; one that never answers blocks the import, which the GM may cancel — never proceed without
+  it). Quench: two instances of one user, one draining slowly — the import waits for both; (3) **fence and verify** —
   the GM writes the actors' fences, re-reads every source, and re-runs quiescence (§1.2) against that fenced state
   before any import write. The pre-hook veto (below) stays as defense in depth for writers that ignore the barrier.
 - **Pre-hook veto on every client**: one set of `preCreate/preUpdate/preDelete` hooks for Actor, Item and ActiveEffect

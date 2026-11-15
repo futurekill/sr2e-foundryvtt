@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 5 (2026-11-15), after Codex rounds 1–4 (9 + 3 + 3 + 2 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 6 (2026-11-15), after Codex rounds 1–5 (9 + 3 + 3 + 2 + 5 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -59,11 +59,25 @@ preparation.
   keys derivation reads; `registries` the module-registered tables; `lookup(ref)` → document | absent | unavailable).
 - `module/derive/foundry-adapter.mjs`: `contextFromActor(actor, system)` builds it from a live actor (the only place
   that touches `game`, `CONFIG`, `fromUuidSync`). The creator writes its own adapter (M3).
+- **Items without a character owner** (round 5 #3): every item data model prepares, including world and compendium
+  items (a standalone Program) and items owned by an NPC, a vehicle or a spirit. `contextFromItem(item, system)` builds
+  the ITEM context with an explicit `owner`: `null` (unowned: only what the item derives from itself), or a plain
+  record of the owning actor's `type`, `uuid`, item facade and flags (non-character: the derivations that read
+  character-only state — skillsofts, persona, cyber limbs — see `owner.type` and skip exactly as the current code
+  does). M2a parity covers a world Program, a compendium Program, an NPC-owned and a vehicle-owned item.
 - **Settings and rulesets come from the context, never globals**: `isVR2()`, `isRigger2()`, `r2Option()`,
   `game.settings.get(...)` calls inside code that moves into `module/derive/` are replaced by `ctx.settings` reads;
-  the global helpers stay for live-play code.
+  the global helpers stay for live-play code. That includes helpers that SWALLOW a missing global (round 5 #1):
+  `utilityOptionsOn()` (VR2 utility options, read by `ProgramData.prepareDerivedData`) catches a missing `game` and
+  returns false, so Node would silently derive an optioned program's size and cost wrong; it becomes
+  `ctx.settings.vr2UtilityOptions`. `CONFIG.SR2E.languageFamilies` (the synthetic LinguaSoft skill path) becomes
+  `ctx.registries.languageFamilies`. The no-globals Vitest therefore also fails on a `try { … game … } catch` /
+  `globalThis.game?.` read inside `module/derive/**` (a lint rule over the moved files), and the inventory lists both
+  reads. Fixtures: an optioned utility program with the setting on and off; a synthetic language skill from a LinguaSoft.
 - **Plain records, real accessors** (round 1 #3): the item context's `owner` is a plain record with `items.get(id)`
-  (a Map-backed collection, not an array) and each item's `_source`, `flags`, `_stats.compendiumSource` and `uuid`, so
+  (a collection FACADE, round 5 #2 — not a bare Map and not an array: `get(id)`, `has`, `find`, `filter`, `some`,
+  `map`, `size` and iteration over values, in Foundry's own order, i.e. the `items` source array order, which
+  `EmbeddedCollection` keeps; a Vitest runs the moved deck selection (`items.find(…)`) and the skill loops against it) and each item's `_source`, `flags`, `_stats.compendiumSource` and `uuid`, so
   cyberware's `parent.parent.items.get(id)._source.system` and QualityData's compendium source move verbatim; the
   transitive helpers move with them (`designOf` for ProgramData joins the helper-split list). Prototype METHODS the
   actor calls on items are extracted too (round 2 #2): `SkillData.applyLanguageRatings` (called again by
@@ -134,9 +148,13 @@ every type and EVERY raw `packs-src` item of the system and the content modules;
 Each step: move the code verbatim behind the context, the data model calls it, parity + existing tests green, no
 behaviour change, CHANGELOG "Changed (internal)" only.
 **The consumable package (D1; round 4 #2)** is an M2a deliverable and a gate of every M2 release: the release workflow
-also builds `sr2e-core-<version>.tgz` from the same tag with an explicit allow-list (`module/derive/**`, `module/rules/**`,
-the schema descriptor, package.json `exports`), publishes it beside the Foundry ZIP, and a CI job unpacks THAT archive
-and runs the Node parity suite and a browser import smoke test against its contents (so a missing file fails the release).
+also builds `sr2e-core-<version>.tgz` from the same tag with an explicit allow-list matching D1 (round 5 #4: `module/derive/**`, `module/rules/**`,
+`module/portable/**` — the D12 codec and projection — the schema descriptor, the static tables, package.json `exports`;
+the static tables are the data half of `module/config.mjs`, split in M2a into `module/tables/*.mjs` with no Foundry
+reads, `config.mjs` re-exporting them), publishes it beside the Foundry ZIP, and a CI job unpacks THAT archive
+and runs the Node parity suite and a browser import smoke test against its contents — importing every creator-facing
+export (the derive entry, the D12 codec and projection, `priorityTableFor` and the tables) — so a missing file fails
+the release.
 
 ## 5. The parity harness
 **Golden projections** (round 1 #5): before M2a moves anything, the harness records the CURRENT code's prepared
@@ -150,7 +168,9 @@ then run the pure path on `contextFromActor` of a FRESH, unprepared copy of the 
 projection (`module/portable` shares it) field by field. Fixtures (the chargen plan's M2 gate): every pregen in
 `packs-src/runners` and each content module's archetypes; edits (an attribute raised, an item's rating changed);
 removals (a ware item, a skillsoft, a VCR, a deck, a bonded focus — the derivation-removed trap); **prepare twice**;
-Active Effects on/off (supported keys and an unsupported one, actor and item-transferred); module-enabled characters
+Active Effects on/off — SUPPORTED keys (actor and item-transferred) compared field by field; an UNSUPPORTED one
+(round 5 #5) is not a parity case: per D9 the pure path marks the affected document view-only and returns its D12
+snapshot, so the fixture asserts the whole-document snapshot fallback and the warning, not field equality; module-enabled characters
 (Cybertechnology, Shadowtech, Companion qualities); an elemental sustaining its magician's spell via `lookup`, and the
 same with the elemental unavailable. Vitest adds the Node side: every `module/derive/**` file imports with NO Foundry
 globals defined, and the declared-reads check over recorded contexts; the fixtures (tagged with the D12 codec so Sets,

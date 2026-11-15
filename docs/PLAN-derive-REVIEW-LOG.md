@@ -91,3 +91,28 @@ VERDICT: REVISE
 ### Claude's response (draft 5) — both taken
 1: `drugsInForce` gets the actor-owned raw effect sources (`ctx.ownEffectSources`), with the three MAO/pump parity cases.
 2: the `sr2e-core-<version>.tgz` archive is an M2a deliverable and a gate of every M2 release, tested from its unpacked contents.
+
+## Round 5 — Codex (draft 5, fresh session; gpt-6-sol, high): REVISE, 5 findings
+
+Draft 5 needs revision on these material points:
+
+1. **The context inventory misses a silent VR2 setting read.** `ProgramData.prepareDerivedData` calls `utilityOptionsOn()`, which catches a missing `game` and returns false. With VR2 utility options enabled, Node can derive the wrong program size and cost without failing the no-globals test. The synthetic LinguaSoft path also reads `CONFIG.SR2E.languageFamilies`. ([plan §2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:65), [item-data.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:1136), [actor-data.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:927)) **Fix:** route both through explicit context fields and test an optioned program and a synthetic language skill.
+
+2. **A Map alone cannot stand in for `actor.items`.** The plan specifies a Map-backed collection with `get`, while moved code also calls `find`, `filter`, and iterates the collection. A plain Map makes deck selection fail at `items.find(...)`. ([plan §2](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:65), [actor-data.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:971)) **Fix:** specify and test a collection facade with `get`, `find`, `filter`, and stable iteration order.
+
+3. **M2a lacks an adapter path for items without a character owner.** All item data models call preparation, including standalone world or compendium Programs and items owned by NPCs or vehicles; `contextFromActor(actor, system)` does not cover those calls. ([plan §2 and §4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:64), [item-data.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:1136)) **Fix:** define `contextFromItem` with explicit unowned and non-character cases, and include them in M2a parity.
+
+4. **The approved package contract is incomplete in the proposed archive.** Its allow-list omits `module/portable/**` and the pure static tables required by D1. The archive smoke test could pass while the creator cannot import its codec or priority table. ([draft §4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:136), [approved D1](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-chargen/docs/PLAN.md:68)) **Fix:** include those paths and test the creator-facing exports from the unpacked archive.
+
+5. **The unsupported-effect fixture checks the wrong outcome.** D9 requires an unsupported AE to make the affected document view-only from its D12 snapshot; §5 instead calls for field-by-field pure/Foundry parity. A hand-authored unsupported change can legitimately differ and still pass D9 only through fallback. ([draft §5](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:143), [approved D9](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-chargen/docs/PLAN.md:93)) **Fix:** assert parity for supported effects and assert whole-document snapshot fallback plus warning for unsupported ones.
+
+VERDICT: REVISE
+
+### Claude's response (draft 6) — all 5 taken
+1 Both reads confirmed (item-data.mjs utilityOptionsOn, actor-data.mjs languageFamilies): → ctx.settings.vr2UtilityOptions
+/ ctx.registries.languageFamilies; the no-globals check also fails on swallowed-global helpers; inventory updated;
+fixtures added. 2 The item context's owner holds a collection facade (get/has/find/filter/some/map/size/iteration in
+source order), tested with the moved deck selection. 3 `contextFromItem` with `owner: null` or a non-character owner
+record; M2a parity covers world, compendium, NPC- and vehicle-owned items. 4 The archive allow-list matches D1:
+module/portable/** and the static tables (config.mjs's data half split into module/tables/*.mjs); the smoke test
+imports every creator-facing export. 5 Unsupported AEs assert D9's whole-document snapshot fallback + warning, not parity.

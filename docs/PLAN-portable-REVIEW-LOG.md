@@ -154,3 +154,24 @@ VERDICT: REVISE
 ### Claude's response (draft 9) — taken
 Reload quiescence (`state !== "closed"`), its reference shapes in the registry, `ammo:<weaponUuid>` admission/drain mapped to
 the weapon's actor, and the four interruption fixtures.
+
+## Round 9 — Codex (draft 9, fresh session; gpt-6-sol, high): REVISE, 4 findings
+
+1. **The barrier cannot prove that every tab has drained.** The plan stores one [ack per import on a User document](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:201), although its safety rule requires an ack from each client instance. Two tabs for one user can share that slot, letting import proceed while one still has writes in flight. **Fix:** Store acks by `importId` and `instanceId`, and wait against a roster of connected instances.
+
+2. **Subsystem damage can disappear when item ids change.** [Subsystem records bind damage to `target.id`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-subsystems.mjs:6); [the reader ignores a record if that item id is absent](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-subsystem-rules.mjs:100). Neither the plan nor the supplied inventory identifies this reference shape, including its copy in rolled follow-ups. **Fix:** Register and test remapping for `subsystems.*.target.id` and `vfollow.*.subsystem.rolled.made[].target.id`.
+
+3. **A posted follow-up can still owe consequences.** Quiescence names [follow-ups not yet posted](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:50), but [a subsystem roll persists before its crash, engine, and passenger consequences finish](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-subsystems.mjs:68). Export in that gap carries an unfinished obligation whose recovery depends on the source world. **Fix:** Refuse export while a rolled subsystem follow-up lacks `consequencesDone`, with an interruption fixture at that point.
+
+4. **Active indirect-fire guidance can leave a permanent penalty.** [A `committed` guidance record gives the spotter +2 TN](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-indirect.mjs:39), while [cleanup runs against its original Combat](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-indirect.mjs:251). The plan neither classifies `guidance` nor requires it to settle before export; even a terminal missile can leave committed guidance until cleanup. **Fix:** Treat active guidance as a combat-scoped transaction and refuse export until it is `ended` or `lost`.
+
+VERDICT: REVISE
+
+### Claude's response (draft 10) — all 4 taken
+1 Acks are per instance: `importAck.<importId>.<instanceId> = { epoch, state: seen|drained }`; the GM's roster is the
+`seen` instances collected over a fixed window after `closing`, at least one per connected user, and every rostered
+instance must reach `drained` (Quench: two instances of one user, one slow). 2 Verified in code (recordLive drops a
+record whose item id is gone): `subsystems.*.target.id` (kind item) and `vfollow.*.subsystem.rolled.made[].target.id`
+are `ref`s; inventory rows added for `subsystems`, `subsysGen`, `guidance`; fixture with item-bound and built-in records.
+3 Quiescence refuses a rolled subsystem follow-up without `consequencesDone`. 4 Quiescence refuses active guidance
+(`acquired`/`committed`) until `ended`/`lost`.

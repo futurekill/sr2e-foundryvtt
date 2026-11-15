@@ -42,7 +42,10 @@ aliases are not all caught — the M2 step that moves a method re-checks it by h
 ## Hidden reads the context must carry
 - **Settings**: `autoEssence`, `moreMetahumans`, `cybermancy` (in `prepareDerivedData` / `_applyCybermancy`), plus the
   rulesets read through helpers: `isVR2()` (`matrixRuleset`), `isRigger2()` (`vehicleRuleset`), `r2Option(...)`,
-  `variableLTGOn()` → `ctx.settings`.
+  `variableLTGOn()` → `ctx.settings`. Also `utilityOptionsOn()` (`vr2UtilityOptions`; ProgramData, item-data.mjs
+  ~1142/1171), which swallows a missing `game` and returns false — a silent wrong answer in Node (PLAN-derive round 5 #1).
+- **Registries**: `CONFIG.SR2E.languageFamilies` (the synthetic LinguaSoft skill, actor-data.mjs ~927) →
+  `ctx.registries.languageFamilies`.
 - **Localization**: `_collectItemModifiers`, `_applyLimbAverages`, `_calculateAttributeValues` call `game.i18n` to
   label attribute sources. The pure layer returns label KEYS (+ params); the Foundry adapter and the creator localize.
 - **Active Effects**: `_applyCybermancy` and `_attributeEffectSources` read `parent.appliedEffects` → `ctx.effects`.
