@@ -19432,6 +19432,27 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Network drone weapons (Part 5a.2, R2 p.65)", function () {
+        it("captain's chair: the drone fires on its own Pilot, no pools; the primary is fired by its operator", async function () {
+          this.timeout(30000);
+          const RCN = await import("../rc-net.mjs");
+          const pc = await Actor.create({ name: "Quench Gun Rigger", type: "character", system: { rigging: true, vehicleControlRig: 1 } }); made.push(pc);
+          const [deck] = await pc.createEmbeddedDocuments("Item", [{ name: "Quench Gun Deck", type: "gear", system: { rating: 1 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          const d = await mk("Quench Gun Drone", { vehicleType: "drone", pilot: 3 });
+          const [gun] = await d.createEmbeddedDocuments("Item", [{ name: "Quench Drone SMG", type: "weapon", system: { weaponType: "firearm", damageCode: "6M", ammo: { max: 0, current: 0 }, firingModes: { sa: true } } }]);
+          await call("rcSubscribe", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+          await call("rcAffiliate", { deckUuid: deck.uuid, vehicleUuid: d.uuid, on: true });
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: pc.uuid });
+          assert.equal(RCN.networkGunner(d).gunner, d, "captain: the drone itself");
+          const seen = [], orig = d.rollSuccessTest.bind(d);
+          d.rollSuccessTest = (dice, tn, o) => { seen.push(dice); return orig(dice, tn, o); };
+          try { await gun._rollWeaponAttack({ gunner: d, range: "short", _engage: { key: "quench-drone-gun", token: null } }); } finally { d.rollSuccessTest = orig; }
+          assert.equal(seen[0], 3, "Pilot 3");
+          await call("rcJump", { deckUuid: deck.uuid, vehicleUuid: d.uuid });
+          assert.equal(RCN.networkGunner(d).gunner, pc, "primary: the operator, rigged");
+        });
+      });
+
       describe("Task Pool (Part 5a.0, R2 p.16)", function () {
         it("an encephalon Level 3 gives 2 dice under Rigger 2 (none under core); a Technical skill test spends them", async function () {
           this.timeout(20000);

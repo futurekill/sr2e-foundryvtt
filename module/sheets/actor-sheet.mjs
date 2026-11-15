@@ -2026,7 +2026,10 @@ async function onFireVehicleWeapon(event, target) {
   const controlled = canvas?.tokens?.controlled
     ?.map(t => t.actor)
     .find(a => a && (a.type === "character" || a.type === "npc"));
-  const gunner = controlled ?? game.user?.character ?? null;
+  // A network drone (Rigger 2 p.65): the operator fires its primary; any other drone fires on its own Pilot.
+  const net = (await import("../rc-net.mjs")).networkGunner(vehicle);
+  if (net?.refused) return ui.notifications?.warn(net.refused);
+  const gunner = net?.gunner ?? controlled ?? game.user?.character ?? null;
   if (!gunner) {
     ui.notifications?.warn(game.i18n.localize("SR2E.Vehicle.NoGunner"));
     return;

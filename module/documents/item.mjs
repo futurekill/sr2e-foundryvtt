@@ -800,6 +800,9 @@ export class SR2EItem extends Item {
       }
     }
 
+    // A drone firing on its own (R2 p.65, p.67; 5a.2): the Pilot Rating replaces the skill; no pools, no defaulting.
+    if (actor.type === "vehicle") { skillRating = actor.system.effective?.pilot ?? actor.system.pilot ?? 0; skillVariantNote = "Pilot"; }
+
     // Untrained: default to the skill's linked Attribute via the Skill Web
     // (SR2E p.69) — attribute dice at +CONFIG.SR2E.defaultingPenalty TN.
     let dicePool = skillRating;

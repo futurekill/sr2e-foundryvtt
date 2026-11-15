@@ -1370,6 +1370,8 @@ export class SR2EActor extends Actor {
    * @returns {{skillCap:number, baseDice:number, defaultingPenalty:number}}
    */
   _gunneryAttackDice() {
+    // A drone firing on its own (R2 p.65, p.67; 5a.2): its Pilot replaces Gunnery; no pools.
+    if (this.type === "vehicle") { const p = this.system.effective?.pilot ?? this.system.pilot ?? 0; return { skillCap: 0, baseDice: p, defaultingPenalty: 0 }; }
     const rating = this.items.find(
       i => i.type === "skill" && i.name.toLowerCase() === "gunnery"
     )?.system?.rating ?? 0;

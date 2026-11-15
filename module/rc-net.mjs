@@ -124,6 +124,22 @@ function leaveGroups(net, keys) {
   }
 }
 
+/**
+ * Who fires a network drone's weapon (p.65; 5a.2/5a.8): its operator when it's the primary (rigged, Combat Pool through
+ * the link); otherwise the DRONE itself on its Pilot — the captain's "Fire a weapon system" on any single drone, or a
+ * secondary carrying out its command (the jumped-in rigger can't fire a secondary directly). Null for a vehicle not on
+ * a connected network (the usual gunner rules apply). `{ gunner, note }` or `{ refused }`.
+ */
+export function networkGunner(vehicle) {
+  const op = networkControllerOf(vehicle);
+  if (!op) return null;
+  const mode = droneModeOf(vehicle);
+  if (mode === "primary") return { gunner: op, note: "" };
+  if (mode === "secondary" && !netOf(networkOf(vehicle))?.standingOrders?.[vKey(vehicle.uuid)]?.obeyed && !game.user.isGM)
+    return { refused: `${vehicle.name} is a secondary drone: command it first — a jumped-in rigger can't fire it directly (Rigger 2 p.65)` };
+  return { gunner: vehicle, note: "the drone's Pilot (Rigger 2 p.65)" };
+}
+
 /** Is the vehicle hardwired to its network's deck (5a.7)? */
 export const hardwiredTo = (vehicle) => !!netOf(networkOf(vehicle))?.affiliated?.[vKey(vehicle.uuid)]?.hardwired;
 /** Is the vehicle affiliated with any network (Part 1 crew control is then refused, and vice versa)? */

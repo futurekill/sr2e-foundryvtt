@@ -4331,7 +4331,9 @@ const SHARED_ACTIONS = {
     const vehicle = await fromUuid(uuid);
     const weapon = vehicle?.items.get(weaponId);
     if (!weapon) return;
-    const actor = this.document;
+    const net = (await import("../rc-net.mjs")).networkGunner(vehicle);
+    if (net?.refused) return ui.notifications.warn(net.refused);
+    const actor = net?.gunner ?? this.document;
 
     // Gunnery, defaulting via the Skill Web (SR2E p.69) untrained — shared with
     // actor-sheet.onFireVehicleWeapon so the two handlers can't diverge.
