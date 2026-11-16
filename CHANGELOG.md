@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Smoke grenades now make a cloud you can see.** Smoke has no Power, so the blast-radius formula gave every smoke
+  cloud a radius of 0 m; it is now Fields of Fire p.85's Smoke Table: 10 m for a grenade (15 m for a mortar round).
+- The **Smoke Grenade** and **Thermal Smoke Grenade** (the book's "Smoke (IR)") now cite Fields of Fire p.48 with its
+  prices, Availability and Street Index (30¥ / 3/24 hrs; 40¥ / 4/48 hrs; both Street Index 2). They had an invented
+  Availability and Legality and cited only the core book's Visibility Table.
+
 ## 0.157.1 — 2026-11-15
 
 ### Added

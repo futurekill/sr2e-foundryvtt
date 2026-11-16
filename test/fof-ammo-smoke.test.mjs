@@ -18,3 +18,12 @@ describe("Tracer rounds (Fields of Fire p.51)", () => {
     expect(tracerTnMod({ rounds: 2, range: "medium" })).toBe(0);
   });
 });
+
+import { smokeCloudRadius } from "../module/rules/sr2e-rules.mjs";
+describe("Smoke clouds (Fields of Fire p.85 Smoke Table)", () => {
+  it("a grenade's cloud has a 10 m radius, a mortar round's 15 m — never the 0 m a Power-based radius gives", () => {
+    expect(smokeCloudRadius("Smoke Grenade")).toBe(10);
+    expect(smokeCloudRadius("Thermal Smoke Grenade")).toBe(10);
+    expect(smokeCloudRadius("Mortar Smoke Round")).toBe(15);
+  });
+});

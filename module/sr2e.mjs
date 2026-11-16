@@ -94,7 +94,7 @@ import { registerVr2IcHooks } from "./vr2ic.mjs";
 import { registerCyberDamageHooks } from "./cyberdamage.mjs";
 import { registerCybermancyHooks, reconcileAllCym, unfinishedCymImplant } from "./cybermancy.mjs";
 import { settleSecondhandTest, decorateSettleButton } from "./secondhand.mjs";
-import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
+import { isAntiVehicleOrdnance, blastFalloffRate, blastPowerAtRange, blastRadius, smokeCloudRadius, netToSteps, CALLED_SHOT_STEPS, testTotalSuccesses, stageLevel, scatterProfile, scatterDistance, scatterBearing, shotgunSpread, itemBaseCost, streetPrice, ratedStreetIndex, blocksChargenReopen, ammoStacks, REPAIRABLE_IMPLANT_FIELDS, repairedFieldValue, allocateNuyen, normalisedFocusSpent, skillTiersFromAllocation, validateSkillAllocation, allocationFromLegacyRating, staleSubRatingRepair, startingMoney } from "./rules/sr2e-rules.mjs";
 import { registerSR2EQuenchTests } from "./quench/sr2e-quench.mjs";
 import { programmingState, loadingState, pendingUpgrade, registerProgrammingHandlers, designOf } from "./programming.mjs";
 import { activeOptions } from "./rules/vr2-options.mjs";
@@ -2380,7 +2380,7 @@ async function launchFromCard(message, key) {
       ? (st.aim ?? (st.centerTokenUuid ? { mode: "token", tokenUuid: st.centerTokenUuid } : { mode: "deferred" }))
       : null;
     if (aim?.mode === "deferred") {
-      const pt = await promptForCanvasPoint(st.name, { radius: blastRadius(st.basePower, blastFalloffRate(st.blastType)), note: "before scatter" });
+      const pt = await promptForCanvasPoint(st.name, { radius: st.blastType === "smoke" ? smokeCloudRadius(st.name) : blastRadius(st.basePower, blastFalloffRate(st.blastType)), note: "before scatter" });
       if (!pt) return;                                   // cancelled: still retryable
       aim = { mode: "point", x: pt.x, y: pt.y, sceneId: canvas.scene?.id ?? null };
       // The click took time: re-check and re-read (Karma may have landed).
@@ -2572,7 +2572,7 @@ async function resolveBlast({ centerTokenUuid, centerPoint = null, strictToken =
   // successes the launch used) so any client can tell it has been launched.
   const markFlags = marker ? { flags: { sr2e: { resolves: marker.resolves, launchSuccesses: marker.launchSuccesses } } } : {};
   const falloff = blastFalloffRate(blastType);
-  const radiusM = blastRadius(basePower, falloff);
+  const radiusM = blastType === "smoke" ? smokeCloudRadius(blastName) : blastRadius(basePower, falloff);
 
   // Scatter (core p.96): all grenades drift; the attack's successes pull it back
   // toward the target (2 m/success for thrown, 4 m for launchers). A miss (0

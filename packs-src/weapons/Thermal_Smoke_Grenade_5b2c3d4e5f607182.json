@@ -30,18 +30,18 @@
     },
     "strengthMin": 0,
     "weight": 0.25,
-    "cost": 30,
-    "availability": "4/4 days",
-    "legality": "Restricted",
+    "cost": 40,
+    "availability": "4/48 hrs",
+    "legality": "",
     "equipped": false,
     "accessories": [],
-    "notes": "Thermal smoke grenade — blocks thermographic vision too. No damage — drops a visibility-impairing cloud (Visibility Table +4, defeats thermographic vision, SR2E p.89). Radius scales like a grenade blast. SR2E gear.",
+    "notes": "Smoke (IR) grenade (Fields of Fire p.48; smoke rules p.85): thermal smoke with hot particles that also obscures thermographic vision. No damage: a 10 m radius cloud lasting 2 minutes in still air (Visibility Table +4, SR2E p.89). Legality is not printed.",
     "blastType": "smoke",
     "quantity": 1,
     "streetIndex": 2,
     "citation": {
-      "book": "sr2",
-      "page": "89"
+      "book": "ff",
+      "page": "48"
     }
   },
   "effects": [],

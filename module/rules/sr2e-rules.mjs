@@ -867,6 +867,12 @@ export function blastPowerAtRange(basePower, distanceMeters, falloffRate = 1) {
  * gather affected tokens. (Offensive Power 10, falloff 1 → 9 m; defensive
  * Power 10, falloff 2 → 4 m.)
  */
+/**
+ * A smoke cloud's radius in metres (Fields of Fire p.85 Smoke Table): a grenade 10 m, a mortar round 15 m. Smoke has
+ * no Power, so it can't use `blastRadius` (which gave every smoke cloud a 0 m radius).
+ */
+export const smokeCloudRadius = (name = "") => (/mortar/i.test(String(name)) ? 15 : 10);
+
 export function blastRadius(basePower, falloffRate = 1) {
   if (falloffRate <= 0) return Math.max(0, basePower);
   return Math.max(0, Math.floor((basePower - 1) / falloffRate));
