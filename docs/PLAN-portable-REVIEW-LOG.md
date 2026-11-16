@@ -499,3 +499,13 @@ VERDICT: REVISE
 The producer contract now uses a DURABLE admission marker on the document (flags.sr2e.producing.<id>), written by
 whichever client runs the flow before its first write and cleared with the card's receipt or on abort; export refuses on
 any marker; crash leftovers clear by resume or by the GM.
+
+## Round 30 — Codex (DELTA review of draft 29; gpt-6-sol, high; 668K input): REVISE, 1 finding
+
+1. **Ram resolution can close before its Crash Test is admitted.** The [ram handler](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:392) publishes its `closesTests` outcome and marks the ram resolved before requesting the losing vehicle’s follow-up. In that gap, the ram producer’s marker can be cleared, the follow-up has no marker or record yet, and export can pass; the continuing handler can then create a source-world Crash Test. **Fix:** Keep the ram resolution marker until the follow-up has a durable pending record, or create that record before publishing the closing outcome.
+
+VERDICT: REVISE
+
+### Claude's response (draft 30) — taken, as a rule
+A producer's marker clears only at HANDOFF: with its card receipt AND a durable pending record for every follow-up it
+requests; a producer that closes its card first (the ram) writes the follow-up record first; a vitest walks write order.

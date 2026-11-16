@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 29 (2026-11-15), after Codex rounds 1–29 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 30 (2026-11-15), after Codex rounds 1–30 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -125,7 +125,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   …), and every producer, on WHICHEVER client runs it, first writes a DURABLE admission marker on the document it will
   change (`flags.sr2e.producing.<id>` = { producer, user, at }; round 29 #1: `track` is client-local, so a player's
   in-flight flow was invisible to the GM's export) before its first durable write (a pool debit, a Stress write, a
-  ledger claim), and clears it in the same update that publishes its card's receipt, or on abort; export refuses
+  ledger claim), and clears it only at HANDOFF (round 30 #1): in the update that records the flow's LAST durable effect
+  — its card's receipt AND a durable pending record for every follow-up it requests (the ram's losing-vehicle Crash
+  Test follow-up, a crash's resistance, …) — or on abort; a producer whose card closes before it requests a follow-up
+  (today's ram handler) writes the follow-up's pending record first. A vitest walks each producer's write order; export refuses
   while any exported document carries a marker (naming it); a marker left by a crash is cleared by its producer's
   resume path, or by the GM from the refusal (the same recovery-blocks rule as round 12 #3) — so the gap between a pushed test's Control Pool
   debit and Stress and its Resolve card is covered — and a vitest fails on a registry entry whose producer isn't
