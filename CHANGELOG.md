@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.159.0 — 2026-11-16
 
 ### Added
 - **Interference contests** (Rigger 2 p.72; Part 5b.4), under the Rigger 2 vehicle ruleset: a rigger with a protocol
@@ -9,7 +9,8 @@
   LOSER takes the net successes as boxes on its OWN system channel. Either side may start the next exchange. Ten boxes,
   or the other side disconnecting while you stay, hands the loser's network to the winner: its drones obey the winner,
   who starts in the captain's chair; a loser jumped into a drone is dumped. Every step is journalled first and
-  re-applied after a crash, and the network's control reads follow the journal until it lands.
+  re-applied after a crash, and the network's control reads follow the journal until it lands. A taken network answers
+  only to its taker (and the GM) until the taker disconnects it. Rigger 2's electronic warfare (Part 5b) is complete.
 
 ### Fixed
 - **Untrained drivers default properly with the new vehicle skills.** A Winged Plane, Rotor Craft or Vectored Thrust
