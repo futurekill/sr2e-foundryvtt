@@ -7,6 +7,15 @@ Last reviewed 2026-11-15 (system 0.156.0): stale entries struck through with wha
 
 ## Broken / needs a live session
 
+- **Karma on a Driving Test can race its resolution** (found by Codex reviewing the portable plan, 2026-11-15, rounds
+  21–24). The Karma buttons run in a client-local `karma:<testId>` queue (module/sr2e.mjs) and the Karma writer checks
+  closure before its final `message.update` (module/documents/actor.mjs); `drivingResolve` reads the card on the GM
+  in `vdmg:<vehicle>`. A player whose spend passed the closure check can land after the GM resolved, so the card shows
+  successes the Stress never used. The Karma Pool also has no single writer per actor (two spends can both read the last
+  point; refunds are unqueued). A real fix is a per-actor Karma writer (`isPoolClient`, like the Control Pool) with
+  receipts, a GM-to-writer request with a bounded wait for spends that must sit inside a GM queue, and receipt-keyed
+  refunds — its own Codex-reviewed plan. Rare at the table (needs a spend and a Resolve within the same moment).
+
 - **Player-reported: dropping a skillsoft does nothing (NOT reproducible by the
   GM).** (2026-11-15: both defects below are fixed — `readDrop` warns, a Buy
   dialog failure throws — so the next report will say what failed.) Investigated 2026-07-28 and parked — the purchase path was proven

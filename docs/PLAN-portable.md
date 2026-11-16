@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 24 (2026-11-15), after Codex rounds 1–23 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 25 (2026-11-15), after Codex rounds 1–24 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -113,19 +113,12 @@ from their synthetic source. A reference to something not exported → `unresolv
   resolution STAGED and durable (claim → rolled → Stress applied → crash follow-up created → outcome card published,
   each recorded on the vehicle's receipt) and resumable from any stage; round 20 #3: the crash follow-up's id is
   DETERMINISTIC (derived from the Driving Test card), and the stage advances only once that id exists, so a resume
-  can't create a second Crash Test; round 20 #4: Karma on the test closes when the rolled result is committed, and the
-  resolution stays open until its outcome card (with `closesTests`) is durably published; round 21 #1: Driving Test
-  Karma spends and the close-and-snapshot step run in ONE GM-owned queue (the vehicle's), so a player's spend that
-  passed its closure check can't land after the close and reopen or change the committed result — the snapshot the
-  rolled receipt records is taken inside that queue. Round 22 #1: the chat button's `karma:<testId>` queue is
-  client-local, so a Driving Test's Karma spend becomes a GM op (`drivingKarma`, over `gmCall`): it verifies the
-  requester owns the rolling actor and runs the whole spend — closure check, pool debit, test update — in the GM's
-  vehicle queue; the crash follow-up stays outside that queue, as damage delivery already does. Round 23 #1: the Karma
-  POOL itself has one writer per actor — `isPoolClient(actor)` (the active player owner, else the active GM), the same
-  rule as the Control Pool — and every Karma availability check and debit for that actor runs in its actor pool queue
-  there, each debit receipted by spend id. `drivingKarma` asks that writer for the debit (receipt) from inside the
-  vehicle queue's closure check, and applies the test update only once the receipt exists; a test closed meanwhile
-  refunds by the same receipt. Two Driving Tests in different vehicle queues therefore still debit one pool in order; the registry's `isOpen` reads that receipt, and fixtures stop after
+  can't create a second Crash Test; round 20 #4 (as revised at round 24): export only
+  READS — a Driving Test's registry entry is open until every resolution stage is recorded AND its outcome card (the
+  one carrying `closesTests`) is published, so a test still open to Karma is never exported; M1 does not change when or
+  how the test closes (rounds 21–24 had grown a cross-client Karma-writer design to do that, withdrawn: the race between
+  a Karma spend and the resolution exists in today's code independent of portability and is tracked separately in
+  docs/BACKLOG.md); the registry's `isOpen` reads that receipt, and fixtures stop after
   each stage. The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also

@@ -427,3 +427,20 @@ VERDICT: REVISE
 The Karma Pool gets one writer per actor (isPoolClient, as the Control Pool): every availability check and debit runs in
 that actor's pool queue with a receipt; drivingKarma requests the debit from inside the vehicle queue and refunds by receipt
 if the test closed meanwhile.
+
+## Round 24 — Codex (DELTA review of draft 24; gpt-6-sol, high; 290K input): REVISE, 2 findings
+
+Draft 24 closes round 23’s competing-debit race **if every Karma spend uses the actor’s designated writer and queue**. Two material gaps remain:
+
+1. **A disconnected player can strand the vehicle queue.** [The plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:124) makes an active player the pool writer, but [gmCall](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:38) only routes requests to the GM. If the player disconnects while the GM awaits a debit inside `vdmg:<vehicle>`, no reply is guaranteed; the caller’s 30-second timeout does not release the GM’s queued operation. **Fix:** Specify a targeted GM-to-writer request with a bounded wait and receipt reconciliation on disconnect, then release or safely resume the vehicle queue.
+
+2. **A refund can still race a debit.** The new text queues availability checks and debits, but only says to refund “by the same receipt”; [the current refund](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:840) reads and writes Karma without that queue. A refund and another spend can both read `spent = 1` and leave the later spend uncharged. **Fix:** Run receipt refunds through the same actor writer and queue, marking each receipt refunded exactly once.
+
+VERDICT: REVISE
+
+### Claude's response (draft 25) — design withdrawn instead
+Rounds 21–24 each found the next gap in a cross-client Karma-writer design that round 20 #4's fix had pulled into M1
+(closing Karma at commit). Export only needs to WAIT for a settled test, so draft 25 withdraws that design: a Driving
+Test is open in the registry until every stage is recorded AND its closesTests outcome card is published; M1 changes
+nothing about when the test closes. The pre-existing Karma-vs-resolution race (and the Karma Pool's missing single
+writer) is real but independent of portability: docs/BACKLOG.md, for its own plan.
