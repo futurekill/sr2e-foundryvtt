@@ -295,7 +295,10 @@ export function registerEw() {
       throw new Error("that card was rolled under an earlier hold on the channel: not counted");
     // Bound to the drone's order as it stood at the roll (c5b1 r2 #3): an older card can't overwrite a newer order.
     if (num(cmd.orderRev) !== num(net.standingOrders?.[k]?.rev)) throw new Error("the drone's orders changed since that roll: not counted");
-    const t = commandTest(op, target, v, SKILL_SUCCESS_TABLE[0].tn);   // the lowest table TN + the live modifiers
+    // The card's own table TN + the modifiers as they stand NOW (c5b1 r3 #1): a card rolled before the intruder jumped
+    // into a drone is short of the +2 and refused.
+    const tableTn = Math.max(SKILL_SUCCESS_TABLE[0].tn, num(cmd.tableTn) || SKILL_SUCCESS_TABLE[0].tn);
+    const t = commandTest(op, target, v, tableTn);
     if ((test.dice ?? []).filter(d => d.sourceKey === "base").length > t.dice || (test.dice ?? []).some(d => d.sourceKey === "misc")
       || test.baseTn == null || num(test.baseTn) < t.tn)
       throw new Error(`that Comprehension Test wasn't rolled as the rules say: at most ${t.dice} dice vs TN ${t.tn} or more`);

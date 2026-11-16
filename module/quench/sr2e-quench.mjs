@@ -19636,7 +19636,9 @@ export function registerSR2EQuenchTests() {
             assert.equal(RCN.netOf(dA).channelAuthority.command.eventId, aid, "the first filler keeps the channel");
             assert.equal(EWX.channelActor(dA, "command"), B, "the intruder performs the command channel");
             assert.equal(EWX.channelActor(dA, "system"), A, "only that channel");
-            const bind = { authEvent: aid, freqGen: 0, orderRev: 0 };
+            const bind = { authEvent: aid, freqGen: 0, orderRev: 0, tableTn: 4 };
+            let errT = null; try { await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "x", messageId: await order({ ...bind, tableTn: 6 }) }); } catch (e) { errT = e.message; }
+            assert.match(errT ?? "", /rules say/, "a card below its own table TN + the live modifiers is refused (c5b1 r3 #1)");
             let err0 = null; try { await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "x", messageId: await order({ ...bind, authEvent: "old" }) }); } catch (e) { err0 = e.message; }
             assert.match(err0 ?? "", /earlier hold/, "a command card is bound to the hold it was rolled under (c5b1 r1 #4)");
             const older = await order(bind);

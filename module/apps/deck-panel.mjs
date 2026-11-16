@@ -261,7 +261,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const t = EWX.commandTest(op, target, v, Number(res.tn) || 4);
     const roll = await v.rollSuccessTest(t.dice, t.tn, { label: `Comprehension Test: "${esc(res.text || "command")}" (captured channel; Rigger 2 p.66, p.70)`, isResistance: false,
       flags: { sr2e: { rcCommand: { deckUuid: target.uuid, vehicleUuids: [v.uuid], authEvent: auth.auth.eventId, freqGen: EWX.freqGen(netOf(target)),
-        orderRev: netOf(target)?.standingOrders?.[vKey(v.uuid)]?.rev ?? 0 } } } });
+        orderRev: netOf(target)?.standingOrders?.[vKey(v.uuid)]?.rev ?? 0, tableTn: Number(res.tn) || 4 } } } });
     if (roll) return rc("ewCommand", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, vehicleUuid: v.uuid, text: res.text ?? "", messageId: roll.testMessageId }).catch(warn);
   }
   static async #ewBlock(_e, el) {
