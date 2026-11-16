@@ -10,6 +10,7 @@
  *     ONE actor update with its receipt `flags.sr2e.dmgReceipts.<key> = <effectId>`; a card found without its receipt
  *     is applied from the card, never re-rolled.
  */
+import { acvCrashCap } from "./rules/vehicle-ops-rules.mjs";
 import { gmCall, gmOp, controllerOf, isPoolClient, commitVehicleDamage, setFollowupDelivery, followId, mayResistFor, adjustStress } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { defenseQueue } from "./spell-defense.mjs";
@@ -87,6 +88,9 @@ export async function escalateCrash(vehicle, fid, kind, why = "") {
 
 /** The crash record for a follow-up id (created at most once, in the vehicle queue). */
 const crashOf = (vehicle, fid) => Object.entries(vehicle.getFlag("sr2e", "crashes") ?? {}).find(([, c]) => c?.fid === fid) ?? null;
+
+/** An air-cushion vehicle (hovercraft; R2 p.35). */
+export const isAcv = (vehicle) => vehicle?.system?.vehicleType === "hovercraft" || vehicle?.system?.design?.category === "hovercraft";
 
 async function openCrash(vehicle, fid, x) {
   if (crashOf(vehicle, fid)) return;
@@ -213,7 +217,9 @@ async function crashOp({ vehicleUuid, cid, step, op, attemptId = null, messageId
       } else {
         const r2 = c.ruleset === "rigger2";
         const hit = c.kind === "impact" ? { power: c.power, level: c.level } : r2 ? r2Impact(c.speed) : impactDamage(c.speed);
-        const level = !hit ? null : r2 ? stageDown(hit.level, read) : (STAGES[STAGES.indexOf(hit.level) - Math.floor(read / 2)] ?? null);
+        // An air-cushion vehicle's crash damage never exceeds Serious (R2 p.35; 5c): its side skirts buffer it.
+        const level = acvCrashCap(!hit ? null : r2 ? stageDown(hit.level, read) : (STAGES[STAGES.indexOf(hit.level) - Math.floor(read / 2)] ?? null),
+          isAcv(vehicle));
         const occ = !hit ? null : r2 ? { power: hit.power, level: hit.level } : level ? { power: hit.power, level } : null;
         upd[`${base}.state`] = "resolving";
         upd[`${base}.outcome`] = { power: hit?.power ?? 0, level: hit?.level ?? null, vehicleLevel: level, occupants: c.noOccupants ? null : occ,

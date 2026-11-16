@@ -9,6 +9,7 @@
  *     apply ("resolving" → "done"). Cancel is acked by the pool writer before the tombstone ("cancelled").
  * Read-only lookups are in chase-state.mjs.
  */
+import { hasLegs } from "./rules/vehicle-ops-rules.mjs";
 import { guidanceDrivingMod } from "./vehicle-missiles.mjs";
 import { gmCall, gmOp, isPoolClient, adjustStress, r2SpeedOf, spendPosition, setChaseRoute, riggedInto } from "./vehicle-play.mjs";
 import { enqueueAttack } from "./engagement.mjs";
@@ -722,6 +723,8 @@ async function addEntry({ combatId, kind = "vehicle", uuid, driver = "", speed =
     const doc = fromUuidSync(uuid);
     if (!doc) throw new Error("not found");
     if (kind === "vehicle" && doc.type !== "vehicle") throw new Error("not a vehicle");
+    // A vehicle on legs walks and runs and fights by the character rules, not the vehicle combat rules (R2 p.35; 5c).
+    if (kind === "vehicle" && hasLegs(doc)) throw new Error(`${doc.name} walks on legs: it moves and fights by the character combat rules, not in a chase (Rigger 2 p.35)`);
     if (inAnyChase(uuid)) throw new Error(`${doc.name} is already in a chase`);
     // An affiliated vehicle is acted for by its network operator (5.0): no crew driver.
     if (kind === "vehicle" && driver && RCN.isAffiliated(doc)) throw new Error(`${doc.name} is on a remote-control network: its operator drives it`);

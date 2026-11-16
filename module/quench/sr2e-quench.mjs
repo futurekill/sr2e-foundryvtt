@@ -19841,6 +19841,62 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Special vehicle operations (Part 5c, R2 p.33–36)", function () {
+        it("Pull Test over 1.5 × Load (TN 8, the Body (4) side test, the Stress-rate card); arm Strength and arm melee; a rough takeoff opens a 6L impact; an ACV refuses a slope; legs stay out of the chase", async function () {
+          this.timeout(60000);
+          const VO = await import("../vehicle-ops.mjs"), VP = await import("../vehicle-play.mjs");
+          const orig = CONFIG.Dice.randomUniform;
+          const n0 = game.messages.size;
+          try {
+            // Pull: 1,800 kg on a Load 1,000 truck → TN 8; all ones → fails, and the Body (4) Test fails: +1 Stress.
+            const T = await mk("Quench Pull Truck", { load: 1000 });
+            CONFIG.Dice.randomUniform = () => 0.99;   // every die a 1
+            await VO.rollPull(T, { weight: 1800, extra: 0, conditions: "", stuck: 0, noRollers: false, braced: false, push: 0 });
+            const msgs = game.messages.contents.slice(n0);
+            assert.ok(msgs.some(m => /Pull Test \(Object weight 8/.test(m.flags?.sr2e?.test?.label ?? "")), "TN 8 at 1.6–2 × Load");
+            assert.equal(T.system.stressRating, 1, "the failed Body (4) Test costs 1 Stress");
+            const card = msgs.find(m => m.flags?.sr2e?.pullStress);
+            assert.equal(card?.flags.sr2e.pullStress.rate, "minute", "quarter speed, +1 Stress a minute");
+            // Arms: Body 3 → Strength 9 + 2 bought = 11; melee through the controller's Unarmed Strike at Strength 11.
+            const A = await mk("Quench Arm Drone", { body: 3, handling: 5, vehicleType: "drone" });
+            await A.createEmbeddedDocuments("Item", [{ name: "Mechanical Arms", type: "vehicle_mod", system: { rating: 2 } }]);
+            assert.equal(A.system.effective.arms[0]?.strength, 11, "Body × Body + bought-up Strength");
+            const pc = await Actor.create({ name: "Quench Arm Rigger", type: "character", system: { linkedVehicles: [A.uuid] } }); made.push(pc);
+            if (!pc.items.some(i => i.name === "Unarmed Strike")) {
+              const pack = game.packs.get("sr2e.weapons"), idx = await pack.getIndex(), u = idx.find(e => e.name === "Unarmed Strike");
+              await pc.createEmbeddedDocuments("Item", [(await pack.getDocument(u._id)).toObject()]);
+            }
+            await call("control", { characterUuid: pc.uuid, vehicleUuid: A.uuid, on: true });
+            CONFIG.Dice.randomUniform = () => 0.2;
+            const unarmed = pc.items.find(i => i.name === "Unarmed Strike");
+            const n1 = game.messages.size;
+            await unarmed.roll({ vehicleArm: { vehicleUuid: A.uuid, itemId: A.system.effective.arms[0].itemId } });
+            const melee = game.messages.contents.slice(n1).find(m => m.flags?.sr2e?.melee)?.flags.sr2e.melee;
+            assert.equal(melee?.power, 11, "the arm's Strength, none of the character's own");
+            assert.match(JSON.stringify(game.messages.contents.slice(n1).map(m => [m.content, m.flags?.sr2e?.test?.label])), /Str 11\) \+2/, "+2 TN for Handling 5");
+            // A rough-surface takeoff: base TN 3, heavy cross winds +3, rough +1 → TN 7 (Handling plays no part); 6L impact.
+            const P = await mk("Quench Plane", { vehicleType: "drone", body: 3, handling: 4, pilot: 3, ltProfile: "Standard" });
+            const res = await VP.rollDrivingTest(null, P, { mode: "drone", terrain: "normal", situation: "", weather: "", size: "", otherMod: 0,
+              unfamiliar: false, combat: false, offRoad: false, flight: "takeoff", winds: "heavy", rough: true });
+            assert.ok(res, "rolled");
+            const lab = game.messages.get(res.testMessageId)?.flags?.sr2e?.test?.label ?? "";
+            assert.match(lab, /Takeoff Test \(Takeoff base TN 3, Heavy cross winds \+3, Rough or uneven surface \+1/, lab);
+            assert.ok(Object.values(P.getFlag("sr2e", "vfollow") ?? {}).some(f => f.crash?.kind === "impact" && f.crash.power === 6 && f.crash.level === "L"), "the 6L impact is open");
+            // An ACV refuses a significant slope.
+            const H = await mk("Quench Hovercraft", { vehicleType: "hovercraft", pilot: 2 });
+            const before = game.messages.size;
+            await VP.rollDrivingTest(null, H, { mode: "drone", terrain: "normal", slope: true });
+            assert.equal(game.messages.size, before, "no roll on a significant slope");
+            // Legs: a walker can't join a chase.
+            const W = await mk("Quench Walker", { design: { category: "special", traits: [] } });
+            const combat = await Combat.create({ scene: null, active: false }); combats.push(combat);
+            await call("chaseSetup", { combatId: combat.id });
+            let err = null; try { await call("chaseAddEntry", { combatId: combat.id, uuid: W.uuid, speed: 0 }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /legs/);
+          } finally { CONFIG.Dice.randomUniform = orig; }
+        });
+      });
+
       describe("Part 5a review fixes (c5a r2)", function () {
         it("a player can't delete another character's deck (r2 #1); chase cards carry the veto flag (r2 #3) and withhold a scoped pool from non-GM rollers (r3 #2)", async function () {
           this.timeout(30000);

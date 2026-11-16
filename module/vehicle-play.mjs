@@ -14,6 +14,7 @@ import { claimId } from "./rules/claim-rules.mjs";
 import { crashTrigger, woundLevelOf, impactDamage, reservedControl, levelBelow } from "./rules/vehicle-play-rules.mjs";
 import { resolveBarrier } from "./rules/sr2e-rules.mjs";
 import { r2Speed, engineFailureStress, permanentStress, repairQuote, repairHours, drivingTN, stressDice, ruleOfOne, drivingStressOutcome, overhaul } from "./rules/vehicle-r2-rules.mjs";
+import { takeoffLanding, ltProfileOf, hasLegs, legsRunning } from "./rules/vehicle-ops-rules.mjs";
 import { isRigger2, vehicleQuality, r2Option } from "./vehicle-mode.mjs";
 import { poolsLocked, actionOf, chaseDriverUuid, findEntry } from "./chase-state.mjs";
 import { brRound, installTime } from "./rules/vehicle-custom.mjs";
@@ -888,8 +889,13 @@ function aboardOrUnknown(actor, vehicle) {
 }
 
 /** The Driving Test dialog; `driver` null = a drone driving itself on its Pilot. */
-export async function promptDrivingTest(driver, vehicle) {
+export async function promptDrivingTest(driver, vehicle, { flight = null } = {}) {
   const modes = drivingModes(driver, vehicle);
+  // 5c (R2 p.35–36): an ACV can't climb a significant slope (the GM decides which count) and has its own terrain table;
+  // a takeoff/landing (flight = "takeoff" | "landing") uses base TN 3 / 4 and its own modifiers; a rail vehicle's test is
+  // the speed change that throws off an attacker's aim.
+  const acv = (await import("./vehicle-damage.mjs")).isAcv(vehicle);
+  const rail = !!vehicle.getFlag?.("sr2e", "rail");
   const ground = vehicle.system.vehicleType === "ground";
   const offRoadRating = vehicle.system.effectiveHandlingOffRoad;
   const sk = driver ? driver._vehicleSkill(vehicle) : null;
@@ -902,6 +908,14 @@ export async function promptDrivingTest(driver, vehicle) {
   return foundry.applications.api.DialogV2.prompt({
     window: { title: `Driving Test: ${vehicle.name}` }, rejectClose: false,
     content: `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;">
+      ${flight ? `<p style="grid-column:1/-1;margin:0;"><strong>${flight === "landing" ? "Landing" : "Takeoff"}</strong> on an unusual surface, in adverse weather or in combat (Rigger 2 p.36): base TN ${flight === "landing" ? 4 : 3} in place of Handling.</p>
+        <div class="form-group"><label>Cross winds:</label>${sel("winds", [["", "None"], ["cross", "Cross winds (+2)"], ["heavy", "Heavy cross winds (+3)"]])}</div>
+        <label style="font-size:12px;" title="Not a smooth but irregular surface such as a carrier deck, calm water or asphalt"><input type="checkbox" name="rough"> Rough or uneven surface (+1; 6L to the aircraft)</label>
+        ${flight === "landing" ? `<label style="font-size:12px;"><input type="checkbox" name="crashNet"> Crash net (−1)</label>
+          <label style="font-size:12px;" title="Only an aircraft with a tailhook can use an arrestor cable"><input type="checkbox" name="arrestor"> Arrestor cable, with a tailhook (−1)</label>` : ""}` : ""}
+      ${rail ? `<p style="grid-column:1/-1;margin:0;font-size:12px;">A rail vehicle can't steer: this test is speeding up or slowing down — throwing off an attacker's aim or maneuver (Rigger 2 p.36). Use the highest Handling among the train's powered engines.</p>` : ""}
+      ${acv ? `<label style="grid-column:1/-1;font-size:12px;" title="ACVs slide down any significant slope (Rigger 2 p.35); the GM decides which slopes count"><input type="checkbox" name="slope"> The route climbs or crosses a significant slope</label>
+        <p style="grid-column:1/-1;margin:0;font-size:10px;color:#aaa1c0;">ACV terrain (p.35): Open — flat areas, calm or slightly choppy water, swamps and marshes; Normal — scattered moderate obstacles, brush, creek beds, mild slopes; Restricted — suburban streets, winding roads, hills, woods; Tight — urban settings, badlands, dense woods, stormy seas.</p>` : ""}
       <div class="form-group"><label>Control:</label>${sel("mode", modes.map(m => [m, label[m]]))}</div>
       <div class="form-group"><label>Terrain:</label>${sel("terrain", [["open", "Open (−1)"], ["normal", "Normal"], ["restricted", "Restricted (+1)"], ["tight", "Tight (+3)"]], "normal")}</div>
       <div class="form-group"><label>Situation:</label>${sel("situation", [["", "—"], ["calm", "Non-stressful (−1)"], ["stress", "Stressful (+3)"]])}</div>
@@ -927,7 +941,9 @@ export async function promptDrivingTest(driver, vehicle) {
         offRoadHandling: e.offRoadHandling?.value === "" || e.offRoadHandling == null ? null : parseInt(e.offRoadHandling.value),
         contact: e.contact ? e.contact.checked : true,
         control: parseInt(e.control?.value) || 0, stressDice: parseInt(e.stressDice?.value) || 0,
-        learning: parseInt(e.learning?.value) || 0, inScope: !!e.inScope?.checked, ivis: parseInt(e.ivis?.value) || 0 };
+        learning: parseInt(e.learning?.value) || 0, inScope: !!e.inScope?.checked, ivis: parseInt(e.ivis?.value) || 0,
+        slope: !!e.slope?.checked,
+        ...(flight ? { flight, winds: e.winds.value, rough: !!e.rough?.checked, crashNet: !!e.crashNet?.checked, arrestor: !!e.arrestor?.checked } : {}) };
     } }
   });
 }
@@ -946,12 +962,23 @@ export async function rollDrivingTest(driver, vehicle, o) {
   if (drone && !(sk.dice > 0)) return ui.notifications.warn(`${vehicle.name} has no Pilot rating to drive itself.`);
   if (RC.sitsOut(vehicle) && !game.user.isGM) return ui.notifications.warn(`${vehicle.name}: ${RC.SIT_OUT}`);
   if (!driver && controllerOf(vehicle)) return ui.notifications.warn(`${vehicle.name} is under ${controllerOf(vehicle).name}'s control: the rigger drives it.`);
-  const handling = o.offRoad ? (sys.effectiveHandlingOffRoad ?? o.offRoadHandling) : sys.effectiveHandling;
+  if (o.slope && (await import("./vehicle-damage.mjs")).isAcv(vehicle))
+    return ui.notifications.warn(`${vehicle.name} is an air-cushion vehicle: it can't climb or cross a significant slope — it slides down it (Rigger 2 p.35).`);
+  // A takeoff/landing (R2 p.36): base TN 3 / 4 in place of Handling, + its own modifiers (the aircraft's L/T profile).
+  const fl = o.flight ? takeoffLanding({ landing: o.flight === "landing", winds: o.winds, rough: o.rough, crashNet: o.crashNet,
+    arrestor: o.arrestor, tailhook: o.arrestor, profile: ltProfileOf(sys.ltProfile) }) : null;
+  const handling = fl ? fl.base : o.offRoad ? (sys.effectiveHandlingOffRoad ?? o.offRoadHandling) : sys.effectiveHandling;
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);
-  const { tn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
+  const { tn: dtn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
     terrain: o.terrain, combat: o.combat, mode: o.mode, vcr: driver?.system.vehicleControlRig ?? 0, damageMod: sys.damageTnMod ?? 0, empathy,
     otherMod: (o.otherMod ?? 0) + sk.penalty + guidanceDrivingMod(vehicle)    // continuous missile lock +2 (R2 p.59)
-      + (drone ? EWM.droneTestMod(vehicle) : 0) });                             // meaconing on its network (R2 p.70; 5b.3)
+      + (drone ? EWM.droneTestMod(vehicle) : 0) });
+  let tn = dtn;
+  if (fl) {   // each Takeoff and Landing Modifier is its own line; the base replaces Handling
+    parts[0][0] = o.flight === "landing" ? "Landing base TN" : "Takeoff base TN";
+    parts.push(...fl.parts);
+    tn = Math.max(2, parts.reduce((t, [, m]) => t + m, 0));
+  }                             // meaconing on its network (R2 p.70; 5b.3)
   const autonav = Math.max(0, sys.effective?.autonav ?? sys.autonav ?? 0);
   const paid = o.mode === "rigged" && driver ? await driver._payControl(o.control, sk.cap) : 0;
   const push = drone ? { dice: 0, stress: 0 } : stressDice(o.stressDice, sys.effective?.body ?? sys.body);
@@ -966,7 +993,7 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const ivis = drone && o.ivis > 0 ? await gmCall("rcIvisSpend", { vehicleUuid: vehicle.uuid, n: o.ivis }) : { n: 0 };
   // A robot's Threat Rating: permanent extra dice on its own tests, as an NPC's (R2 p.67; core p.187). The GM sets 0 to waive.
   const threat = drone && sys.isRobot ? Math.max(0, sys.threatRating ?? 0) : 0;
-  const label = `${vehicle.name}: Driving Test (${parts.map(([n, m]) => `${n} ${m > 0 && n !== "Handling" ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
+  const label = `${vehicle.name}: ${fl ? (o.flight === "landing" ? "Landing" : "Takeoff") : "Driving"} Test (${parts.map(([n, m], i) => `${n} ${m > 0 && i > 0 ? "+" : ""}${m}`).join(", ")})${sk.note ?? ""}`
     + `${autonav ? `, +${autonav} Autonav` : ""}${push.dice ? `, +${push.dice} pushed (${push.stress} Stress)` : ""}`;
   // A simsense interface (datajack, rig) is an electronic device: Computer Illiterate (p.15).
   const res = await roller.rollSuccessTest(sk.dice + autonav + push.dice + learn.n + ivis.n + threat, tn, { label: label + (learn.n ? `, +${learn.n} Learning Pool${scope ? ` (declared: ${scope})` : ""}` : "")
@@ -976,6 +1003,11 @@ export async function rollDrivingTest(driver, vehicle, o) {
     tnContext: { kind: "skill", key: sk.key ?? "", skillCategory: "active", electronic: o.mode === "rigged" || o.mode === "datajack" },
   });
   if (!res) return null;
+  // A takeoff or landing on a rough, uneven surface (R2 p.36): the aircraft resists 6L, whatever the test's result —
+  // one impact crash record (no occupants), resolved by the crash flow.
+  if (fl?.roughDamage) await gmCall("vfollowCrash", { vehicleUuid: vehicle.uuid, kind: "impact", why: `${o.flight === "landing" ? "lands" : "takes off"} on a rough surface`,
+    speed: null, ruleset: "rigger2", fid: `rough-${res.testMessageId}`, impact: { ...fl.roughDamage, source: "landing", stop: false, noOccupants: true } })
+    .catch(err => ui.notifications.warn(`The rough-surface damage couldn't be opened: ${err.message}`));
   const st = { vehicleUuid: vehicle.uuid, driverUuid: driver?.uuid ?? "", testMessageId: res.testMessageId ?? "", skill: sk.dice, defaulted: !drone && !!sk.defaulted, body: sys.effective?.body ?? sys.body ?? 0, resolved: false };
   await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: roller }), flags: { sr2e: { drivingTest: st } },
     content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}: Driving Test</strong> — spend Karma first if you will, then Resolve.
@@ -1155,7 +1187,12 @@ export function r2Context(vehicle) {
     drone: vehicle.system.vehicleType === "drone" && !controllerOf(vehicle), isGM: game.user.isGM,
     repair: job && job.state !== "done" ? { parts: "waiting for parts", test: "parts in: roll the repair", working: `in the shop (${job.hoursLeft} h)`, paused: `taken back (${job.hoursLeft} h left)` }[job.state] : null,
     legacyEngine: game.user.isGM && legacyEngines(vehicle).length > 0,
-    engine: game.user.isGM && (vehicle.items.some(isEngineCustomization) || (vehicle.system.stressPermanent ?? 0) > 0) };
+    engine: game.user.isGM && (vehicle.items.some(isEngineCustomization) || (vehicle.system.stressPermanent ?? 0) > 0),
+    // Special operations (5c, R2 p.33–36): arms, legs (walking / running), aircraft takeoff and landing.
+    arms: (vehicle.system.effective?.arms ?? []).map(a => `${a.name} (Strength ${a.strength})`).join(", "),
+    legs: hasLegs(vehicle) ? { walk: sp.rating, run: legsRunning(sp.rating) } : null,
+    flight: ["aircraft", "rotor", "vectored_thrust"].includes(vehicle.system.vehicleType),
+    rail: !!vehicle.getFlag("sr2e", "rail") };
 }
 
 /**

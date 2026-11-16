@@ -914,6 +914,16 @@ export class SR2EItem extends Item {
       // Leading with one limb (Cybertechnology p.50): revalidated against the live
       // limb numbers, never trusted from the dialog.
       lead = (actor.system.limbs?.leadWith ?? []).find(l => l.key === options.leadWith) ?? null;
+      // A melee attack with a vehicle's mechanical arm (R2 p.35; 5c): the arm's Strength (Body × Body + bought-up) and
+      // +1 TN per Handling point above 3, re-derived from the live vehicle — only for the character controlling it.
+      if (options.vehicleArm) {
+        const v = fromUuidSync(options.vehicleArm.vehicleUuid ?? "");
+        const arm = v?.system?.effective?.arms?.find(a => a.itemId === options.vehicleArm.itemId);
+        const { controllerOf } = await import("../vehicle-play.mjs");
+        if (!arm || controllerOf(v) !== actor) return ui.notifications.warn(`${actor.name} isn't controlling a vehicle with that mechanical arm.`);
+        const { armHandlingMod } = await import("../rules/vehicle-ops-rules.mjs");
+        lead = { key: "vehicleArm", name: `${v.name}'s ${arm.name}`, strength: arm.strength, tn: armHandlingMod(v.system.effectiveHandling) };
+      }
       const leadTN = lead?.tn ?? 0;
 
       targetNumber = Math.max(2,
@@ -929,7 +939,7 @@ export class SR2EItem extends Item {
       if (positionMod)     modParts.push(`position ${positionMod}`);
       if (multiMod)        modParts.push(`multiple targets +${multiMod}`);
       if (meleeVisMod)     modParts.push(`visibility +${meleeVisMod}`);
-      if (lead)            modParts.push(`leading with ${lead.name ?? lead.key} (Str ${lead.strength}) +${lead.tn}`);
+      if (lead)            modParts.push(`${lead.key === "vehicleArm" ? "with" : "leading with"} ${lead.name ?? lead.key} (Str ${lead.strength}) +${lead.tn}`);
       if (otherMod)        modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
       label = RL("MeleeAttack", { name: this.name, mods: modParts.length ? " — " + modParts.join(", ") : "", tn: targetNumber });
 
@@ -1234,16 +1244,21 @@ export class SR2EItem extends Item {
     // The defender's test (or an Undefended concession) resolves the hit,
     // staging, and damage — see the .sr2e-defend-btn handler in sr2e.mjs.
     if (isMelee) {
-      const dmg = evaluateDamageCode(this.system.damageCode, actor, { strength: lead?.strength ?? null });
+      // A vehicle's arm strikes with ITS Strength: none of the character's own unarmed bonuses (bone lacing, cyberhands,
+      // Killing Hands) — the authored code, not the derived one (5c).
+      const viaArm = lead?.key === "vehicleArm";
+      const dmg = evaluateDamageCode(viaArm ? (this._source.system.damageCode ?? this.system.damageCode) : this.system.damageCode, actor,
+        { strength: lead?.strength ?? null });
       let level = dmg.level;
       let power = Math.max(1, dmg.power);
       let damageType = this.system.damageType || "physical";
-      let weaponName = this.name;
+      let weaponName = viaArm ? `${lead.name} (${this.name})` : this.name;
       // Killing Hands (SR2E p.125–126): an adept may declare their unarmed
       // strike as PHYSICAL damage at the purchased level instead of (Str)M
       // Stun. Applied when the dialog checkbox was ticked (options.killingHands
       // carries the level letter).
-      if (options.killingHands && /unarmed/i.test(this.name) && adeptPowersWork(actor.system)) {
+      if (viaArm) { /* no adept or bioware unarmed options through a machine */ }
+      else if (options.killingHands && /unarmed/i.test(this.name) && adeptPowersWork(actor.system)) {
         level = options.killingHands;
         damageType = "physical";
         weaponName = `${this.name} (Killing Hands)`;

@@ -127,6 +127,9 @@
         <a class="btn-small" data-action="r2StressAdjust" data-delta="-1" title="−1 (never below the permanent part)">−</a>
         <strong>{{r2.stress}}</strong>{{#if r2.permanent}} <span title="Permanent, from engine customization (p.120)">({{r2.permanent}} permanent)</span>{{/if}}
         <a class="btn-small" data-action="r2StressAdjust" data-delta="1" title="+1">+</a></div>
+      {{#if r2.arms}}<div class="form-group"><label title="Rigger 2 p.35, p.145">Arms:</label><span>{{r2.arms}}</span></div>{{/if}}
+      {{#if r2.legs}}<div class="form-group"><label title="Legs (Rigger 2 p.35): character movement and combat rules; no chase. A kick attempt is a fall.">Legs:</label><span>walks {{r2.legs.walk}}, runs {{r2.legs.run}} (m/turn)</span></div>{{/if}}
+      {{#if r2.isGM}}<div class="form-group"><label title="Monorails and trains (Rigger 2 p.36): fixed rails — its Driving Test is the speed change that throws off an attacker">Rail vehicle:</label><input type="checkbox" name="flags.sr2e.rail" {{checked r2.rail}}></div>{{/if}}
       <div class="flexrow" style="gap:4px;flex-wrap:wrap;">
         {{#if r2.drone}}<button type="button" class="btn-small" data-action="r2Drive" title="The drone drives itself on its Pilot (p.20, p.23)"><i class="fas fa-robot"></i> Drive (Pilot)</button>{{/if}}
         <button type="button" class="btn-small" data-action="r2Sensors" title="Sensors, Flux and range, ECM/ECCM, locks (Rigger 2 p.27–32)"><i class="fas fa-satellite-dish"></i> Sensors</button>
@@ -134,6 +137,11 @@
         <button type="button" class="btn-small" data-action="r2Exceed" title="Past the Speed Rating: +1 Stress (p.25)"><i class="fas fa-gauge-high"></i> Exceed speed</button>
         <button type="button" class="btn-small" data-action="r2Overhaul" title="Maintenance overhaul in a Vehicle Facility (p.26)"><i class="fas fa-wrench"></i> Overhaul</button>
         <button type="button" class="btn-small" data-action="r2Repair" title="Repair damage (p.26)"><i class="fas fa-screwdriver-wrench"></i> Repair{{#if r2.repair}}: {{r2.repair}}{{/if}}</button>
+        <button type="button" class="btn-small" data-action="r2Pull" title="Lift or pull a load: a Pull Test over the Load Rating (p.33–34)"><i class="fas fa-link"></i> Pull / lift</button>
+        {{#if r2.arms}}<button type="button" class="btn-small" data-action="r2ArmTest" title="Arm Test: Quickness (or Pilot) vs Handling (p.34)"><i class="fas fa-hand"></i> Arm Test</button>
+          <button type="button" class="btn-small" data-action="r2ArmSkill" title="A skill through the arm: +1 TN per Handling above 3 (p.34)"><i class="fas fa-screwdriver"></i> Arm skill</button>
+          <button type="button" class="btn-small" data-action="r2ArmMelee" title="Melee with the arm: its Strength = Body × Body (p.35)"><i class="fas fa-hand-fist"></i> Arm melee</button>{{/if}}
+        {{#if r2.flight}}<button type="button" class="btn-small" data-action="r2Flight" title="Runway distances; a takeoff/landing Driving Test (p.36)"><i class="fas fa-plane-departure"></i> Takeoff / landing</button>{{/if}}
         {{#if r2.isGM}}<button type="button" class="btn-small" data-action="r2StressTest" title="GM: 2D6 against Stress (p.26)"><i class="fas fa-dice"></i> Stress Test</button>{{/if}}
         {{#if r2.legacyEngine}}<button type="button" class="btn-small" data-action="r2LegacyEngine" title="GM: the secret failure check for engine customizations installed before it existed (p.120)"><i class="fas fa-user-secret"></i> Check engine</button>{{/if}}
         {{#if r2.engine}}<button type="button" class="btn-small" data-action="r2Engine" title="GM: fit a factory-standard engine (p.120)"><i class="fas fa-rotate"></i> Factory engine</button>{{/if}}

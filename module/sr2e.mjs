@@ -105,6 +105,7 @@ import { registerVehicleDamage, bindVehicleDamageCard } from "./vehicle-damage.m
 import { registerRigDump, bindRigDumpCard } from "./rig-dump.mjs";
 import { registerEw, bindEwCard } from "./ew.mjs";
 import { registerContest, registerContestSetting, bindContestCard } from "./ew-contest.mjs";
+import { registerVehicleOps } from "./vehicle-ops.mjs";
 import { registerLearningPool, bindLearningCard } from "./learning-pool.mjs";
 import { registerVehicleSensors } from "./vehicle-sensors.mjs";
 import { registerAmmoQueue } from "./vehicle-ammo.mjs";
@@ -550,6 +551,7 @@ Hooks.once("init", async () => {
   registerRigDump();
   registerEw();
   registerContest();
+  registerVehicleOps();
   registerLearningPool();
   registerOptempo();
   game.sr2e = Object.assign(game.sr2e ?? {}, { hiddenStress: { reveal: revealHiddenStress, left: hiddenStressLeft } });

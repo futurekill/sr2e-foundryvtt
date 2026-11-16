@@ -1321,6 +1321,20 @@ orders until reconnected.
       button per drone; B's order becomes the drone's standing order; A's Command is refused; A regenerates and
       Reconnects → B loses it. Automated in "A filled channel's authority".
 
+## Rigger 2 special vehicle operations (Part 5c) — `sr2e.r2-advanced` batch
+Automated ("Special vehicle operations"): a Pull Test at 1.8 × Load (TN 8, the Body (4) side test's +1 Stress, the
+per-minute Stress card); arm Strength (Body² + bought-up) and an arm melee at that Strength with +2 TN for Handling 5;
+a rough takeoff (base TN 3 + 3 + 1) opening a 6L impact; an ACV refusing a slope; a walker refused by the chase.
+- [ ] Vehicle sheet (Rigger 2): **Pull / lift** at 1.2 × Load → TN 5, half speed, the card's **+1 Stress** button adds 1.
+- [ ] A drone with Mechanical Arms: the sheet lists the arm and its Strength; **Arm Test** rolls Quickness (rigged:
+      Control Pool up to Quickness) or the drone's Pilot vs Handling; **Arm skill** adds +1 per Handling above 3;
+      **Arm melee** opens the controller's attack dialog and the card shows the arm's Strength.
+- [ ] A walker (special category): the sheet shows walk/run; adding it to a chase is refused.
+- [ ] A hovercraft: the Driving dialog shows the ACV terrain help; ticking "significant slope" refuses the test; a
+      crash that would be Deadly is Serious.
+- [ ] An aircraft: **Takeoff / landing** shows the runway; a landing test with a crash net is −1; a rough surface
+      opens a 6L resistance card.
+
 ## Rigger 2 interference contests (Part 5b.4) — `sr2e.r2-advanced` batch
 Automated ("Interference contests"): opening needs the system channel intercepted; the creation step reaches both decks
 with receipts; an exchange's loser takes the net successes on its own system channel; 10 boxes → the winner operates

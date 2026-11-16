@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Special vehicle operations** (Rigger 2 p.33–36; Part 5c), under the Rigger 2 vehicle ruleset, on the vehicle sheet:
+  - **Pull / lift**: a Pull Test (the vehicle's Body, Stress dice allowed) against the weight over the Load Rating
+    (summed for several vehicles), with the condition modifiers; over Load it runs at half or a quarter of its Speed and
+    takes +1 Stress per hour or minute (a button on the card adds each), and over 1.5 × Load a Body (4) Test or +1 Stress.
+  - **Mechanical arms**: an **Arm Test** (Quickness, or a drone's Pilot, vs Handling, the GM adjusting), a **skill
+    through the arm** (+1 TN per Handling point above 3), and **arm melee** — the controller's Unarmed Strike with the
+    arm's Strength (Body × Body + Strength bought up) and the Handling modifier, none of their own unarmed bonuses.
+  - **Legs**: the sheet shows walking and running speed (× 2.5); a legged vehicle uses the character combat rules and
+    can't join a chase.
+  - **Air-cushion vehicles**: the Driving Test refuses a significant slope and shows the ACV terrain table; crash damage
+    never exceeds Serious.
+  - **Aircraft**: the runway each needs (by L/T profile and Body, loaded or not), and the takeoff / landing Driving Test
+    (base TN 3 / 4 in place of Handling, cross winds, rough surface, STOL/VSTOL, arrestor cable with a tailhook or crash
+    net); a rough surface opens a 6L damage resistance for the aircraft.
+  - **Rail vehicles** (a GM checkbox): the Driving Test is the speed change that throws off an attacker's aim.
+
 ## 0.159.0 — 2026-11-16
 
 ### Added

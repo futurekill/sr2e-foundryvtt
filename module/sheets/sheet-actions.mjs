@@ -1729,7 +1729,7 @@ async function onRollWeapon(event, target) {
  * @param {Actor} actor
  * @param {Item}  item   a weapon (or weapon-cyberware) item
  */
-export async function rollWeaponInteractive(actor, item) {
+export async function rollWeaponInteractive(actor, item, extra = {}) {   // extra: e.g. a vehicle arm (5c)
   if (!actor || !item) return;
   if (!weaponUsable(actor.type, actor.system, item.system)) return ui.notifications.warn(`${actor.name} can't use ${item.name} in this form.`);
 
@@ -1870,7 +1870,7 @@ export async function rollWeaponInteractive(actor, item) {
   // hand, which silently dropped `deployed` and `distance` — the dialog
   // collected them and the attack never saw them. Any field added to the prompt
   // would have been lost the same way, so new options are spread, not copied.
-  return item.roll({ ...opts });
+  return item.roll({ ...opts, ...extra });
 }
 
 /**

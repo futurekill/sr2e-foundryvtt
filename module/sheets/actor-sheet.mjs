@@ -2103,6 +2103,12 @@ export class SR2EVehicleSheet extends SR2EBaseActorSheet {
       // Rigger 2 standard operations (docs/PLAN-vehicles-phase2.md Part 2a).
       r2Drive: async function () { const vp = await import("../vehicle-play.mjs"); return vp.rollDrivingTest(null, this.document, await vp.promptDrivingTest(null, this.document)); },
       r2Sensors: async function () { (await import("../apps/sensor-panel.mjs")).SensorPanel.open(this.document); },
+      // Special operations (5c, R2 p.33–36).
+      r2Pull: async function () { return (await import("../vehicle-ops.mjs")).pullDialog(this.document); },
+      r2ArmTest: async function () { return (await import("../vehicle-ops.mjs")).armTestDialog(this.document); },
+      r2ArmSkill: async function () { return (await import("../vehicle-ops.mjs")).armSkillDialog(this.document); },
+      r2ArmMelee: async function () { return (await import("../vehicle-ops.mjs")).armMelee(this.document); },
+      r2Flight: async function () { return (await import("../vehicle-ops.mjs")).flightDialog(this.document); },
       r2FuelDialog: async function () { (await import("../vehicle-fuel.mjs")).fuelDialog(this.document); },
       r2Exceed: async function () { (await import("../vehicle-play.mjs")).exceedSpeed(this.document); },
       r2StressTest: async function () { (await import("../vehicle-play.mjs")).gmStressTest(this.document); },
