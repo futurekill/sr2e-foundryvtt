@@ -220,6 +220,31 @@
       }
     },
     {
+      "_id": "ffeccecd09ddb22f",
+      "name": "Pull, lift, use arms and fly (Rigger 2)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 900000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> <em>Rigger 2</em>&#39;s special vehicle operations (pp.33–36) from the vehicle sheet&#39;s Rigger 2 panel.</p>\n<p><img src=\"systems/sr2e/assets/guides/vehicle-r2-special-ops.png\" alt=\"The Rigger 2 panel of a drone with mechanical arms: its arm Strength, and the Pull / lift, Arm Test, Arm skill and Arm melee buttons\"></p>\n<p><strong>Pull or lift a load</strong></p>\n<ol>\n<li><strong>Pull / lift</strong>: enter the weight (and the Load of any other vehicles pulling with it), the conditions, how stuck it\nis (the GM&#39;s +1 to +4), rollers and bracing. Within the Load Rating no test is needed; up to twice it, the vehicle\nrolls its Body (you can push for Stress dice).</li>\n<li>Over the Load Rating it moves at half or a quarter of its Speed and takes Stress every hour or minute, even if the\ntest failed: click <strong>+1 Stress</strong> on the card each time. Over 1.5 × Load it also rolls Body (4) once, or takes 1 Stress.</li>\n</ol>\n<p><strong>Mechanical arms</strong></p>\n<ol>\n<li><strong>Arm Test</strong> for anything the arm does: the controller&#39;s Quickness (a rigger may add Control Pool up to Quickness;\na drone on its own uses its Pilot) against the vehicle&#39;s Handling; the GM may raise or lower it.</li>\n<li><strong>Arm skill</strong> for a skill used through the arm (defusing a bomb with Demolitions): the skill&#39;s TN + 1 per Handling\npoint above 3.</li>\n<li><strong>Arm melee</strong>: the controlling character attacks with the arm&#39;s Strength (Body × Body, plus Strength bought for it)\nthrough the usual melee dialog, +1 TN per Handling point above 3.</li>\n</ol>\n<p><strong>Fly</strong></p>\n<ol>\n<li><strong>Takeoff / landing</strong> shows the runway it needs. From an irregular surface, in bad weather or under fire, choose the\ntakeoff or landing test: a Driving Test at TN 3 (takeoff) or 4 (landing) plus the modifiers you tick. A rough\nsurface also opens a 6L damage resistance for the aircraft.</li>\n</ol>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>A vehicle on legs walks and runs by the character rules (the sheet shows both speeds) and can&#39;t join a chase.</li>\n<li>A hovercraft&#39;s Driving Test refuses a significant slope and shows the hovercraft terrain table; its crash damage\nnever goes past Serious.</li>\n<li>For a monorail or train, the GM ticks <strong>Rail vehicle</strong>: its Driving Test is speeding up or slowing down to throw off\nan attacker.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "ec7d380ca47d6ceb",
       "name": "Run a drone network (Rigger 2)",
       "type": "text",
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },
@@ -634,7 +659,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2500000,
+      "sort": 2600000,
       "ownership": {
         "default": -1
       },
@@ -659,7 +684,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2600000,
+      "sort": 2700000,
       "ownership": {
         "default": -1
       },
@@ -684,7 +709,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2700000,
+      "sort": 2800000,
       "ownership": {
         "default": -1
       },
@@ -709,7 +734,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2800000,
+      "sort": 2900000,
       "ownership": {
         "default": -1
       },
@@ -734,7 +759,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2900000,
+      "sort": 3000000,
       "ownership": {
         "default": -1
       },
@@ -759,7 +784,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 3000000,
+      "sort": 3100000,
       "ownership": {
         "default": -1
       },

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.160.0 — 2026-11-16
 
 ### Added
 - **Special vehicle operations** (Rigger 2 p.33–36; Part 5c), under the Rigger 2 vehicle ruleset, on the vehicle sheet:
