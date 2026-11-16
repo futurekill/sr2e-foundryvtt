@@ -182,8 +182,15 @@ export const rigEligible = (actor) => !!actor?.system?.rigging && num(actor.syst
 /* ── The ops (GM, queue `rc-control`) ──────────────────────────────────────────────────────────────────────────── */
 
 // The REQUESTING user's permission (ops run on the GM's client, where `isOwner` is always true — c5a r1 #1).
-const mayRun = (user, deck) => !!(user?.isGM || deck?.testUserPermission?.(user, "OWNER") || deckActor(deck)?.testUserPermission?.(user, "OWNER")
-  || (netOf(deck)?.operator && fromUuidSync(netOf(deck).operator)?.testUserPermission?.(user, "OWNER")));
+export const mayRun = (user, deck) => {
+  if (user?.isGM) return true;
+  const net = netOf(deck), op = net?.operator ? fromUuidSync(net.operator) : null;
+  // A network taken in an interference contest answers only to its taker (and the GM) until the taker lets it go
+  // (disconnects) — its owner can't simply reconnect it (5b.4; c5b4 r1 #1).
+  if (net?.takenBy) return !!op?.testUserPermission?.(user, "OWNER");
+  return !!(deck?.testUserPermission?.(user, "OWNER") || deckActor(deck)?.testUserPermission?.(user, "OWNER")
+    || op?.testUserPermission?.(user, "OWNER"));
+};
 /** Lock order chase-membership → rc-control (5.0): affiliation and chase driver assignment can't interleave (c5a r1 #2). */
 const membership = (fn) => enqueueAttack("chase-membership", fn);
 /** A vehicle already has a crew controller: Part 1 control, or a chase entry with a driver (c5a r1 #2). */
@@ -263,6 +270,8 @@ export async function rcValidate(actor) {
     }
     for (const deck of held) {
       if (deck.type !== "cyberware" || deck.system.installed !== false || netOf(deck)?.connection?.state !== "connected") continue;
+      // An uninstalled implant can't run for anyone: its live contests are void, journalled first (c5b4 r1 #4).
+      if (CONTEST?.onControlChange) await CONTEST.onControlChange(deck, "removed");
       const net = freshNet(deck); net.connection = { state: "disconnected", gen: num(net.connection.gen) + 1 }; net.primary = null;
       await save(deck, net);
     }
@@ -394,6 +403,7 @@ export function registerRcNet() {
     // A new operator never inherits the old one's primary; one primary per rigger stays true (c5a r1 #4).
     const primaryElsewhere = (rcIndex().byOperator.get(op.uuid) ?? []).some(d => d !== deck && netOf(d)?.primary);
     if (net.operator !== op.uuid || primaryElsewhere) net.primary = null;
+    if (net.operator !== op.uuid) delete net.takenBy;   // only the taker or the GM gets here on a taken network (mayRun)
     net.operator = op.uuid; net.connection = { state: "connected", gen: num(net.connection?.gen) + 1 };
     return save(deck, net);
   }));
@@ -404,6 +414,7 @@ export function registerRcNet() {
     if (CONTEST?.onControlChange && (await CONTEST.onControlChange(deck, "exit"))?.handled) return netOf(deck);
     const net = freshNet(deck);
     net.connection = { state: "disconnected", gen: num(net.connection.gen) + 1 }; net.primary = null;
+    delete net.takenBy;   // the taker lets it go: the network is its owner's again (5b.4)
     return save(deck, net);
   }));
 

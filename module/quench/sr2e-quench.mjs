@@ -19771,6 +19771,66 @@ export function registerSR2EQuenchTests() {
             assert.equal(RCN.netOf(C.deck).operator, I.a.uuid, "the side that stays takes the network");
             assert.equal(RCN.netOf(C.deck).connection.state, "connected");
             assert.equal(Object.values(store.v).filter(cc => cc.state === "open").length, 0, "no contest left open");
+            // c5b4 r1 #2: a dump left "pending" by a crash is resumed by recovery.
+            const eid = Object.keys(T.a.flags.sr2e.rigDumps).find(k => k.startsWith("contest"));
+            await T.a.update({ [`flags.sr2e.rigDumps.${eid}.state`]: "pending" });
+            await EWC.recover();
+            assert.notEqual(T.a.flags.sr2e.rigDumps[eid].state, "pending", "recovery reopens a pending contest dump");
+            // c5b4 r1 #1: the loser's owner can't simply reconnect a taken network.
+            const player = game.users.find(u => !u.isGM);
+            if (player) {
+              await T.a.update({ [`ownership.${player.id}`]: 3 });
+              assert.notOk(RCN.mayRun(player, T.deck), "a taken network answers only to its taker");
+            }
+          } finally {
+            CONFIG.Dice.randomUniform = orig; game.settings.get = gs; game.settings.set = ss;
+          }
+        });
+        it("overlapping contests on one deck end cleanly when one takes it (c5b4 r1 #3); uninstalling a contested implant deck voids its contests (r1 #4)", async function () {
+          this.timeout(60000);
+          const RCN = await import("../rc-net.mjs"), EWC = await import("../ew-contest.mjs");
+          const store = { v: {} }, gs = game.settings.get, ss = game.settings.set;
+          game.settings.get = function (ns, k) { return ns === "sr2e" && k === EWC.KEY ? foundry.utils.deepClone(store.v) : gs.call(this, ns, k); };
+          game.settings.set = async function (ns, k, v) { if (ns === "sr2e" && k === EWC.KEY) { store.v = foundry.utils.deepClone(v); return v; } return ss.call(this, ns, k, v); };
+          const orig = CONFIG.Dice.randomUniform;
+          try {
+            const sk = [{ name: "Electronics", type: "skill", system: { rating: 5, category: "active" } }];
+            const mkR = async (name, rating, pe, cyber = false) => {
+              const a = await Actor.create({ name, type: "character" }); made.push(a);
+              await a.createEmbeddedDocuments("Item", sk);
+              const m = await a.createEmbeddedDocuments("Item", [cyber
+                ? { name: `${name} Deck`, type: "cyberware", system: { rating, installed: true }, flags: { sr2e: { rule: "rc-deck" } } }
+                : { name: `${name} Deck`, type: "gear", system: { rating }, flags: { sr2e: { rule: "rc-deck" } } },
+                ...(pe ? [{ name: "Quench PE", type: "gear", system: { rating: pe }, flags: { sr2e: { rule: "protocol-emulation" } } }] : [])]);
+              const deck = m.find(i => i.flags.sr2e.rule === "rc-deck");
+              await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: a.uuid });
+              return { a, deck };
+            };
+            const intercept = async (I, T) => call("ewIntercept", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: T.deck.uuid,
+              messageId: await I.a.rollSuccessTest(I.deck.system.rating, 4, { label: "Quench intercept", flags: { sr2e: { ew: { kind: "intercept", freqGen: RCN.netOf(T.deck)?.freqGen ?? 0, target: T.deck.uuid, named: ["system"] } } } }).then(r => r.testMessageId) });
+            CONFIG.Dice.randomUniform = () => 0.2;
+            const X = await mkR("Quench Overlap Target", 1, 0), I = await mkR("Quench Overlap I", 2, 3), J = await mkR("Quench Overlap J", 2, 3);
+            await intercept(I, X); await intercept(J, X);
+            const a1 = await call("ewContestStart", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: X.deck.uuid });
+            await call("ewContestStart", { intruderDeckUuid: J.deck.uuid, targetDeckUuid: X.deck.uuid });
+            assert.equal(RCN.netOf(X.deck).contests.length, 2, "X is in two contests");
+            await X.deck.update({ "flags.sr2e.rcNet.monitors.system.entries.seed": { op: "interference", attackerKey: I.deck.uuid, attackerRating: 2, boxes: 9, at: 1 } });
+            const x1 = EWC.contestBetween(I.deck.uuid, X.deck.uuid).exchanges[a1.xid];
+            await call("ewContestRoll", { cid: a1.cid, xid: a1.xid, side: "intruder", messageId: await I.a.rollSuccessTest(x1.iflux, a1.tns.intruder, { label: "Quench", flags: { sr2e: { ew: { kind: "contest", cid: a1.cid, xid: a1.xid, side: "intruder" } } } }).then(r => r.testMessageId) });
+            const out = await call("ewContestResolve", { cid: a1.cid, xid: a1.xid });
+            assert.ok(out.taken);
+            assert.deepEqual(RCN.netOf(X.deck).contests ?? [], [], "both contest ids are gone from X");
+            assert.deepEqual(RCN.netOf(J.deck).contests ?? [], [], "and J's void one from J");
+            assert.equal(RCN.viewNet(X.deck).operator, I.a.uuid, "reads see the taker once applied");
+            assert.equal(Object.values(store.v).find(c => c.b === X.deck.uuid && c.a === J.deck.uuid)?.state, "void");
+            // An implanted deck uninstalled mid-contest: its contest is void (nothing left to run).
+            const K = await mkR("Quench Implant Target", 1, 0, true);
+            await intercept(I, K);
+            await call("ewContestStart", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: K.deck.uuid });
+            await K.deck.update({ "system.installed": false });
+            await RCN.rcValidate(K.a);
+            assert.equal(Object.values(store.v).find(c => c.b === K.deck.uuid)?.state, "void", "the contest is void");
+            assert.deepEqual(RCN.netOf(K.deck).contests ?? [], []);
           } finally {
             CONFIG.Dice.randomUniform = orig; game.settings.get = gs; game.settings.set = ss;
           }

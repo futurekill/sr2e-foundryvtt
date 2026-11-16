@@ -42,8 +42,18 @@ const unsetPath = (o, path) => { const ks = path.split("."); const last = ks.pop
 const snapOf = (net) => ({ operator: net.operator ?? null, connection: { ...(net.connection ?? {}) }, primary: net.primary ?? null });
 
 /**
- * Build a step from per-deck edits: `edits` = { <deckUuid>: (net) => void } run on a COPY of the deck's record, from which
- * the absolute ops and the after-snapshot are taken.
+ * One journal write's working state: a deck's record AFTER the steps already built in this write, so a second step on the
+ * same deck (a takeover then a void, two contests on one deck) starts from the first one's result, not the stale deck
+ * (c5b4 r1 #3). Every op runs inside `rc-control`, one at a time, so a module-level map is safe.
+ */
+let WORK = null;
+const withWork = async (fn) => { WORK = new Map(); try { return await fn(); } finally { WORK = null; } };
+let SEQ = 0;
+const nextSeq = () => Date.now() * 1000 + (SEQ = (SEQ + 1) % 1000);   // journal order across contests (one GM writer)
+
+/**
+ * Build a step from per-deck edits: `edits` = { <deckUuid>: (net) => void } run on a COPY of the deck's record as this
+ * write has left it, from which the absolute ops and the after-snapshot are taken.
  */
 function makeStep(c, kind, edits, dumps = []) {
   const n = (c.steps ?? []).length;
@@ -51,17 +61,19 @@ function makeStep(c, kind, edits, dumps = []) {
   for (const [uuid, edit] of Object.entries(edits)) {
     const deck = fromUuidSync(uuid);
     if (!deck) continue;
-    const before = RC.freshNet(deck), after = RC.freshNet(deck);
+    const base = WORK?.get(uuid) ?? RC.freshNet(deck);
+    const before = foundry.utils.deepClone(base), after = foundry.utils.deepClone(base);
     edit(after);
+    WORK?.set(uuid, after);
     const ops = [];
-    for (const path of ["operator", "connection", "primary", "contests", "carriers", "channelAuthority", "monitors.system"]) {
+    for (const path of ["operator", "connection", "primary", "contests", "carriers", "channelAuthority", "takenBy", "monitors.system"]) {
       const b = foundry.utils.getProperty(before, path), a = foundry.utils.getProperty(after, path);
       if (JSON.stringify(a) === JSON.stringify(b)) continue;
       ops.push(a === undefined ? { path, del: true } : { path, value: foundry.utils.deepClone(a) });
     }
     decks[uuid] = { ops, snap: snapOf(after) };
   }
-  const step = { n, kind, at: Date.now(), decks, dumps };
+  const step = { n, kind, at: Date.now(), seq: nextSeq(), decks, dumps };
   (c.steps ??= []).push(step);
   c.rev = num(c.rev) + 1;
   return step;
@@ -76,34 +88,42 @@ async function applyStep(c, step) {
     foundry.utils.setProperty(net, `contestApplied.${c.id}.${step.n}`, true);
     await RC.save(deck, net);
   }
-  // A force-ejected operator who was jumped in is dumped (5a.6), once: the dump's id is the journal's.
+  // A force-ejected operator who was jumped in is dumped (5a.6), once: the dump's id is the journal's. Resumed by its
+  // STATE, so a crash between recording it and opening it still publishes it (c5b4 r1 #2).
   for (const dm of step.dumps ?? []) {
     const actor = fromUuidSync(dm.actor);
-    if (!actor || actor.flags?.sr2e?.rigDumps?.[dm.eid]) continue;
+    if (!actor || !dumpUnfinished(actor, dm)) continue;
     const { pendDump, reconcileDumps } = await import("./rig-dump.mjs");
-    await pendDump(actor, { cause: "contest-lost", deck: fromUuidSync(dm.deck), eid: dm.eid });
-    await actor.update({ [`flags.sr2e.rigDumps.${dm.eid}.state`]: "open" });
+    if (!actor.flags?.sr2e?.rigDumps?.[dm.eid]) await pendDump(actor, { cause: "contest-lost", deck: fromUuidSync(dm.deck), eid: dm.eid });
+    if (actor.flags.sr2e.rigDumps[dm.eid].state === "pending") await actor.update({ [`flags.sr2e.rigDumps.${dm.eid}.state`]: "open" });
     await reconcileDumps(actor);
   }
 }
+const dumpUnfinished = (actor, dm) => { const d = actor?.flags?.sr2e?.rigDumps?.[dm.eid]; return !d || d.state === "pending"; };
+
+/** Every step with something left to apply, in journal order across contests. */
+function pendingSteps(j) {
+  const out = [];
+  for (const c of Object.values(j)) for (const st of c.steps ?? []) {
+    const missing = Object.keys(st.decks ?? {}).some(u => { const d = fromUuidSync(u); return d && !applied(d, c.id, st.n); });
+    const dumpLeft = (st.dumps ?? []).some(dm => { const a = fromUuidSync(dm.actor); return a && dumpUnfinished(a, dm); });
+    if (missing || dumpLeft) out.push([c, st]);
+  }
+  return out.sort((x, y) => num(x[1].seq ?? x[1].at) - num(y[1].seq ?? y[1].at));
+}
+/** Apply, in journal order, every step something still lacks. */
+async function applyPending(j) { for (const [c, st] of pendingSteps(j)) await applyStep(c, st); }
 
 /** Is any journal step still unapplied to this deck? */
 function pendingStep(deck, j = peek()) {
   let best = null;
   for (const c of contestsOf(deck?.uuid, j)) for (const st of c.steps ?? [])
-    if (st.decks?.[deck.uuid] && !applied(deck, c.id, st.n) && (!best || st.at >= best.at)) best = st;
+    if (st.decks?.[deck.uuid] && !applied(deck, c.id, st.n) && (!best || num(st.seq ?? st.at) >= num(best.seq ?? best.at))) best = st;
   return best;
 }
 
 /** Re-apply every journal step a deck lacks (idempotent by receipt). Runs before every `rc-control` op. */
-export async function recover() {
-  const j = journal();
-  for (const c of Object.values(j)) for (const st of c.steps ?? []) {
-    const missing = Object.keys(st.decks ?? {}).some(u => { const d = fromUuidSync(u); return d && !applied(d, c.id, st.n); });
-    const dumpMissing = (st.dumps ?? []).some(dm => { const a = fromUuidSync(dm.actor); return a && !a.flags?.sr2e?.rigDumps?.[dm.eid]; });
-    if (missing || dumpMissing) await applyStep(c, st);
-  }
-}
+export async function recover() { await applyPending(journal()); }
 
 /** Control reads while a step is unapplied: the network as the journal committed it (5b.4 "Reads too"). */
 export function view(deck) {
@@ -130,7 +150,8 @@ function endStep(c, state) {
  * is void in the same journal write.
  */
 function takeStep(j, c, winnerDeck, loserDeck) {
-  const wNet = RC.netOf(fromUuidSync(winnerDeck)), lNet = RC.netOf(fromUuidSync(loserDeck));
+  const cur = (u) => WORK?.get(u) ?? RC.netOf(fromUuidSync(u));   // as this write has left them
+  const wNet = cur(winnerDeck), lNet = cur(loserDeck);
   const winnerOp = wNet?.operator ?? null, loserOp = lNet?.operator ?? null;
   c.state = "taken"; c.winner = winnerDeck; c.loser = loserDeck;
   const dumps = loserOp && lNet?.primary && lNet?.connection?.state === "connected"
@@ -141,25 +162,23 @@ function takeStep(j, c, winnerDeck, loserDeck) {
       net.operator = winnerOp; net.connection = { state: "connected", gen: num(net.connection?.gen) + 1 }; net.primary = null;
       if (net.carriers) delete net.carriers.system;
       delete net.channelAuthority;
+      net.takenBy = { cid: c.id, operator: winnerOp, at: Date.now() };   // only the taker (or the GM) runs it now
     },
     [winnerDeck]: dropContest(c.id)
   }, dumps);
   for (const o of Object.values(j)) if (o !== c && live(o) && [o.a, o.b].some(u => u === winnerDeck || u === loserDeck)) endStep(o, "void");
 }
 
-/** Apply every step of these contests that isn't applied yet (just journalled). */
-async function applyAll(cs) { for (const c of cs) for (const st of c.steps ?? []) await applyStep(c, st); }
 
 /**
  * A deck's control changes (rc-net hooks, inside `rc-control`): an EXIT from a live contest hands this network to the
  * side that stays (connected) — then the caller's own disconnect is skipped; otherwise (the other side is gone too)
  * the contest is withdrawn. A TRANSFER (new operator) or REMOVAL voids every live contest of the deck.
  */
-export async function onControlChange(deck, kind) {
+export const onControlChange = (deck, kind) => withWork(async () => {
   const j = journal(), mine = contestsOf(deck.uuid, j).filter(live);
   if (!mine.length) return { handled: false };
   let handled = false;
-  const touched = new Set();
   for (const c of mine) {
     if (!live(c)) continue;   // voided by an earlier takeover in this same pass
     const other = otherOf(c, deck.uuid), oNet = RC.netOf(fromUuidSync(other) ?? null);
@@ -167,13 +186,11 @@ export async function onControlChange(deck, kind) {
       takeStep(j, c, other, deck.uuid);
       handled = true;
     } else endStep(c, kind === "exit" ? "withdrawn" : "void");
-    touched.add(c);
   }
-  for (const o of Object.values(j)) if (o.steps?.length) touched.add(o);
   await saveJournal(j);
-  await applyAll([...touched]);
+  await applyPending(j);
   return { handled };
-}
+});
 
 /* ── The exchange ─────────────────────────────────────────────────────────────────────────────────────────────── */
 
@@ -188,10 +205,9 @@ export function registerContest() {
 
   // Start (or continue) a contest: the initiator's Complex Action. Opening one needs a live intercept of the target's
   // system channel (5b.2); later exchanges either side may start (p.72). Interference uses protocol emulation (p.72).
-  gmOp("ewContestStart", ({ intruderDeckUuid, targetDeckUuid }, user) => RC.rcQueue(async () => {
+  gmOp("ewContestStart", ({ intruderDeckUuid, targetDeckUuid }, user) => RC.rcQueue(() => withWork(async () => {
     const intruder = fromUuidSync(intruderDeckUuid), target = fromUuidSync(targetDeckUuid);
-    if (!intruder || !RC.isRcDeck(intruder) || !(user.isGM || intruder.testUserPermission(user, "OWNER") || RC.deckActor(intruder)?.testUserPermission(user, "OWNER")))
-      throw new Error("not your deck");
+    if (!intruder || !RC.isRcDeck(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your deck");
     if (!target || !RC.isRcDeck(target) || target === intruder) throw new Error("choose another network's deck");
     const iNet = RC.netOf(intruder), tNet = RC.netOf(target);
     if (iNet?.connection?.state !== "connected" || !iNet.operator) throw new Error("connect your deck first: its operator makes the tests");
@@ -213,12 +229,12 @@ export function registerContest() {
     c.exchanges[xid] = { initiator: intruder.uuid, target: target.uuid, iop: op.uuid, top: tNet.operator ?? "", tns,
       iflux: RC.deckFlux(intruder), tflux: RC.deckFlux(target), pe, rev: c.rev, stamp: stampOf(c), state: "open", at: Date.now() };
     await saveJournal(j);
-    await applyAll([c]);
+    await applyPending(j);
     await card(`<strong>Interference</strong> on ${esc(target.name)}'s network: ${esc(op.name)} is fighting for it (Rigger 2 p.72). Resist: roll the deck's Flux (${RC.deckFlux(target)}) vs TN ${tns.defender}, + Task Pool.
       <div class="sr2e-karma-actions"><button type="button" class="sr2e-resist-btn sr2e-contest-resist">Resist</button></div>`, defOp,
       { flags: { sr2e: { ewContestResist: { cid: c.id, xid } } } });
     return { cid: c.id, xid, tns };
-  }));
+  })));
 
   gmOp("ewContestRoll", ({ cid, xid, side, messageId }, user) => RC.rcQueue(async () => {
     const j = journal(), c = j[cid], x = c?.exchanges?.[xid];
@@ -231,7 +247,7 @@ export function registerContest() {
       minTn: side === "intruder" ? x.tns.intruder : x.tns.defender, bind: { cid, xid, side } });
     const { testTotalSuccesses } = await import("./rules/sr2e-rules.mjs");
     x[side] = { successes: testTotalSuccesses(test), messageId };
-    return settle(j, c, xid);
+    return withWork(() => settle(j, c, xid));
   }));
 
   // The GM closes an exchange the other side won't resist (0 successes on its side).
@@ -240,7 +256,7 @@ export function registerContest() {
     const j = journal(), c = j[cid], x = c?.exchanges?.[xid];
     if (!live(c) || !x || x.state !== "open" || !x.intruder) throw new Error("the initiator hasn't rolled");
     x.defender ??= { successes: 0, messageId: "" };
-    return settle(j, c, xid);
+    return withWork(() => settle(j, c, xid));
   }));
 }
 
@@ -271,7 +287,7 @@ async function settle(j, c, xid) {
     out = { boxes, taken, loser, winner };
   } else c.rev = num(c.rev) + 1;
   await saveJournal(j);
-  await applyAll(Object.values(j).filter(o => o.steps?.length));
+  await applyPending(j);
   const lName = out.loser ? fromUuidSync(out.loser)?.name : null;
   await card(`Interference: ${x.intruder.successes} vs ${x.defender.successes} — ${out.boxes ? `${esc(lName)} takes ${out.boxes} box${out.boxes === 1 ? "" : "es"} on its own system channel` : "no effect"}${out.taken ? `; <strong>its network is taken</strong> by ${esc(fromUuidSync(out.winner)?.parent?.name ?? "the winner")} (Rigger 2 p.72)` : ""}.`, null,
     { whisper: ChatMessage.getWhisperRecipients("GM").map(u => u.id) });

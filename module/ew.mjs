@@ -149,8 +149,7 @@ async function inRange(a, b) {
 
 function loadPair(intruderDeckUuid, targetDeckUuid, user) {
   const intruder = fromUuidSync(intruderDeckUuid);
-  if (!intruder || !RC.isRcDeck(intruder) || !(user.isGM || intruder.testUserPermission(user, "OWNER") || RC.deckActor(intruder)?.testUserPermission(user, "OWNER")))
-    throw new Error("not your deck");
+  if (!intruder || !RC.isRcDeck(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your deck");   // a taken network answers to its taker (5b.4)
   const target = fromUuidSync(targetDeckUuid);
   if (!target || !RC.isRcDeck(target) || target === intruder) throw new Error("choose another network's deck");
   const op = RC.netOf(intruder)?.operator ? fromUuidSync(RC.netOf(intruder).operator) : null;
@@ -389,7 +388,7 @@ function systemData(v) {
 function ownDeck(deckUuid, user) {
   const deck = fromUuidSync(deckUuid);
   if (!deck || !RC.isRcDeck(deck)) throw new Error("not a remote-control deck");
-  if (!(user.isGM || deck.testUserPermission(user, "OWNER") || RC.deckActor(deck)?.testUserPermission(user, "OWNER"))) throw new Error("not your deck");
+  if (!RC.mayRun(user, deck)) throw new Error("not your deck");   // a taken network answers to its taker (5b.4)
   if (!RC.netOf(deck)?.operator) throw new Error("connect the deck first");
   return deck;
 }
