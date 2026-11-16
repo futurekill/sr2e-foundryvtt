@@ -924,7 +924,7 @@ export class SR2EItem extends Item {
         // Only that controller's own Unarmed Strike, rolled by its owner or the GM (5c review #2).
         if (this.name !== "Unarmed Strike" || !(game.user.isGM || actor.isOwner)) return ui.notifications.warn("A mechanical arm strikes through its controller's Unarmed Strike, rolled by that character's player.");
         const { armHandlingMod } = await import("../rules/vehicle-ops-rules.mjs");
-        lead = { key: "vehicleArm", name: `${v.name}'s ${arm.name}`, strength: arm.strength, tn: armHandlingMod(v.system.effectiveHandling) };
+        lead = { key: "vehicleArm", name: `${v.name}'s ${arm.name}`, strength: arm.strength, tn: armHandlingMod(v.system.effectiveHandling) + (arm.tnMod ?? 0) };
       }
       const leadTN = lead?.tn ?? 0;
 

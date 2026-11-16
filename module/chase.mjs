@@ -275,6 +275,9 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
     if (kind === "relocate" && !(e.driver === actor || (e.aboard ?? []).includes(actor))) throw new Error("the spotter must be aboard the pursuing vehicle");
     if (!owns(user, actor)) throw new Error(`${user?.name} may not act for that character`);
     const { members, rep } = groupOf(ch, eid);
+    // A rail vehicle in the group can't be positioned, hidden or rammed with it either (c5c r2 #2).
+    if (["position", "hide", "ram"].includes(kind) && members.some(m => fromUuidSync(ch.entries[m]?.uuid)?.getFlag("sr2e", "rail")))
+      throw new Error("a vehicle in the group runs on rails: it can only speed up or slow down (Rigger 2 p.36)");
     if (rep !== eid) throw new Error("the group acts once, with its fastest vehicle");
     const t = ch.turns?.[round]?.[eid];
     if (t?.ms == null) throw new Error("roll this vehicle's Driver Points first");

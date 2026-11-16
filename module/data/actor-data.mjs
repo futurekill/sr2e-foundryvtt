@@ -1,5 +1,5 @@
 import { armStrength, liveMod } from "../rules/vehicle-ops-rules.mjs";
-import { reducedBonus } from "../rules/vehicle-subsystem-rules.mjs";
+import { reducedBonus, NO_BONUS_TN } from "../rules/vehicle-subsystem-rules.mjs";
 import { VEHICLE_POINTS } from "../rules/vehicle-combat-rules.mjs";
 import { permanentStress, rigBonuses, isVehicleSkillName } from "../rules/vehicle-r2-rules.mjs";
 import { isRigger2, r2Option } from "../vehicle-mode.mjs";
@@ -2227,8 +2227,13 @@ export class VehicleData extends SR2EDataModel {
     // Subsystem damage (6a.4): Serious or Deadly = inoperable; Light / Moderate reduce it as a device rating (Table 8).
     this.effective.arms = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod" && isMechanicalArms(i) && liveMod(i)
       && !["S", "D"].includes(this.subsysItems?.[i.id]))
-      .map(i => { const lvl = this.subsysItems?.[i.id], s = armStrength(this.effective.body, i.system.rating);
-        return { itemId: i.id, name: i.name, strength: lvl ? reducedBonus(s, lvl) : s, damaged: lvl ?? null }; });
+      .map(i => {
+        // Damage reduces the BOUGHT-UP Strength (the device's bonus), never the Body² base; an arm with no bonus to
+        // reduce takes Table 8's +1 / +3 TN on tests using it instead (c5c r2 #1).
+        const lvl = this.subsysItems?.[i.id], bonus = Math.max(0, Number(i.system.rating) || 0);
+        const tnMod = lvl && !bonus ? (NO_BONUS_TN[lvl] ?? 0) : 0;
+        return { itemId: i.id, name: i.name, strength: armStrength(this.effective.body, lvl ? reducedBonus(bonus, lvl) : bonus), tnMod, damaged: lvl ?? null };
+      });
     // Usable Cargo and Load: the effective gross − the design options − every mod's consumption (the one capacity
     // rule, module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
     const cap = vehicleCapacity({ cargo: this.effective.cargo, load: this.effective.load, optionCf: this.design.optionCf,

@@ -80,6 +80,9 @@ export function bindPullCard(message, html) {
   });
 }
 
+/** A damaged arm with no bought-up Strength to reduce: Table 8's TN (+1 Light, +3 Moderate); the best working arm is used. */
+const armDamageTn = (vehicle) => { const m = (vehicle.system.effective?.arms ?? []).map(a => num(a.tnMod)); return m.length ? Math.min(...m) : 0; };
+
 /* ── Mechanical arms (p.34–35) ────────────────────────────────────────────────────────────────────────────────── */
 
 /**
@@ -119,6 +122,7 @@ export async function armTestDialog(vehicle) {
   const h = armHands(vehicle);
   if (!h) return warn(`${vehicle.name} has no one controlling it${vehicle.system.vehicleType === "drone" ? " and no Pilot" : ""} to work its arm.`);
   const handling = num(vehicle.system.effectiveHandling);
+  const armTn = armDamageTn(vehicle);
   const poolMax = h.rigged ? Math.min(num(h.actor.system.dicePools?.control?.value), h.dice) : 0;
   const f = await prompt(`Arm Test — ${vehicle.name}`, `<p>Rigger 2 p.34: ${esc(h.actor.name)}'s ${h.what} (${h.dice}) vs the Handling (${handling}).
       The GM may lower the TN for a simple task or raise it for a hard one.</p>
@@ -131,11 +135,11 @@ export async function armTestDialog(vehicle) {
     const pools = await dronePools(vehicle, label);
     if (!pools) return null;
     const mod = await droneMod(vehicle);
-    return vehicle.rollSuccessTest(h.dice + pools.n, armTestTn(handling, f.gm + mod), { label: `${label}${pools.notes.length ? `, ${pools.notes.join(", ")}` : ""}${mod ? `, meaconing +${mod}` : ""}`,
+    return vehicle.rollSuccessTest(h.dice + pools.n, armTestTn(handling, f.gm + mod + armTn), { label: `${label}${pools.notes.length ? `, ${pools.notes.join(", ")}` : ""}${mod ? `, meaconing +${mod}` : ""}`,
       ...(pools.flags ? { flags: pools.flags } : {}) });
   }
   const paid = f.pool > 0 ? await h.actor._payControl(Math.min(f.pool, poolMax), h.dice) : 0;
-  return h.actor.rollSuccessTest(h.dice, armTestTn(handling, f.gm), { label, paidPoolDice: paid ? { control: paid } : undefined });
+  return h.actor.rollSuccessTest(h.dice, armTestTn(handling, f.gm + armTn), { label: armTn ? `${label}, damaged arm +${armTn}` : label, paidPoolDice: paid ? { control: paid } : undefined });
 }
 
 /** A Skill Test through the arm (p.34): the skill's usual TN, +1 per Handling point above 3; a drone uses its Pilot. */
@@ -149,7 +153,7 @@ export async function armSkillDialog(vehicle) {
     <div class="form-group"><label>The task's TN</label><input type="number" name="tn" value="4" min="2"></div>`,
     (e) => ({ skill: e.skill?.value ?? "", tn: Math.max(2, num(e.tn.value)) }));
   if (!f) return null;
-  const tn = f.tn + mod, label = `${vehicle.name}'s arm: TN ${f.tn} + ${mod} Handling (Rigger 2 p.34)`;
+  const tn = f.tn + mod + armDamageTn(vehicle), label = `${vehicle.name}'s arm: TN ${f.tn} + ${mod} Handling (Rigger 2 p.34)`;
   if (h.drone) {
     const pools = await dronePools(vehicle, label);
     if (!pools) return null;
