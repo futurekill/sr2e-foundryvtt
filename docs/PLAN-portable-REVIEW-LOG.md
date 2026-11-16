@@ -392,3 +392,13 @@ VERDICT: REVISE
 1 Registry entries per selector × handler branch × card source. 2 The episode id flows through the Coax handler and
 fuelCoast, checked before the roll and in the queue. 3 Deterministic crash follow-up id; stage advances after it exists.
 4 Karma closes at the committed roll; the resolution stays open until the outcome card is published.
+
+## Round 21 — Codex (DELTA review of draft 21; gpt-6-sol, high; 247K input): REVISE, 1 finding
+
+1. **Karma closure can be overwritten by an in-flight spend.** Draft 21 says the Driving Test closes to Karma when its rolled result is committed, but [the Karma writer](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:947) checks closure before its final `message.update`. If a player passes that check, then the GM closes the test and commits the result, the player’s update can replace the whole test state with an older, open copy and change the successes after resolution. **Fix:** Route Driving Test Karma spends and the close-and-snapshot step through one GM-owned queue before committing the rolled receipt.
+
+VERDICT: REVISE
+
+### Claude's response (draft 22) — taken
+Verified (the Karma writer checks closure before its final message.update): Driving Test Karma spends and the
+close-and-snapshot step share one GM-owned queue (the vehicle's); the receipt's snapshot is taken inside it.

@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 21 (2026-11-15), after Codex rounds 1–20 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 22 (2026-11-15), after Codex rounds 1–21 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -114,7 +114,10 @@ from their synthetic source. A reference to something not exported → `unresolv
   each recorded on the vehicle's receipt) and resumable from any stage; round 20 #3: the crash follow-up's id is
   DETERMINISTIC (derived from the Driving Test card), and the stage advances only once that id exists, so a resume
   can't create a second Crash Test; round 20 #4: Karma on the test closes when the rolled result is committed, and the
-  resolution stays open until its outcome card (with `closesTests`) is durably published; the registry's `isOpen` reads that receipt, and fixtures stop after
+  resolution stays open until its outcome card (with `closesTests`) is durably published; round 21 #1: Driving Test
+  Karma spends and the close-and-snapshot step run in ONE GM-owned queue (the vehicle's), so a player's spend that
+  passed its closure check can't land after the close and reopen or change the committed result — the snapshot the
+  rolled receipt records is taken inside that queue; the registry's `isOpen` reads that receipt, and fixtures stop after
   each stage. The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
