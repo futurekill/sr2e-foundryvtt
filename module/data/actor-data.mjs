@@ -1,4 +1,5 @@
-import { armStrength } from "../rules/vehicle-ops-rules.mjs";
+import { armStrength, liveMod } from "../rules/vehicle-ops-rules.mjs";
+import { reducedBonus } from "../rules/vehicle-subsystem-rules.mjs";
 import { VEHICLE_POINTS } from "../rules/vehicle-combat-rules.mjs";
 import { permanentStress, rigBonuses, isVehicleSkillName } from "../rules/vehicle-r2-rules.mjs";
 import { isRigger2, r2Option } from "../vehicle-mode.mjs";
@@ -2223,9 +2224,11 @@ export class VehicleData extends SR2EDataModel {
     this.subsysControlBox = subsys?.controlBox ?? null;
     // Mechanical arms (R2 p.35, p.145; 5c): each WORKING arm item's Strength = effective Body × Body + its bought-up
     // Strength (the item's rating). Reassigned every preparation, so a removed or unfinished arm leaves nothing behind.
-    this.effective.arms = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod" && isMechanicalArms(i)
-      && ["", "done", "factory"].includes(i.system?.custom?.state ?? ""))
-      .map(i => ({ itemId: i.id, name: i.name, strength: armStrength(this.effective.body, i.system.rating) }));
+    // Subsystem damage (6a.4): Serious or Deadly = inoperable; Light / Moderate reduce it as a device rating (Table 8).
+    this.effective.arms = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod" && isMechanicalArms(i) && liveMod(i)
+      && !["S", "D"].includes(this.subsysItems?.[i.id]))
+      .map(i => { const lvl = this.subsysItems?.[i.id], s = armStrength(this.effective.body, i.system.rating);
+        return { itemId: i.id, name: i.name, strength: lvl ? reducedBonus(s, lvl) : s, damaged: lvl ?? null }; });
     // Usable Cargo and Load: the effective gross − the design options − every mod's consumption (the one capacity
     // rule, module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
     const cap = vehicleCapacity({ cargo: this.effective.cargo, load: this.effective.load, optionCf: this.design.optionCf,

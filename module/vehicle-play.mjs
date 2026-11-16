@@ -970,7 +970,8 @@ export async function rollDrivingTest(driver, vehicle, o) {
   const handling = fl ? fl.base : o.offRoad ? (sys.effectiveHandlingOffRoad ?? o.offRoadHandling) : sys.effectiveHandling;
   if (handling == null || !Number.isFinite(handling)) return ui.notifications.warn(`${vehicle.name} has no off-road Handling: enter the GM's rating.`);
   const { tn: dtn, parts } = drivingTN({ handling, unfamiliar: o.unfamiliar, situation: o.situation, size: o.size, weather: o.weather,
-    terrain: o.terrain, combat: o.combat, mode: o.mode, vcr: driver?.system.vehicleControlRig ?? 0, damageMod: sys.damageTnMod ?? 0, empathy,
+    terrain: o.terrain, combat: o.combat, mode: o.mode, vcr: driver?.system.vehicleControlRig ?? 0, damageMod: sys.damageTnMod ?? 0,
+    empathy: empathy && !fl,   // Empathy lowers Handling (p.16); a takeoff/landing's base TN replaces Handling (5c review #1)
     otherMod: (o.otherMod ?? 0) + sk.penalty + guidanceDrivingMod(vehicle)    // continuous missile lock +2 (R2 p.59)
       + (drone ? EWM.droneTestMod(vehicle) : 0) });
   let tn = dtn;

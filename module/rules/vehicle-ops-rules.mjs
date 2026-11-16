@@ -88,5 +88,9 @@ export function hasLegs(vehicle) {
   const d = vehicle?.system?.design ?? {};
   if (/^(walker|anthroform)/i.test(d.chassisKey ?? "")) return true;
   if (d.category === "special" && !(d.traits ?? []).includes("zeppelin") && !/blimp|zeppelin/i.test(d.chassisKey ?? "")) return true;
-  return (vehicle?.items ?? []).some(i => i.type === "vehicle_mod" && (i.flags?.sr2e?.rule === "mechanical-legs" || /^mechanical legs?$/i.test(String(i.name ?? "").trim())));
+  return (vehicle?.items ?? []).some(i => i.type === "vehicle_mod" && liveMod(i) && !["S", "D"].includes(vehicle.system?.subsysItems?.[i.id])
+    && (i.flags?.sr2e?.rule === "mechanical-legs" || /^mechanical legs?$/i.test(String(i.name ?? "").trim())));
 }
+
+/** An installed, working vehicle mod: built in, installed or finished — never "parts", "tested" or "removed". */
+export const liveMod = (item) => ["", "done", "factory"].includes(item?.system?.custom?.state ?? "");

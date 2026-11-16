@@ -59,3 +59,19 @@ describe("Air-cushion vehicles (p.35)", () => {
     expect(acvCrashCap("M", true)).toBe("M");
   });
 });
+
+import { hasLegs, liveMod } from "../module/rules/vehicle-ops-rules.mjs";
+describe("5c review fixes", () => {
+  const legs = (state, lvl = null) => ({ system: { design: { category: "car" }, subsysItems: lvl ? { l1: lvl } : {} },
+    items: [{ id: "l1", type: "vehicle_mod", name: "Mechanical Legs", system: { custom: { state } } }] });
+  it("only installed, working legs count (#4)", () => {
+    expect(hasLegs(legs(""))).toBe(true);
+    expect(hasLegs(legs("factory"))).toBe(true);
+    expect(hasLegs(legs("parts"))).toBe(false);
+    expect(hasLegs(legs("removed"))).toBe(false);
+    expect(hasLegs(legs("", "S"))).toBe(false);
+    expect(hasLegs({ system: { design: { category: "special", traits: [] } }, items: [] })).toBe(true);
+    expect(hasLegs({ system: { design: { category: "special", traits: ["zeppelin"] } }, items: [] })).toBe(false);
+    expect(liveMod({ system: { custom: { state: "tested" } } })).toBe(false);
+  });
+});

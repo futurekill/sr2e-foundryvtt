@@ -50,9 +50,9 @@
           {{#if canAct}}
             <button type="button" data-action="act" data-kind="accelerate">Accelerate</button>
             <button type="button" data-action="act" data-kind="brake">Brake</button>
-            <button type="button" data-action="act" data-kind="position">Position</button>
+            {{#unless rail}}<button type="button" data-action="act" data-kind="position">Position</button>
             <button type="button" data-action="act" data-kind="position" data-stop="1" title="Positioning to stop at a point (p.47)">Stop at…</button>
-            <button type="button" data-action="act" data-kind="hide">Hide</button>
+            <button type="button" data-action="act" data-kind="hide">Hide</button>{{/unless}}
             <button type="button" data-action="autonav" title="Simple Action; Free for a rigger jacked in (p.45)">Autonav {{#if autonav}}off{{else}}on{{/if}}</button>
           {{/if}}
           {{#if ../gm}}<button type="button" data-action="remove" title="Remove from the chase"><i class="fas fa-trash"></i></button>{{/if}}

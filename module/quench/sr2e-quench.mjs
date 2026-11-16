@@ -19893,6 +19893,32 @@ export function registerSR2EQuenchTests() {
             await call("chaseSetup", { combatId: combat.id });
             let err = null; try { await call("chaseAddEntry", { combatId: combat.id, uuid: W.uuid, speed: 0 }); } catch (e) { err = e.message; }
             assert.match(err ?? "", /legs/);
+            // 5c review fixes. #5: within the Load Rating, no test.
+            const n2 = game.messages.size;
+            await VO.rollPull(T, { weight: 900, extra: 0, conditions: "", stuck: 0, noRollers: false, braced: false, push: 0 });
+            assert.ok(!game.messages.contents.slice(n2).some(m => m.flags?.sr2e?.test), "no roll for a safe load");
+            // #2: only the Unarmed Strike swings an arm.
+            const knife = (await pc.createEmbeddedDocuments("Item", [{ name: "Quench Knife", type: "weapon", system: { weaponType: "melee", skill: "armed_combat", damageCode: "(Str)L" } }]))[0];
+            const n3 = game.messages.size;
+            await knife.roll({ vehicleArm: { vehicleUuid: A.uuid, itemId: A.system.effective.arms[0].itemId } });
+            assert.ok(!game.messages.contents.slice(n3).some(m => m.flags?.sr2e?.melee), "a knife can't use the arm's Strength");
+            // #6: an unattended NON-drone vehicle can't work an arm on its own.
+            const car = await mk("Quench Arm Car", { body: 3, pilot: 2 });
+            await car.createEmbeddedDocuments("Item", [{ name: "Mechanical Arms", type: "vehicle_mod", system: { rating: 0 } }]);
+            const n4 = game.messages.size;
+            await VO.armTestDialog(car);
+            assert.equal(game.messages.size, n4, "refused before any dialog or roll");
+            // #7: a rail vehicle in a chase can't take a position, hide or ram action.
+            const R = await mk("Quench Train", {});
+            await R.setFlag("sr2e", "rail", true);
+            const drv = await Actor.create({ name: "Quench Train Driver", type: "npc", system: { professionalRating: 2 } }); made.push(drv);
+            await combat.createEmbeddedDocuments("Combatant", [{ actorId: drv.id }]);
+            const re = await call("chaseAddEntry", { combatId: combat.id, uuid: R.uuid, driver: drv.uuid, speed: 50 });
+            await combat.startCombat();
+            const dp = await call("chaseDPStart", { combatId: combat.id, round: combat.round, eid: re.eid });
+            await call("chaseCancel", { combatId: combat.id, aid: dp.aid });
+            err = null; try { await call("chaseBegin", { combatId: combat.id, round: combat.round, eid: re.eid, kind: "hide" }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /rails/);
           } finally { CONFIG.Dice.randomUniform = orig; }
         });
       });

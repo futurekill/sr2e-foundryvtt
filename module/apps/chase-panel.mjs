@@ -80,6 +80,7 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
         over: !!t.over, joined, joinsAt: e.joinedRound,
         canDp: mine && joined && c.started && t.vp != null && t.dp == null && !dpBusy,
         canAct: mine && joined && c.started && t.ms != null,
+        rail: !!doc?.getFlag?.("sr2e", "rail"),   // fixed rails (R2 p.36): speed changes only
         terrains: TERRAINS.map(k => ({ k, sel: k === e.terrain }))
       };
     });
@@ -90,7 +91,8 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
       const Q = ch.entries[p.quarry], t = ch.turns?.[c.round] ?? {};
       // Ram (p.47–48): either side of the pursuit may ram the other; the GM op checks distance or entitlement.
       const rams = c.started ? [[p.pursuer, p.quarry], [p.quarry, p.pursuer]]
-        .filter(([me]) => ch.entries[me]?.kind === "vehicle" && owns(ch.entries[me].driver) && t[me]?.ms != null)
+        .filter(([me]) => ch.entries[me]?.kind === "vehicle" && owns(ch.entries[me].driver) && t[me]?.ms != null
+          && !fromUuidSync(ch.entries[me].uuid)?.getFlag?.("sr2e", "rail"))
         .map(([me, them]) => ({ eid: me, target: them, label: `${nameOf(ch.entries[me].uuid)} rams` })) : [];
       return { pid, rams, pursuer: nameOf(P?.uuid), quarry: nameOf(Q?.uuid), distance: p.distance,
                contact: hidden ? `hidden (${p.contact.successes} successes${p.contact.npcTurns ? `, NPC search ${p.contact.npcTurns}/5` : ""})` : "in contact",

@@ -269,6 +269,8 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
     if (kind !== "relocate" && operatorOf(e) && RCN.sitsOut(fromUuidSync(e.uuid), combat)) throw new Error(RCN.SIT_OUT);
     // Out of fuel (R2 p.81, optional): no powered actions while it coasts.
     if (["accelerate", "ram"].includes(kind) && fromUuidSync(e.uuid)?.getFlag("sr2e", "fuelOut")) throw new Error("no power (out of fuel or a dead engine): it can only coast (Rigger 2 p.81)");
+    // A rail vehicle runs on fixed rails (R2 p.36; 5c review #7): it can only change speed.
+    if (["position", "hide", "ram"].includes(kind) && fromUuidSync(e.uuid)?.getFlag("sr2e", "rail")) throw new Error("it runs on rails: it can only speed up or slow down (Rigger 2 p.36)");
     const actor = kind === "relocate" ? actorUuid : actingActorOf(e);
     if (kind === "relocate" && !(e.driver === actor || (e.aboard ?? []).includes(actor))) throw new Error("the spotter must be aboard the pursuing vehicle");
     if (!owns(user, actor)) throw new Error(`${user?.name} may not act for that character`);

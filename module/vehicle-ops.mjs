@@ -40,6 +40,11 @@ export async function rollPull(vehicle, f) {
   const body = bodyOf(vehicle), load = num(vehicle.system.effective?.load ?? vehicle.system.load) + num(f.extra);
   const t = pullTest({ weight: f.weight, load, conditions: f.conditions, stuck: f.stuck, noRollers: f.noRollers, braced: f.braced });
   if (!t.allowed) return warn(`${vehicle.name} can't move ${f.weight} kg: more than twice the Load Rating (${load} kg) is beyond a Pull Test (Rigger 2 p.33).`);
+  // Within the Load Rating it's safe and needs no test (p.33; 5c review #5) — unless the GM's conditions make it one
+  // (the table's ≤ 1 × Load row, TN 3: a load stuck in mud, a cliff), which the dialog's modifiers show.
+  const hard = f.conditions || num(f.stuck) || f.noRollers;
+  if (t.ratio <= 1 && !hard) return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: vehicle }),
+    content: `<div class="sr2e-damage-result"><strong>${esc(vehicle.name)}</strong> moves ${num(f.weight)} kg safely: within its Load Rating (${load} kg), no test (Rigger 2 p.33).</div>` });
   const driver = controllerOf(vehicle);
   const push = stressDice(f.push, body);
   if (push.stress) await adjustStress(vehicle, push.stress, { reason: "extra Pull Test dice (Rigger 2 p.33)", driverUuid: driver?.uuid ?? "" });
@@ -77,17 +82,42 @@ export function bindPullCard(message, html) {
 
 /* ── Mechanical arms (p.34–35) ────────────────────────────────────────────────────────────────────────────────── */
 
-/** Who works the arm: the character controlling the vehicle, else the drone itself on its Pilot (p.34). */
+/**
+ * Who works the arm: the character controlling the vehicle, else — a DRONE only — the drone itself on its Pilot (p.34),
+ * with what its own tests get (5c review #6): a robot's Threat dice and its network's meaconing modifier.
+ */
 function armHands(vehicle) {
   const c = controllerOf(vehicle);
   if (c) return { actor: c, rigged: riggedInto(c, vehicle), dice: num(c.system.quickness?.value), what: "Quickness" };
+  if (vehicle.system.vehicleType !== "drone") return null;
   const pilot = num(vehicle.system.effective?.pilot ?? vehicle.system.pilot);
-  return pilot > 0 ? { actor: vehicle, rigged: false, dice: pilot, what: "Pilot", drone: true } : null;
+  const threat = vehicle.system.isRobot ? Math.max(0, num(vehicle.system.threatRating)) : 0;
+  return pilot > 0 ? { actor: vehicle, rigged: false, dice: pilot + threat, threat, what: threat ? `Pilot + ${threat} Threat` : "Pilot", drone: true } : null;
+}
+/** The drone's network meaconing on its own test (R2 p.70; 5b.3), 0 when not networked. */
+async function droneMod(vehicle) { return (await import("./ew.mjs")).droneTestMod(vehicle); }
+/** A drone's Learning Pool and IVIS Pool on its own test, as its Driving Test offers them (p.67). */
+async function dronePools(vehicle, label) {
+  const LP = await import("./learning-pool.mjs"), RC = await import("./rc-net.mjs");
+  const learnMax = LP.learningUsable(vehicle) ? LP.learningBalance(vehicle) : 0, ivisMax = RC.ivisBalance(vehicle);
+  if (!learnMax && !ivisMax) return { n: 0, notes: [] };
+  const scope = vehicle.system.learningPool?.scope ?? "";
+  const f = await foundry.applications.api.DialogV2.prompt({ window: { title: label }, rejectClose: false,
+    content: `${learnMax ? `<div class="form-group"><label>Learning Pool (max ${learnMax})</label><input type="number" name="l" value="0" min="0" max="${learnMax}"></div>
+      ${scope ? `<label><input type="checkbox" name="s"> Within “${esc(scope)}” (the GM may veto)</label>` : ""}` : ""}
+      ${ivisMax ? `<div class="form-group"><label>IVIS Pool (max ${ivisMax})</label><input type="number" name="i" value="0" min="0" max="${ivisMax}"></div>` : ""}`,
+    ok: { label: "Roll", callback: (_e, b) => ({ l: num(b.form.elements.l?.value), s: !!b.form.elements.s?.checked, i: num(b.form.elements.i?.value) }) } }).catch(() => null);
+  if (!f) return null;
+  const learn = f.l > 0 && (!scope || f.s) ? await LP.spendLearning(vehicle, Math.min(f.l, learnMax), { scope }) : { n: 0 };
+  const { gmCall } = await import("./vehicle-play.mjs");
+  const ivis = f.i > 0 ? await gmCall("rcIvisSpend", { vehicleUuid: vehicle.uuid, n: Math.min(f.i, ivisMax) }) : { n: 0 };
+  const notes = [learn.n ? `+${learn.n} Learning Pool` : "", ivis.n ? `+${ivis.n} IVIS Pool` : ""].filter(Boolean);
+  return { n: learn.n + ivis.n, notes, flags: learn.n ? { sr2e: { learningSpend: { vehicleUuid: vehicle.uuid, eventId: learn.eventId, n: learn.n, scope } } } : undefined };
 }
 
 export async function armTestDialog(vehicle) {
   const h = armHands(vehicle);
-  if (!h) return warn(`${vehicle.name} has no one controlling it and no Pilot to work its arm.`);
+  if (!h) return warn(`${vehicle.name} has no one controlling it${vehicle.system.vehicleType === "drone" ? " and no Pilot" : ""} to work its arm.`);
   const handling = num(vehicle.system.effectiveHandling);
   const poolMax = h.rigged ? Math.min(num(h.actor.system.dicePools?.control?.value), h.dice) : 0;
   const f = await prompt(`Arm Test — ${vehicle.name}`, `<p>Rigger 2 p.34: ${esc(h.actor.name)}'s ${h.what} (${h.dice}) vs the Handling (${handling}).
@@ -96,15 +126,22 @@ export async function armTestDialog(vehicle) {
     ${poolMax ? `<div class="form-group"><label>Control Pool (rigged, max ${poolMax})</label><input type="number" name="pool" value="0" min="0" max="${poolMax}"></div>` : ""}`,
     (e) => ({ gm: num(e.gm.value), pool: num(e.pool?.value) }));
   if (!f) return null;
+  const label = `${vehicle.name}: Arm Test (${h.what}; Handling ${handling}${f.gm ? `, GM ${f.gm > 0 ? "+" : ""}${f.gm}` : ""}; Rigger 2 p.34)`;
+  if (h.drone) {
+    const pools = await dronePools(vehicle, label);
+    if (!pools) return null;
+    const mod = await droneMod(vehicle);
+    return vehicle.rollSuccessTest(h.dice + pools.n, armTestTn(handling, f.gm + mod), { label: `${label}${pools.notes.length ? `, ${pools.notes.join(", ")}` : ""}${mod ? `, meaconing +${mod}` : ""}`,
+      ...(pools.flags ? { flags: pools.flags } : {}) });
+  }
   const paid = f.pool > 0 ? await h.actor._payControl(Math.min(f.pool, poolMax), h.dice) : 0;
-  return h.actor.rollSuccessTest(h.dice, armTestTn(handling, f.gm), { label: `${vehicle.name}: Arm Test (${h.what}; Handling ${handling}${f.gm ? `, GM ${f.gm > 0 ? "+" : ""}${f.gm}` : ""}; Rigger 2 p.34)`,
-    paidPoolDice: paid ? { control: paid } : undefined });
+  return h.actor.rollSuccessTest(h.dice, armTestTn(handling, f.gm), { label, paidPoolDice: paid ? { control: paid } : undefined });
 }
 
 /** A Skill Test through the arm (p.34): the skill's usual TN, +1 per Handling point above 3; a drone uses its Pilot. */
 export async function armSkillDialog(vehicle) {
   const h = armHands(vehicle);
-  if (!h) return warn(`${vehicle.name} has no one controlling it and no Pilot to work its arm.`);
+  if (!h) return warn(`${vehicle.name} has no one controlling it${vehicle.system.vehicleType === "drone" ? " and no Pilot" : ""} to work its arm.`);
   const mod = armHandlingMod(vehicle.system.effectiveHandling);
   const skills = h.drone ? [] : h.actor.items.filter(i => i.type === "skill" && num(i.system.rating) > 0).sort((a, b) => a.name.localeCompare(b.name));
   const f = await prompt(`Skill through the arm — ${vehicle.name}`, `<p>Rigger 2 p.34: the skill's usual target number +${mod} (Handling ${vehicle.system.effectiveHandling} above 3).</p>
@@ -113,7 +150,13 @@ export async function armSkillDialog(vehicle) {
     (e) => ({ skill: e.skill?.value ?? "", tn: Math.max(2, num(e.tn.value)) }));
   if (!f) return null;
   const tn = f.tn + mod, label = `${vehicle.name}'s arm: TN ${f.tn} + ${mod} Handling (Rigger 2 p.34)`;
-  if (h.drone) return vehicle.rollSuccessTest(h.dice, tn, { label: `${label}, Pilot` });
+  if (h.drone) {
+    const pools = await dronePools(vehicle, label);
+    if (!pools) return null;
+    const em = await droneMod(vehicle);
+    return vehicle.rollSuccessTest(h.dice + pools.n, tn + em, { label: `${label}, ${h.what}${pools.notes.length ? `, ${pools.notes.join(", ")}` : ""}${em ? `, meaconing +${em}` : ""}`,
+      ...(pools.flags ? { flags: pools.flags } : {}) });
+  }
   return h.actor.rollSkillTest(f.skill, tn, { label });
 }
 
