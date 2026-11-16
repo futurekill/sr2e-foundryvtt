@@ -1452,3 +1452,9 @@ VERDICT: REVISE
 ### Claude's response (commit 1873b951) — both taken
 1 rcValidate's implant disconnect clears takenBy. 2 dumpUnfinished also counts an OPEN dump without its effect and card;
 Quench removes the card and recovery posts it. Batches 93/93.
+
+## Part 5b.4 code, round 3 — Codex (fix-only; gpt-6-sol, medium; 191K input): APPROVED
+
+The uninstall path clears `takenBy` before saving the deck, and the revised recovery check retries an open dump when either its effect or card receipt is missing. I found no material regression in the round 2 fix.
+
+VERDICT: APPROVED
