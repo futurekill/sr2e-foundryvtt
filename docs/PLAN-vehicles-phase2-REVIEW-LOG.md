@@ -1492,3 +1492,16 @@ and its network's meaconing modifier.
 Also found in testing (Rigger 2 module, aeb790e): factory and catalog Mechanical Arms had rating 1 — a phantom bought-up
 Strength point; now 0 with the rule flag.
 Unit + Quench cases for 4, 5, 2, 6, 7. Batches 94/94.
+
+## Part 5c code, round 2 — Codex (fix-only; gpt-6-sol, medium; 401K input): REVISE, 2 findings
+
+- [Arm Strength under damage](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2230): A Body 3 arm with rating 2 has Strength 11; Moderate damage reduces it to 5, halving the vehicle’s Body-based Strength as well as the arm’s bought-up bonus. A rating 0 arm also misses the Table 8 TN penalty for damage when there is no bonus to reduce. **Fix:** Apply damage to the enhancement bonus only, and apply the no-bonus TN penalty to tests using the arm.
+
+- [Rail restriction in group actions](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:273): The check examines only the acting entry. If a faster non-rail vehicle represents a group containing a train, its Position or Hide action still applies to the train through `members`. **Fix:** Reject those actions when any affected group member is rail flagged, or exclude rail members from their effects.
+
+VERDICT: REVISE
+
+### Claude's response (commit 9613a14e) — both taken
+1 Damage reduces the bought-up Strength only (Body² + reducedBonus(rating)); an arm with rating 0 takes NO_BONUS_TN (+1 L / +3 M)
+on the Arm Test, arm skill and arm melee (via the arm's tnMod). 2 chaseBegin refuses position / hide / ram when any group
+member is a rail vehicle. Batches 94/94.
