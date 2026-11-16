@@ -84,6 +84,24 @@ export function registerSR2EQuenchTests() {
     };
 
     // ── Actor sheets render WITH body content (the blank-sheet regression) ──────
+
+/**
+ * Keep these sr2e WORLD settings in memory on this client while a batch runs (CLAUDE.md: tests never change world
+ * settings). Returns the restore function. `set(…, { document: true })` returns a stand-in document so callers that
+ * check for one (money.mjs settingSet) still see success.
+ */
+function stubWorldSettings(keys) {
+  const store = new Map(keys.map(k => [k, foundry.utils.deepClone(game.settings.get("sr2e", k))]));
+  const g = game.settings.get, s = game.settings.set;
+  game.settings.get = function (ns, k, ...rest) { return ns === "sr2e" && store.has(k) ? foundry.utils.deepClone(store.get(k)) : g.call(this, ns, k, ...rest); };
+  game.settings.set = async function (ns, k, v, o = {}) {
+    if (!(ns === "sr2e" && store.has(k))) return s.call(this, ns, k, v, o);
+    store.set(k, foundry.utils.deepClone(v));
+    return o?.document ? { key: `${ns}.${k}`, value: v } : v;
+  };
+  return () => { game.settings.get = g; game.settings.set = s; };
+}
+
     quench.registerBatch("sr2e.sheets", (context) => {
       const { describe, it, assert, after } = context;
       const made = [];
@@ -13188,12 +13206,14 @@ export function registerSR2EQuenchTests() {
 
       // Part 2b-2 (R2 p.18–19). Month ends is scoped to the test vehicles; the hidden month setting is put back.
       describe("Maintenance overhead (R2 p.18–19)", () => {
-        let month0;
         const ohm = () => import("../vehicle-overhead.mjs");
         const months = (v) => v.getFlag("sr2e", "overhead")?.months ?? {};
         const endMonth = async (vs) => (await vp()).gmCall("overheadMonthEnd", { expectedMonth: game.settings.get("sr2e", "vehicleOverheadMonth"), only: vs.map(v => v.uuid) });
-        before(async function () { month0 = game.settings.get("sr2e", "vehicleOverheadMonth"); });
-        after(async function () { await game.settings.set("sr2e", "vehicleOverheadMonth", month0); });
+        // The month is a world setting the ops write: kept in memory on this client for the batch, never written to the
+        // world (concurrent writes left duplicate Setting records, 2026-11-16).
+        let unstub = null;
+        before(function () { unstub = stubWorldSettings(["vehicleOverheadMonth"]); });
+        after(function () { unstub?.(); });
         const setup = async (name, cost = 40000) => {
           const v = await mk({ name: `Quench OH ${name}`, type: "vehicle", system: { body: 3, cost } });
           const c = await mk({ name: `Quench OH ${name} owner`, type: "character", system: { nuyen: 100000, lifestyle: "middle", karma: { current: 5, total: 5 }, linkedVehicles: [v.uuid] } });
@@ -19970,14 +19990,16 @@ export function registerSR2EQuenchTests() {
       });
 
       describe("Optempo (Part 6a.2, R2 p.83–84)", function () {
-        let month0, adv0;
-        before(async function () { month0 = game.settings.get("sr2e", "vehicleOverheadMonth"); adv0 = foundry.utils.deepClone(game.settings.get("sr2e", "vehicleAdventures") ?? {}); });
+        // Month and adventures are world settings the ops write: kept in memory on this client for the batch, never
+        // written to the world (the old put-back raced the ops' own writes and left duplicate Setting records).
+        let unstub = null;
+        before(async function () {
+          unstub = stubWorldSettings(["vehicleOverheadMonth", "vehicleAdventures"]);
+          (await import("../vehicle-optempo.mjs")).resetAdventureCache();
+        });
         after(async function () {
-          await new Promise(r => setTimeout(r, 500));   // let the last queued settings write land first
-          await game.settings.set("sr2e", "vehicleOverheadMonth", month0);
-          for (let i = 0; i < 5 && JSON.stringify(game.settings.get("sr2e", "vehicleAdventures")) !== JSON.stringify(adv0); i++) {
-            await game.settings.set("sr2e", "vehicleAdventures", adv0); await new Promise(r => setTimeout(r, 200));
-          }
+          await new Promise(r => setTimeout(r, 500));   // let the last queued (in-memory) write land before unstubbing
+          unstub?.();
           (await import("../vehicle-optempo.mjs")).resetAdventureCache();
         });
         it("replace: a paid month superseded by an adventure is refunded from its receipt once; the optempo charge is paid", async function () {
@@ -19991,8 +20013,9 @@ export function registerSR2EQuenchTests() {
             made.push(c);
             const adv = await call("adventureStart", { name: "Quench run" });
             const m = game.settings.get("sr2e", "vehicleOverheadMonth");
-            await call("overheadMonthEnd", { expectedMonth: m, only: [v.uuid] });   // the vehicle's cursor
-            await call("overheadMonthEnd", { expectedMonth: m + 1, only: [v.uuid] });   // month m+1 assessed: 400¥
+            // One month end: the vehicle's cursor starts at m, and month m+1 ends and is assessed (400¥). (A second end
+            // made m+1 a MISSED month; it only passed while a stale duplicate setting made that second call a no-op.)
+            await call("overheadMonthEnd", { expectedMonth: m, only: [v.uuid] });
             const M = m + 1;
             const OH = await import("../vehicle-overhead.mjs");
             await OH.payOverhead(c, [{ vehicleUuid: v.uuid, month: M }], { useCredit: false, karma: 0 });
