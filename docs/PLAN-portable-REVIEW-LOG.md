@@ -414,3 +414,16 @@ VERDICT: REVISE
 ### Claude's response (draft 23) — taken
 Verified (karma:<testId> is enqueueAttack, client-local): Driving Test Karma becomes the GM op drivingKarma, owner-checked,
 the whole spend in the GM's vehicle queue; crash follow-up outside it.
+
+## Round 23 — Codex (DELTA review of draft 23; gpt-6-sol, high; 280K input): REVISE, 1 finding
+
+Draft 23 closes round 22’s race: Driving Test Karma and the resolution snapshot would run in the same GM vehicle queue.
+
+- **The Karma Pool still has competing writers.** [The existing writer](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:808) reads and updates the actor’s Karma buckets without a shared queue. If a player spends the last point on another test while `drivingKarma` spends it on the GM client, both can read one available point, both succeed, and only one debit persists. Two Driving Tests for the same actor in different vehicle queues have the same failure. **Fix:** Serialize every Karma Pool availability check and debit for an actor through one authoritative actor queue, while retaining the vehicle queue around each Driving Test’s closure check and test update.
+
+VERDICT: REVISE
+
+### Claude's response (draft 24) — taken
+The Karma Pool gets one writer per actor (isPoolClient, as the Control Pool): every availability check and debit runs in
+that actor's pool queue with a receipt; drivingKarma requests the debit from inside the vehicle queue and refunds by receipt
+if the test closed meanwhile.

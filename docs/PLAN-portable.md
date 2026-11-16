@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 23 (2026-11-15), after Codex rounds 1–22 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 24 (2026-11-15), after Codex rounds 1–23 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -120,7 +120,12 @@ from their synthetic source. A reference to something not exported → `unresolv
   rolled receipt records is taken inside that queue. Round 22 #1: the chat button's `karma:<testId>` queue is
   client-local, so a Driving Test's Karma spend becomes a GM op (`drivingKarma`, over `gmCall`): it verifies the
   requester owns the rolling actor and runs the whole spend — closure check, pool debit, test update — in the GM's
-  vehicle queue; the crash follow-up stays outside that queue, as damage delivery already does; the registry's `isOpen` reads that receipt, and fixtures stop after
+  vehicle queue; the crash follow-up stays outside that queue, as damage delivery already does. Round 23 #1: the Karma
+  POOL itself has one writer per actor — `isPoolClient(actor)` (the active player owner, else the active GM), the same
+  rule as the Control Pool — and every Karma availability check and debit for that actor runs in its actor pool queue
+  there, each debit receipted by spend id. `drivingKarma` asks that writer for the debit (receipt) from inside the
+  vehicle queue's closure check, and applies the test update only once the receipt exists; a test closed meanwhile
+  refunds by the same receipt. Two Driving Tests in different vehicle queues therefore still debit one pool in order; the registry's `isOpen` reads that receipt, and fixtures stop after
   each stage. The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
