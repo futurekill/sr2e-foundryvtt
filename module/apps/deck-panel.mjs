@@ -174,7 +174,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const target = fromUuidSync(el.dataset.uuid), op = this.#op;
     if (!op) return warn("connect the deck first");
     const id = await EWX.rollEwCard(op, { kind: "decrypt", dice: EWX.ewSkillDice(op) + EWX.moduleRating(this.deck, "decryption"),
-      tn: EW.decryptTn(EWX.moduleRating(target, "rc-encryption")), label: `Break ${target.parent?.name}'s encryption (Electronic Warfare; Rigger 2 p.69)` });
+      tn: EW.decryptTn(EWX.moduleRating(target, "rc-encryption")), label: `Break ${target.parent?.name}'s encryption (Electronic Warfare; Rigger 2 p.69)`,
+      extra: { freqGen: EWX.freqGen(netOf(target)), target: target.uuid } });
     if (id) return rc("ewDecrypt", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, messageId: id })
       .then(r => ui.notifications.info(r.ok ? "Encryption broken." : "Failed — and they know someone is trying.")).catch(warn);
   }
@@ -187,8 +188,9 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       ok: { label: "Roll", callback: (_e2, b) => EW.CHANNELS.filter(c => b.form.elements[c].checked) }, rejectClose: false }).catch(() => null);
     if (!named) return;
     const id = await EWX.rollEwCard(op, { kind: "intercept", dice: Number(this.deck.system.rating) || 0,
-      tn: EW.interceptTn({ deckRating: target.system.rating, alert: netOf(target)?.alert }), label: `Signal interception — ${target.parent?.name} (Rigger 2 p.68)` });
-    if (id) return rc("ewIntercept", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, named, messageId: id }).catch(warn);
+      tn: EW.interceptTn({ deckRating: target.system.rating, alert: netOf(target)?.alert }), label: `Signal interception — ${target.parent?.name} (Rigger 2 p.68)`,
+      extra: { freqGen: EWX.freqGen(netOf(target)), target: target.uuid, named } });
+    if (id) return rc("ewIntercept", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, messageId: id }).catch(warn);
   }
   static async #ewChoose(_e, el) {
     const target = fromUuidSync(el.dataset.uuid), rec = EWX.interceptOf(this.deck, target);
@@ -198,8 +200,17 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       ok: { label: "Choose", callback: (_e2, b) => EW.CHANNELS.filter(c => b.form.elements[c]?.checked) }, rejectClose: false }).catch(() => null);
     if (pick) return rc("ewChooseChannels", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, channels: pick }).catch(warn);
   }
-  static #ewRead(_e, el) {
-    return rc("ewRead", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: el.dataset.uuid, channel: el.dataset.channel }).catch(warn);
+  static async #ewRead(_e, el) {
+    let vehicleUuid = null;
+    if (el.dataset.channel === "system") {   // the system channel reports one drone (p.69)
+      const drones = Object.values(netOf(fromUuidSync(el.dataset.uuid))?.affiliated ?? {}).map(a => fromUuidSync(a.uuid)).filter(Boolean);
+      if (!drones.length) return warn("that network has no drones");
+      vehicleUuid = await foundry.applications.api.DialogV2.prompt({ window: { title: "Read the system channel" },
+        content: `<select name="v">${drones.map(v => `<option value="${v.uuid}">${esc(v.name)}</option>`).join("")}</select>`,
+        ok: { label: "Read", callback: (_e2, b) => b.form.elements.v.value }, rejectClose: false }).catch(() => null);
+      if (!vehicleUuid) return;
+    }
+    return rc("ewRead", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: el.dataset.uuid, channel: el.dataset.channel, vehicleUuid }).catch(warn);
   }
   static async #ewMiji(_e, el) {
     const target = fromUuidSync(el.dataset.uuid), rec = EWX.interceptOf(this.deck, target), op = this.#op;
@@ -214,7 +225,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     try {
       const { aid } = await rc("ewMijiStart", { op: kind, intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, channel });
       const x = netOf(target).ew[aid];
-      const id = await EWX.rollEwCard(op, { kind: "miji", dice: x.intruderFlux, tn: x.tns.intruder, label: `${kind} — ${target.parent?.name}'s ${channel} channel (Rigger 2 p.70–72)` });
+      const id = await EWX.rollEwCard(op, { kind: "miji", dice: x.intruderFlux, tn: x.tns.intruder, label: `${kind} — ${target.parent?.name}'s ${channel} channel (Rigger 2 p.70–72)`,
+        extra: { aid, side: "intruder" } });
       if (id) await rc("ewMijiRoll", { targetDeckUuid: target.uuid, aid, side: "intruder", messageId: id });
     } catch (err) { warn(err); }
   }
@@ -244,9 +256,11 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         <div class="form-group"><label>Complexity</label><select name="tn">${SKILL_SUCCESS_TABLE.map(r => `<option value="${r.tn}" ${r.key === "average" ? "selected" : ""}>${r.label} (${r.tn})</option>`).join("")}</select></div>`,
       ok: { label: "Roll Comprehension", callback: (_e2, b) => new foundry.applications.ux.FormDataExtended(b.form).object }, rejectClose: false }).catch(() => null);
     if (!res) return;
-    const t = comprehensionTest({ pilot, specDice: nmpDice(op), tableTn: Number(res.tn) || 4 });
-    const roll = await v.rollSuccessTest(t.dice, t.tn, { label: `Comprehension Test: "${esc(res.text || "command")}" (captured channel; Rigger 2 p.66, p.70)`,
-      flags: { sr2e: { rcCommand: { deckUuid: target.uuid, vehicleUuids: [v.uuid] } } } });
+    const auth = EWX.channelAuthority(target, "command");
+    if (!auth) return warn("you no longer hold their command channel");
+    const t = EWX.commandTest(op, target, v, Number(res.tn) || 4);
+    const roll = await v.rollSuccessTest(t.dice, t.tn, { label: `Comprehension Test: "${esc(res.text || "command")}" (captured channel; Rigger 2 p.66, p.70)`, isResistance: false,
+      flags: { sr2e: { rcCommand: { deckUuid: target.uuid, vehicleUuids: [v.uuid], authEvent: auth.auth.eventId, freqGen: EWX.freqGen(netOf(target)) } } } });
     if (roll) return rc("ewCommand", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, vehicleUuid: v.uuid, text: res.text ?? "", messageId: roll.testMessageId }).catch(warn);
   }
   static async #ewBlock(_e, el) {

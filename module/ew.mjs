@@ -14,6 +14,8 @@ import * as RC from "./rc-net.mjs";
 import * as EW from "./rules/ew-rules.mjs";
 import { rcRuleOf } from "./rules/drone-rules.mjs";
 import { fluxRange } from "./rules/vehicle-sensor-rules.mjs";
+import { comprehensionTest, SKILL_SUCCESS_TABLE } from "./rules/drone-rules.mjs";
+import { isRigger2 } from "./vehicle-mode.mjs";
 
 const num = (n) => Number(n) || 0;
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -76,6 +78,7 @@ export function channelAuthority(targetDeck, channel) {
   if (!auth || num(auth.freqGen) !== freqGen(net)) return null;
   const deck = fromUuidSync(auth.deckUuid ?? ""), inet = RC.netOf(deck);
   if (!deck || inet?.connection?.state !== "connected" || inet.operator !== auth.operator) return null;
+  if (num(inet.connection.gen) !== num(auth.connGen)) return null;   // the intruder exited since (c5b1 r1 #2)
   if (!interceptOf(deck, targetDeck)?.channels?.includes(channel)) return null;
   const actor = fromUuidSync(auth.operator);
   return actor ? { actor, deck, auth } : null;
@@ -95,13 +98,13 @@ export function droneTestMod(vehicle) {
   return EW.degradationMod(net.monitors, "drone", ["command", "system"]);
 }
 /** A network's degradation for one kind of test (comprehension, ivis, indirect …) on the given channels. */
-export const netTestMod = (deck, kind, channels) => EW.degradationMod(RC.netOf(deck)?.monitors ?? {}, kind, channels);
+export const netTestMod = (deck, kind, channels) => !isRigger2() ? 0 : EW.degradationMod(RC.netOf(deck)?.monitors ?? {}, kind, channels);
 /**
  * The remotely rigged drone's simsense jamming, on EVERY Success Test of the rigger like a damage modifier (p.72; 5b.3):
  * the rigger's live primary through a network, its simsense channel counted once.
  */
 export function riggerSimsenseMod(actor) {
-  if (!actor?.uuid) return 0;
+  if (!actor?.uuid || !isRigger2()) return 0;   // persisted monitors never reach core-rules tests (c5b1 r1 #6)
   for (const deck of RC.rcIndex().byOperator.get(actor.uuid) ?? []) {
     const net = RC.netOf(deck);
     if (net?.connection?.state !== "connected" || !net.primary) continue;
@@ -116,9 +119,11 @@ export function riggerSimsenseMod(actor) {
  * A rolled card made by `actor` for this EW step: its own dice ≤ `maxDice`, Task Pool dice ≤ the Electronics cap,
  * its BASE TN ≥ `minTn`, no situational misc dice, settled once. Returns the test state.
  */
-function checkCard(net, messageId, { kind, actor, maxDice, minTn }) {
+function checkCard(net, messageId, { kind, actor, maxDice, minTn, bind = {} }) {
   const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test, ew = msg?.flags?.sr2e?.ew;
   if (!test || ew?.kind !== kind || test.actorUuid !== actor?.uuid) throw new Error("that isn't this electronic-warfare test's card");
+  // The card was rolled for THIS state (c5b1 r1 #3): a frequency switch, a new exchange or a changed authority voids it.
+  for (const [k, v] of Object.entries(bind)) if (String(ew[k] ?? "") !== String(v ?? "")) throw new Error("that card was rolled before the network changed: not counted");
   const own = (test.dice ?? []).filter(d => d.sourceKey === "base").length;
   const task = (test.dice ?? []).filter(d => d.sourceKey === "pool:task").length;
   if ((test.dice ?? []).some(d => d.sourceKey === "misc") || own > maxDice || task > taskCap(actor) || test.baseTn == null || num(test.baseTn) < minTn)
@@ -162,7 +167,8 @@ export function registerEw() {
     const enc = moduleRating(target, "rc-encryption");
     if (!enc) throw new Error("that network isn't encrypted");
     const net = RC.freshNet(target);
-    const test = checkCard(net, messageId, { kind: "decrypt", actor: op, maxDice: ewSkillDice(op) + moduleRating(intruder, "decryption"), minTn: EW.decryptTn(enc) });
+    const test = checkCard(net, messageId, { kind: "decrypt", actor: op, maxDice: ewSkillDice(op) + moduleRating(intruder, "decryption"), minTn: EW.decryptTn(enc),
+      bind: { freqGen: freqGen(net), target: target.uuid } });
     const ok = EW.decryptOk(await successesOf(test), num(target.system.rating));
     if (!ok) net.alert = num(net.alert) + 1;
     await RC.save(target, net);
@@ -172,7 +178,7 @@ export function registerEw() {
   }));
 
   // 5b.1: Signal interception — successes = channels, the named ones first; the GM chooses the rest.
-  gmOp("ewIntercept", ({ intruderDeckUuid, targetDeckUuid, named = [], messageId }, user) => RC.rcQueue(async () => {
+  gmOp("ewIntercept", ({ intruderDeckUuid, targetDeckUuid, messageId }, user) => RC.rcQueue(async () => {
     const { intruder, target, op } = loadPair(intruderDeckUuid, targetDeckUuid, user);
     const net = RC.freshNet(target);
     if (net.connection?.state !== "connected") throw new Error("that network isn't transmitting (its deck isn't connected)");
@@ -181,8 +187,10 @@ export function registerEw() {
     if (moduleRating(target, "rc-encryption") && (dec == null || num(dec) !== freqGen(net)))
       throw new Error("the network is encrypted: break it first (Rigger 2 p.69)");
     const test = checkCard(net, messageId, { kind: "intercept", actor: op, maxDice: num(intruder.system.rating),
-      minTn: EW.interceptTn({ deckRating: num(target.system.rating), alert: net.alert }) });
-    const res = EW.interceptedChannels(await successesOf(test), named);
+      minTn: EW.interceptTn({ deckRating: num(target.system.rating), alert: net.alert }), bind: { freqGen: freqGen(net), target: target.uuid } });
+    // The channels named BEFORE the roll, as recorded on its card (p.69; c5b1 r1 #7).
+    const named = game.messages.get(messageId)?.flags?.sr2e?.ew?.named;
+    const res = EW.interceptedChannels(await successesOf(test), Array.isArray(named) ? named : []);
     await RC.save(target, net);
     await intruder.update({ [`flags.sr2e.ewIntercepts.${netKey(target)}`]: { target: target.uuid, channels: res.channels, gmChooses: res.gmChooses, freqGen: freqGen(net), at: Date.now() } });
     if (res.gmChooses) await card(`GM: ${esc(op.name)} intercepted ${res.gmChooses} more channel${res.gmChooses === 1 ? "" : "s"} of ${esc(target.name)}'s network — choose which on their deck panel (Rigger 2 p.69).`, null, { whisper: ChatMessage.getWhisperRecipients("GM") });
@@ -200,17 +208,19 @@ export function registerEw() {
 
   // Reading a channel (p.69): each read, the network rolls detection (deck rating dice vs the intruder's Electronic
   // Warfare); success alerts it and switches frequencies — every intercept of it is void.
-  gmOp("ewRead", ({ intruderDeckUuid, targetDeckUuid, channel }, user) => RC.rcQueue(async () => {
+  gmOp("ewRead", ({ intruderDeckUuid, targetDeckUuid, channel, vehicleUuid }, user) => RC.rcQueue(async () => {
     const { intruder, target, op } = loadPair(intruderDeckUuid, targetDeckUuid, user);
     const rec = interceptOf(intruder, target);
     if (!rec?.channels?.includes(channel)) throw new Error(`you haven't intercepted its ${channel} channel`);
     const net = RC.freshNet(target);
+    // The system channel reports ONE drone's position, heading, ammunition and damage (p.69; c5b1 r1 #5).
+    const drone = channel === "system" ? fromUuidSync(vehicleUuid ?? "") : null;
+    if (channel === "system" && (drone?.type !== "vehicle" || !net.affiliated?.[RC.vKey(drone.uuid)])) throw new Error("choose one of that network's drones");
     const { SR2ESuccessRoll } = await import("./dice/sr2e-roll.mjs");
     // A captured system channel delivers its data to the intruder freely (p.70; 5b.0): no detection roll.
     const free = channel === "system" && channelAuthority(target, "system")?.actor === op;
     const det = free ? { successes: 0 } : await SR2ESuccessRoll.successTest(num(target.system.rating), Math.max(2, ewSkillDice(op)));
-    const what = channel === "system" ? Object.values(net.affiliated ?? {}).map(a => fromUuidSync(a.uuid)).filter(Boolean)
-      .map(v => `${esc(v.name)}: ${v.system.conditionMonitor?.value ?? 0}/${v.system.conditionMonitor?.max ?? 10} damage`).join("; ")
+    const what = channel === "system" ? systemData(drone)
       : channel === "command" ? Object.entries(net.standingOrders ?? {}).map(([, o]) => `“${esc(o.text)}”`).join("; ") || "no orders on record"
       : "what the drones sense (the GM describes it)";
     if (det.successes > 0) { net.alert = num(net.alert) + 1; net.freqGen = freqGen(net) + 1; delete net.channelAuthority; }   // every intercept and authority ends
@@ -235,7 +245,7 @@ export function registerEw() {
     const aid = foundry.utils.randomID(16);
     net.ew ??= {};
     net.ew[aid] = { op: kind, channel, intruderDeck: intruder.uuid, intruderOp: op.uuid, attackerRating: Math.max(num(intruder.system.rating), ecm),
-      protocolEmulation: pe, freqGen: freqGen(net), tns, intruderFlux: kind === "jamming" ? Math.ceil(ecm * 1.5) : RC.deckFlux(intruder),
+      protocolEmulation: pe, freqGen: freqGen(net), stamp: mijiStamp(net, intruder), tns, intruderFlux: kind === "jamming" ? Math.ceil(ecm * 1.5) : RC.deckFlux(intruder),
       defenderFlux: RC.deckFlux(target), state: "open", at: Date.now() };
     await RC.save(target, net);
     const defender = fromUuidSync(net.operator ?? "");
@@ -250,8 +260,9 @@ export function registerEw() {
     const actor = fromUuidSync(side === "intruder" ? x.intruderOp : net.operator ?? "");
     if (!actor || !(user.isGM || actor.testUserPermission(user, "OWNER"))) throw new Error("not your side of the exchange");
     if (x[side]) throw new Error("already rolled");
+    if (!stampOk(net, x)) { x.state = "void"; await RC.save(target, net); return { void: true }; }
     const test = checkCard(net, messageId, { kind: "miji", actor, maxDice: side === "intruder" ? x.intruderFlux : x.defenderFlux,
-      minTn: side === "intruder" ? x.tns.intruder : x.tns.defender });
+      minTn: side === "intruder" ? x.tns.intruder : x.tns.defender, bind: { aid, side } });
     x[side] = { successes: await successesOf(test), messageId };
     const done = await settleMiji(target, net, aid);
     return done ?? { waiting: true };
@@ -269,17 +280,23 @@ export function registerEw() {
   // the drone's Comprehension Test as usual. Re-validated here, in rc-control, at commit.
   gmOp("ewCommand", ({ intruderDeckUuid, targetDeckUuid, vehicleUuid, text = "", messageId }, user) => RC.rcQueue(async () => {
     const { target, op } = loadPair(intruderDeckUuid, targetDeckUuid, user);
-    if (channelAuthority(target, "command")?.actor !== op) throw new Error("you don't hold their command channel (fill it with meaconing or intrusion, Rigger 2 p.70)");
+    const auth = channelAuthority(target, "command");
+    if (auth?.actor !== op) throw new Error("you don't hold their command channel (fill it with meaconing or intrusion, Rigger 2 p.70)");
     const v = fromUuidSync(vehicleUuid), net = RC.freshNet(target), k = RC.vKey(vehicleUuid);
     if (v?.type !== "vehicle" || !net.affiliated?.[k]) throw new Error("that drone isn't on their network");
+    // The same live eligibility as the owner's command (c5b1 r1 #4): the drone the owner is jumped into is directly
+    // controlled; a drone out of the network's range acts on its last order.
+    if (net.primary === k) throw new Error("its rigger is jumped into it: it takes no network commands (Rigger 2 p.65)");
+    if (!(await RC.reachable(target, v))) throw new Error(`${v.name} is out of the network's range (Rigger 2 p.64)`);
     const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test, cmd = msg?.flags?.sr2e?.rcCommand;
     if (!test || cmd?.deckUuid !== target.uuid || test.actorUuid !== v.uuid || (cmd.vehicleUuids ?? []).join() !== v.uuid)
       throw new Error("that isn't this drone's Comprehension Test card");
-    const { comprehensionTest } = await import("./rules/drone-rules.mjs");
-    const pilot = v.system.effective?.pilot ?? v.system.pilot ?? 0;
-    const allowed = comprehensionTest({ pilot, specDice: RC.nmpDice(op) }).dice;
-    if ((test.dice ?? []).filter(d => d.sourceKey === "base").length > allowed || (test.dice ?? []).some(d => d.sourceKey === "misc"))
-      throw new Error("that Comprehension Test has more dice than the drone's Pilot allows");
+    if (String(cmd.authEvent ?? "") !== String(auth.auth.eventId) || num(cmd.freqGen) !== freqGen(net))
+      throw new Error("that card was rolled under an earlier hold on the channel: not counted");
+    const t = commandTest(op, target, v, SKILL_SUCCESS_TABLE[0].tn);   // the lowest table TN + the live modifiers
+    if ((test.dice ?? []).filter(d => d.sourceKey === "base").length > t.dice || (test.dice ?? []).some(d => d.sourceKey === "misc")
+      || test.baseTn == null || num(test.baseTn) < t.tn)
+      throw new Error(`that Comprehension Test wasn't rolled as the rules say: at most ${t.dice} dice vs TN ${t.tn} or more`);
     RC.useCard(net, messageId);
     const successes = await successesOf(test);
     net.standingOrders[k] = { text: String(text).slice(0, 200), successes, obeyed: successes >= 1, messageId, rev: num(net.rev) + 1, by: op.uuid };
@@ -337,6 +354,33 @@ export function registerEw() {
   }));
 }
 
+/** The dependency stamp of an open MIJI exchange (plan 5b.0/5b.2; c5b1 r1 #3): who holds each side and the TN inputs. */
+function mijiStamp(net, intruderDeck) {
+  const inet = RC.netOf(intruderDeck);
+  return { op: net.operator ?? "", conn: num(net.connection?.gen), alert: num(net.alert), freqGen: freqGen(net),
+    iconn: num(inet?.connection?.gen), iop: inet?.operator ?? "" };
+}
+const stampOk = (net, x) => !x.stamp || JSON.stringify(mijiStamp(net, fromUuidSync(x.intruderDeck ?? ""))) === JSON.stringify(x.stamp);
+
+/**
+ * The Comprehension Test an intruder makes through a captured command channel (p.66, p.70): the drone's Pilot + the
+ * intruder's Non-Matrix Programming; +2 TN while the intruder is jumped into a drone of their own (p.65); the target
+ * network's command jamming (5b.3).
+ */
+export function commandTest(op, targetDeck, v, tableTn) {
+  return comprehensionTest({ pilot: v.system.effective?.pilot ?? v.system.pilot ?? 0, specDice: RC.nmpDice(op), tableTn,
+    jumpedCommandingSecondary: !!RC.primaryOf(op.uuid), degradation: netTestMod(targetDeck, "comprehension", ["command"]) });
+}
+
+/** One drone's system-channel data (p.69): position, heading, ammunition, damage. */
+function systemData(v) {
+  const tok = v.token ?? v.getActiveTokens?.()?.[0]?.document ?? null;
+  const pos = tok ? `at (${Math.round(tok.x / (tok.parent?.grid?.size || 100))}, ${Math.round(tok.y / (tok.parent?.grid?.size || 100))}) on ${esc(tok.parent?.name ?? "the scene")}, heading ${Math.round(num(tok.rotation))}°` : "position unknown (no token)";
+  const ammo = (v.items ?? []).filter(i => i.type === "weapon" && num(i.system.ammo?.max) > 0)
+    .map(i => `${esc(i.name)} ${num(i.system.ammo.current)}/${num(i.system.ammo.max)}`).join(", ") || "no ammunition-fed weapons";
+  return `${esc(v.name)} ${pos}; ammunition: ${ammo}; damage ${v.system.conditionMonitor?.value ?? 0}/${v.system.conditionMonitor?.max ?? 10}`;
+}
+
 function ownDeck(deckUuid, user) {
   const deck = fromUuidSync(deckUuid);
   if (!deck || !RC.isRcDeck(deck)) throw new Error("not a remote-control deck");
@@ -353,21 +397,25 @@ function ownDeck(deckUuid, user) {
 async function settleMiji(target, net, aid) {
   const x = net.ew[aid];
   if (!x.intruder || !x.defender) { await RC.save(target, net); return null; }
-  if (num(x.freqGen) !== freqGen(net)) { x.state = "void"; await RC.save(target, net); return { void: true }; }
+  if (num(x.freqGen) !== freqGen(net) || !stampOk(net, x)) { x.state = "void"; await RC.save(target, net); return { void: true }; }
   const m = (net.monitors ??= {})[x.channel] ??= { entries: {} };
+  const before = EW.channelBoxes(m);
   const boxes = EW.appliedBoxes(m, EW.mijiNet(x.intruder.successes, x.defender.successes));
   if (boxes > 0) m.entries[aid] = { op: x.op, attackerKey: x.intruderDeck, attackerRating: x.attackerRating, boxes, at: Date.now() };
   if (boxes > 0 && x.op === "intrusion") (net.bogus ??= {})[aid] = { channel: x.channel, net: boxes, cancelled: 0, attackerKey: x.intruderDeck,
     protocolEmulation: x.protocolEmulation, at: Date.now() };
   x.state = "done"; x.boxes = boxes;
-  const full = EW.channelBoxes(m) >= EW.SIGNAL_BOXES;
+  // Only THIS exchange taking the channel from below 10 to 10 fills it (c5b1 r1 #1): a zero-box result on an already
+  // full channel takes nothing from the intruder who filled it.
+  const full = boxes > 0 && before < EW.SIGNAL_BOXES && EW.channelBoxes(m) >= EW.SIGNAL_BOXES;
   let dumpOf = null;
   if (full) {
     (net.carriers ??= {})[x.channel] = "lost";
     // Meaconing or intrusion that fills the channel hands its operations to the intruder (p.70; 5b.0). Jamming's own
     // 10-box effects stand instead (specific over general).
     if (x.op === "meaconing" || x.op === "intrusion")
-      (net.channelAuthority ??= {})[x.channel] = { deckUuid: x.intruderDeck, operator: x.intruderOp, eventId: aid, freqGen: freqGen(net), at: Date.now() };
+      (net.channelAuthority ??= {})[x.channel] = { deckUuid: x.intruderDeck, operator: x.intruderOp, eventId: aid, freqGen: freqGen(net),
+        connGen: num(x.stamp?.iconn), at: Date.now() };
     const operator = fromUuidSync(net.operator ?? "");
     if (x.channel === "simsense" && net.primary && operator) {
       const { pendDump } = await import("./rig-dump.mjs");
@@ -414,7 +462,8 @@ export function bindEwCard(message, html) {
       const op = fromUuidSync(RC.netOf(target)?.operator ?? "");
       if (!x || x.state !== "open" || x.defender) return ui.notifications.info("That exchange is already settled.");
       if (!op?.isOwner) return ui.notifications.warn("Only the network's operator resists.");
-      const id = await rollEwCard(op, { kind: "miji", dice: x.defenderFlux, tn: x.tns.defender, label: `Resist ${x.op} (${x.channel}; Rigger 2 p.70–72)` });
+      const id = await rollEwCard(op, { kind: "miji", dice: x.defenderFlux, tn: x.tns.defender, label: `Resist ${x.op} (${x.channel}; Rigger 2 p.70–72)`,
+        extra: { aid: r.aid, side: "defender" } });
       if (id) await gmCall("ewMijiRoll", { targetDeckUuid: target.uuid, aid: r.aid, side: "defender", messageId: id });
     } catch (err) { ui.notifications.warn(err.message); }
   });

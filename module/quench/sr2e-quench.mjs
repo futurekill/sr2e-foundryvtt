@@ -19553,21 +19553,26 @@ export function registerSR2EQuenchTests() {
           await call("rcConnect", { deckUuid: dA.uuid, operatorUuid: A.uuid });
           await call("rcConnect", { deckUuid: dB.uuid, operatorUuid: B.uuid });
           const orig = CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => 0.2;   // every die a 5 (never all sixes)
-          const roll = (actor, kind, dice, tn) => actor.rollSuccessTest(dice, tn, { label: `Quench ${kind}`, flags: { sr2e: { ew: { kind } } } }).then(r => r.testMessageId);
+          const roll = (actor, kind, dice, tn, extra = {}) => actor.rollSuccessTest(dice, tn, { label: `Quench ${kind}`, flags: { sr2e: { ew: { kind, ...extra } } } }).then(r => r.testMessageId);
           try {
             // Interception: deck rating 2 dice vs 1 + 3 = TN 4 → 2 successes → the two named channels.
-            const ic = await roll(B, "intercept", 2, 4);
-            const res = await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: ["command", "system"], messageId: ic });
-            assert.deepEqual(res.channels, ["command", "system"]);
+            const bindI = (named) => ({ freqGen: 0, target: dA.uuid, named });
+            const ic = await roll(B, "intercept", 2, 4, bindI(["command", "system"]));
+            const res = await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: ["simsense"], messageId: ic });
+            assert.deepEqual(res.channels, ["command", "system"], "the channels named ON THE CARD, not after the roll (c5b1 r1 #7)");
             let err = null; try { await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: [], messageId: ic }); } catch (e) { err = e.message; }
             assert.match(err ?? "", /already been applied/, "a card settles once");
-            err = null; try { await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: [], messageId: await roll(B, "intercept", 2, 3) }); } catch (e) { err = e.message; }
+            err = null; try { await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: [], messageId: await roll(B, "intercept", 2, 3, bindI([])) }); } catch (e) { err = e.message; }
             assert.match(err ?? "", /rules say/, "a card below the TN is refused");
+            err = null; try { await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, messageId: await roll(B, "intercept", 2, 4, { ...bindI([]), freqGen: 7 }) }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /network changed/, "a card from another frequency generation is refused (c5b1 r1 #3)");
             // Meaconing on the command channel; the GM closes it unresisted.
             const { aid, tns } = await call("ewMijiStart", { op: "meaconing", intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "command" });
             assert.equal(tns.defender, 3, "the defender resists vs the protocol emulation rating");
             const x = RCN.netOf(dA).ew[aid];
-            await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid, side: "intruder", messageId: await roll(B, "miji", x.intruderFlux, tns.intruder) });
+            err = null; try { await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid, side: "intruder", messageId: await roll(B, "miji", x.intruderFlux, tns.intruder, { aid: "other", side: "intruder" }) }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /network changed/, "a MIJI card is bound to its exchange");
+            await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid, side: "intruder", messageId: await roll(B, "miji", x.intruderFlux, tns.intruder, { aid, side: "intruder" }) });
             const out = await call("ewMijiResolve", { targetDeckUuid: dA.uuid, aid });
             assert.equal(out.boxes, Math.min(10, x.intruderFlux), "net successes become boxes");
             assert.isAbove(EWX.droneTestMod(drone), 0, "meaconing raises the drone's own test TN");
@@ -19576,7 +19581,8 @@ export function registerSR2EQuenchTests() {
             const rg = await call("ewRegen", { deckUuid: dA.uuid, channel: "command", attackerKey: dB.uuid, messageId: await roll(A, "regen", 4, 5) });
             assert.equal(rg.cleared, Math.min(2, before));
             // Reading: the network's detection (1 die vs TN = the intruder's EW 5) succeeds → frequencies switch.
-            const rd = await call("ewRead", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "system" });
+            const rd = await call("ewRead", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "system", vehicleUuid: drone.uuid });
+            assert.match(game.messages.contents.at(-2)?.content ?? "", /ammunition/, "the system channel reports one drone's data (c5b1 r1 #5)");
             assert.ok(rd.detected);
             assert.equal(EWX.interceptOf(dB, dA), null, "the intercept is void after a frequency switch");
             err = null; try { await call("ewMijiStart", { op: "meaconing", intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "command" }); } catch (e) { err = e.message; }
@@ -19612,22 +19618,35 @@ export function registerSR2EQuenchTests() {
           await call("rcConnect", { deckUuid: dA.uuid, operatorUuid: A.uuid });
           await call("rcConnect", { deckUuid: dB.uuid, operatorUuid: B.uuid });
           const orig = CONFIG.Dice.randomUniform;
-          const roll = (actor, kind, dice, tn) => actor.rollSuccessTest(dice, tn, { label: `Quench ${kind}`, flags: { sr2e: { ew: { kind } } } }).then(r => r.testMessageId);
-          const order = (text) => drone.rollSuccessTest(2, 4, { label: "Quench Comprehension", flags: { sr2e: { rcCommand: { deckUuid: dA.uuid, vehicleUuids: [drone.uuid] } } } }).then(r => r.testMessageId);
+          const roll = (actor, kind, dice, tn, extra = {}) => actor.rollSuccessTest(dice, tn, { label: `Quench ${kind}`, flags: { sr2e: { ew: { kind, ...extra } } } }).then(r => r.testMessageId);
+          const order = (bind = {}) => drone.rollSuccessTest(2, 4, { label: "Quench Comprehension", flags: { sr2e: { rcCommand: { deckUuid: dA.uuid, vehicleUuids: [drone.uuid], ...bind } } } }).then(r => r.testMessageId);
           try {
             CONFIG.Dice.randomUniform = () => 0.2;   // every die a 5
-            await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, named: ["command"], messageId: await roll(B, "intercept", 2, 4) });
+            await call("ewIntercept", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, messageId: await roll(B, "intercept", 2, 4, { freqGen: 0, target: dA.uuid, named: ["command"] }) });
             await dA.update({ "flags.sr2e.rcNet.monitors": { command: { entries: { seed: { op: "meaconing", attackerKey: dB.uuid, attackerRating: 2, boxes: 9, at: 1 } } } } });
             const { aid, tns } = await call("ewMijiStart", { op: "meaconing", intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "command" });
-            await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid, side: "intruder", messageId: await roll(B, "miji", RCN.netOf(dA).ew[aid].intruderFlux, tns.intruder) });
+            await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid, side: "intruder", messageId: await roll(B, "miji", RCN.netOf(dA).ew[aid].intruderFlux, tns.intruder, { aid, side: "intruder" }) });
             const out = await call("ewMijiResolve", { targetDeckUuid: dA.uuid, aid });
             assert.ok(out.full, "the channel fills");
+            // A later zero-box exchange on the full channel takes nothing (c5b1 r1 #1).
+            const z = await call("ewMijiStart", { op: "intrusion", intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, channel: "command" });
+            const zRes = await call("ewMijiRoll", { targetDeckUuid: dA.uuid, aid: z.aid, side: "intruder", messageId: await roll(B, "miji", RCN.netOf(dA).ew[z.aid].intruderFlux, z.tns.intruder, { aid: z.aid, side: "intruder" }) });
+            const zOut = await call("ewMijiResolve", { targetDeckUuid: dA.uuid, aid: z.aid });
+            assert.notOk(zRes?.full ?? zOut.full, "no new fill");
+            assert.equal(RCN.netOf(dA).channelAuthority.command.eventId, aid, "the first filler keeps the channel");
             assert.equal(EWX.channelActor(dA, "command"), B, "the intruder performs the command channel");
             assert.equal(EWX.channelActor(dA, "system"), A, "only that channel");
-            await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "come to me", messageId: await order() });
+            const bind = { authEvent: aid, freqGen: 0 };
+            let err0 = null; try { await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "x", messageId: await order({ ...bind, authEvent: "old" }) }); } catch (e) { err0 = e.message; }
+            assert.match(err0 ?? "", /earlier hold/, "a command card is bound to the hold it was rolled under (c5b1 r1 #4)");
+            await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "come to me", messageId: await order(bind) });
             assert.equal(RCN.netOf(dA).standingOrders[RCN.vKey(drone.uuid)].by, B.uuid, "the intruder's order stands");
             let err = null; try { await call("rcOrder", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "no", messageId: await order() }); } catch (e) { err = e.message; }
             assert.match(err ?? "", /command carrier is lost/, "the owner is shut out");
+            // The intruder's exit ends the hold, and reconnecting does not revive it (c5b1 r1 #2).
+            await call("rcDisconnect", { deckUuid: dB.uuid });
+            await call("rcConnect", { deckUuid: dB.uuid, operatorUuid: B.uuid });
+            assert.equal(EWX.channelActor(dA, "command"), A, "no authority after the intruder reconnects");
             await call("ewRegen", { deckUuid: dA.uuid, channel: "command", attackerKey: dB.uuid, messageId: await roll(A, "regen", 8, 5) });   // 8 successes: 4 boxes
             const n = EWX.controlSystemsDice(A);
             let i = 0; CONFIG.Dice.randomUniform = () => (i++ < n ? 0.0 : 0.2);   // every die a 6 then a 5 (11): no endless explosion
