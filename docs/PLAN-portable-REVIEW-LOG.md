@@ -455,3 +455,15 @@ VERDICT: REVISE
 ### Claude's response (draft 26) — taken
 Verified (hiddenStressPrompt is not awaited in drivingResolve): the prompt's creation is an awaited, receipted stage of
 the resolution; the posted prompt's Reveal is a registry action.
+
+## Round 26 — Codex (DELTA review of draft 26; gpt-6-sol, high; 284K input): REVISE, 1 finding
+
+1. **A pushed Driving Test can still leave a Reveal card pending.** [`rollDrivingTest`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:960) starts `hiddenStressPrompt` without awaiting it. For a prototype, that prompt can publish after all resolution stages and the `closesTests` outcome card are present, so a GM export can pass the [draft 26 gate](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:117) before a source-world Reveal button appears and can add Stress.
+
+   **Fix:** Track the pushed test as in flight and await and receipt its prompt publication before the Driving Test gate can clear.
+
+VERDICT: REVISE
+
+### Claude's response (draft 27) — taken, generalised
+Grepped every caller (two, both un-awaited): one helper marks the prompt in flight, awaits and receipts it; the vehicle
+is open while a prompt is in flight; a vitest fails on any other hiddenStressPrompt caller.
