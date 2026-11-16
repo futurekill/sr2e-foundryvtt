@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 25 (2026-11-15), after Codex rounds 1–24 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 26 (2026-11-15), after Codex rounds 1–25 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -115,7 +115,9 @@ from their synthetic source. A reference to something not exported → `unresolv
   DETERMINISTIC (derived from the Driving Test card), and the stage advances only once that id exists, so a resume
   can't create a second Crash Test; round 20 #4 (as revised at round 24): export only
   READS — a Driving Test's registry entry is open until every resolution stage is recorded AND its outcome card (the
-  one carrying `closesTests`) is published, so a test still open to Karma is never exported; M1 does not change when or
+  one carrying `closesTests`) is published (round 25 #1: one of those stages is the hidden-Stress prompt a prototype's
+  Rule of One starts — today un-awaited — which M1 awaits and receipts; the posted prompt's Reveal is then itself a
+  registry action), so a test still open to Karma is never exported; M1 does not change when or
   how the test closes (rounds 21–24 had grown a cross-client Karma-writer design to do that, withdrawn: the race between
   a Karma spend and the resolution exists in today's code independent of portability and is tracked separately in
   docs/BACKLOG.md); the registry's `isOpen` reads that receipt, and fixtures stop after

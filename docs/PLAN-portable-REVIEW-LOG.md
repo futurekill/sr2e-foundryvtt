@@ -444,3 +444,14 @@ Rounds 21–24 each found the next gap in a cross-client Karma-writer design tha
 Test is open in the registry until every stage is recorded AND its closesTests outcome card is published; M1 changes
 nothing about when the test closes. The pre-existing Karma-vs-resolution race (and the Karma Pool's missing single
 writer) is real but independent of portability: docs/BACKLOG.md, for its own plan.
+
+## Round 25 — Codex (DELTA review of draft 25; gpt-6-sol, high; 175K input): REVISE, 1 finding
+
+1. **The gate can clear before a Stress prompt appears.** For a prototype vehicle with Quality Factors enabled, a Rule of One starts `hiddenStressPrompt` without awaiting it ([resolver](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:598)). The outcome card and all specified stages can then be complete, allowing export under draft 25’s gate ([plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:117)). If the prompt is published afterward, its Reveal button can still add Stress to the source vehicle ([prompt and reveal](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-quality.mjs:70)).  
+   **Fix:** Await and durably receipt the prompt’s creation before marking the Driving Test closed for export.
+
+VERDICT: REVISE
+
+### Claude's response (draft 26) — taken
+Verified (hiddenStressPrompt is not awaited in drivingResolve): the prompt's creation is an awaited, receipted stage of
+the resolution; the posted prompt's Reveal is a registry action.
