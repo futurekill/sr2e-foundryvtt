@@ -121,11 +121,24 @@ export function rigBonuses({ vcr = 0, mbw = 0, reaction = 0 } = {}) {
 
 /** The vehicle skills on the Skill Web (SR2E p.68–69), by node: the Rigger 2 p.12 half-cost defaulting set. */
 export const VEHICLE_WEB_NODES = new Set(["car", "bike", "hovercraft", "motorboat", "sailboat", "winged", "rotor", "vectorThrust"]);
-const VEHICLE_SKILL_KEYS = new Set(["car", "bike", "hovercraft", "motorboat", "sailboat", "winged_aircraft", "rotor_aircraft",
-  "vector_thrust_aircraft", "pilot"]);
-/** A skill name → is it a vehicle (driving) skill? Names are normalised as vehicle tests do. */
-export const isVehicleSkillName = (name) =>
-  VEHICLE_SKILL_KEYS.has(String(name ?? "").toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, ""));
+/**
+ * The names a vehicle skill goes by, per driving-skill key: the key itself, the Skill Web's label (core p.68–69) and the
+ * skill list's name (core p.75: "Rotor Craft", "Winged Planes", "Vectored Thrust"). SR2 has no "Pilot" skill.
+ */
+const VEHICLE_SKILL_NAMES = {
+  car: ["car"], bike: ["bike"], hovercraft: ["hovercraft"], motorboat: ["motorboat"], sailboat: ["sailboat"],
+  winged: ["winged", "winged_aircraft", "winged_planes", "winged_plane"],
+  rotor: ["rotor", "rotor_aircraft", "rotor_craft", "rotorcraft"],
+  vectorThrust: ["vectorthrust", "vector_thrust", "vector_thrust_aircraft", "vectored_thrust"]
+};
+const normSkill = (name) => String(name ?? "").toLowerCase().replace(/[\s/()-]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+/** Does a skill (or chip) named `name` drive vehicles whose driving-skill key is `key`? */
+export const vehicleSkillMatches = (name, key) => {
+  const n = normSkill(name);
+  return n === normSkill(key) || !!VEHICLE_SKILL_NAMES[key]?.includes(n);
+};
+/** A skill name → is it a vehicle (driving) skill? */
+export const isVehicleSkillName = (name) => Object.keys(VEHICLE_SKILL_NAMES).some(k => vehicleSkillMatches(name, k));
 
 /**
  * Rigger 2 p.12: a rigger defaulting while controlling the vehicle by VCR takes +1 per web dot instead of +2 — only

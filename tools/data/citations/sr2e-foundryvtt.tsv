@@ -1,6 +1,6 @@
 name	_id	book	page	checked	status
 Ex-Explosive Rounds	62247745b5876234	ff	51	render (EX Explosive; the item note says SSC, but it is Fields of Fire)	cited
-Tracers	58425afd6d7cacf3	ff	51	render (Tracer; NOTE the item says "treat as regular rounds" but p.51 gives a TN modifier — content to fix)	cited
+Tracers	58425afd6d7cacf3	ff	51	render (Tracer; tracer rules implemented in 0.157.1)	cited
 Arms Dealer	af696156c9fc603c	none		GM-invented contact archetype (its notes: NOT printed in the core book)	none
 Corp Contact	0931eaa89f5b644b	none		GM-invented contact archetype (its notes: NOT printed in the core book)	none
 Decker	86a41f27bfef9aa8	none		GM-invented contact archetype (its notes: NOT printed in the core book)	none
@@ -95,9 +95,6 @@ Gang Lieutenant	2b4da687bd28d9c8	sc	71	Companion Enemies rules p.71 (cross-ref i
 Jilted Fixer	5053ab3c32d86818	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed	cited
 Rival Shadowrunner	09ef11fa622e2100	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed	cited
 Vengeful Ex-Employer	6a63229e3d6bf7ef	sc	71	Companion Enemies rules p.71 (cross-ref in the book; render); the archetype itself is the system's, not printed	cited
-Subsonic	5780023ddded7439			not found in any SR2 book searched (core, SSC, FoF, R2, Companion, CSH); its note says SSC but SSC has no subsonic rounds — pending a RAW decision	unresolved
-Launch Weapons	c18c2ac6461f5b3a			not an SR2 skill: core p.75 Skill Table has none (launchers = Gunnery concentration, p.70) — pending a RAW decision	unresolved
-Pilot	7c42f892160e1d5e			not an SR2 skill: core vehicle skills are Bike/Car/Hovercraft/Motorboat/Rotor/Sailboat/Vectored Thrust/Winged Plane (p.72) — pending a RAW decision	unresolved
 Increased Reaction	08e6d90ec7bf4dfe	sr2	126	render (contact sheet, printed folio; description page)	cited
 Killing Hands (D)	30f5e3493545db6b	sr2	126	render (contact sheet, printed folio; description page)	cited
 Killing Hands (L)	7480a901bc283d25	sr2	126	render (contact sheet, printed folio; description page)	cited
@@ -137,5 +134,5 @@ ActiveSoft	fe96d596caee1303	sr2	248	render (contact sheet, printed folio; descri
 KnowSoft	2dbb775531cc1ed0	sr2	248	render (contact sheet, printed folio; description page)	cited
 LinguaSoft	cf7d271f2c766e37	sr2	248	render (contact sheet, printed folio; description page)	cited
 Ingram Valiant	8ee88fc80bdff8f4	sr2	238	text layer 2026-11-15 (gear chapter; p.70 is the skill rule)	cited
-Smoke Grenade	5a1b2c3d4e5f6071	sr2	89	not printed as an item in core/SSC/FoF; cites the rule it implements (Visibility Table)	cited
-Thermal Smoke Grenade	5b2c3d4e5f607182	sr2	89	not printed as an item in core/SSC/FoF; cites the rule it implements (Visibility Table)	cited
+Smoke Grenade	5a1b2c3d4e5f6071	ff	48	render (Grenades table: Smoke; rules p.85 Smoke Table)	cited
+Thermal Smoke Grenade	5b2c3d4e5f607182	ff	48	render (Grenades table: Smoke (IR); rules p.85 Smoke Table, Thermal)	cited

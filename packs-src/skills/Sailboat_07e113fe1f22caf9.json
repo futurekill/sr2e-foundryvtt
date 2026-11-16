@@ -1,11 +1,11 @@
 {
-  "_id": "c18c2ac6461f5b3a",
-  "name": "Launch Weapons",
+  "_id": "07e113fe1f22caf9",
+  "name": "Sailboat",
   "type": "skill",
-  "img": "systems/sr2e/assets/item_icons/skills/launch-weapons.webp",
+  "img": "systems/sr2e/assets/item_icons/skills/pilot.webp",
   "system": {
     "category": "active",
-    "linkedAttribute": "strength",
+    "linkedAttribute": "quickness",
     "rating": 0,
     "concentration": {
       "name": "",
@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": ""
+    "notes": "",
+    "citation": {
+      "book": "sr2",
+      "page": "72"
+    }
   },
   "effects": [],
   "flags": {},
@@ -36,5 +40,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!c18c2ac6461f5b3a"
+  "_key": "!items!07e113fe1f22caf9"
 }

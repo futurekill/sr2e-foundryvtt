@@ -1,8 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.158.0 — 2026-11-15
+
+### Added
+- **SR2's own vehicle skills** in the Skills compendium (core p.72): Hovercraft, Motorboat, Rotor Craft, Sailboat,
+  Vectored Thrust and Winged Plane. Only Bike and Car were there before, with a "Pilot" skill standing in for the rest.
+
+### Removed
+- **Launch Weapons and Pilot skills, and Subsonic ammunition.** None of them is printed in any book on hand (core,
+  every sourcebook, all twelve scanned books searched page by page): they were invented by the system's first
+  scaffold. Launchers use SR2's skills — grenade launchers Firearms, missile and rocket launchers and mortars Gunnery
+  (core p.75) — and a migration moves any launcher in a world off Launch Weapons. A vehicle with no skill set now
+  defaults to its type's SR2 skill (boats Motorboat, aircraft Winged Plane, rotorcraft Rotor Craft, vectored thrust
+  Vectored Thrust, hovercraft Hovercraft). Characters who own a "Pilot" skill keep the item, but it no longer drives
+  anything: replace it with the vehicle skill it stood for. If a book turns up that prints any of them, they come back.
 
 ### Fixed
+- **A trained vehicle skill now counts whatever the book calls it.** A vehicle test only found a skill whose name
+  matched the vehicle's internal key ("winged"), so a character with "Winged Plane" or "Winged Aircraft" rolled as if
+  untrained. Each vehicle skill now matches by its key, its Skill Web label and its skill-list name.
 - **Smoke grenades now make a cloud you can see.** Smoke has no Power, so the blast-radius formula gave every smoke
   cloud a radius of 0 m; it is now Fields of Fire p.85's Smoke Table: 10 m for a grenade (15 m for a mortar round).
 - The **Smoke Grenade** and **Thermal Smoke Grenade** (the book's "Smoke (IR)") now cite Fields of Fire p.48 with its

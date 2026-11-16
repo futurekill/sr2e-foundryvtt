@@ -178,7 +178,7 @@ SR2E.skillWeb = {
     boats: { label: "Boats (B/R)", type: "skill" },
     motorboat: { label: "Motorboat", type: "skill" },
     sailboat: { label: "Sailboat", type: "skill" },
-    aircraft: { label: "Aircraft (B/R)", type: "skill", skillKey: "pilot" },
+    aircraft: { label: "Aircraft (B/R)", type: "skill" },
     winged: { label: "Winged Aircraft", type: "skill" },
     rotor: { label: "Rotor Aircraft", type: "skill" },
     vectorThrust: { label: "Vector Thrust Aircraft", type: "skill" },
@@ -299,10 +299,8 @@ SR2E.activeSkills = {
   firearms:         { label: "SR2E.Skills.Firearms",        attribute: "quickness",    category: "active" },
   gunnery:          { label: "SR2E.Skills.Gunnery",         attribute: "intelligence", category: "active" },
   interrogation:    { label: "SR2E.Skills.Interrogation",   attribute: "charisma",     category: "active" },
-  launch_weapons:   { label: "SR2E.Skills.LaunchWeapons",   attribute: "quickness",    category: "active" },
   leadership:       { label: "SR2E.Skills.Leadership",      attribute: "charisma",     category: "active" },
   negotiation:      { label: "SR2E.Skills.Negotiation",     attribute: "charisma",     category: "active" },
-  pilot:            { label: "SR2E.Skills.Pilot",           attribute: "reaction",     category: "active" },
   projectile_weapons: { label: "SR2E.Skills.ProjectileWeapons", attribute: "strength" , category: "active" },
   sorcery:          { label: "SR2E.Skills.Sorcery",         attribute: "willpower",    category: "active", magical: true },
   stealth:          { label: "SR2E.Skills.Stealth",         attribute: "quickness",    category: "active" },
@@ -879,15 +877,15 @@ SR2E.vehicleTypes = {
   drone: "SR2E.Vehicles.Drone"
 };
 
-// Default driving skill per vehicle type (core skill list: Bike, Car, Pilot).
+// Default driving skill per vehicle type (core p.75 skill list; SR2 has no "Pilot" skill).
 // A vehicle's system.skill field overrides this (e.g. "bike").
 SR2E.vehicleSkillDefaults = {
   ground: "car",
-  hovercraft: "car",
-  boat: "pilot",
-  aircraft: "pilot",
-  rotor: "pilot",
-  vectored_thrust: "pilot",
+  hovercraft: "hovercraft",
+  boat: "motorboat",
+  aircraft: "winged",
+  rotor: "rotor",
+  vectored_thrust: "vectorThrust",
   drone: "car"
 };
 

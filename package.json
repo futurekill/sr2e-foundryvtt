@@ -15,7 +15,8 @@
     "dice-textures": "zsh tools/gen-dice-textures.sh",
     "dice-bumps": "node tools/make-dice-bumps.mjs",
     "brighten-spirits": "node tools/brighten-spirit-art.mjs",
-    "gen-guides": "node tools/gen-guides.mjs"
+    "gen-guides": "node tools/gen-guides.mjs",
+    "validate": "node tools/citations/check-citations.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

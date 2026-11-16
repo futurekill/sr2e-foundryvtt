@@ -2,7 +2,7 @@ import { isRigger2 } from "../vehicle-mode.mjs";
 import { robotReaction, robotInitiativeDice } from "../rules/drone-rules.mjs";
 import { rigDumpActive } from "../rig-dump.mjs";
 import { spottingTnMod } from "../vehicle-indirect.mjs";
-import { vcrPerCircle } from "../rules/vehicle-r2-rules.mjs";
+import { vehicleSkillMatches, vcrPerCircle } from "../rules/vehicle-r2-rules.mjs";
 import { neuralWillpower } from "../rules/quality-rules.mjs";
 /**
  * Extended Actor document for the Shadowrun 2E system.
@@ -2118,7 +2118,6 @@ export class SR2EActor extends Actor {
    */
   _vehicleSkill(vehicle, { mode } = {}) {
     const key = vehicle.system.drivingSkill;
-    const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
     // The test's control mode; core tests without one count "rigged into it" as rigged.
     const rigged = mode ? mode === "rigged" : riggedInto(this, vehicle);
     const r2rig = isRigger2() && rigged && (this.system.vehicleControlRig ?? 0) > 0;
@@ -2126,8 +2125,9 @@ export class SR2EActor extends Actor {
     // (Rigger 2 p.17).
     const chips = [...(this.system.chippedSkills ?? []).filter(c => c.system?.category === "active").map(c => [c.name, c.system.rating]),
       ...(r2rig ? (this.system.encephalonChips ?? []).map(c => [c.name, c.rating]) : [])];
-    const rating = Math.max(this.items.find(i => i.type === "skill" && normalize(i.name) === key)?.system?.rating ?? 0,
-      ...chips.filter(([n]) => normalize(n) === key).map(([, r]) => r || 0));
+    // The skill by any of its names ("Winged Planes", "Winged Aircraft" or "winged"), not only the key (2026-11-15).
+    const rating = Math.max(0, ...this.items.filter(i => i.type === "skill" && vehicleSkillMatches(i.name, key)).map(i => i.system?.rating ?? 0),
+      ...chips.filter(([n]) => vehicleSkillMatches(n, key)).map(([, r]) => r || 0));
     // The worst damage modifier among the vehicles under this character's control (as initiative uses, p.106);
     // a vehicle driven without taking control counts its own.
     const controls = (this.system.controlledVehicles ?? []).includes(vehicle.uuid);

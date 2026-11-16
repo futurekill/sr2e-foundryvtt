@@ -707,8 +707,21 @@ export const MIGRATIONS = [
       if (source.type !== "spell" || source.system?.category !== "combat" || source.system?.damageType) return null;
       return { "system.damageType": spellDamageType(source) };
     }
+  },
+  {
+    version: "0.158.0",
+    // SR2 has no Launch Weapons skill (a 3rd-edition skill shipped by the first scaffold; no book on hand prints it,
+    // 2026-11-15): grenade launchers are a Firearms concentration, missile/rocket launchers (and mortars, heavy
+    // weapons) Gunnery (core p.75). Detected by value: only a "launch_weapons" weapon is touched.
+    migrateItem(source) {
+      if (source.type !== "weapon" || source.system?.skill !== "launch_weapons") return null;
+      return { "system.skill": launcherSkill(source.name) };
+    }
   }
 ];
+
+/** A launcher's SR2 skill (core p.75): grenade launchers are Firearms; missile and rocket launchers, mortars, Gunnery. */
+export const launcherSkill = (name = "") => (/grenade|\bMGL\b|mini-6/i.test(String(name)) ? "firearms" : "gunnery");
 
 /** 0.104.3: field → [shipped value, printed value] (core p.279 and the Street Gear list). */
 const WEAPON_STAT_FIXES = {

@@ -1,0 +1,44 @@
+{
+  "_id": "bc37edc43a2b6029",
+  "name": "Motorboat",
+  "type": "skill",
+  "img": "systems/sr2e/assets/item_icons/skills/pilot.webp",
+  "system": {
+    "category": "active",
+    "linkedAttribute": "quickness",
+    "rating": 0,
+    "concentration": {
+      "name": "",
+      "rating": 0
+    },
+    "specialization": {
+      "name": "",
+      "rating": 0
+    },
+    "isMagical": false,
+    "notes": "",
+    "citation": {
+      "book": "sr2",
+      "page": "72"
+    }
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "18f4a05eb72fe212",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!bc37edc43a2b6029"
+}

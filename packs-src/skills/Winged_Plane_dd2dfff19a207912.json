@@ -1,6 +1,6 @@
 {
-  "_id": "7c42f892160e1d5e",
-  "name": "Pilot",
+  "_id": "dd2dfff19a207912",
+  "name": "Winged Plane",
   "type": "skill",
   "img": "systems/sr2e/assets/item_icons/skills/pilot.webp",
   "system": {
@@ -16,7 +16,11 @@
       "rating": 0
     },
     "isMagical": false,
-    "notes": ""
+    "notes": "",
+    "citation": {
+      "book": "sr2",
+      "page": "72"
+    }
   },
   "effects": [],
   "flags": {},
@@ -36,5 +40,5 @@
   "ownership": {
     "default": 0
   },
-  "_key": "!items!7c42f892160e1d5e"
+  "_key": "!items!dd2dfff19a207912"
 }
