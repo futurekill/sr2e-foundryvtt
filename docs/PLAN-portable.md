@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 27 (2026-11-15), after Codex rounds 1–26 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 28 (2026-11-15), after Codex rounds 1–28 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 + 1 + 1 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -119,7 +119,14 @@ from their synthetic source. A reference to something not exported → `unresolv
   today the two un-awaited calls in vehicle-play.mjs, a Stress Rule of One in `drivingResolve` and a test pushed with
   Stress dice in `rollDrivingTest` — goes through ONE helper that marks the vehicle's prompt in flight before it starts,
   awaits the card and receipts its message id; the vehicle stays open in the registry while a prompt is in flight, a
-  vitest fails on any other `hiddenStressPrompt(` caller, and the posted prompt's Reveal is itself a registry action), so a test still open to Karma is never exported; M1 does not change when or
+  vitest fails on any other `hiddenStressPrompt(` caller, and the posted prompt's Reveal is itself a registry action),
+  and round 27 generalises it into the registry's CONTRACT (§1.2): each entry names its PRODUCER (the flow that posts
+  the card — `rollDrivingTest`, `drivingResolve`, the ram, the fuel-out delivery, substance rolls, vehicle follow-ups,
+  …), and every producer is wrapped in the same in-flight `track` as the hidden-Stress roll from BEFORE its first
+  durable write (a pool debit, a Stress write, a ledger claim) until its card is published or the flow aborts; export
+  refuses while any producer for an exported document is in flight — so the gap between a pushed test's Control Pool
+  debit and Stress and its Resolve card is covered — and a vitest fails on a registry entry whose producer isn't
+  wrapped, so a test still open to Karma is never exported; M1 does not change when or
   how the test closes (rounds 21–24 had grown a cross-client Karma-writer design to do that, withdrawn: the race between
   a Karma spend and the resolution exists in today's code independent of portability and is tracked separately in
   docs/BACKLOG.md); the registry's `isOpen` reads that receipt, and fixtures stop after

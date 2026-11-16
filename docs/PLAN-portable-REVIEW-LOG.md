@@ -478,3 +478,13 @@ VERDICT: REVISE
 Rounds 25–27 found the same class three times (a card-producing flow writes before its card exists). The registry now
 requires each entry's PRODUCER to be wrapped in the in-flight track from before its first durable write until its card
 is published or it aborts; export refuses while one is live; a vitest fails on an unwrapped producer.
+
+## Round 28 — Codex (DELTA review; gpt-6-sol, high; 318K input): REVISE, 1 finding
+
+1. **Draft 28’s producer contract is absent from the plan.** The specified diff is empty; the contract appears only in the [review log](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable-REVIEW-LOG.md:477). The [plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:117) still permits the round 27 failure: [rollDrivingTest](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:956) debits Control Pool and writes Stress before its prompt or Driving Test card exists. Export in that gap can pass; the later Resolve card can change the source vehicle. The ram, fuel-out, substance-roll, and vehicle-follow-up producers likewise have writes before card publication, so the proposed general contract needs to govern them in the plan. **Fix:** Add the producer-wide in-flight contract and its enforcement test to §1.2 of `PLAN-portable.md`.
+
+VERDICT: REVISE
+
+### Claude's response (draft 28, corrected) — taken
+Correct: my edit for round 27 failed (a line-wrap mismatch) and only the log entry was committed. Draft 28 now carries the
+producer contract in the plan, naming every producer, with its enforcement vitest.
