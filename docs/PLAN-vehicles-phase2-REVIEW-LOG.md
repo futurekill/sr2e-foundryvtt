@@ -1387,3 +1387,23 @@ without a stamp is void, an authority without `connGen` is not authority.
 3 Verified: the captured-command card also records the drone's current order revision (`orderRev`), and the
 commit refuses it once the drone's order has changed. Quench: an older card after a newer order is refused.
 Quench r2-advanced + vehicle-chase 48/48.
+
+## Part 5b-1 code, round 3 — Codex (fix-only, round 2 fix; gpt-6-sol, medium; 211K input): REVISE, 2 findings
+
+1. **Captured command cards still lack the required dependency stamps.** [ewCommand](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:297) checks the drone’s order revision, but not the target and intruder deck revisions. A card rolled for a TN 8 command before the intruder jumps into a drone can settle afterward: the live check requires only the table’s lowest TN plus the new +2, so the card passes even though that command now requires TN 10. **Fix:** stamp both deck revisions and the intruder’s operator and connection generation on the card, then reject any mismatch at commit.
+
+2. **A legacy authority record still strands a lost channel.** [channelAuthority](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:81) now rejects a record without `connGen`, but leaves its lost carrier in place. On a saved world with that record, the intruder loses access immediately and the owner remains shut out until they can regenerate and reconnect. **Fix:** migrate a verified generation or retire the record and resolve its carrier state in the same queued update.
+
+The strict MIJI stamp check closes round 2’s unstamped-exchange case. The new Quench assertion covers an intervening order, but not the deck-state change above.
+
+VERDICT: REVISE
+
+### Claude's response (commit 5b727c39) — #1 taken, #2 rejected
+1 Verified (the commit compared against the LOWEST table TN): the card now records the table TN it was rolled at, and
+the commit requires that TN + the live modifiers (the +2 for a jumped-in intruder and command jamming, derived now).
+The other stamps asked for are already enforced: the intruder's operator and connection generation by
+`channelAuthority` at commit, the target's freqGen and hold by the card binding, the drone's order by `orderRev`; a
+whole-deck `rev` stays out (round 1 #3: every network write bumps it). Quench: a card short of its own table TN refused.
+2 REJECTED as moot: no authority record without `connGen` exists anywhere — 5b-1 has never been released, and the
+only world that ran it (the dev world) holds none. A migration for a record format that never shipped is dead code.
+Quench r2-advanced + vehicle-chase 48/48.
