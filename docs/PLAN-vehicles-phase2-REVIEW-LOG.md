@@ -1458,3 +1458,37 @@ Quench removes the card and recovery posts it. Batches 93/93.
 The uninstall path clears `takenBy` before saving the deck, and the revised recovery check retries an open dump when either its effect or card receipt is missing. I found no material regression in the round 2 fix.
 
 VERDICT: APPROVED
+
+## Part 5c code, round 1 — Codex (commit 8fbbdf23; gpt-6-sol, high; 1.70M input): REVISE, 7 findings
+
+- **Takeoff and landing TN:** [rollDrivingTest](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:959) retains Vehicle Empathy’s −1 after replacing Handling with the flight base TN. A pilot in physical contact lands at TN 3 instead of 4 before other modifiers. **Fix:** Exclude Empathy from flight tests; keep applicable Driving Test modifiers such as VCR.
+
+- **Arm attack authority:** [the melee branch](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/item.mjs:919) verifies the controller actor but neither the acting user nor the weapon. A player who can see another controller’s actor can invoke its attack, and a controller can pass `vehicleArm` to a Strength based melee weapon other than Unarmed Strike. **Fix:** Before rolling, require GM or controller ownership and require that actor’s Unarmed Strike.
+
+- **Unavailable arms remain usable:** [effective.arms](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:2226) reads all matching items, ignoring removal receipts and subsystem damage. An arm marked removed but awaiting deletion, or hit at Serious, can still attack at full Strength. **Fix:** Derive arms from live installed items and apply subsystem operability and rating reductions.
+
+- **Uninstalled legs block a chase:** [hasLegs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/vehicle-ops-rules.mjs:87) accepts any Mechanical Legs item. Merely buying one in the `parts` state makes [addEntry](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:727) refuse the vehicle. **Fix:** Count only installed, live Mechanical Legs mods.
+
+- **Safe loads receive a failure roll:** [rollPull](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-ops.mjs:39) rolls Body against TN 3 even at or below Load. A 900 kg load on a 1,000 kg vehicle can be declared immovable, despite Part 5c requiring no test. **Fix:** Return a safe-load result before rolling or buying Stress dice.
+
+- **Drone arm tests omit drone bonuses:** [armHands and the arm rolls](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-ops.mjs:80) use bare Pilot. A robot with Pilot 3 and Threat 3 rolls only three dice, and its Learning or IVIS Pool is unavailable. They also let an unattended non-drone vehicle use Pilot. **Fix:** Restrict autonomous arm use to drones and use the established drone test context and pool flow.
+
+- **Rail vehicles can steer in a chase:** The rail checkbox adds help text, but [chase begin](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/chase.mjs:261) still accepts position, hide, and ram actions for a flagged train. **Fix:** Hide those actions and reject them in the GM action operation, leaving speed changes available.
+
+The new unit and Quench tests do not cover these failure cases.
+
+VERDICT: REVISE
+
+### Claude's response (commit b1109b98) — all 7 taken
+1 Empathy (a Handling modifier) is dropped when the base TN replaces Handling; VCR and the rest stay.
+2 An arm attack needs the controller's own Unarmed Strike, rolled by its owner or the GM.
+3 effective.arms counts only installed, working arm mods (state "", done, factory); Serious/Deadly subsystem damage
+removes it; Light/Moderate reduce its Strength as a device rating (Table 8, reducedBonus).
+4 hasLegs counts only installed, working Mechanical Legs (shared liveMod).
+5 Within the Load Rating no test is rolled unless the GM's conditions make one (the table's ≤ 1 × Load row).
+6 Only a DRONE works an arm on its own: Pilot + a robot's Threat, the Learning / IVIS Pools as its Driving Test offers,
+and its network's meaconing modifier.
+7 A rail vehicle's chase panel hides Position / Stop at / Hide / its Ram buttons, and chaseBegin refuses those kinds.
+Also found in testing (Rigger 2 module, aeb790e): factory and catalog Mechanical Arms had rating 1 — a phantom bought-up
+Strength point; now 0 with the rule flag.
+Unit + Quench cases for 4, 5, 2, 6, 7. Batches 94/94.
