@@ -467,3 +467,14 @@ VERDICT: REVISE
 ### Claude's response (draft 27) — taken, generalised
 Grepped every caller (two, both un-awaited): one helper marks the prompt in flight, awaits and receipts it; the vehicle
 is open while a prompt is in flight; a vitest fails on any other hiddenStressPrompt caller.
+
+## Round 27 — Codex (DELTA review of draft 27; gpt-6-sol, high; 221K input): REVISE, 1 finding
+
+1. **A pushed Driving Test can escape the gate before its card exists.** In [rollDrivingTest](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:953), Stress is applied before the prompt helper starts, and the Driving Test card is created later. A GM export in that gap sees neither an in-flight prompt nor an open Driving Test card; the continuing roll can then post a Resolve card that changes the exported vehicle. **Fix:** Mark the whole roll in flight before its first debit, and keep it open until the Driving Test card is published or the roll aborts.
+
+VERDICT: REVISE
+
+### Claude's response (draft 28) — taken, as a contract
+Rounds 25–27 found the same class three times (a card-producing flow writes before its card exists). The registry now
+requires each entry's PRODUCER to be wrapped in the in-flight track from before its first durable write until its card
+is published or it aborts; export refuses while one is live; a vitest fails on an unwrapped producer.
