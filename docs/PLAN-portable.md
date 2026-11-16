@@ -5,6 +5,8 @@ character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
 character backup._
 
+**Review closed by the user (2026-11-15) at draft 30**, after round 30: rounds 25–30 each found one real gap in the same class (a producer writing before export can see it), each answered by a general rule (card-action registry, durable admission markers, handoff). The remaining cases are left to the build's enforcement tests — the producer write-order vitest and the per-stage crash fixtures — not further plan review.
+
 ## Goal
 A GM (or a character's owner) can export a character — with the vehicles, drones and bound spirits it references, its
 images and everything Foundry knows about it — to one file, and import that file into the same or another world with

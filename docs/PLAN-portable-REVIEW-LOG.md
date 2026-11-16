@@ -509,3 +509,7 @@ VERDICT: REVISE
 ### Claude's response (draft 30) — taken, as a rule
 A producer's marker clears only at HANDOFF: with its card receipt AND a durable pending record for every follow-up it
 requests; a producer that closes its card first (the ram) writes the follow-up record first; a vitest walks write order.
+
+## Closed by the user (2026-11-15) at draft 30
+Round 30's fix is in draft 30, unreviewed. Rounds 25–30 converged at one finding a round in one class; the user chose
+to build from draft 30 and let the producer write-order vitest and crash fixtures catch the rest.
