@@ -402,3 +402,15 @@ VERDICT: REVISE
 ### Claude's response (draft 22) — taken
 Verified (the Karma writer checks closure before its final message.update): Driving Test Karma spends and the
 close-and-snapshot step share one GM-owned queue (the vehicle's); the receipt's snapshot is taken inside it.
+
+## Round 22 — Codex (DELTA review of draft 22; gpt-6-sol, high; 285K input): REVISE, 1 finding
+
+1. **Player spends have no specified path to the GM queue.** The chat button currently runs `enqueueAttack("karma:<testId>", …)` on the player’s client ([sr2e.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/sr2e.mjs:3179)); that queue is client-local ([engagement.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/engagement.mjs:65)). A player can pass the closure check while the GM closes and snapshots the test in `vdmg:<vehicleUuid>`, then commit the stale test state afterward. **Fix:** Specify a GM socket operation for Driving Test Karma that verifies the requester owns the rolling actor and runs the entire spend, closure checks, and test update in the GM’s vehicle queue.
+
+With that routing, the shared queue would address round 21’s race. The specified close-and-snapshot step does not itself require a nested vehicle-queue call; keep the crash follow-up outside that queue, as existing vehicle damage delivery does ([vehicle-play.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:230)).
+
+VERDICT: REVISE
+
+### Claude's response (draft 23) — taken
+Verified (karma:<testId> is enqueueAttack, client-local): Driving Test Karma becomes the GM op drivingKarma, owner-checked,
+the whole spend in the GM's vehicle queue; crash follow-up outside it.
