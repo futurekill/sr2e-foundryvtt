@@ -89,3 +89,31 @@ export function rcRuleOf(item) {
   if (r) return r;
   return RC_ITEM_SOURCES[item?._stats?.compendiumSource ?? item?.flags?.core?.sourceId ?? ""] ?? "";
 }
+
+/* ── The security rigger (Rigger 2 p.77–80; docs/PLAN-vehicles-phase2.md 5d) ─────────────────────────────────────── */
+
+/** Vigilance Code Criteria Table (p.79): the successes an access step needs. */
+export const VIGILANCE = { blue: 1, green: 2, amber: 3, red: 4 };
+export const vigilanceCount = (code) => VIGILANCE[code] ?? 2;
+/**
+ * A component the rigger may jump into (p.78): a room under 100 m², a corridor section under 25 m; a device group always.
+ * Returns null when allowed, else the reason.
+ */
+export function ccssComponentRefusal(c) {
+  const size = Number(c?.size) || 0;
+  if (c?.kind === "room" && !(size > 0 && size < 100)) return "a room must be under 100 square meters (Rigger 2 p.78)";
+  if (c?.kind === "corridor" && !(size > 0 && size < 25)) return "a corridor section must be under 25 meters long (Rigger 2 p.78)";
+  return null;
+}
+/** The security rigger's control mode (p.78): jumped into a drone, into one component, else assuming the body. */
+export const ccssMode = (net) => (net?.primary ? "drone" : net?.ccssComponent ? "component" : "body");
+/**
+ * Rigger Perception Tests Table (p.78): the TN to notice an event in the system; null = no test (a triggered alarm).
+ * `tamperSuccesses` for "tamper-success" (3 × the intruder's successes); an alert lowers every TN by 2.
+ */
+export const PERCEPTION_EVENTS = { door: 5, "tamper-no-alarm": 3, "tamper-success": null, destroyed: 4, deactivated: 6, alarm: null };
+export function ccssPerceptionTn(event, { tamperSuccesses = 0, onAlert = false } = {}) {
+  if (event === "alarm" || !(event in PERCEPTION_EVENTS)) return null;
+  const base = event === "tamper-success" ? 3 * Math.max(0, Number(tamperSuccesses) || 0) : PERCEPTION_EVENTS[event];
+  return Math.max(2, base - (onAlert ? 2 : 0));
+}

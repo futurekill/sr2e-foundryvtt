@@ -213,6 +213,7 @@ export function registerContest() {
     const intruder = fromUuidSync(intruderDeckUuid), target = fromUuidSync(targetDeckUuid);
     if (!intruder || !RC.isRcDeck(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your deck");
     if (!target || !RC.isRcDeck(target) || target === intruder) throw new Error("choose another network's deck");
+    if (RC.isCcss(target) || RC.isCcss(intruder)) throw new Error(RC.CCSS_HARDWIRED);
     const iNet = RC.netOf(intruder), tNet = RC.netOf(target);
     if (iNet?.connection?.state !== "connected" || !iNet.operator) throw new Error("connect your deck first: its operator makes the tests");
     if (tNet?.connection?.state !== "connected") throw new Error("that network isn't transmitting");

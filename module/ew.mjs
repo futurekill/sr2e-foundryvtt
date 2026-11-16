@@ -171,6 +171,7 @@ function loadPair(intruderDeckUuid, targetDeckUuid, user) {
   if (!intruder || !RC.isRcDeck(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your deck");   // a taken network answers to its taker (5b.4)
   const target = fromUuidSync(targetDeckUuid);
   if (!target || !RC.isRcDeck(target) || target === intruder) throw new Error("choose another network's deck");
+  if (RC.isCcss(target) || RC.isCcss(intruder)) throw new Error(RC.CCSS_HARDWIRED);
   const op = RC.netOf(intruder)?.operator ? fromUuidSync(RC.netOf(intruder).operator) : null;
   if (!op) throw new Error("connect your deck first: its operator makes the tests");
   return { intruder, target, op };
@@ -407,6 +408,7 @@ function systemData(v) {
 function ownDeck(deckUuid, user) {
   const deck = fromUuidSync(deckUuid);
   if (!deck || !RC.isRcDeck(deck)) throw new Error("not a remote-control deck");
+  if (RC.isCcss(deck)) throw new Error(RC.CCSS_HARDWIRED);
   if (!RC.mayRun(user, deck)) throw new Error("not your deck");   // a taken network answers to its taker (5b.4)
   if (!RC.netOf(deck)?.operator) throw new Error("connect the deck first");
   return deck;

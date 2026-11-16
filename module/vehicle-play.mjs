@@ -285,6 +285,7 @@ const TURN_CHANGING = "The Combat Turn is changing — try again in a moment.";
 export function spendPool(actor, key, n) {
   return defenseQueue(actor.uuid, async () => {
     if (poolsLocked(actor)) throw new Error(TURN_CHANGING);
+    if (RC.ccssKarmaOnly(actor)) throw new Error(RC.CCSS_KARMA_ONLY);
     const pool = actor.system.dicePools?.[key];
     const d = Math.max(0, Math.min(Math.floor(Number(n) || 0), pool?.value ?? 0));
     if (d) await actor.update({ [`system.dicePools.${key}.value`]: pool.value - d, [`system.dicePools.${key}.max`]: pool.max });
@@ -303,6 +304,7 @@ export function spendPosition(rigger, n, testId = foundry.utils.randomID(12), { 
   const c = combatId ? game.combats.get(combatId) : game.combat;
   return defenseQueue(rigger.uuid, async () => {
     if (poolsLocked(rigger)) throw new Error(TURN_CHANGING);
+    if (RC.ccssKarmaOnly(rigger)) throw new Error(RC.CCSS_KARMA_ONLY);
     const rnd = round ?? c?.round;
     const cur = rigger.getFlag("sr2e", "positionReserve");
     const same = c?.started && cur?.combatId === c.id && cur?.round === rnd;

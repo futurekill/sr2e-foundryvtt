@@ -680,7 +680,8 @@ Hooks.once("init", async () => {
     vehicle_mod: dataModels.VehicleModData,
     race:      dataModels.RaceData,
     tradition: dataModels.TraditionData,
-    quality:   dataModels.QualityData
+    quality:   dataModels.QualityData,
+    ccss:      dataModels.CcssData   // Rigger 2 p.77–80 (5d)
   };
 
   // ---------------------------------------------------------------------------

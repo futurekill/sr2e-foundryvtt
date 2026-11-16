@@ -1690,3 +1690,34 @@ export class QualityData extends SR2EDataModel {
     return v > 0 ? `+${v}` : `${v}`;
   }
 }
+
+/**
+ * A closed-circuit simsense system (Rigger 2 p.77–80; docs/PLAN-vehicles-phase2.md 5d). A HARDWIRED remote-control
+ * network (rc-net treats it as a deck: `rcNet` in its flags; no Signal Interception, MIJI or Signal Monitors, p.79).
+ * Its Security Value = Technical Rating + Vigilance Code (p.78–79).
+ */
+export class CcssData extends SR2EDataModel {
+  static defineSchema() {
+    const fields = foundry.data.fields;
+    return {
+      citation: SR2EDataModel.citationField(),
+      // The deck rating drone commands are limited by (p.77: "the rating of the rigger's remote control deck").
+      rating: new fields.NumberField({ integer: true, initial: 4, min: 1, max: 12 }),
+      technicalRating: new fields.NumberField({ integer: true, initial: 4, min: 1, max: 10 }),
+      vigilance: new fields.StringField({ initial: "green", choices: ["blue", "green", "amber", "red"] }),
+      // Encrypted communications (p.80; Amber and Red always): an intruder must defeat it (access step 3).
+      encrypted: new fields.BooleanField({ initial: false }),
+      // Its radio decryption system (p.77: commonly rated at the Security Level), for intercepted radio only; 0 = none.
+      decryptionRating: new fields.NumberField({ integer: true, initial: 0, min: 0, max: 12 }),
+      protocol: new fields.StringField({ initial: "", blank: true }),
+      onAlert: new fields.BooleanField({ initial: false }),   // the system is on alert (Rigger Perception −2, p.78)
+      components: new fields.ArrayField(new fields.SchemaField({
+        id: new fields.StringField({ required: true, blank: false }),
+        name: new fields.StringField({ initial: "", blank: true }),
+        kind: new fields.StringField({ initial: "room", choices: ["room", "corridor", "device"] }),
+        size: new fields.NumberField({ initial: 0, min: 0 })   // room m² / corridor m (p.78 limits); devices 0
+      })),
+      notes: new fields.StringField({ initial: "", blank: true })
+    };
+  }
+}

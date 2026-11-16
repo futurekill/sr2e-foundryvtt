@@ -118,7 +118,8 @@
         "htmlFields": [
           "notes"
         ]
-      }
+      },
+      "ccss": {}
     },
     "RegionBehavior": {
       "jackpoint": {},

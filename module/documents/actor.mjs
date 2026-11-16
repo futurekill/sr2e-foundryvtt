@@ -62,6 +62,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
 import { poolsLocked, drivenEntry, findEntry, findAboard } from "../chase-state.mjs";
+import { ccssKarmaOnly, CCSS_KARMA_ONLY } from "../rc-net.mjs";
 import { r2VehicleHit, terrainControlCap, passengerShotPower } from "../rules/vehicle-combat-rules.mjs";
 import { spendStep } from "../vehicle-damage.mjs";
 const eventKey = (id) => String(id).replace(/[^\w-]/g, "_");
@@ -558,6 +559,12 @@ export class SR2EActor extends Actor {
     // A staged round change is refreshing this actor's pools: a spend now would be wiped (docs/PLAN-vehicles-phase2.md 3.0).
     if (Object.values(options.poolDice ?? {}).some(n => n > 0) && poolsLocked(this)) {
       ui.notifications.warn("SR2E | The Combat Turn is changing — try again in a moment.");
+      return null;
+    }
+    // A security rigger assuming the body of a CCSS has the Karma Pool only (Rigger 2 p.78; 5d).
+    // (Pre-paid dice were refused at spendPool; refusing them here would lose dice already debited.)
+    if (Object.values(options.poolDice ?? {}).some(n => n > 0) && ccssKarmaOnly(this)) {
+      ui.notifications.warn(`SR2E | ${CCSS_KARMA_ONLY}`);
       return null;
     }
     // Apply wound penalty (SR2E Injury Modifier, cumulative across the

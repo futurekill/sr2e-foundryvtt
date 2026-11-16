@@ -5,7 +5,8 @@
  */
 import * as RCX from "../rc-net.mjs";
 import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBalance, hasIvisMaster, ivisPaths, nmpDice } from "../rc-net.mjs";
-import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit } from "../rules/drone-rules.mjs";
+import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit, ccssMode, ccssComponentRefusal, ccssPerceptionTn, vigilanceCount } from "../rules/drone-rules.mjs";
+import { RL } from "../util/roll-label.mjs";
 import { fluxRange } from "../rules/vehicle-sensor-rules.mjs";
 import * as EWX from "../ew.mjs";
 import * as EWC from "../ew-contest.mjs";
@@ -21,7 +22,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     classes: ["sr2e", "sr2e-deck"], tag: "div",
     window: { title: "Remote-control deck", icon: "fas fa-gamepad", resizable: true },
     position: { width: 640, height: 560 },
-    actions: { connect: DeckPanel.#connect, disconnect: DeckPanel.#disconnect, subscribe: DeckPanel.#subscribe,
+    actions: { ccssControl: DeckPanel.#ccssControl, ccssPerception: DeckPanel.#ccssPerception, connect: DeckPanel.#connect, disconnect: DeckPanel.#disconnect, subscribe: DeckPanel.#subscribe,
       unsubscribe: DeckPanel.#unsubscribe, affiliate: DeckPanel.#affiliate, jump: DeckPanel.#jump, ret: DeckPanel.#return,
       command: DeckPanel.#command, hardwire: DeckPanel.#hardwire, groupCommand: DeckPanel.#groupCommand, ivisEnd: DeckPanel.#ivisEnd,
       ewDecrypt: DeckPanel.#ewDecrypt, ewIntercept: DeckPanel.#ewIntercept, ewChoose: DeckPanel.#ewChoose, ewRead: DeckPanel.#ewRead,
@@ -43,7 +44,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     this._hooks = [["updateItem", Hooks.on("updateItem", rerender)], ["updateActor", Hooks.on("updateActor", rerender)],
       ["updateCombat", Hooks.on("updateCombat", rerender)]];
   }
-  get title() { return `Remote-control deck — ${this.deck.name}`; }
+  get title() { return `${RCX.isCcss(this.deck) ? "Security system" : "Remote-control deck"} — ${this.deck.name}`; }
   async close(options) {
     for (const [h, id] of this._hooks) Hooks.off(h, id);
     DeckPanel.#open.delete(this.deck.uuid);
@@ -75,8 +76,40 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         const vs = (g.drones ?? []).map(k => rows.find(r => vKey(r.uuid) === k)).filter(Boolean);
         return { gid, task: g.task, pool: g.pool, balance: vs.length ? ivisBalance(fromUuidSync(vs[0].uuid)) : 0, drones: vs.map(r => r.name).join(", ") };
       }),
-      ew: this.#ewContext(net),
+      ew: RCX.isCcss(d) ? {} : this.#ewContext(net), ccss: this.#ccssContext(net),
       onVehicle: this.holder?.type === "vehicle", holderName: this.holder?.name ?? "", hardwired: !!net.affiliated?.[vKey(this.holder?.uuid ?? "")]?.hardwired, linked: linked.map(v => ({ uuid: v.uuid, name: v.name })), gm: game.user.isGM };
+  }
+
+  /** The CCSS section (5d, R2 p.77–80): the rigger's mode, the components and what jumping into each needs. */
+  #ccssContext(net) {
+    const d = this.deck;
+    if (!RCX.isCcss(d)) return null;
+    const mode = ccssMode(net), s = d.system;
+    return { mode, modeLabel: mode === "body" ? "assuming the body (Karma Pool only)" : mode === "component"
+      ? `jumped into ${RCX.ccssComponentOf(d)?.name || "a component"}` : "jumped into a drone",
+      technicalRating: s.technicalRating, vigilance: s.vigilance, vigilanceCount: vigilanceCount(s.vigilance), encrypted: s.encrypted,
+      decryptionRating: s.decryptionRating, onAlert: s.onAlert,
+      components: (s.components ?? []).map(c => ({ ...c, current: net.ccssComponent === c.id && !net.primary, refusal: ccssComponentRefusal(c),
+        unit: c.kind === "room" ? "m²" : c.kind === "corridor" ? "m" : "" })) };
+  }
+  static #ccssControl(_e, el) { return rc("ccssControl", { deckUuid: this.deck.uuid, componentId: el.dataset.id }).catch(warn); }
+  /** The GM's secret Rigger Perception Test (p.78): the operator's Intelligence vs the table's TN; a triggered alarm needs none. */
+  static async #ccssPerception() {
+    const net = netOf(this.deck), op = net?.operator ? fromUuidSync(net.operator) : null;
+    if (!game.user.isGM) return;
+    if (!op || net.connection?.state !== "connected") return warn("no security rigger is connected to this system");
+    const events = { door: "Security door or gate opening/closing", "tamper-no-alarm": "Attempted lock tampering, no alarm",
+      "tamper-success": "Successful lock tampering", destroyed: "Device destroyed", deactivated: "Device carefully deactivated" };
+    const res = await foundry.applications.api.DialogV2.prompt({ window: { title: "Rigger Perception Test (Rigger 2 p.78)" },
+      content: `<p>A triggered alarm or sensor needs no test: the rigger knows someone is there.</p>
+        <div class="form-group"><label>Trigger</label><select name="event">${Object.entries(events).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></div>
+        <div class="form-group"><label>Tamper successes</label><input type="number" name="n" value="1" min="1" style="width:52px"></div>
+        <p>${this.deck.system.onAlert ? "System on alert: −2 TN." : ""}</p>`,
+      ok: { label: "Roll", callback: (_e2, b) => new foundry.applications.ux.FormDataExtended(b.form).object } }).catch(() => null);
+    if (!res) return;
+    const tn = ccssPerceptionTn(res.event, { tamperSuccesses: res.n, onAlert: this.deck.system.onAlert });
+    if (tn == null) return;
+    return op.rollSuccessTest(op.system.intelligence?.value ?? 0, tn, { label: RL("CcssPerception", { event: events[res.event] }), whisperGM: true });
   }
 
   static #connect() {

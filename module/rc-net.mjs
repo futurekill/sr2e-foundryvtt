@@ -11,7 +11,7 @@
 import { gmOp, gmCall, followId } from "./vehicle-play.mjs";
 import { enqueueAttack, setPhaseOwner } from "./engagement.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
-import { rcRuleOf, deckLimits, networkCapable, droneMode, poolBalance } from "./rules/drone-rules.mjs";
+import { rcRuleOf, deckLimits, networkCapable, droneMode, poolBalance, ccssMode, ccssComponentRefusal } from "./rules/drone-rules.mjs";
 import { baseFlux, fluxRange } from "./rules/vehicle-sensor-rules.mjs";
 
 const RC = "rc-control";
@@ -31,7 +31,10 @@ export const rcQueue = (fn) => enqueueAttack(RC, async () => {
 export const viewNet = (deck) => (CONTEST?.view ? CONTEST.view(deck) : netOf(deck));
 export const vKey = (uuid) => followId(uuid);
 export const netOf = (deck) => deck?.flags?.sr2e?.rcNet ?? null;
-export const isRcDeck = (item) => rcRuleOf(item) === "rc-deck";
+export const isRcDeck = (item) => isCcss(item) || rcRuleOf(item) === "rc-deck";
+/** A closed-circuit simsense security system (R2 p.77–80; 5d): its own deck, a HARDWIRED network (no radio, p.79). */
+export const isCcss = (item) => item?.type === "ccss";
+export const CCSS_HARDWIRED = "a security system (CCSS) is hardwired: no Signal Interception or MIJI against it (Rigger 2 p.79)";
 const num = (n) => Number(n) || 0;
 
 /* ── The index (5.0): every deck with a record, by affiliated vehicle and by operator ─────────────────────────────── */
@@ -73,6 +76,7 @@ export function registerRcIndexHooks() {
 export const deckActor = (deck) => deck?.parent ?? null;
 /** The deck's transmitter Flux (p.30; 5a.1): an RC deck is Flux 2, raised by a signal amplifier bound to it (R2 p.99). */
 export function deckFlux(deck) {
+  if (isCcss(deck)) return 0;   // hardwired: no transmitter (p.79)
   const owner = deckActor(deck);
   // A deck on a vehicle is one of its transmitters (4a.3): engine boosts through its Electronics Port (≤ ⌊Body ÷ 2⌋,
   // R2 p.64), amplifiers and conditions all come from the vehicle's one Flux reader.
@@ -86,7 +90,7 @@ export const soleDeckId = (actor) => { const d = (actor?.items ?? []).filter(isR
 /** Reachability (5a.1): the vehicle within the deck's range from its holder; an unknown distance counts as reachable. */
 export async function reachable(deck, vehicle) {
   const holder = deckActor(deck);
-  if (!holder || !vehicle || holder === vehicle) return true;
+  if (!holder || !vehicle || holder === vehicle || isCcss(deck)) return true;   // a CCSS reaches its whole site
   const { distanceBetween } = await import("./vehicle-sensors.mjs");
   const d = distanceBetween(holder, vehicle);
   if (d == null) return true;
@@ -176,6 +180,19 @@ export function riggedIntoNetworked(character, vehicle) {
   const op = networkControllerOf(vehicle);
   return !!op && op === character && primaryOf(op.uuid) === vKey(vehicle.uuid) && rigEligible(op);
 }
+/**
+ * A security rigger "assuming the body" of a CCSS (p.78): jacked in as its connected operator, jumped into neither a
+ * drone nor a component — Karma Pool only. Jumped into a drone, room or corridor, the pools return.
+ */
+export function ccssKarmaOnly(actor) {
+  if (!actor?.uuid || !actor.system?.rigging || !isRigger2()) return false;
+  return (rcIndex().byOperator.get(actor.uuid) ?? []).some(d => isCcss(d) && viewNet(d)?.connection?.state === "connected"
+    && ccssMode(viewNet(d)) === "body");
+}
+export const CCSS_KARMA_ONLY = "assuming the body of a security system: Karma Pool only — jump into a drone, room or corridor for your pools (Rigger 2 p.78)";
+/** The CCSS component the operator is jumped into, or null. */
+export const ccssComponentOf = (deck) => (deck?.system?.components ?? []).find(c => c.id === viewNet(deck)?.ccssComponent) ?? null;
+
 /** Jacked in with an active VCR (R2 p.16): what jumping and rigging need. */
 export const rigEligible = (actor) => !!actor?.system?.rigging && num(actor.system.vehicleControlRig) > 0;
 
@@ -265,8 +282,8 @@ export async function rcValidate(actor) {
   if (!asOperator.length && !held.length) return;
   await rcQueue(async () => {
     for (const deck of asOperator) {
-      if (!netOf(deck)?.primary || rigEligible(actor)) continue;
-      const net = freshNet(deck); net.primary = null; await save(deck, net);
+      if (!(netOf(deck)?.primary || netOf(deck)?.ccssComponent) || rigEligible(actor)) continue;
+      const net = freshNet(deck); net.primary = null; delete net.ccssComponent; await save(deck, net);
     }
     for (const deck of held) {
       if (deck.type !== "cyberware" || deck.system.installed !== false || netOf(deck)?.connection?.state !== "connected") continue;
@@ -397,13 +414,14 @@ export function registerRcNet() {
     if (!op || !["character", "npc"].includes(op.type)) throw new Error("the operator must be a character or an NPC");
     if (!user.isGM && !op.testUserPermission(user, "OWNER")) throw new Error("not your character");
     const holder = deckActor(deck);
-    if (holder?.type !== "vehicle" && holder !== op) throw new Error("only its owner runs a carried or implanted deck");
+    if (!isCcss(deck) && holder?.type !== "vehicle" && holder !== op) throw new Error("only its owner runs a carried or implanted deck");
     // A control transfer voids the deck's live interference contests (5b.4), journalled before this write.
     if (CONTEST?.onControlChange && netOf(deck)?.operator !== op.uuid) await CONTEST.onControlChange(deck, "transfer");
     const net = freshNet(deck);
     // A new operator never inherits the old one's primary; one primary per rigger stays true (c5a r1 #4).
     const primaryElsewhere = (rcIndex().byOperator.get(op.uuid) ?? []).some(d => d !== deck && netOf(d)?.primary);
     if (net.operator !== op.uuid || primaryElsewhere) net.primary = null;
+    if (net.operator !== op.uuid) delete net.ccssComponent;
     if (net.operator !== op.uuid) delete net.takenBy;   // only the taker or the GM gets here on a taken network (mayRun)
     net.operator = op.uuid; net.connection = { state: "connected", gen: num(net.connection?.gen) + 1 };
     return save(deck, net);
@@ -415,6 +433,7 @@ export function registerRcNet() {
     if (CONTEST?.onControlChange && (await CONTEST.onControlChange(deck, "exit"))?.handled) return netOf(deck);
     const net = freshNet(deck);
     net.connection = { state: "disconnected", gen: num(net.connection.gen) + 1 }; net.primary = null;
+    delete net.ccssComponent;
     delete net.takenBy;   // the taker lets it go: the network is its owner's again (5b.4)
     return save(deck, net);
   }));
@@ -434,6 +453,7 @@ export function registerRcNet() {
     const elsewhere = (rcIndex().byOperator.get(op.uuid) ?? []).find(d => d !== deck && netOf(d)?.primary);
     if (elsewhere) throw new Error(`${op.name} is already jumped into a drone on another network — return first (Rigger 2 p.65)`);
     net.primary = k;
+    delete net.ccssComponent;   // one jump at a time: a drone, a component, or the body (5d, p.78)
     return save(deck, net);
   }));
   // A command's result (p.66–67; 5a.3): the drone's Comprehension Test card → its standing order (≥ 1 success obeys;
@@ -465,8 +485,8 @@ export function registerRcNet() {
     if (!user.isGM && !op.testUserPermission(user, "OWNER")) throw new Error("not your character");
     if (!rigging) for (const deck of rcIndex().byOperator.get(op.uuid) ?? []) {
       const net = freshNet(deck);
-      if (!net.primary) continue;
-      net.primary = null;
+      if (!net.primary && !net.ccssComponent) continue;
+      net.primary = null; delete net.ccssComponent;
       await save(deck, net);
     }
     await op.update({ "system.rigging": !!rigging });
@@ -592,8 +612,25 @@ export function registerRcNet() {
 
   gmOp("rcReturn", ({ deckUuid }, user) => rcQueue(async () => {
     const deck = load(deckUuid, user), net = freshNet(deck);
-    if (!net.primary) return net;
-    net.primary = null;
+    if (!net.primary && !net.ccssComponent) return net;
+    net.primary = null; delete net.ccssComponent;   // back to the captain's chair — at a CCSS, assuming the body (p.78)
+    return save(deck, net);
+  }));
+
+  // Control a Room (R2 p.78): a Complex Action — the security rigger jumps into ONE room, corridor section or device
+  // group of their CCSS (perception shifts there, its devices operable, pools return). Leaves any drone.
+  gmOp("ccssControl", ({ deckUuid, componentId }, user) => rcQueue(async () => {
+    const deck = load(deckUuid, user), net = freshNet(deck);
+    if (!isCcss(deck)) throw new Error("not a security system");
+    if (net.connection?.state !== "connected" || !net.operator) throw new Error("connect the system first");
+    const op = fromUuidSync(net.operator);
+    if (!rigEligible(op)) throw new Error(`${op?.name} must be jacked in with a vehicle control rig (Rigger 2 p.77)`);
+    const c = (deck.system.components ?? []).find(x => x.id === componentId);
+    if (!c) throw new Error("no such component");
+    const why = ccssComponentRefusal(c);
+    if (why) throw new Error(`${c.name || c.kind}: ${why}`);
+    if (net.ccssComponent === c.id && !net.primary) return net;
+    net.primary = null; net.ccssComponent = c.id;
     return save(deck, net);
   }));
 }

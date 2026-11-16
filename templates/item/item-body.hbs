@@ -1283,6 +1283,34 @@
   </div>
   {{/ifEquals}}
 
+  {{!-- CCSS (Rigger 2 p.77–80) --}}
+  {{#ifEquals type "ccss"}}
+  <p class="hint">A closed-circuit simsense system: a hardwired remote-control network — no interception or MIJI against it (Rigger 2 p.79). Its riggers run it from the <a data-action="ccssPanel">deck panel</a>.</p>
+  <div class="form-group"><label title="Security Value = Technical Rating + Vigilance Code (p.78–79)">Technical Rating:</label>
+    <input type="number" name="system.technicalRating" value="{{system.technicalRating}}" min="1" max="10" /></div>
+  <div class="form-group"><label title="Successes an intruder needs on each access step (p.79)">Vigilance Code:</label>
+    <select name="system.vigilance">{{#each @root.ccssVigilance as |v|}}<option value="{{v.key}}" {{selected @root.system.vigilance v.key}}>{{v.label}}</option>{{/each}}</select></div>
+  <div class="form-group"><label title="The rigger's remote control deck: the most drones it commands (p.77)">Deck rating:</label>
+    <input type="number" name="system.rating" value="{{system.rating}}" min="1" /></div>
+  <div class="form-group"><label title="Amber and Red systems encrypt all communications (p.79–80)">Encrypted:</label>
+    <input type="checkbox" name="system.encrypted" {{checked system.encrypted}} /></div>
+  <div class="form-group"><label title="Its radio decryption system, for intercepted radio traffic (p.77); 0 = none">Radio decryption:</label>
+    <input type="number" name="system.decryptionRating" value="{{system.decryptionRating}}" min="0" /></div>
+  <div class="form-group"><label>Protocol:</label><input type="text" name="system.protocol" value="{{system.protocol}}" /></div>
+  <div class="form-group"><label title="Rigger Perception Tests −2 (p.78)">On alert:</label><input type="checkbox" name="system.onAlert" {{checked system.onAlert}} /></div>
+  <h4>Components <a data-action="addComponent" title="Add a room, corridor section or device group"><i class="fas fa-plus"></i></a></h4>
+  <p class="hint">A rigger jumps into one room under 100 m² or one corridor under 25 m (p.78).</p>
+  {{#each system.components as |c i|}}
+  <div class="flexrow" style="gap:4px;">
+    <input type="text" name="system.components.{{i}}.name" value="{{c.name}}" placeholder="Name" />
+    <select name="system.components.{{i}}.kind">{{#each @root.ccssKinds as |k|}}<option value="{{k}}" {{selected c.kind k}}>{{k}}</option>{{/each}}</select>
+    <input type="number" name="system.components.{{i}}.size" value="{{c.size}}" min="0" title="Room m² / corridor m" style="flex:0 0 60px;" />
+    <input type="hidden" name="system.components.{{i}}.id" value="{{c.id}}" />
+    <a data-action="removeComponent" data-id="{{c.id}}" title="Remove" style="flex:0 0 16px;"><i class="fas fa-trash"></i></a>
+  </div>
+  {{/each}}
+  {{/ifEquals}}
+
   {{!-- LIFESTYLE --}}
   {{#ifEquals type "lifestyle"}}
   <div class="form-group">

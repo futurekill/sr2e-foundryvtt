@@ -25,6 +25,10 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     position: { width: 520, height: 480 },
     actions: {
       rollItem:        SR2EItemSheet._onRollItem,
+      // A CCSS's components (Rigger 2 p.78; 5d): the small array is rewritten whole.
+      addComponent:    function() { return this.document.update({ "system.components": [...(this.document._source.system.components ?? []), { id: foundry.utils.randomID(8), name: "", kind: "room", size: 0 }] }); },
+      removeComponent: function(_e, el) { return this.document.update({ "system.components": (this.document._source.system.components ?? []).filter(c => c.id !== el.dataset.id) }); },
+      ccssPanel:       async function() { return (await import("../apps/deck-panel.mjs")).DeckPanel.open(this.document); },
       secondhandTest:  function() { return rollSecondhandTest(this.document); },
       addRatingRow:    SR2EItemSheet._addRatingRow,
       removeRatingRow: SR2EItemSheet._removeRatingRow,
@@ -236,6 +240,7 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       adept_power: "fas fa-bolt",
       contact:     "fas fa-address-card",
       lifestyle:   "fas fa-home",
+      ccss:        "fas fa-building-shield",
       vehicle_mod: "fas fa-wrench",
       quality:     "fas fa-star-half-alt"
     };
@@ -313,6 +318,10 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         break;
       case "lifestyle":
         context.lifestyles = CONFIG.SR2E.lifestyles;
+        break;
+      case "ccss":   // Vigilance Code Criteria Table (Rigger 2 p.79)
+        context.ccssVigilance = [["blue", 1], ["green", 2], ["amber", 3], ["red", 4]].map(([key, n]) => ({ key, label: `${key[0].toUpperCase()}${key.slice(1)} (${n} success${n === 1 ? "" : "es"})` }));
+        context.ccssKinds = ["room", "corridor", "device"];
         break;
       case "quality":
         context.qualityKinds = CONFIG.SR2E.qualityKinds;

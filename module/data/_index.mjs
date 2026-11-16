@@ -17,6 +17,7 @@ export {
   AmmoData,
   FocusData,
   VehicleModData,
+  CcssData,
   RaceData,
   TraditionData,
   QualityData
