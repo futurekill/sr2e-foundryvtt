@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.157.1 — 2026-11-15
 
 ### Added
 - **Tracer rounds** (Fields of Fire p.51): they load only into full-auto weapons; in a burst every third round is a
@@ -13,6 +13,7 @@
   1 and 1.5); they had wrong prices and said they came from the Street Samurai Catalog.
 - Deleting a mage no longer leaves an elemental that was sustaining one of their spells impossible to delete: the
   elemental lets go of the spell when its caster is deleted.
+- A rigger dump-shock Quench test no longer fails under load (it now waits for the dump's card).
 
 ## 0.157.0 — 2026-11-15
 

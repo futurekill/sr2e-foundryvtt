@@ -141,9 +141,9 @@ recipe and the `codex exec -i` stdin gotcha.
 - ~~Virtual Realities 2.0 (FASA7904)~~ — **done** (optional `matrixRuleset`, parts 1–7 and upgrading, 0.126.0–0.141.0).
 - ~~Foundry v14 compatibility~~ — **verified on a real v14 build**; v16 preparation done (areas.mjs /
   effects-compat.mjs adapters).
-- **Rulings backfill (wiki Rulings page).** _2026-11-15: the code-comment / CHANGELOG / item-note sweep is DONE
-  (about 17 calls added across core, R2, VR2.0, Cybertechnology, Shadowtech, SSC). Still to do: the past session
-  transcripts, and the three open questions, which need the owner's call._ The page's first version (2026-11-15) was built from what was written
+- **Rulings backfill (wiki Rulings page).** _2026-11-15: DONE except the open questions — swept code comments, CHANGELOGs,
+  item notes and every answered rules question in the past session transcripts (~25 calls added). Left: the page's
+  three open questions, which need the owner's call._ The page's first version (2026-11-15) was built from what was written
   down: the plans' "User rulings" blocks, the R-series vehicle rulings, module rulings files and NEEDS-CAPTURE notes.
   Judgement calls made earlier in conversation and only implemented (in code comments, item notes or CHANGELOG lines,
   never recorded as a ruling) are missing. Sweep the past session transcripts, the system's and each module's code

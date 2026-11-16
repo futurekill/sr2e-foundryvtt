@@ -19346,6 +19346,8 @@ export function registerSR2EQuenchTests() {
           await deck.delete();   // refused locally, routed through rc-control
           for (let i = 0; i < 40 && pc.items.get(deck.id); i++) await new Promise(r => setTimeout(r, 100));
           assert.notOk(pc.items.get(deck.id), "the deck is deleted by the op");
+          // The dump opens in a step after the delete (pending → open, then its card): wait for it under load.
+          for (let i = 0; i < 40 && RD.dumpsOf(pc)[0]?.[1]?.card == null; i++) await new Promise(r => setTimeout(r, 100));
           const [[eid, d]] = RD.dumpsOf(pc);
           assert.equal(d.cause, "deck-removed");
           assert.equal(d.state, "open");
