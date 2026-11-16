@@ -1413,3 +1413,30 @@ Quench r2-advanced + vehicle-chase 48/48.
 No material problems found in commit 5b727c39. The captured-command check now uses the card’s table TN with live modifiers, and the new Quench assertion exercises that check. I inspected the test but could not run Quench in this read-only environment.
 
 VERDICT: APPROVED
+
+## Part 5b.4 code, round 1 — Codex (commit 09f42b38; gpt-6-sol, high; 723K input): REVISE, 4 findings
+
+1. **A takeover can be undone by the loser.** After the contest ends, the original owner of a character-held deck still passes `mayRun` and can call `rcConnect` to replace the winner immediately, without another contest ([rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:185), [rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:385)). **Fix:** Restrict control changes on a taken network to its current operator or the GM until a rules-defined recapture occurs.
+
+2. **A crash can strand dump shock in `pending`.** If execution stops after `pendDump` writes the event but before its state becomes `open`, `recover()` treats the event’s mere existence as completion; `reconcileDumps()` skips pending contest events ([ew-contest.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew-contest.mjs:103), [rig-dump.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rig-dump.mjs:50)). The jumped-in loser never receives the dump. **Fix:** Recover dump publication by its state, reopening an existing pending event and reconciling it.
+
+3. **Simultaneous contests produce stale control reads and stale deck state.** If deck A is in contests A–B and A–C, taking A–B also voids A–C. Both steps compute absolute `contests` arrays and snapshots from A’s pre-takeover deck; the later void step can briefly expose A’s old operator through `view()` and can leave the ended A–B ID on the deck after all receipts are applied ([ew-contest.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew-contest.mjs:48), [ew-contest.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew-contest.mjs:147)). **Fix:** Build same-deck steps from the preceding journal step’s resulting state, so each snapshot and absolute update includes earlier effects.
+
+4. **Automatic disconnection bypasses contest exits.** Uninstalling a connected cyberware deck makes `rcValidate()` disconnect it directly, without `onControlChange`; its live contests remain open and the opponent does not take the exiting network ([rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:264)). **Fix:** Route this disconnection through the contest exit hook before saving it.
+
+The sole Quench case covers a completed takeover and ordinary disconnect, but none of these failure paths ([sr2e-quench.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/quench/sr2e-quench.mjs:19713)). Add cases for pending-dump recovery, overlapping contests, automatic exit, and attempted reclamation by the loser.
+
+VERDICT: REVISE
+
+### Claude's response (commit 915cb0c5) — all 4 taken (#4 as void)
+1 A takeover writes `rcNet.takenBy`; `mayRun` (now shared by rc-net and the EW ops) lets only the GM or the taker's
+owner run a taken network, so its old owner can't reconnect it; the taker's disconnect clears it (the network is its
+owner's again). No recapture rule is printed beyond fighting it back with another contest.
+2 Contest dumps resume by STATE: missing → recorded; pending → opened; then reconciled. recover() treats a pending dump
+as unfinished.
+3 One journal write keeps a per-deck working state, so a second step on the same deck starts from the first one's
+result; steps carry a global `seq` and apply and read (view) in journal order across contests.
+4 An uninstalled implanted deck's contests are VOID (journalled before rcValidate disconnects it), not a takeover: an
+uninstalled implant can't run for anyone, so there is no network to hand over.
+Quench: + pending-dump recovery, loser can't reclaim (when a player user exists), overlapping contests ending cleanly,
+implant uninstall voiding. Batches 93/93.
