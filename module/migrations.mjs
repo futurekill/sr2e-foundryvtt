@@ -716,8 +716,12 @@ export const MIGRATIONS = [
     migrateItem(source) {
       if (source.type !== "weapon" || source.system?.skill !== "launch_weapons") return null;
       return { "system.skill": launcherSkill(source.name) };
-    },
-    // A vehicle explicitly set to the removed "pilot" skill falls back to its type's SR2 skill (c-post r1 #1).
+    }
+  },
+  {
+    version: "0.158.1",
+    // A vehicle explicitly set to the removed "pilot" skill falls back to its type's SR2 skill (c-post r1 #1). Its own
+    // version, so worlds already stamped 0.158.0 run it (c-post r2 #1). Detected by value.
     migrateActor(source) {
       if (source.type !== "vehicle" || source.system?.skill !== "pilot") return null;
       return { "system.skill": "" };

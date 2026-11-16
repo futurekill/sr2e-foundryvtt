@@ -35,9 +35,9 @@ describe("c-post r1 fixes", () => {
     expect(webNodeForLabel(web, "Pilot")).toBe(null);
   });
   it("0.158.0 clears a vehicle's 'pilot' skill and moves Launch Weapons launchers (#1)", () => {
-    const m = MIGRATIONS.find(e => e.version === "0.158.0");
-    expect(m.migrateActor({ type: "vehicle", system: { skill: "pilot" } })).toEqual({ "system.skill": "" });
-    expect(m.migrateActor({ type: "vehicle", system: { skill: "winged" } })).toBe(null);
+    const m = MIGRATIONS.find(e => e.version === "0.158.0"), m1 = MIGRATIONS.find(e => e.version === "0.158.1");
+    expect(m1.migrateActor({ type: "vehicle", system: { skill: "pilot" } })).toEqual({ "system.skill": "" });
+    expect(m1.migrateActor({ type: "vehicle", system: { skill: "winged" } })).toBe(null);
     expect(m.migrateItem({ type: "weapon", name: "ArmTech MGL-12", system: { skill: "launch_weapons" } })).toEqual({ "system.skill": "firearms" });
     expect(m.migrateItem({ type: "weapon", name: "Colt", system: { skill: "firearms" } })).toBe(null);
   });
