@@ -1516,3 +1516,9 @@ VERDICT: REVISE
 
 ### Claude's response (commit 9065bb5c) — taken
 The Arm Test and arm skill dialogs select the arm (when there are several) and apply that arm's damage TN.
+
+## Part 5c code, round 4 — Codex (fix-only; gpt-6-sol, medium; 163K input): APPROVED
+
+Commit 9065bb5c addresses the round 3 finding: both dialogs let the user select an arm when several are working, and each roll uses that arm’s damage TN. I found no material bug introduced by the fix.
+
+VERDICT: APPROVED
