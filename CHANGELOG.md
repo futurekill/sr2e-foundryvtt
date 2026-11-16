@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.157.0 — 2026-11-15
 
 ### Added
 - **Electronic warfare against remote-control networks** (Rigger 2 p.68–72; Part 5b-1), under the Rigger 2 vehicle
   ruleset, on the deck panel's new Electronic warfare section: **intercept** another network's command, simsense or
   system channel (deck rating vs their rating + 3; break an **encryption** module first), **read** it (they may detect
-  you and switch frequencies), and attack it with **meaconing**, **intrusion** (a bogus object) or **jamming** — an
+  you and switch frequencies; reading the system channel reports one drone's position, heading, ammunition and
+  damage), and attack it with **meaconing**, **intrusion** (a bogus object) or **jamming** — an
   opposed Flux exchange whose net successes fill the channel's 10-box Signal Monitor. Degradation reaches the tests the
   book names: a drone's own Driving and Gunnery tests, IVIS and Comprehension Tests, and — for simsense jamming on a
   remotely rigged drone — every Success Test and the Initiative of its rigger, like damage. A full channel loses its
@@ -16,7 +17,12 @@
   operations to the intruder — a captured **command** channel lets them command the network's drones (the drone's
   Comprehension Test, their skills) while the owner can't, a captured **system** channel feeds them its data without a
   detection roll, and a captured **simsense** channel shuts the owner out. It lasts until the owner reconnects that
-  carrier, the frequencies switch, or the intruder disconnects.
+  carrier, the frequencies switch, or the intruder disconnects. Commands through a captured channel follow the owner's
+  rules (range, not the drone the owner is jumped into, +2 TN while the intruder is jumped into a drone of their own).
+
+### Not yet
+- The interference contest (Rigger 2 p.72), and system-channel jamming of indirect fire (indirect fire doesn't route
+  through networks yet).
 
 ## 0.156.0 — 2026-11-15
 

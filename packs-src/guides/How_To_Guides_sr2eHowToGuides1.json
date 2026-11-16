@@ -245,6 +245,31 @@
       }
     },
     {
+      "_id": "47dd2ceddfb7c2ed",
+      "name": "Jam or hack a drone network (Rigger 2)",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 1000000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a rigger listens in on, confuses or jams another rigger&#39;s drone network, and the other rigger fights back\n(Rigger 2 pp.68–72). Both need a connected remote-control deck; jamming also needs an ECM suite on a vehicle.</p>\n<p><img src=\"systems/sr2e/assets/guides/rc-ew-panels.png\" alt=\"Electronic warfare: the target deck (left) lists the intruder's boxes per channel with Regenerate; the intruder's deck (right) shows the intercepted channels with Read, MIJI and Intercept\"></p>\n<p><strong>Attack</strong></p>\n<ol>\n<li>Open your deck&#39;s panel. Under <strong>Electronic warfare → Other networks</strong> pick their network. If it shows a lock, click\n<strong>Break encryption</strong> first.</li>\n<li>Click <strong>Intercept</strong>, tick the channels you want and roll. Each success is one channel; the GM chooses any you\ndidn&#39;t name.</li>\n<li><strong>Read</strong> a channel to learn its traffic (they may notice and switch frequencies), or click <strong>MIJI…</strong> and pick an\nattack and a channel: meaconing, intrusion or jamming. Roll your Flux; the defender gets a Resist card.</li>\n</ol>\n<p><strong>Defend</strong></p>\n<ol>\n<li>Click <strong>Resist</strong> on the card and roll your deck&#39;s Flux. The result card shows the boxes.</li>\n<li>On your panel, <strong>Regenerate</strong> a channel against one intruder, <strong>Block</strong> a bogus object, and <strong>Reconnect</strong> a lost\ncarrier once at least one box is clear.</li>\n</ol>\n<p><strong>Good to know:</strong> the degradation applies to the tests the book names — your drones&#39; own tests (meaconing), commands\nand IVIS (command jamming), and everything you do while remotely rigged into a jammed drone (simsense jamming).</p>\n"
+      }
+    },
+    {
       "_id": "cea7482c9dfe283b",
       "name": "Play a rigger by the Rigger 2 rules",
       "type": "text",
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },
@@ -634,7 +659,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2500000,
+      "sort": 2600000,
       "ownership": {
         "default": -1
       },
@@ -659,7 +684,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2600000,
+      "sort": 2700000,
       "ownership": {
         "default": -1
       },
@@ -684,7 +709,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2700000,
+      "sort": 2800000,
       "ownership": {
         "default": -1
       },
@@ -709,7 +734,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2800000,
+      "sort": 2900000,
       "ownership": {
         "default": -1
       },
@@ -734,7 +759,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2900000,
+      "sort": 3000000,
       "ownership": {
         "default": -1
       },
