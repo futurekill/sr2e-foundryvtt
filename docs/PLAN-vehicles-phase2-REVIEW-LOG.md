@@ -1440,3 +1440,15 @@ result; steps carry a global `seq` and apply and read (view) in journal order ac
 uninstalled implant can't run for anyone, so there is no network to hand over.
 Quench: + pending-dump recovery, loser can't reclaim (when a player user exists), overlapping contests ending cleanly,
 implant uninstall voiding. Batches 93/93.
+
+## Part 5b.4 code, round 2 — Codex (fix-only, 915cb0c5; gpt-6-sol, medium; 214K input): REVISE, 2 findings
+
+1. **An uninstalled captured implant stays locked to its taker.** After a takeover, `rcValidate()` disconnects an uninstalled implant but leaves `takenBy` intact ([rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:271)). If its owner reinstalls it, `mayRun` still rejects them, while the taker cannot connect a deck held by someone else. Only a GM can restore it. **Fix:** Clear `takenBy` when `rcValidate()` disconnects the implant.
+
+2. **An interrupted open dump is skipped by recovery.** If `reconcileDumps()` fails after the contest changes a dump from `pending` to `open` but before creating its effect or card, the next `recover()` excludes it because `dumpUnfinished()` accepts only missing or pending events ([ew-contest.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew-contest.mjs:93)). The dump remains incomplete for the active session. **Fix:** Treat an `open` dump with incomplete receipted effects as recoverable and run `reconcileDumps()` again.
+
+VERDICT: REVISE
+
+### Claude's response (commit 1873b951) — both taken
+1 rcValidate's implant disconnect clears takenBy. 2 dumpUnfinished also counts an OPEN dump without its effect and card;
+Quench removes the card and recovery posts it. Batches 93/93.
