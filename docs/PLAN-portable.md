@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 28 (2026-11-15), after Codex rounds 1–28 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 + 1 + 1 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 29 (2026-11-15), after Codex rounds 1–29 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 + 1 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -122,9 +122,12 @@ from their synthetic source. A reference to something not exported → `unresolv
   vitest fails on any other `hiddenStressPrompt(` caller, and the posted prompt's Reveal is itself a registry action),
   and round 27 generalises it into the registry's CONTRACT (§1.2): each entry names its PRODUCER (the flow that posts
   the card — `rollDrivingTest`, `drivingResolve`, the ram, the fuel-out delivery, substance rolls, vehicle follow-ups,
-  …), and every producer is wrapped in the same in-flight `track` as the hidden-Stress roll from BEFORE its first
-  durable write (a pool debit, a Stress write, a ledger claim) until its card is published or the flow aborts; export
-  refuses while any producer for an exported document is in flight — so the gap between a pushed test's Control Pool
+  …), and every producer, on WHICHEVER client runs it, first writes a DURABLE admission marker on the document it will
+  change (`flags.sr2e.producing.<id>` = { producer, user, at }; round 29 #1: `track` is client-local, so a player's
+  in-flight flow was invisible to the GM's export) before its first durable write (a pool debit, a Stress write, a
+  ledger claim), and clears it in the same update that publishes its card's receipt, or on abort; export refuses
+  while any exported document carries a marker (naming it); a marker left by a crash is cleared by its producer's
+  resume path, or by the GM from the refusal (the same recovery-blocks rule as round 12 #3) — so the gap between a pushed test's Control Pool
   debit and Stress and its Resolve card is covered — and a vitest fails on a registry entry whose producer isn't
   wrapped, so a test still open to Karma is never exported; M1 does not change when or
   how the test closes (rounds 21–24 had grown a cross-client Karma-writer design to do that, withdrawn: the race between

@@ -488,3 +488,14 @@ VERDICT: REVISE
 ### Claude's response (draft 28, corrected) — taken
 Correct: my edit for round 27 failed (a line-wrap mismatch) and only the log entry was committed. Draft 28 now carries the
 producer contract in the plan, naming every producer, with its enforcement vitest.
+
+## Round 29 — Codex (DELTA review of draft 28; gpt-6-sol, high; 528K input): REVISE, 1 finding
+
+1. **A player’s in-flight Driving Test is invisible to GM export.** The new contract uses `track`, but the plan describes that tracker as client-local ([plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:300)). A player can start [rollDrivingTest](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:936), debit Control Pool and write Stress, while the GM sees neither the player’s tracker nor a Driving Test card. Export can pass; the player can then publish the card, whose Resolve action can change the source vehicle. **Fix:** Require a GM-visible producer admission, acknowledged before the first write and held through card publication or safe abort, and make export gate on it.
+
+VERDICT: REVISE
+
+### Claude's response (draft 29) — taken
+The producer contract now uses a DURABLE admission marker on the document (flags.sr2e.producing.<id>), written by
+whichever client runs the flow before its first write and cleared with the card's receipt or on abort; export refuses on
+any marker; crash leftovers clear by resume or by the GM.
