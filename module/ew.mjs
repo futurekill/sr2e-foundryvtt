@@ -119,7 +119,7 @@ export function riggerSimsenseMod(actor) {
  * A rolled card made by `actor` for this EW step: its own dice ≤ `maxDice`, Task Pool dice ≤ the Electronics cap,
  * its BASE TN ≥ `minTn`, no situational misc dice, settled once. Returns the test state.
  */
-function checkCard(net, messageId, { kind, actor, maxDice, minTn, bind = {} }) {
+export function checkCard(net, messageId, { kind, actor, maxDice, minTn, bind = {} }) {
   const msg = game.messages.get(messageId), test = msg?.flags?.sr2e?.test, ew = msg?.flags?.sr2e?.ew;
   if (!test || ew?.kind !== kind || test.actorUuid !== actor?.uuid) throw new Error("that isn't this electronic-warfare test's card");
   // The card was rolled for THIS state (c5b1 r1 #3): a frequency switch, a new exchange or a changed authority voids it.
@@ -133,7 +133,7 @@ function checkCard(net, messageId, { kind, actor, maxDice, minTn, bind = {} }) {
 }
 const successesOf = async (test) => (await import("./rules/sr2e-rules.mjs")).testTotalSuccesses(test);
 const whisperTo = (actor) => game.users.filter(u => u.isGM || (actor && actor.testUserPermission(u, "OWNER"))).map(u => u.id);
-const card = (content, actor, extra = {}) => ChatMessage.create({ content: `<div class="sr2e-damage-result">${content}</div>`,
+export const card = (content, actor, extra = {}) => ChatMessage.create({ content: `<div class="sr2e-damage-result">${content}</div>`,
   speaker: ChatMessage.getSpeaker({ actor }), whisper: whisperTo(actor), ...extra });
 
 /** Both decks within the LEAST powerful device's range (p.68; Part 4a.3). An unknown distance counts as in range. */
@@ -234,7 +234,7 @@ export function registerEw() {
   // 5b.2: a MIJI exchange — the intruder opens it; both sides roll; it resolves once both are recorded.
   gmOp("ewMijiStart", ({ op: kind, intruderDeckUuid, targetDeckUuid, channel }, user) => RC.rcQueue(async () => {
     const { intruder, target, op } = loadPair(intruderDeckUuid, targetDeckUuid, user);
-    if (kind === "interference") throw new Error("interference contests arrive in Part 5b-2");
+    if (kind === "interference") throw new Error("interference is a contest: use Interfere on the deck panel (Rigger 2 p.72)");
     if (!EW.OP_CHANNELS[kind]?.includes(channel)) throw new Error(`${kind} can't hit the ${channel} channel (Rigger 2 p.70–72)`);
     if (!interceptOf(intruder, target)?.channels?.includes(channel)) throw new Error(`intercept its ${channel} channel first (Rigger 2 p.69)`);
     const net = RC.freshNet(target);

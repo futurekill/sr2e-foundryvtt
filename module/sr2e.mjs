@@ -104,6 +104,7 @@ import { registerChasePanel } from "./apps/chase-panel.mjs";
 import { registerVehicleDamage, bindVehicleDamageCard } from "./vehicle-damage.mjs";
 import { registerRigDump, bindRigDumpCard } from "./rig-dump.mjs";
 import { registerEw, bindEwCard } from "./ew.mjs";
+import { registerContest, registerContestSetting, bindContestCard } from "./ew-contest.mjs";
 import { registerLearningPool, bindLearningCard } from "./learning-pool.mjs";
 import { registerVehicleSensors } from "./vehicle-sensors.mjs";
 import { registerAmmoQueue } from "./vehicle-ammo.mjs";
@@ -548,6 +549,7 @@ Hooks.once("init", async () => {
   registerRcNet();
   registerRigDump();
   registerEw();
+  registerContest();
   registerLearningPool();
   registerOptempo();
   game.sr2e = Object.assign(game.sr2e ?? {}, { hiddenStress: { reveal: revealHiddenStress, left: hiddenStressLeft } });
@@ -1351,6 +1353,7 @@ function _registerSystemSettings() {
 
   // Vehicle ruleset (docs/PLAN-vehicles-phase2.md Part 2): the core book's vehicle chapter, or Rigger 2's, which
   // supersedes it. Reload: derived vehicle data and roll logic must never mix the two.
+  registerContestSetting();   // the interference-contest journal (5b.4), hidden
   game.settings.register("sr2e", "vehicleRuleset", {
     name: "Vehicle ruleset",
     hint: "Which vehicle rules the table uses. Core Rulebook is the default. Rigger 2 swaps in its standard vehicle operations: the Driving Test, the Speed Rating (up to ×1.5), Stress, system failures, overhauls and repairs. Vehicle combat stays the core rules until Rigger 2 vehicle combat is built. Vehicles keep their stats; with the Rigger 2 module active, imports use its Vehicle List.",
@@ -3052,6 +3055,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   bindVehicleDamageCard(message, html);
   bindRigDumpCard(message, html);
   bindEwCard(message, html);
+  bindContestCard(message, html);
   bindLearningCard(message, html);
 
   // Opposed melee: Defend rolls the defender's Combat Skill test and

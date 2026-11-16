@@ -75,6 +75,10 @@
         <button type="button" data-action="ewBlock" data-eid="{{eid}}" title="ECCM vs their protocol emulation (p.71, p.31)">Block</button></p>
     {{/each}}
     {{else}}<p><em>All channels clear.</em></p>{{/if}}
+    {{#each ew.contests}}
+      <p><strong>Interference contest</strong> with {{name}}: your system channel {{mine}}/10, theirs {{theirs}}/10 (p.72).
+        <button type="button" data-action="ewInterfere" data-uuid="{{other}}" title="Complex Action: deck Flux vs their rating; the loser takes the net successes as boxes on its own system channel">Interfere</button></p>
+    {{/each}}
     {{#if ew.alert}}<p><em>Alerted {{ew.alert}}× — every interception against this network is +{{ew.alert}}×2 TN (p.69).</em></p>{{/if}}
     {{#if ew.targets.length}}
     <p><strong>Other networks</strong></p>
@@ -82,6 +86,7 @@
       <p>{{name}}{{#if encrypted}} <i class="fas fa-lock" title="Encrypted"></i>{{/if}} —
         {{#if intercepted}}intercepted: {{#each channels}}{{this}} <button type="button" data-action="ewRead" data-uuid="{{../uuid}}" data-channel="{{this}}" title="Complex Action: read it; they may detect you (p.69)">Read</button> {{/each}}
           <button type="button" data-action="ewMiji" data-uuid="{{uuid}}" title="Meaconing, intrusion or jamming (p.69–72)">MIJI…</button>
+          {{#if systemHeld}}<button type="button" data-action="ewInterfere" data-uuid="{{uuid}}" title="Interference (p.72): fight for their whole network through its system channel">Interfere</button>{{/if}}
         {{else}}not intercepted{{/if}}
         {{#if gmChooses}}{{#if ../gm}}<button type="button" data-action="ewChoose" data-uuid="{{uuid}}">Choose {{gmChooses}} channel(s)</button>{{else}}<em>(the GM chooses {{gmChooses}} more)</em>{{/if}}{{/if}}
         {{#if encrypted}}<button type="button" data-action="ewDecrypt" data-uuid="{{uuid}}" title="Electronic Warfare + decryption vs encryption + 4 (p.69)">Break encryption</button>{{/if}}

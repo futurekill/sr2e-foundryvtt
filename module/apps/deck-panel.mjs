@@ -8,6 +8,7 @@ import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBal
 import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit } from "../rules/drone-rules.mjs";
 import { fluxRange } from "../rules/vehicle-sensor-rules.mjs";
 import * as EWX from "../ew.mjs";
+import * as EWC from "../ew-contest.mjs";
 import * as EW from "../rules/ew-rules.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -24,7 +25,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       unsubscribe: DeckPanel.#unsubscribe, affiliate: DeckPanel.#affiliate, jump: DeckPanel.#jump, ret: DeckPanel.#return,
       command: DeckPanel.#command, hardwire: DeckPanel.#hardwire, groupCommand: DeckPanel.#groupCommand, ivisEnd: DeckPanel.#ivisEnd,
       ewDecrypt: DeckPanel.#ewDecrypt, ewIntercept: DeckPanel.#ewIntercept, ewChoose: DeckPanel.#ewChoose, ewRead: DeckPanel.#ewRead,
-      ewMiji: DeckPanel.#ewMiji, ewRegen: DeckPanel.#ewRegen, ewReconnect: DeckPanel.#ewReconnect, ewBlock: DeckPanel.#ewBlock, ewCommand: DeckPanel.#ewCommand }
+      ewMiji: DeckPanel.#ewMiji, ewRegen: DeckPanel.#ewRegen, ewReconnect: DeckPanel.#ewReconnect, ewBlock: DeckPanel.#ewBlock, ewCommand: DeckPanel.#ewCommand,
+      ewInterfere: DeckPanel.#ewInterfere }
   };
   static PARTS = { body: { template: "systems/sr2e/templates/apps/deck-panel.hbs", scrollable: [".deck-body"] } };
 
@@ -165,9 +167,11 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       const drones = held.includes("command") ? Object.values(netOf(d)?.affiliated ?? {}).map(a => fromUuidSync(a.uuid)).filter(Boolean)
         .map(v => ({ uuid: v.uuid, name: v.name })) : [];
       return { uuid: d.uuid, name: `${d.parent?.name ?? "?"} — ${d.name}`, encrypted: !!EWX.moduleRating(d, "rc-encryption"),
-        channels: rec?.channels ?? [], gmChooses: rec?.gmChooses ?? 0, intercepted: !!rec?.channels?.length, held, drones };
+        channels: rec?.channels ?? [], gmChooses: rec?.gmChooses ?? 0, intercepted: !!rec?.channels?.length, held, drones,
+        systemHeld: !!rec?.channels?.includes("system") };
     }) : [];
-    return { channels, bogus, alert: net.alert ?? 0, targets, any: channels.some(c => c.boxes || c.lost) || bogus.length > 0 };
+    const contests = EWC.contestRows(this.deck);
+    return { channels, bogus, alert: net.alert ?? 0, targets, contests, any: channels.some(c => c.boxes || c.lost) || bogus.length > 0 || contests.length > 0 };
   }
   get #op() { const n = netOf(this.deck); return n?.operator ? fromUuidSync(n.operator) : null; }
   static async #ewDecrypt(_e, el) {
@@ -263,6 +267,12 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       flags: { sr2e: { rcCommand: { deckUuid: target.uuid, vehicleUuids: [v.uuid], authEvent: auth.auth.eventId, freqGen: EWX.freqGen(netOf(target)),
         orderRev: netOf(target)?.standingOrders?.[vKey(v.uuid)]?.rev ?? 0, tableTn: Number(res.tn) || 4 } } } });
     if (roll) return rc("ewCommand", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, vehicleUuid: v.uuid, text: res.text ?? "", messageId: roll.testMessageId }).catch(warn);
+  }
+  /** Interference (p.72; 5b.4): open or continue the contest for their network. */
+  static async #ewInterfere(_e, el) {
+    const target = fromUuidSync(el.dataset.uuid);
+    if (!target || !this.#op) return warn("connect the deck first");
+    return EWC.interfere(this.deck, target).then(r => r?.void ? warn("the contest moved on before your roll counted") : null).catch(warn);
   }
   static async #ewBlock(_e, el) {
     const op = this.#op, b = netOf(this.deck)?.bogus?.[el.dataset.eid];

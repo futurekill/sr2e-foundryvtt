@@ -871,7 +871,10 @@ async function autonav({ combatId, eid, on }, user) {
  */
 function routeDamage(vehicle, commit) {
   let combat = null;
-  const run = mq(() => {
+  // Lock order chase-membership → rc-control → chase:<id> → vdmg:<uuid> (5b.4): a NETWORKED vehicle's commit also holds
+  // rc-control — which first re-applies any unapplied contest step — so no takeover can start between that recovery and
+  // the damage's controller/feedback snapshot. Affiliation itself changes under chase-membership, so the check is stable.
+  const body = () => {
     const hit = findEntry(vehicle.uuid);
     if (!hit || !hasChase(hit.combat)) return commit();
     combat = hit.combat;
@@ -886,7 +889,8 @@ function routeDamage(vehicle, commit) {
       }
       return out;
     });
-  });
+  };
+  const run = mq(() => (RCN.isAffiliated(vehicle) ? RCN.rcQueue(body) : body()));
   return run.then(async (out) => { if (combat) await applyOverChecks(combat); return out; });
 }
 

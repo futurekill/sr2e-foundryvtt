@@ -1321,3 +1321,19 @@ orders until reconnected.
       button per drone; B's order becomes the drone's standing order; A's Command is refused; A regenerates and
       Reconnects → B loses it. Automated in "A filled channel's authority".
 
+## Rigger 2 interference contests (Part 5b.4) — `sr2e.r2-advanced` batch
+Automated ("Interference contests"): opening needs the system channel intercepted; the creation step reaches both decks
+with receipts; an exchange's loser takes the net successes on its own system channel; 10 boxes → the winner operates
+the loser's network (connected, captain's chair, system carrier back, boxes kept, drones stay, control transfers) and a
+jumped-in loser is dumped; recovery re-applies nothing already applied; an exit hands the network to the side that
+stays. The journal setting is stubbed client-side in the test.
+- [ ] B (protocol emulation module) intercepts A's system channel → **Interfere** appears beside MIJI…; click it: B rolls
+      deck Flux vs A's rating; A gets a Resist card (deck Flux vs B's protocol emulation).
+- [ ] Both panels show **Interference contest** rows with each side's system boxes; either side's **Interfere** starts the
+      next exchange; the LOSER's own system channel fills.
+- [ ] At 10 boxes the loser's network is the winner's: A's drones obey B, A (if jumped in) gets a dump card; the GM's
+      result card says "its network is taken".
+- [ ] A disconnects mid-contest while B stays → B takes A's network; both gone → the contest is withdrawn.
+- [ ] Reconnect A's deck to another operator mid-contest → the contest is void (no takeover).
+- [ ] Damage a networked drone while a contest is open: no error or hang (the damage waits for rc-control).
+

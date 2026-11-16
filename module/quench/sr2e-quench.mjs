@@ -19710,6 +19710,73 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Interference contests (Part 5b.4, R2 p.72)", function () {
+        it("the loser's own system channel fills; 10 boxes hands its network to the winner (dumped if jumped in); an exit hands it over too; recovery is idempotent", async function () {
+          this.timeout(60000);
+          const RCN = await import("../rc-net.mjs"), EWC = await import("../ew-contest.mjs");
+          // The journal is a world setting: stubbed client-side, never written to the world (CLAUDE.md test rule).
+          const store = { v: {} }, gs = game.settings.get, ss = game.settings.set;
+          game.settings.get = function (ns, k) { return ns === "sr2e" && k === EWC.KEY ? foundry.utils.deepClone(store.v) : gs.call(this, ns, k); };
+          game.settings.set = async function (ns, k, v) { if (ns === "sr2e" && k === EWC.KEY) { store.v = foundry.utils.deepClone(v); return v; } return ss.call(this, ns, k, v); };
+          const orig = CONFIG.Dice.randomUniform;
+          try {
+            const sk = [{ name: "Electronics", type: "skill", system: { rating: 5, category: "active", concentration: { name: "Control Systems", rating: 6 } } }];
+            const mkRigger = async (name, rating, pe) => {
+              const a = await Actor.create({ name, type: "character", system: { rigging: true, vehicleControlRig: 1 } }); made.push(a);
+              await a.createEmbeddedDocuments("Item", sk);
+              const m = await a.createEmbeddedDocuments("Item", [{ name: `${name} Deck`, type: "gear", system: { rating }, flags: { sr2e: { rule: "rc-deck" } } },
+                ...(pe ? [{ name: "Quench PE", type: "gear", system: { rating: pe }, flags: { sr2e: { rule: "protocol-emulation" } } }] : [])]);
+              const deck = m.find(i => i.flags.sr2e.rule === "rc-deck");
+              await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: a.uuid });
+              return { a, deck };
+            };
+            const T = await mkRigger("Quench Contest Target", 1, 0), I = await mkRigger("Quench Contest Intruder", 2, 3);
+            const drone = await mk("Quench Contest Drone", { vehicleType: "drone", pilot: 2 });
+            await call("rcSubscribe", { deckUuid: T.deck.uuid, vehicleUuid: drone.uuid, on: true });
+            await call("rcAffiliate", { deckUuid: T.deck.uuid, vehicleUuid: drone.uuid, on: true });
+            await T.deck.update({ "flags.sr2e.rcNet.primary": RCN.vKey(drone.uuid) });   // jumped in: a takeover dumps
+            const roll = (actor, dice, tn, extra) => actor.rollSuccessTest(dice, tn, { label: "Quench contest", flags: { sr2e: { ew: { kind: "contest", ...extra } } } }).then(r => r.testMessageId);
+            CONFIG.Dice.randomUniform = () => 0.2;   // every die a 5
+            let err = null; try { await call("ewContestStart", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: T.deck.uuid }); } catch (e) { err = e.message; }
+            assert.match(err ?? "", /intercept/, "opening a contest needs the system channel intercepted");
+            await call("ewIntercept", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: T.deck.uuid,
+              messageId: await I.a.rollSuccessTest(2, 4, { label: "Quench intercept", flags: { sr2e: { ew: { kind: "intercept", freqGen: 0, target: T.deck.uuid, named: ["system"] } } } }).then(r => r.testMessageId) });
+            await T.deck.update({ "flags.sr2e.rcNet.monitors.system.entries.seed": { op: "interference", attackerKey: I.deck.uuid, attackerRating: 2, boxes: 8, at: 1 } });
+            const { cid, xid, tns } = await call("ewContestStart", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: T.deck.uuid });
+            assert.deepEqual(RCN.netOf(T.deck).contests, [cid], "the creation step reached both decks");
+            assert.ok(RCN.netOf(T.deck).contestApplied?.[cid]?.[0], "with its receipt");
+            const c0 = EWC.contestBetween(I.deck.uuid, T.deck.uuid);
+            const x = c0.exchanges[xid];
+            await call("ewContestRoll", { cid, xid, side: "intruder", messageId: await roll(I.a, x.iflux, tns.intruder, { cid, xid, side: "intruder" }) });
+            const out = await call("ewContestResolve", { cid, xid });
+            assert.ok(out.taken, `8 + ${out.boxes} fills the target's own system channel`);
+            const tNet = RCN.netOf(T.deck);
+            assert.equal(tNet.operator, I.a.uuid, "the winner operates the loser's network");
+            assert.equal(tNet.connection.state, "connected");
+            assert.equal(tNet.primary, null, "the winner starts in the captain's chair");
+            assert.notOk(tNet.carriers?.system, "the system carrier is re-established");
+            assert.ok(Object.keys(tNet.monitors.system.entries).length >= 2, "the boxes stay recorded");
+            assert.ok(tNet.affiliated[RCN.vKey(drone.uuid)], "drones stay on their deck");
+            assert.equal(RCN.networkControllerOf(drone), I.a, "control of its drones transfers");
+            assert.ok(Object.keys(T.a.flags.sr2e?.rigDumps ?? {}).some(k => k.startsWith("contest")), "the jumped-in loser is dumped");
+            const rev = tNet.rev;
+            await EWC.recover();
+            assert.equal(RCN.netOf(T.deck).rev, rev, "recovery re-applies nothing already applied");
+            // An exit: a second contest, then the target side disconnects while the intruder stays → taken.
+            const C = await mkRigger("Quench Contest Third", 1, 0);
+            await call("ewIntercept", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: C.deck.uuid,
+              messageId: await I.a.rollSuccessTest(2, 4, { label: "Quench intercept 2", flags: { sr2e: { ew: { kind: "intercept", freqGen: 0, target: C.deck.uuid, named: ["system"] } } } }).then(r => r.testMessageId) });
+            await call("ewContestStart", { intruderDeckUuid: I.deck.uuid, targetDeckUuid: C.deck.uuid });
+            await call("rcDisconnect", { deckUuid: C.deck.uuid });
+            assert.equal(RCN.netOf(C.deck).operator, I.a.uuid, "the side that stays takes the network");
+            assert.equal(RCN.netOf(C.deck).connection.state, "connected");
+            assert.equal(Object.values(store.v).filter(cc => cc.state === "open").length, 0, "no contest left open");
+          } finally {
+            CONFIG.Dice.randomUniform = orig; game.settings.get = gs; game.settings.set = ss;
+          }
+        });
+      });
+
       describe("Part 5a review fixes (c5a r2)", function () {
         it("a player can't delete another character's deck (r2 #1); chase cards carry the veto flag (r2 #3) and withhold a scoped pool from non-GM rollers (r3 #2)", async function () {
           this.timeout(30000);

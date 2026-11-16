@@ -15,7 +15,20 @@ import { rcRuleOf, deckLimits, networkCapable, droneMode, poolBalance } from "./
 import { baseFlux, fluxRange } from "./rules/vehicle-sensor-rules.mjs";
 
 const RC = "rc-control";
-export const rcQueue = (fn) => enqueueAttack(RC, fn);
+/**
+ * Interference contests (5b.4, module/ew-contest.mjs) hook in here without an import cycle: `view(deck)` is the
+ * network as the contest journal last COMMITTED it (while a step is unapplied), `recover()` re-applies unapplied journal
+ * steps, `onControlChange(deck, kind)` resolves contests when a deck's control changes.
+ */
+let CONTEST = null;
+export function setContestHooks(h) { CONTEST = h; invalidate(); }
+/** Every network op runs in `rc-control`, after any pending contest recovery (5b.4: dependent actions wait for it). */
+export const rcQueue = (fn) => enqueueAttack(RC, async () => {
+  if (CONTEST?.recover && game.users.activeGM?.isSelf) await CONTEST.recover();
+  return fn();
+});
+/** The network record control reads use: the contest journal's committed state while one of its steps is unapplied. */
+export const viewNet = (deck) => (CONTEST?.view ? CONTEST.view(deck) : netOf(deck));
 export const vKey = (uuid) => followId(uuid);
 export const netOf = (deck) => deck?.flags?.sr2e?.rcNet ?? null;
 export const isRcDeck = (item) => rcRuleOf(item) === "rc-deck";
@@ -25,6 +38,7 @@ const num = (n) => Number(n) || 0;
 
 let INDEX = null;
 const invalidate = () => { INDEX = null; };
+export const invalidateIndex = invalidate;
 function allActors() {
   const out = [...(game.actors ?? [])];
   for (const s of game.scenes ?? []) for (const t of s.tokens) if (!t.actorLink && t.actor) out.push(t.actor);
@@ -43,7 +57,8 @@ export function rcIndex() {
       const prior = byVehicle.get(k);
       if (!prior || sinceOrder(net.affiliated[k]) < sinceOrder(netOf(prior)?.affiliated?.[k])) byVehicle.set(k, i);
     }
-    if (net.operator) byOperator.set(net.operator, [...(byOperator.get(net.operator) ?? []), i]);
+    const op = viewNet(i)?.operator;   // a takeover being recovered: the journal's operator (5b.4)
+    if (op) byOperator.set(op, [...(byOperator.get(op) ?? []), i]);
   }
   return (INDEX = { byVehicle, byOperator, decks });
 }
@@ -89,7 +104,7 @@ export const networkOf = (vehicle) => (vehicle?.uuid ? rcIndex().byVehicle.get(v
 export function networkControllerOf(vehicle) {
   if (!isRigger2()) return null;
   const deck = networkOf(vehicle);
-  const net = netOf(deck);
+  const net = viewNet(deck);
   if (!net || net.connection?.state !== "connected" || !net.operator || !reachKnown(deck, vehicle)) return null;
   return fromUuidSync(net.operator) ?? null;
 }
@@ -148,7 +163,7 @@ export const isAffiliated = (vehicle) => isRigger2() && !!networkOf(vehicle);
 
 /** The operator's primary drone key across every network they run (one primary per rigger, 5a.2), or null. */
 export function primaryOf(operatorUuid) {
-  for (const d of rcIndex().byOperator.get(operatorUuid) ?? []) if (netOf(d)?.primary) return netOf(d).primary;
+  for (const d of rcIndex().byOperator.get(operatorUuid) ?? []) if (viewNet(d)?.primary) return viewNet(d).primary;
   return null;
 }
 /** A drone's mode for its live operator (5a.2): primary / secondary / captain, or null when not network-controlled. */
@@ -373,6 +388,8 @@ export function registerRcNet() {
     if (!user.isGM && !op.testUserPermission(user, "OWNER")) throw new Error("not your character");
     const holder = deckActor(deck);
     if (holder?.type !== "vehicle" && holder !== op) throw new Error("only its owner runs a carried or implanted deck");
+    // A control transfer voids the deck's live interference contests (5b.4), journalled before this write.
+    if (CONTEST?.onControlChange && netOf(deck)?.operator !== op.uuid) await CONTEST.onControlChange(deck, "transfer");
     const net = freshNet(deck);
     // A new operator never inherits the old one's primary; one primary per rigger stays true (c5a r1 #4).
     const primaryElsewhere = (rcIndex().byOperator.get(op.uuid) ?? []).some(d => d !== deck && netOf(d)?.primary);
@@ -381,8 +398,11 @@ export function registerRcNet() {
     return save(deck, net);
   }));
   gmOp("rcDisconnect", ({ deckUuid }, user) => rcQueue(async () => {
-    const deck = load(deckUuid, user), net = freshNet(deck);
-    if (net.connection?.state !== "connected") return net;
+    const deck = load(deckUuid, user);
+    if (netOf(deck)?.connection?.state !== "connected") return netOf(deck);
+    // An exit from a live interference contest: the side that stays takes this network (5b.4) — then it's handled.
+    if (CONTEST?.onControlChange && (await CONTEST.onControlChange(deck, "exit"))?.handled) return netOf(deck);
+    const net = freshNet(deck);
     net.connection = { state: "disconnected", gen: num(net.connection.gen) + 1 }; net.primary = null;
     return save(deck, net);
   }));
@@ -449,6 +469,7 @@ export function registerRcNet() {
     if (!user.isGM && !deck.testUserPermission(user, "OWNER") && !deckActor(deck)?.testUserPermission?.(user, "OWNER")) throw new Error("not your deck");   // the requester, not the GM running this (c5a r2 #1)
     const net = netOf(deck), op = net?.connection?.state === "connected" && net.operator ? fromUuidSync(net.operator) : null;
     const { pendDump, reconcileDumps } = await import("./rig-dump.mjs");
+    if (CONTEST?.onControlChange) await CONTEST.onControlChange(deck, "removed");   // its contests end (5b.4)
     if (op) await pendDump(op, { cause: "deck-removed", deck });
     await deck.delete({ sr2eRcDelete: true });
     invalidate();

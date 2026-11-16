@@ -36,8 +36,8 @@ function turnsTiming(actor, turns) {
  * Write a PENDING dump on the rigger (GM, inside `rc-control`): called BEFORE the change that dumps them, so a crash in
  * between leaves a pending event the reconcile verifies. Returns the event id.
  */
-export async function pendDump(rigger, { cause, deck }) {
-  const eid = foundry.utils.randomID(16);
+export async function pendDump(rigger, { cause, deck, eid = null }) {
+  eid ??= foundry.utils.randomID(16);   // a caller replaying a journal passes its own, so a retry can't dump twice
   await rigger.update({ [`flags.sr2e.rigDumps.${eid}`]: { cause, deckRating: Number(deck?.system?.rating) || 0, deckName: deck?.name ?? "",
     deckUuid: deck?.uuid ?? "", state: "pending", at: Date.now() } });
   return eid;
