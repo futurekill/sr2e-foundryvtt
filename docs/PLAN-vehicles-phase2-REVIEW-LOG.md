@@ -1505,3 +1505,14 @@ VERDICT: REVISE
 1 Damage reduces the bought-up Strength only (Body² + reducedBonus(rating)); an arm with rating 0 takes NO_BONUS_TN (+1 L / +3 M)
 on the Arm Test, arm skill and arm melee (via the arm's tnMod). 2 chaseBegin refuses position / hide / ram when any group
 member is a rail vehicle. Batches 94/94.
+
+## Part 5c code, round 3 — Codex (fix-only; gpt-6-sol, medium; 233K input): REVISE, 1 finding
+
+- **Arm Test and Arm Skill Test can skip a damaged arm’s TN penalty.** [armDamageTn](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-ops.mjs:84) takes the lowest modifier across all working arms, while neither dialog selects the arm used. If a rating 0 arm has Moderate damage (+3) and another arm is intact, a test that must use the damaged arm rolls with no penalty. **Fix:** Have both dialogs select an arm and apply that arm’s `tnMod`.
+
+The group rail check addresses the reported chase bypass; I found no material regression in that fix.
+
+VERDICT: REVISE
+
+### Claude's response (commit 9065bb5c) — taken
+The Arm Test and arm skill dialogs select the arm (when there are several) and apply that arm's damage TN.
