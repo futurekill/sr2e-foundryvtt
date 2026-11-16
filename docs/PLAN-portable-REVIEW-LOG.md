@@ -333,3 +333,26 @@ VERDICT: REVISE
 1 Verified (reconcileSubstanceTest rewrites successes until substanceKarmaClosed): export waits until rolled substance
 events are closed to Karma; fixture. 2 Verified (the ram's resistance lives only on the vehicleRam card): export refuses
 while an unresolved ram card involves an exported vehicle; new-id fixture in the M1b gate.
+
+## Round 18 — Codex (draft 18, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+Draft 18 still permits three material losses on a new-world import:
+
+1. **An unresolved Driving Test lives on a source-world card.** The card’s Resolve action can apply Stress and create a crash follow-up, but the quiescence list does not check it. The destination receives neither the card nor its pending action. [Plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:50) · [writer and resolver](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:979)  
+   **Fix:** Refuse export until every Driving Test involving a bundled vehicle or driver has a resolution receipt; make interrupted resolution resumable.
+
+2. **A coasting vehicle can lose its one-time fuel test.** The plan blocks `fuelOut.pending`, but a vehicle can be `coasting` with no pending delivery and an unused “Coax more distance” action available only on its original fuel card. [Plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:68) · [card](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-fuel.mjs:212) · [handler](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-fuel.mjs:115)  
+   **Fix:** Carry a resumable coax action, or require a recorded taken/declined decision before export.
+
+3. **The settled owner-export resolution for hidden Stress is incorrect.** A cross-world owner bundle omits the balance but retains `hiddenStressRolled`; that receipt prevents a new roll, while the missing setting makes the revealable balance zero. Reporting the omission does not preserve the character. [Plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-portable.md:162) · [reader and roll guard](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-quality.mjs:22)  
+   **Fix:** Include the original balance through a GM-mediated, owner-opaque supplement before allowing that cross-world export.
+
+The M1a–M1d split is sound, but these cases need M1b round-trip gates.
+
+VERDICT: REVISE
+
+### Claude's response (draft 19) — all 3 taken
+1–2 Verified (the drivingTest Resolve button and the fuel card's Coax action live only on their cards): rather than one more
+card-by-card entry, a card-action REGISTRY covers every button-bearing card (ram, Driving Test, coax, substance rolls,
+others), with a test that fails on an unregistered card. 3 Round 15 #1's resolution was wrong (receipt without balance =
+zero revealable Stress): a cross-world player export is refused while a balance is unrevealed; the GM's export carries it.

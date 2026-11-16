@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 18 (2026-11-15), after Codex rounds 1–17 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 19 (2026-11-15), after Codex rounds 1–18 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -90,7 +90,17 @@ from their synthetic source. A reference to something not exported → `unresolv
   consequences replay from the source world's follow-up; fixture interrupted between the roll and the consequences); an
   ACTIVE indirect-fire guidance record (round 9 #4: `flags.sr2e.guidance.<id>` in `acquired` or `committed` — its +2 TN
   and its cleanup are bound to the source Combat — so export waits until it is `ended` or `lost`; fixtures for a
-  committed spotting with a terminal missile awaiting cleanup). The list is ONE function,
+  committed spotting with a terminal missile awaiting cleanup). **Open card actions** (round 18 #1–#2, generalising round
+  17 #2's ram check, because several actions live ONLY on a source-world chat card): a card-action REGISTRY in
+  `module/portable/card-actions.mjs`, one entry per SR2E card flag that carries an action button (its owner module
+  declares `{ flag, isOpen(message), involves(message) → actor/vehicle uuids }`): the unresolved ram (`vehicleRam`),
+  an unresolved Driving Test (`drivingTest` without its resolution receipt — the Resolve applies Stress and may create
+  a crash follow-up; M1 makes an interrupted resolution resumable from the card's receipt), the fuel card's unused
+  "Coax more distance" while the vehicle is `coasting` (open until a taken/declined decision is recorded on the
+  vehicle: M1 adds that record), the substance rolls above, and every other button-bearing card; export scans the
+  world's ChatMessages and refuses while any open entry involves an exported document. A test enumerates every
+  `flags.sr2e.<x>` card that binds a button (the `bind*Card` hooks) and fails if one has no registry entry, so a new
+  card can't silently escape; M1b gets a new-id fixture per entry. The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also
   removes the "recovery recreates a randomized item" case, round 1 #1).
@@ -164,8 +174,9 @@ with two decks and both devices bound). **Hidden Stress** (round 14 #1; R2 p.84)
 carries each exported vehicle's unrevealed balance in a GM-only bundle section (`gmOnly.hiddenStress`, remapped to the
 new uuid and journalled on import); a player's export omits the balance but KEEPS the receipt (round 15 #1: clearing it would re-roll and change the
 character): a same-world import, always run by the GM, copies the setting record from the old vehicle uuid to the new
-one in the journal; a cross-world import keeps the receipt with no balance and the report tells the GM so (they may
-set it by hand) — nothing is re-rolled. Consistency (round 15 #2): `ensureRolled` writes the setting before the
+one in the journal; a CROSS-WORLD player export is REFUSED while any exported vehicle has an unrevealed balance
+(round 18 #3, replacing round 15 #1's "report and set by hand": the receipt without the balance makes the revealable
+Stress zero) — the player asks the GM, whose export carries `gmOnly.hiddenStress` without showing it to the player. Consistency (round 15 #2): `ensureRolled` writes the setting before the
 receipt, so the whole roll is `track`ed as in flight, and the snapshot check refuses export when a vehicle's receipt
 and its setting record disagree (one without the other). The barrier (round 15 #3) closes the world-wide
 `hidden-stress` queue for fenced vehicles: its admission checks `fenced(vehicle)` and the drain awaits its tail; its

@@ -246,3 +246,19 @@ VERDICT: REVISE
 1 Verified (ProgramData assigns the core fields only while isCore): a separate both-directions correction release before
 item extraction, goldens refreshed, core→ordinary program prepared twice. 2 woundLevel assigned to M2h and asserted in
 the getter/projection parity gate.
+
+## Round 14 — Codex (draft 14, fresh session; gpt-6-sol, high): REVISE, 3 findings
+
+Draft 14 still needs three changes:
+
+- **The release map omits inline character derivations.** [`prepareDerivedData`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:390) computes the VR2 connection, psychotropic state, matrix mode, social penalties, Karma Pool, movement, and adept power points, but [§4](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:151) assigns none a release. The M2 gate could leave the creator without those values. **Fix:** assign every inline block its own gated extraction release and parity case.
+
+- **The proposed `_collectItemModifiers` release has unmoved model dependencies.** It calls [`_limbEssenceAndModel` and `_wareCyberInteractions`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:1095), which mutate the model and items. Moving the caller alone cannot run in Node; moving all three together breaks the plan’s one-computation-per-release rule. **Fix:** extract and gate those helpers first, then move the caller.
+
+- **Chargen retains a dependency outside the package.** [`chargenBudgetOf`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/sheets/actor-sheet.mjs:531) calls `drugOf` from `module/drugs.mjs`, which is absent from the package allow-list and the helper-split list. A packaged Node budget calculation would lose the drug classification or require a file it does not ship. **Fix:** move that flag-only predicate to a packaged pure helper before M2i.
+
+VERDICT: REVISE
+
+### Claude's response (draft 15) — all 3 taken
+1 Every inline prepareDerivedData block gets its own gated release. 2 Verified (_collectItemModifiers calls both helpers):
+M2b-0 extracts them first. 3 Verified (chargenBudgetOf → drugOf): the predicate moves to a packaged pure helper before M2i.

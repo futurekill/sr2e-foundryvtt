@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 14 (2026-11-15), after Codex rounds 1–13 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 + 2 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 15 (2026-11-15), after Codex rounds 1–14 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 + 2 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -154,6 +154,13 @@ registration.
 - **M2a.1 … M2a.n** item preparation, ONE item type per release (the 8 item `prepareDerivedData` (round 10 #1: eight, not nine) →
   `module/derive/items/*.mjs`, the data model calling it): one item type per release, no pairing. Each release passes
   the full parity gate on its own.
+- **M2a′ … inline blocks** (round 14 #1): every block `prepareDerivedData` computes INLINE (the VR2 connection,
+  psychotropic state, matrix mode, social penalties, Karma Pool, movement, adept power points, and any other the
+  inventory's milestone column lists) is assigned its OWN gated release with a parity case, at its execution position;
+  the M2 gate counts them.
+- **M2b-0** (round 14 #2): `_limbEssenceAndModel` and `_wareCyberInteractions` first — each its own gated release (they
+  mutate the model and the items' markers, so their outputs are in the projection) — and only then **M2b** moves the
+  caller.
 - **M2b** attributes: racial modifiers, `_collectItemModifiers`, `_calculateAttributeValues`, limb averages,
   articulation, cybermancy, CCSS (the limb/ware/cym rule modules are already pure — moved callers only).
 - **M2c** Essence, Magic, Body Index (incl. substances, autoEssence, signed Essence).
@@ -162,7 +169,9 @@ registration.
   buying, replacing, unloading a deck or program — chargen round 6).
 - **M2f** dice pools; **M2g** armor; **M2h** condition monitors.
 - **M2i** the chargen budget: `chargenBudgetOf` / `priorityTableFor` move from `sheets/actor-sheet.mjs` into
-  `module/derive/chargen.mjs` (reading `ctx.registries`, not `CONFIG`).
+  `module/derive/chargen.mjs` (reading `ctx.registries`, not `CONFIG`). Its one outside dependency (round 14 #3:
+  `drugOf` from module/drugs.mjs, a flag-only predicate) moves first to a packaged pure helper in `module/rules/`, with
+  drugs.mjs re-exporting it, so the package needs no Foundry module.
 - **Item getters** (round 9 #4): EVERY prototype getter on an item data model is inventoried and assigned to its item
 type's M2a.n release, with projection parity cases — `parsedDamageCode` (weapon), `parsedDrainCode` and `drainTarget`
 (spell), `actualEssenceCost` (cyberware), `actualBodyCost` (bioware), `totalCost`, `signedValue` and any other; the
