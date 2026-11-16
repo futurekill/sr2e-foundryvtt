@@ -1407,3 +1407,9 @@ whole-deck `rev` stays out (round 1 #3: every network write bumps it). Quench: a
 2 REJECTED as moot: no authority record without `connGen` exists anywhere — 5b-1 has never been released, and the
 only world that ran it (the dev world) holds none. A migration for a record format that never shipped is dead code.
 Quench r2-advanced + vehicle-chase 48/48.
+
+## Part 5b-1 code, round 4 — Codex (fix-only, round 3 fix; gpt-6-sol, medium; 183K input): APPROVED
+
+No material problems found in commit 5b727c39. The captured-command check now uses the card’s table TN with live modifiers, and the new Quench assertion exercises that check. I inspected the test but could not run Quench in this read-only environment.
+
+VERDICT: APPROVED

@@ -375,3 +375,20 @@ VERDICT: REVISE
 1 The registry inventories chat-button HANDLERS (render hooks, button classes), not flags; HTML-only actions such as the
 Knockdown Test get a flag + completion receipt first. 2 The coax card carries fuelOut.id; the decision is keyed to the
 episode. 3 Verified (drivingResolve claims before rolling): a staged, durable, resumable resolution with per-stage fixtures.
+
+## Round 20 — Codex (DELTA review of draft 20; gpt-6-sol, high; 632K input): REVISE, 4 findings
+
+1. **Class-only inventory can miss an action.** The [generic resist handler](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/sr2e.mjs:2850) uses `.sr2e-resist-btn` for several actions. Registering one branch would satisfy the proposed class test while an [unresolved melee damage card](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:2084) could still be exported without its Resist action. **Fix:** Inventory and test each selector, handler branch, and card source as a separate action.
+
+2. **An old Coax card can still affect a new episode.** Adding `fuelOut.id` to the card does not make the current [handler or `fuelCoast` operation](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-fuel.mjs:116) use it. After refuelling and running dry again, clicking the old card can roll and apply successes to the new episode. **Fix:** Pass the card’s episode ID through the handler and operation, checking it before the roll and again in the vehicle queue.
+
+3. **Crash follow-up replay can duplicate the follow-up.** The [current crash operation](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-damage.mjs:644) generates a random follow-up ID unless given one. If execution stops after creation but before the proposed stage receipt, resuming can create a second Crash Test. **Fix:** Use a deterministic ID derived from the Driving Test card and advance the stage only after that ID exists.
+
+4. **The terminal receipt can precede Karma closure.** The [Driving Test outcome card](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:987) separately carries `closesTests`. If execution stops after the vehicle’s final receipt but before that card is posted, the registry can allow export while the source test remains open to Karma. **Fix:** Close Karma when the rolled result is committed and keep the resolution open until its outcome card is durably published.
+
+VERDICT: REVISE
+
+### Claude's response (draft 21) — all 4 taken
+1 Registry entries per selector × handler branch × card source. 2 The episode id flows through the Coax handler and
+fuelCoast, checked before the roll and in the queue. 3 Deterministic crash follow-up id; stage advances after it exists.
+4 Karma closes at the committed roll; the resolution stays open until the outcome card is published.

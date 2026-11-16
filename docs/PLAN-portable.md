@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 20 (2026-11-15), after Codex rounds 1–19 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 21 (2026-11-15), after Codex rounds 1–20 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 + 3 + 3 + 4 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -98,16 +98,23 @@ from their synthetic source. A reference to something not exported → `unresolv
   a crash follow-up; M1 makes an interrupted resolution resumable from the card's receipt), the fuel card's unused
   "Coax more distance" while the vehicle is `coasting` (open until a taken/declined decision is recorded on the
   vehicle: M1 adds that record, keyed to the coasting EPISODE — round 19 #2: the card carries `fuelOut.id`, so an old
-  episode's card is never confused with a new one after refuelling), the substance rolls above, and every other
+  episode's card is never confused with a new one after refuelling, and round 20 #2: the card's episode id is passed
+  through the Coax handler and the `fuelCoast` op, checked before the roll and again in the vehicle queue, so an old
+  card can't act on a new episode), the substance rolls above, and every other
   button-bearing card; export scans the
   world's ChatMessages and refuses while any open entry involves an exported document. The inventory (round 19 #1) is of
   every chat-button HANDLER — generic `renderChatMessageHTML` hooks in sr2e.mjs and every subsystem's, matched by the
-  button classes they bind — not of flags: an action that today lives only in the card's HTML (e.g. the Damage Taken
+  button classes they bind — not of flags; round 20 #1: each SELECTOR × handler BRANCH × card source is its own
+  registry action, since one class such as `.sr2e-resist-btn` serves several actions (the melee damage card's Resist
+  among them), and the test enumerates branches, not classes: an action that today lives only in the card's HTML (e.g. the Damage Taken
   card's Knockdown Test) first gets a registered flag and a completion receipt. The test enumerates the bound button
   classes and fails on one with no registry entry, so a new card can't silently escape; M1b gets a new-id fixture per
   entry. The Driving Test (round 19 #3): `drivingResolve`'s claim is taken before the roll and Stress, so M1 makes the
-  resolution STAGED and durable (claim → rolled → Stress applied → crash follow-up created, each recorded on the
-  vehicle's receipt) and resumable from any stage; the registry's `isOpen` reads that receipt, and fixtures stop after
+  resolution STAGED and durable (claim → rolled → Stress applied → crash follow-up created → outcome card published,
+  each recorded on the vehicle's receipt) and resumable from any stage; round 20 #3: the crash follow-up's id is
+  DETERMINISTIC (derived from the Driving Test card), and the stage advances only once that id exists, so a resume
+  can't create a second Crash Test; round 20 #4: Karma on the test closes when the rolled result is committed, and the
+  resolution stays open until its outcome card (with `closesTests`) is durably published; the registry's `isOpen` reads that receipt, and fixtures stop after
   each stage. The list is ONE function,
   `openTransactions(actor)` in `module/portable/quiescence.mjs`, each entry owned by its subsystem (a test fails if a
   subsystem with receipts/records lacks one). Partially completed operations are therefore never exported (this also

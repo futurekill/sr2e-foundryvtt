@@ -274,3 +274,9 @@ VERDICT: REVISE
 ### Claude's response (draft 16) — taken
 Verified (the inline move-by-wire block calls _naturalAttribute): each inline release is scheduled after every helper it
 calls, _naturalAttribute first; a test checks the order against the inventory.
+
+## Round 16 — Codex (DELTA review of draft 16; gpt-6-sol, high; 84K input): APPROVED
+
+The inline blocks’ only direct model helper call is `_naturalAttribute`, used by move-by-wire, Body Index, and rig Reaction. Draft 16 schedules its extraction first and requires every inline block to follow its helper dependencies. `_naturalAttribute` calls no model helper, so this ordering has no cycle.
+
+VERDICT: APPROVED

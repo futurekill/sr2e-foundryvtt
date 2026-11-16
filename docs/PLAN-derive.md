@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 16 (2026-11-15), after Codex rounds 1–15 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 + 2 + 3 + 1 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 16 (2026-11-15) — APPROVED at Codex round 16; after Codex rounds 1–15 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 + 2 + 3 + 1 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
