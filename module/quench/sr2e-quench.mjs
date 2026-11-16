@@ -19636,10 +19636,13 @@ export function registerSR2EQuenchTests() {
             assert.equal(RCN.netOf(dA).channelAuthority.command.eventId, aid, "the first filler keeps the channel");
             assert.equal(EWX.channelActor(dA, "command"), B, "the intruder performs the command channel");
             assert.equal(EWX.channelActor(dA, "system"), A, "only that channel");
-            const bind = { authEvent: aid, freqGen: 0 };
+            const bind = { authEvent: aid, freqGen: 0, orderRev: 0 };
             let err0 = null; try { await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "x", messageId: await order({ ...bind, authEvent: "old" }) }); } catch (e) { err0 = e.message; }
             assert.match(err0 ?? "", /earlier hold/, "a command card is bound to the hold it was rolled under (c5b1 r1 #4)");
+            const older = await order(bind);
             await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "come to me", messageId: await order(bind) });
+            err0 = null; try { await call("ewCommand", { intruderDeckUuid: dB.uuid, targetDeckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "stale", messageId: older }); } catch (e) { err0 = e.message; }
+            assert.match(err0 ?? "", /orders changed/, "an older card can't overwrite a newer order (c5b1 r2 #3)");
             assert.equal(RCN.netOf(dA).standingOrders[RCN.vKey(drone.uuid)].by, B.uuid, "the intruder's order stands");
             let err = null; try { await call("rcOrder", { deckUuid: dA.uuid, vehicleUuid: drone.uuid, text: "no", messageId: await order() }); } catch (e) { err = e.message; }
             assert.match(err ?? "", /command carrier is lost/, "the owner is shut out");

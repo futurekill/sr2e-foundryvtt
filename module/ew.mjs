@@ -78,7 +78,7 @@ export function channelAuthority(targetDeck, channel) {
   if (!auth || num(auth.freqGen) !== freqGen(net)) return null;
   const deck = fromUuidSync(auth.deckUuid ?? ""), inet = RC.netOf(deck);
   if (!deck || inet?.connection?.state !== "connected" || inet.operator !== auth.operator) return null;
-  if (num(inet.connection.gen) !== num(auth.connGen)) return null;   // the intruder exited since (c5b1 r1 #2)
+  if (auth.connGen == null || num(inet.connection.gen) !== num(auth.connGen)) return null;   // the intruder exited since (c5b1 r1 #2)
   if (!interceptOf(deck, targetDeck)?.channels?.includes(channel)) return null;
   const actor = fromUuidSync(auth.operator);
   return actor ? { actor, deck, auth } : null;
@@ -293,6 +293,8 @@ export function registerEw() {
       throw new Error("that isn't this drone's Comprehension Test card");
     if (String(cmd.authEvent ?? "") !== String(auth.auth.eventId) || num(cmd.freqGen) !== freqGen(net))
       throw new Error("that card was rolled under an earlier hold on the channel: not counted");
+    // Bound to the drone's order as it stood at the roll (c5b1 r2 #3): an older card can't overwrite a newer order.
+    if (num(cmd.orderRev) !== num(net.standingOrders?.[k]?.rev)) throw new Error("the drone's orders changed since that roll: not counted");
     const t = commandTest(op, target, v, SKILL_SUCCESS_TABLE[0].tn);   // the lowest table TN + the live modifiers
     if ((test.dice ?? []).filter(d => d.sourceKey === "base").length > t.dice || (test.dice ?? []).some(d => d.sourceKey === "misc")
       || test.baseTn == null || num(test.baseTn) < t.tn)
@@ -360,7 +362,7 @@ function mijiStamp(net, intruderDeck) {
   return { op: net.operator ?? "", conn: num(net.connection?.gen), alert: num(net.alert), freqGen: freqGen(net),
     iconn: num(inet?.connection?.gen), iop: inet?.operator ?? "" };
 }
-const stampOk = (net, x) => !x.stamp || JSON.stringify(mijiStamp(net, fromUuidSync(x.intruderDeck ?? ""))) === JSON.stringify(x.stamp);
+const stampOk = (net, x) => !!x.stamp && JSON.stringify(mijiStamp(net, fromUuidSync(x.intruderDeck ?? ""))) === JSON.stringify(x.stamp);
 
 /**
  * The Comprehension Test an intruder makes through a captured command channel (p.66, p.70): the drone's Pilot + the
