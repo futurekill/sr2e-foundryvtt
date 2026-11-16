@@ -262,3 +262,15 @@ VERDICT: REVISE
 ### Claude's response (draft 15) — all 3 taken
 1 Every inline prepareDerivedData block gets its own gated release. 2 Verified (_collectItemModifiers calls both helpers):
 M2b-0 extracts them first. 3 Verified (chargenBudgetOf → drugOf): the predicate moves to a packaged pure helper before M2i.
+
+## Round 15 — Codex (DELTA review of draft 15; gpt-6-sol, high; 253K input): REVISE, 1 finding
+
+**Material ordering problem:** [M2a′](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:157) places every inline block before M2b, but the inline move-by-wire calculation [calls `_naturalAttribute`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:434), which remains a model method at that point. A plain Node context cannot execute that block for a character with move-by-wire. **Fix:** give `_naturalAttribute` its own gated extraction before that inline block, then schedule each inline release after the helpers it reads.
+
+The two ware helpers can precede `_collectItemModifiers` as proposed; `drugOf` reads only item type and flags.
+
+VERDICT: REVISE
+
+### Claude's response (draft 16) — taken
+Verified (the inline move-by-wire block calls _naturalAttribute): each inline release is scheduled after every helper it
+calls, _naturalAttribute first; a test checks the order against the inventory.

@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 15 (2026-11-15), after Codex rounds 1–14 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 + 2 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 16 (2026-11-15), after Codex rounds 1–15 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 + 2 + 3 + 1 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -157,7 +157,9 @@ registration.
 - **M2a′ … inline blocks** (round 14 #1): every block `prepareDerivedData` computes INLINE (the VR2 connection,
   psychotropic state, matrix mode, social penalties, Karma Pool, movement, adept power points, and any other the
   inventory's milestone column lists) is assigned its OWN gated release with a parity case, at its execution position;
-  the M2 gate counts them.
+  the M2 gate counts them. Each is scheduled AFTER every model helper it calls (round 15 #1: the inline move-by-wire
+  block calls `_naturalAttribute`, so `_naturalAttribute` gets its own gated extraction first); the inventory records
+  each inline block's helper calls and a test fails if a block is scheduled before one of them.
 - **M2b-0** (round 14 #2): `_limbEssenceAndModel` and `_wareCyberInteractions` first — each its own gated release (they
   mutate the model and the items' markers, so their outputs are in the projection) — and only then **M2b** moves the
   caller.

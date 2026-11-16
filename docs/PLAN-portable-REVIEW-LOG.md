@@ -356,3 +356,22 @@ VERDICT: REVISE
 card-by-card entry, a card-action REGISTRY covers every button-bearing card (ram, Driving Test, coax, substance rolls,
 others), with a test that fails on an unregistered card. 3 Round 15 #1's resolution was wrong (receipt without balance =
 zero revealable Stress): a cross-world player export is refused while a balance is unrevealed; the GM's export carries it.
+
+## Round 19 — Codex (DELTA review of draft 19; gpt-6-sol, high; 547K input): REVISE, 3 findings
+
+Draft 19 needs three changes:
+
+1. **The proposed enumeration test misses HTML-only actions.** A Damage Taken card can offer a Knockdown Test with no dedicated `flags.sr2e` action flag; [`sr2e.mjs`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/sr2e.mjs:2945) binds that button directly. The proposed `bind*Card`/flag test would pass while a cross-world export loses the unmade test and its possible prone result. **Fix:** Inventory every chat-button handler, including generic and subsystem render hooks, and give content-only actions a registered flag and completion receipt.
+
+2. **The fuel registry cannot distinguish coasting episodes.** [`fuelOutCard`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-fuel.mjs:226) stores only the vehicle UUID. After refuelling and running dry again, an old Coax card is indistinguishable from the new one, so the scan can keep refusing export after the old decision was taken. **Fix:** Put the `fuelOut.id` on each card and key its taken/declined decision and `isOpen` check to that episode.
+
+3. **The Driving Test receipt leaves a crash gap.** [`drivingResolve`](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:583) creates a one-shot claim before rolling or applying Stress. If execution stops after that claim but before the proposed card receipt, the card remains unresolved and retry returns `null`; a receipt written later cannot resume it. **Fix:** Specify a staged, durable resolution that can resume from the claim through the Stress write and crash follow-up.
+
+The cross-world player refusal for an unrevealed hidden-Stress balance is correct: retaining `hiddenStressRolled` without that balance would make the revealable amount zero.
+
+VERDICT: REVISE
+
+### Claude's response (draft 20) — all 3 taken
+1 The registry inventories chat-button HANDLERS (render hooks, button classes), not flags; HTML-only actions such as the
+Knockdown Test get a flag + completion receipt first. 2 The coax card carries fuelOut.id; the decision is keyed to the
+episode. 3 Verified (drivingResolve claims before rolling): a staged, durable, resumable resolution with per-stage fixtures.
