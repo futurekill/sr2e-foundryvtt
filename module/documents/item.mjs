@@ -10,7 +10,7 @@ import { sfxFlags, playSfx } from "../sfx.mjs";
 import { SFX_KEYS } from "../sfx-manifest.mjs";
 import { attackSound, spellSound } from "../rules/combat-sound-rules.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
@@ -449,6 +449,10 @@ export class SR2EItem extends Item {
   async reloadWeapon() {
     const actor = this.parent;
     if (!actor || this.type !== "weapon") return;
+    // Tracer rounds go only in full-auto weapons (Fields of Fire p.51) — checked before either reload path.
+    const src = actor.items.get(this.system.ammo?.sourceId);
+    if (src?.type === "ammo" && src.system.ammoType === "tracer" && !this.system.firingModes?.fa)
+      return ui.notifications.warn(`${this.name}: tracer rounds can be used only in full-auto weapons (Fields of Fire p.51).`);
     // Rigger 2: the one ammunition queue (4b.4) — a journalled reload through the GM.
     if (ammoQueued(this)) return queuedReload(this);
     // Reserve rounds are refundable stock: the reload reads and writes them inside the
@@ -884,6 +888,7 @@ export class SR2EItem extends Item {
     // Shotgun shot-round spread state (SR2E p.95) — measure shooter→target now,
     // while the attacker still has the target set, for the spread TN + cone.
     const isShotSpread = !!options.shotSpread && (this.system.choke ?? 0) >= 2;
+    let tracerMod = 0;   // Fields of Fire p.51
     let spreadMod = 0, spreadDist = 0, spreadShooterTok = null, spreadTargetTok = null;
     if (isShotSpread && canvas?.ready) {
       spreadShooterTok = actor.getActiveTokens?.()[0] ?? canvas.tokens?.controlled?.[0] ?? null;
@@ -1025,6 +1030,9 @@ export class SR2EItem extends Item {
         }
       }
       tnContext.smartlink = cyberwareMod < 0;   // Simsense Vertigo (Rigger 2 p.15)
+      // Tracers (Fields of Fire p.51): a shooter without a working smartgun link gets −1 per tracer beyond Short range.
+      tracerMod = ammo?.max > 0 && ammo.type === "tracer" && isBurst
+        ? tracerTnMod({ rounds, range, smartgun: cyberwareMod < 0 }) : 0;
 
       // Laser sight (p.90, p.240): −1 only out to 50 m, never on top of a
       // smartlink/goggles bonus. Unknown distance is left to the shooter.
@@ -1085,6 +1093,7 @@ export class SR2EItem extends Item {
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
                 + effVis_ + spreadMod + defaultingPenalty
                 + calledShotMod_ - aimCut_ + eng.tnMod + (r2?.mode === "manual" ? r2.extra : 0) + designatorMod_
+                + tracerMod
       );
       if (r2?.mode === "manual") for (const p of r2.extraParts) modParts.push(`${p.label} ${p.value > 0 ? "+" : ""}${p.value} (R2 p.57)`);
       // Sensor-enhanced (p.58): the target's Signature + the EW term + the table; recoil as manual; min 2. The p.89
@@ -1100,6 +1109,7 @@ export class SR2EItem extends Item {
         if (defaultingNote) modParts.push(defaultingNote);
       }
       if (calledShotMod_) modParts.push(`called shot +${calledShotMod_}`);
+      if (tracerMod)      modParts.push(`tracers ${tracerMod} (FoF p.51)`);
       if (aimCut_)        modParts.push(`aim −${aimCut_}`);
       if (barrierBlind_ && barrierBlind_ >= visMod) modParts.push("blind fire through barrier +8");
 
@@ -1328,7 +1338,7 @@ export class SR2EItem extends Item {
       // A burst of shot is still a burst (p.92): +1 Power per round, +1 level per
       // 3 full rounds — including a short one. The printed level is kept apart
       // for the vehicle "rated Light" check (p.108).
-      const spreadBurst = isBurst ? burstDamageBonus(rounds) : { powerBonus: 0, levelSteps: 0 };
+      const spreadBurst = isBurst ? burstDamageBonus(rounds, { tracer: this.system.ammo?.type === "tracer" }) : { powerBonus: 0, levelSteps: 0 };
       const state = {
         testMessageId: result.testMessageId, successes: result.successes, resolved: false,
         name: this.name, choke: this.system.choke, distance: spreadDist,
@@ -1375,11 +1385,12 @@ export class SR2EItem extends Item {
       // Burst damage (SR2E p.93): Power +1 per round in the burst, Damage
       // Level +1 per 3 full rounds (BF's fixed 3-round burst = +3 Power, +1 Level).
       if (isRanged && isBurst) {
-        const burst = burstDamageBonus(rounds);
+        const tracer = hasAmmo && ammo.type === "tracer";
+        const burst = burstDamageBonus(rounds, { tracer });
         effectivePower += burst.powerBonus;
         burstPowerAdded = burst.powerBonus;
         levelBonus = burst.levelSteps;
-        powerNotes.push(`+${burst.powerBonus} burst, level +${levelBonus}`);
+        powerNotes.push(`+${burst.powerBonus} burst${tracer && tracerRounds(rounds) ? ` (${tracerRounds(rounds)} tracer${tracerRounds(rounds) === 1 ? "" : "s"} add no Power, FoF p.51)` : ""}, level +${levelBonus}`);
       }
       effectivePower = Math.max(1, effectivePower);
       let powerNote = powerNotes.length

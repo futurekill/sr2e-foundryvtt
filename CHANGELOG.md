@@ -2,7 +2,15 @@
 
 ## Unreleased
 
+### Added
+- **Tracer rounds** (Fields of Fire p.51): they load only into full-auto weapons; in a burst every third round is a
+  tracer that adds no Power but still raises the Damage Level (5M × 10 rounds = 12D, not 15D), and a shooter without
+  a smartgun link gets −1 TN per tracer beyond Short range. How we read the page's open points is on the wiki's
+  Rulings page.
+
 ### Fixed
+- The Tracers and Ex-Explosive Rounds items now carry Fields of Fire p.51's prices (75¥ and 100¥ per 10, Street Index
+  1 and 1.5); they had wrong prices and said they came from the Street Samurai Catalog.
 - Deleting a mage no longer leaves an elemental that was sustaining one of their spells impossible to delete: the
   elemental lets go of the spell when its caster is deleted.
 

@@ -8,14 +8,15 @@
     "quantity": 10,
     "damageModifier": 2,
     "armorModifier": 0,
-    "cost": 80,
-    "notes": "Improved explosive rounds: Power +2. Misfires on an all-1s Attack Test, as explosive rounds. SSC.",
+    "cost": 100,
+    "notes": "Improved explosive rounds: Power +2, otherwise the standard explosive-round rules (misfire on an all-1s Attack Test, SR2E p.93). Availability 6/72 hrs. Fields of Fire p.51.",
     "damageType": "",
     "armorCalc": "standard",
     "citation": {
       "book": "ff",
       "page": "51"
-    }
+    },
+    "streetIndex": 1.5
   },
   "effects": [],
   "flags": {},

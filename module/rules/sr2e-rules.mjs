@@ -611,8 +611,24 @@ export function recoilPenalty(shotsFired, rounds, { isBurst, hasRecoil, recoilCo
  * @param {number} rounds
  * @returns {{ powerBonus: number, levelSteps: number }}
  */
-export function burstDamageBonus(rounds) {
-  return { powerBonus: rounds, levelSteps: Math.floor(rounds / 3) };
+export function burstDamageBonus(rounds, { tracer = false } = {}) {
+  // Tracer clips (Fields of Fire p.51): every third round is a tracer, which adds no Power to the burst but still
+  // counts toward its Damage Level (5M × 10 rounds = 12D, not 15D).
+  const n = Math.max(0, Math.floor(Number(rounds) || 0));
+  return { powerBonus: n - (tracer ? tracerRounds(n) : 0), levelSteps: Math.floor(n / 3) };
+}
+
+/** Tracer rounds in a burst of `rounds` from a tracer clip: every third round (Fields of Fire p.51). */
+export const tracerRounds = (rounds) => Math.floor(Math.max(0, Number(rounds) || 0) / 3);
+
+/**
+ * The tracer TN modifier (Fields of Fire p.51): a non-smartgun shooter beyond Short range gets −1 per tracer fired —
+ * −1 after the first three rounds, −2 after six (ruling: counted within the burst being fired). 0 at Short range,
+ * with a smartgun link, or for a single shot.
+ */
+export function tracerTnMod({ rounds = 0, range = "short", smartgun = false } = {}) {
+  if (smartgun || range === "short") return 0;
+  return 0 - tracerRounds(rounds);   // never -0
 }
 
 /**

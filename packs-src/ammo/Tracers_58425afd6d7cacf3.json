@@ -8,14 +8,15 @@
     "quantity": 10,
     "damageModifier": 0,
     "armorModifier": 0,
-    "cost": 25,
-    "notes": "Every third round visible in flight; treat as regular rounds. SSC.",
+    "cost": 75,
+    "notes": "Tracer-loaded clip: every third round is a tracer. Full-auto weapons only. A shooter without a smartgun link gets −1 TN per tracer fired beyond Short range (−1 after three rounds, −2 after six); tracers add no Power to a burst but still raise its Damage Level (5M × 10 rounds = 12D). Availability 3/24 hrs. Fields of Fire p.51.",
     "damageType": "",
     "armorCalc": "standard",
     "citation": {
       "book": "ff",
       "page": "51"
-    }
+    },
+    "streetIndex": 1
   },
   "effects": [],
   "flags": {},

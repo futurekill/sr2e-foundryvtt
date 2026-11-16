@@ -322,6 +322,35 @@ export function registerSR2EQuenchTests() {
         });
       });
 
+      describe("Tracer rounds (Fields of Fire p.51)", () => {
+        it("refuse a weapon without full auto; in a 10-round burst the tracers add no Power and −1 TN each beyond Short", async () => {
+          actor = await mkActor("Quench Tracers");
+          const made = await actor.createEmbeddedDocuments("Item", [
+            { name: "Test Tracers", type: "ammo", system: { ammoType: "tracer", quantity: 60 } },
+            { name: "Test SMG", type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "5M",
+              firingModes: { ss: false, sa: true, bf: true, fa: true }, ammo: { current: 0, max: 30 } } },
+            { name: "Test Pistol", type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "6M",
+              firingModes: { ss: false, sa: true, bf: false, fa: false }, ammo: { current: 0, max: 15 } } }]);
+          const tracers = made.find(i => i.type === "ammo"), smg = made.find(i => i.name === "Test SMG"), pistol = made.find(i => i.name === "Test Pistol");
+          await pistol.update({ "system.ammo.sourceId": tracers.id });
+          await pistol.reloadWeapon();
+          assert.equal(pistol.system.ammo.current, 0, "no tracers in a weapon without full auto");
+          await smg.update({ "system.ammo.sourceId": tracers.id });
+          await smg.reloadWeapon();
+          await game.sr2e.moneySettled?.(actor);
+          assert.equal(smg.system.ammo.type, "tracer");
+          const n = game.messages.size;
+          await smg.roll({ firingMode: "fa", rounds: 10, range: "medium" });
+          const msgs = game.messages.contents.slice(n);
+          const card = msgs.find(m => m.flags?.sr2e?.rangedDamage)?.flags.sr2e.rangedDamage;
+          const test = msgs.find(m => m.flags?.sr2e?.test)?.flags.sr2e.test;
+          assert.equal(card.power, 12, "5 + 10 − 3 tracers (FoF p.51's 12D)");
+          assert.equal(card.baseLevel, "D");
+          assert.match(JSON.stringify(test), /tracers -3/, "−3 TN beyond Short without a smartgun");
+          await ChatMessage.deleteDocuments(msgs.map(m => m.id));
+        });
+      });
+
       describe("Short bursts (SR2E p.92)", () => {
         // Forced 5s beat TN 4; recoilComp 3 cancels the burst's own recoil.
         const fire = async (name, current) => {
