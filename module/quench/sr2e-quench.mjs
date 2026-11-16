@@ -9161,6 +9161,20 @@ export function registerSR2EQuenchTests() {
         return { mage, fire, earth, nature, bolt: mage.items.getName("Mana Bolt"), armor: mage.items.getName("Armor") };
       }
 
+      describe("Deleting the caster", () => {
+        it("releases an elemental sustaining one of the caster's spells, so it can be deleted (2026-11-15)", async () => {
+          const { mage, earth, armor } = await setup();
+          await earth.update({ "system.service": "sustain", "system.sustainingSpellUuid": armor.uuid });
+          made.splice(made.indexOf(mage), 1);
+          await mage.delete();
+          for (let i = 0; i < 40 && earth.system.sustainingSpellUuid; i++) await new Promise(r => setTimeout(r, 50));
+          assert.equal(earth.system.sustainingSpellUuid, "", "the hold on the deleted spell is released");
+          made.splice(made.indexOf(earth), 1);
+          await earth.delete();
+          assert.notOk(game.actors.has(earth.id), "the elemental deletes");
+        });
+      });
+
       describe("Aid Sorcery (p.141)", () => {
         it("adds the elemental's dice, lowers its Force, and charges one service to start", async () => {
           const { fire, bolt } = await setup();

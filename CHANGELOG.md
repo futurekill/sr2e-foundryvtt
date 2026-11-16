@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Deleting a mage no longer leaves an elemental that was sustaining one of their spells impossible to delete: the
+  elemental lets go of the spell when its caster is deleted.
+
 ## 0.157.0 — 2026-11-15
 
 ### Added

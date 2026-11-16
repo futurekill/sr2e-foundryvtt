@@ -2200,6 +2200,12 @@ Hooks.on("deleteActor", (actor) => _refreshConjurer(actor));
 Hooks.on("deleteItem", (item) => {
   if (item.type === "spell" && item.isOwner) detachElementalHolder(item);
 });
+// Deleting the CASTER deletes its spells without a deleteItem per item, so release their elementals here too (else
+// the elemental keeps holding a spell that no longer exists and its delete is vetoed forever).
+Hooks.on("deleteActor", (actor) => {
+  if (!game.users.activeGM?.isSelf) return;
+  for (const spell of actor.items?.filter(i => i.type === "spell") ?? []) detachElementalHolder(spell);
+});
 
 Hooks.on("updateActor", (actor, changes) => {
   if (game.users.activeGM?.isSelf && changes.system?.conditionMonitor) _syncWoundStatuses(actor);
