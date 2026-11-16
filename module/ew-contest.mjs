@@ -99,7 +99,11 @@ async function applyStep(c, step) {
     await reconcileDumps(actor);
   }
 }
-const dumpUnfinished = (actor, dm) => { const d = actor?.flags?.sr2e?.rigDumps?.[dm.eid]; return !d || d.state === "pending"; };
+/** Missing, pending, or open without its effect and card yet (a crash inside reconcileDumps; c5b4 r2 #2). */
+const dumpUnfinished = (actor, dm) => {
+  const d = actor?.flags?.sr2e?.rigDumps?.[dm.eid];
+  return !d || d.state === "pending" || (d.state === "open" && !(d.effect && d.card));
+};
 
 /** Every step with something left to apply, in journal order across contests. */
 function pendingSteps(j) {

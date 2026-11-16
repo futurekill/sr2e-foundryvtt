@@ -273,6 +273,7 @@ export async function rcValidate(actor) {
       // An uninstalled implant can't run for anyone: its live contests are void, journalled first (c5b4 r1 #4).
       if (CONTEST?.onControlChange) await CONTEST.onControlChange(deck, "removed");
       const net = freshNet(deck); net.connection = { state: "disconnected", gen: num(net.connection.gen) + 1 }; net.primary = null;
+      delete net.takenBy;   // an uninstalled implant runs for no one; reinstalled, it's its owner's (c5b4 r2 #1)
       await save(deck, net);
     }
   });

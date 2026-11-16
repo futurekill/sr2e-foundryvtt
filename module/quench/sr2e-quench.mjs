@@ -19776,6 +19776,10 @@ export function registerSR2EQuenchTests() {
             await T.a.update({ [`flags.sr2e.rigDumps.${eid}.state`]: "pending" });
             await EWC.recover();
             assert.notEqual(T.a.flags.sr2e.rigDumps[eid].state, "pending", "recovery reopens a pending contest dump");
+            // r2 #2: open, but its card never posted (a crash inside reconcileDumps) → recovery finishes it.
+            await T.a.update({ [`flags.sr2e.rigDumps.${eid}.-=card`]: null });
+            await EWC.recover();
+            assert.ok(T.a.flags.sr2e.rigDumps[eid].card, "recovery posts the missing card");
             // c5b4 r1 #1: the loser's owner can't simply reconnect a taken network.
             const player = game.users.find(u => !u.isGM);
             if (player) {
