@@ -1328,3 +1328,45 @@ checks the path's TN against it and refuses a card without one. Quench asserts b
 No material issues found in commit 4def5f29. IVIS validation now checks the card’s base TN, so a wound modifier cannot satisfy the Skill Web default TN.
 
 VERDICT: APPROVED
+
+## Part 5b-1 code, round 1 — Codex (commits ac462ed7 deb1de0b b5d73c97 43ef4fed; gpt-6-sol, high): REVISE, 7 findings
+
+The review found material failures in the listed commits:
+
+1. **An already full channel can be stolen with zero applied boxes.** In [settleMiji](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:358), `full` remains true when a later attacker applies zero boxes; a meaconing or intrusion result then overwrites the first intruder’s authority. **Fix:** grant authority only when this exchange adds boxes and takes the channel from below 10 to 10.
+
+2. **Disconnecting and reconnecting restores captured authority.** [channelAuthority](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:74) checks the intruder’s current connection and operator, but no connection generation. [rcDisconnect](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:383) leaves the authority record in place, so reconnecting the same operator revives it. **Fix:** stamp the intruder connection generation and clear or reject authority after an exit.
+
+3. **Open EW actions can settle against changed state.** [ewMijiStart](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:225) records `freqGen` but no target revision or participant generations; [settleMiji](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:353) checks only `freqGen`. For example, the defender can regenerate or change operators while an exchange is open, and the old attack still applies. A decryption card rolled before a frequency switch can likewise be accepted at the new generation by [ewDecrypt](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:160). **Fix:** record the plan’s action stamps at reservation and reject mismatches at commit.
+
+4. **Captured commands bypass existing command rules.** [ewCommand](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:270) accepts an affiliated drone without the reachability and primary checks used by [rcOrder](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:409); its [client roll](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/deck-panel.mjs:247) also omits the secondary-command and command-jamming TN modifiers. A captured command can therefore succeed out of range or at too low a TN. **Fix:** apply the same live command eligibility and TN rules, and validate the card and dependency stamps at commit.
+
+5. **The captured system channel does not provide the specified data.** The free [ewRead path](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:209) reports damage only; position, heading, and ammunition for a chosen drone are absent. The system-channel indirect-fire effect also has no consumer because Part 4b passes no deck, as scoped in the request. **Fix:** implement the per-drone system-data read; leave indirect-fire routing for its later integration.
+
+6. **EW penalties leak into the core ruleset.** [riggerSimsenseMod](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:103) reads persisted network monitors without an `isRigger2()` guard, and [testTnModifiers](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:444) applies it to ordinary tests. Switching a world with an active jammed network to core rules leaves the penalty active. **Fix:** gate EW-derived modifiers on Rigger 2 mode.
+
+7. **Named interception channels are not bound to the roll.** The [client](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/deck-panel.mjs:184) asks for names before rolling, but the card contains only `kind`; [ewIntercept](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:175) trusts names supplied after the result is known. A requester can use a one-success card to select whichever channel they now prefer. **Fix:** store the named channels on the roll card and verify them in the GM operation.
+
+VERDICT: REVISE
+
+### Claude's response (commit f532a480) — 6 taken, 1 in part
+1 Verified: authority (and the carrier loss / dump) now only when THIS exchange adds boxes and takes the channel from
+below 10 to 10. Quench: a later zero-box intrusion leaves the first filler's authority.
+2 Verified (rcDisconnect left the record): the authority stores the intruder's connection generation at the fill and
+`channelAuthority` refuses a different one. Quench: disconnect + reconnect → the owner holds it.
+3 Taken in part. Every EW card now carries what it was rolled for (`flags.sr2e.ew`: decrypt/intercept = target +
+freqGen; MIJI = aid + side) and `checkCard` refuses a mismatch. A MIJI exchange stores a dependency stamp at start
+(both operators, both connection generations, freqGen, alert — the TN inputs) and voids on any change, at either roll
+and at settlement. NOT taken: voiding on the target's `rev` / on a regeneration — every network write bumps `rev`
+(the owner's own orders would void every attack), and a regeneration doesn't change the exchange's TNs or dice; the
+result is applied, capped, to the channel as it is at settlement, which is what the opposed test decides.
+4 Verified: ewCommand now refuses the owner's primary and an unreachable drone (as rcOrder), the card carries the hold
+(`authEvent`) and freqGen it was rolled under, and its base TN must be at least the lowest table TN + the live
+secondary-command (+2 when the intruder is jumped in, derived at commit) and command-jamming modifiers
+(`commandTest`, shared with the client). Quench: a card from an earlier hold is refused.
+5 Taken: reading the system channel names ONE drone and reports its position, heading, ammunition and damage.
+Indirect fire stays unrouted (out of scope, as the request said).
+6 Taken: `riggerSimsenseMod` and `netTestMod` return 0 outside Rigger 2 (droneTestMod already was: networkOf is null).
+7 Taken: the named channels are recorded on the interception card and the op reads them from it; a `named` argument
+is ignored. Quench asserts the card's names win.
+Quench r2-advanced + vehicle-chase 48/48.
