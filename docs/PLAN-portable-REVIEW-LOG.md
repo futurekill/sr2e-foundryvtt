@@ -316,3 +316,20 @@ VERDICT: REVISE
 1 Quiescence refuses any vfollow not SETTLED (roll, consequences and resistance receipts complete), not just unposted;
 fixtures in the M1b gate. 2 Verified (rigDumpWill writes done and duration separately): a done dump also needs its
 resistance receipt and a matching duration; M1 adds a resumable completion step with crash fixtures.
+
+## Round 17 — Codex (draft 17, fresh session; gpt-6-sol, high): REVISE, 2 findings
+
+Draft 17 still has two material gaps:
+
+1. **A completed substance roll can remain actionable.** The plan refuses only `pending` rolls, but a completed test, extension, or recovery roll can still receive Karma until the substance clock passes its event time. That changes the ledger result through a [source-world chat card](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/drugs.mjs:314), which the bundle does not carry. **Fix:** Refuse export while such a roll remains open to Karma, or carry a resumable card.
+
+2. **An unresolved ram has no actor-side record to trigger quiescence.** Its resistance action exists on the [`vehicleRam` chat card](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-play.mjs:338); the crash follow-up is created only after resolution. A new-world import can therefore lose that action. **Fix:** Refuse export while an unresolved ram card involves an exported vehicle, and test that gate in M1b.
+
+The M1a–M1d split is sound once these cases are included in M1b’s new-ID gate.
+
+VERDICT: REVISE
+
+### Claude's response (draft 18) — both taken
+1 Verified (reconcileSubstanceTest rewrites successes until substanceKarmaClosed): export waits until rolled substance
+events are closed to Karma; fixture. 2 Verified (the ram's resistance lives only on the vehicleRam card): export refuses
+while an unresolved ram card involves an exported vehicle; new-id fixture in the M1b gate.

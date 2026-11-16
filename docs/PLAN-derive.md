@@ -1,5 +1,5 @@
 # Plan: the pure derive layer (chargen milestone M2)
-_Draft 13 (2026-11-15), after Codex rounds 1–12 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
+_Draft 14 (2026-11-15), after Codex rounds 1–13 (9 + 3 + 3 + 2 + 5 + 3 + 3 + 3 + 4 + 3 + 3 + 3 + 2 findings, all taken). Implements milestone **M2 Derive extraction** of the standalone character generator
 (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12): decisions **D1** (the system repo is the shared package),
 **D2** (behaviour-preserving, incremental, parity-tested), **D3** (Active Effects audit), **D9** (an explicit
 `DeriveContext`) and the M2 gate. Those decisions are the requirement; this plan makes them buildable._
@@ -45,7 +45,7 @@ milestone, and each keeps its execution position (a thin call where the code is 
 `_applySkillsofts`, `_applyAdeptSkills`, `_applyWeaponFoci`, `_applyUnarmedPower` → **M2j** (skills and foci, after
 M2f's pools, as today); the actor getters (round 9 #2: `woundPenalty` reads `withdrawalStun`, which folds substance state from
 `system.parent` — it becomes an explicit `ctx` read, with a withdrawal-at-zero-Stun fixture; `woundPenalty`, `sustainPenalty`, `mpcpOverloadPenalty`, `bodyOverstressTN`,
-`isMagical`/`isDecker`/`isRigger`) → **M2h** with the monitors, except `astralReaction` → **M2d** (round 3 #1: M2d's
+`isMagical`/`isDecker`/`isRigger`, and `woundLevel` — round 13 #2: computed on demand from the Physical/Stun boxes, so the getter and projection parity gate assert it, e.g. six Physical boxes → "Serious") → **M2h** with the monitors, except `astralReaction` → **M2d** (round 3 #1: M2d's
 Initiative reads it when projecting — a plain system would give `undefined + 15`; fixtures: a projecting magician and a
 projecting shapeshifter, Node and browser); the item getters `actualEssenceCost`,
 `actualBodyCost`, adept `totalCost` (round 1 #1) → pure computations evaluated at their EXISTING consumption points,
@@ -194,7 +194,11 @@ gate) — so a missing file fails the release.
 **Golden projections** (round 1 #5): before M2a moves anything, the harness records the CURRENT code's prepared
 projections (actor AND embedded items) for every fixture into `test/fixtures/derive/golden/` (with the system version);
 each extraction release must reproduce them exactly — so a regression shared by the thin caller and the pure path still
-fails. Edits, mechanism removals and repeated preparation run on PERSISTENT working instances (the same objects
+fails. Frame-core removal (round 13 #1): `ProgramData` assigns `coreProblems`, `capacity`, `initiative`, `coreWritten`,
+`activeLoad` and `frameSize` only while `isCore`, so clearing `frameCore.kind` on a prepared item leaves them behind.
+A SEPARATE correction release before any item extraction assigns them in both directions (cleared when not a core),
+the goldens are refreshed in that release, and a fixture turns a core into an ordinary program and prepares it TWICE
+on the same instance. Edits, mechanism removals and repeated preparation run on PERSISTENT working instances (the same objects
 prepared again), not fresh copies, so stale item fields show up.
 
 Quench batch `sr2e.derive-parity` (the Foundry path needs Foundry): for each fixture, prepare the actor in Foundry,

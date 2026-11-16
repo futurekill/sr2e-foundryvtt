@@ -231,3 +231,18 @@ VERDICT: REVISE
 1 Stage parity runs on Foundry-captured inputs until the pipeline is fully pure; skillsoft application is extracted
 before the Hacking Pool. 2 The descriptor carries each field subclass's validation options (DocumentUUIDField type/
 embedded). 3 The normaliser oracle compares .system; document fields tested separately.
+
+## Round 13 — Codex (draft 13, fresh session; gpt-6-sol, high): REVISE, 2 findings
+
+**Two material gaps remain in draft 13:**
+
+- **Frame-core removal is missing from the repeated-preparation gate.** [ProgramData](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:1163) sets `coreProblems`, `capacity`, `initiative`, `coreWritten`, `activeLoad`, and `frameSize` only while `isCore` is true. Clearing `frameCore.kind` on the same prepared item leaves those values behind. The [planned removal fixtures](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:201) remove a program, but do not test this transition; moving the code verbatim preserves the stale state. **Fix:** schedule a separate both-directions correction before extraction, refresh the goldens, and test core-to-ordinary-program preparation twice.
+
+- **`woundLevel` has no extraction assignment.** [CharacterData computes it on demand](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:1684), but [§1.2’s actor-getter list](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-derive.md:42) omits it. A plain character with six Physical boxes would lack the computed “Serious” level even if the stated M2 checks passed. **Fix:** assign `woundLevel` to M2h and include it in the getter and projection parity gate.
+
+VERDICT: REVISE
+
+### Claude's response (draft 14) — both taken
+1 Verified (ProgramData assigns the core fields only while isCore): a separate both-directions correction release before
+item extraction, goldens refreshed, core→ordinary program prepared twice. 2 woundLevel assigned to M2h and asserted in
+the getter/projection parity gate.

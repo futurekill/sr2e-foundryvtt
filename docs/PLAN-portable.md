@@ -1,5 +1,5 @@
 # Plan: portable characters — Foundry export/import (chargen milestone M1)
-_Draft 17 (2026-11-15), after Codex rounds 1–16 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
+_Draft 18 (2026-11-15), after Codex rounds 1–17 (13 + 8 + 6 + 3 + 3 + 2 + 3 + 1 + 4 + 3 + 4 + 3 + 2 + 3 + 3 + 2 + 2 findings; round 12 #3 answered differently, see the log); draft 3 added the reader audit
 (docs/PORTABLE-FLAG-INVENTORY.md). Implements milestone **M1** of the standalone
 character generator (../sr2e-chargen/docs/PLAN.md, approved at Codex round 12: "Portable character JSON", D4–D13,
 Milestones → M1). That plan is the requirement; this one is HOW it is built in the system repo. Useful on its own as a
@@ -78,7 +78,14 @@ from their synthetic source. A reference to something not exported → `unresolv
   and Willpower steps live in the source world; `reconcileDumps` joins the barrier's drained reconcilers); a PENDING substance roll (round 11 #3: a
   `substanceLog` test, extension or recovery record with `pending: true` is claimed before its card exists, and
   `settleSubstances` deletes it as abandoned in a world without that card; fixture interrupted between claim and
-  card); a ROLLED subsystem follow-up
+  card) — and a COMPLETED substance roll still OPEN to Karma (round 17 #1: until `substanceKarmaClosed` — the clock past
+  the event's time — a Karma spend on the source-world card rewrites the event's successes through
+  `reconcileSubstanceTest`, and the bundle carries no card: export waits until every exported ledger's rolled events
+  are closed, naming them; fixture with a rolled test/extension/recovery before the clock passes it); an UNRESOLVED
+  ram (round 17 #2: a `vehicleRam` card not resolved whose ram involves an exported vehicle or its driver — its
+  resistance action lives only on that card, and the crash follow-up is created only on resolution, so no actor-side
+  record exists; the check scans world ChatMessages for `flags.sr2e.vehicleRam` without `resolved`, matching both
+  vehicles' uuids, and the M1b gate gets a new-id fixture with an open ram); a ROLLED subsystem follow-up
   (`vfollow.<fid>.subsystem.rolled`) without `consequencesDone` (round 9 #3: its crash, engine and passenger
   consequences replay from the source world's follow-up; fixture interrupted between the roll and the consequences); an
   ACTIVE indirect-fire guidance record (round 9 #4: `flags.sr2e.guidance.<id>` in `acquired` or `committed` — its +2 TN
