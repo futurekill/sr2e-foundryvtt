@@ -80,8 +80,11 @@ export function bindPullCard(message, html) {
   });
 }
 
-/** A damaged arm with no bought-up Strength to reduce: Table 8's TN (+1 Light, +3 Moderate); the best working arm is used. */
-const armDamageTn = (vehicle) => { const m = (vehicle.system.effective?.arms ?? []).map(a => num(a.tnMod)); return m.length ? Math.min(...m) : 0; };
+/** Pick the arm a test uses (c5c r3 #1): its damage TN (Table 8, an arm with no bought-up Strength) applies. */
+const armSelect = (vehicle) => { const arms = vehicle.system.effective?.arms ?? [];
+  return arms.length > 1 ? `<div class="form-group"><label>Arm</label><select name="arm">${arms.map(a => `<option value="${a.itemId}">${esc(a.name)}${a.damaged ? ` (damaged${a.tnMod ? `, +${a.tnMod} TN` : ""})` : ""}</option>`).join("")}</select></div>` : ""; };
+const armTnOf = (vehicle, itemId) => { const arms = vehicle.system.effective?.arms ?? [];
+  return num((arms.find(a => a.itemId === itemId) ?? arms[0])?.tnMod); };
 
 /* ── Mechanical arms (p.34–35) ────────────────────────────────────────────────────────────────────────────────── */
 
@@ -122,14 +125,15 @@ export async function armTestDialog(vehicle) {
   const h = armHands(vehicle);
   if (!h) return warn(`${vehicle.name} has no one controlling it${vehicle.system.vehicleType === "drone" ? " and no Pilot" : ""} to work its arm.`);
   const handling = num(vehicle.system.effectiveHandling);
-  const armTn = armDamageTn(vehicle);
   const poolMax = h.rigged ? Math.min(num(h.actor.system.dicePools?.control?.value), h.dice) : 0;
   const f = await prompt(`Arm Test — ${vehicle.name}`, `<p>Rigger 2 p.34: ${esc(h.actor.name)}'s ${h.what} (${h.dice}) vs the Handling (${handling}).
       The GM may lower the TN for a simple task or raise it for a hard one.</p>
+    ${armSelect(vehicle)}
     <div class="form-group"><label>GM's TN change</label><input type="number" name="gm" value="0"></div>
     ${poolMax ? `<div class="form-group"><label>Control Pool (rigged, max ${poolMax})</label><input type="number" name="pool" value="0" min="0" max="${poolMax}"></div>` : ""}`,
-    (e) => ({ gm: num(e.gm.value), pool: num(e.pool?.value) }));
+    (e) => ({ gm: num(e.gm.value), pool: num(e.pool?.value), arm: e.arm?.value ?? "" }));
   if (!f) return null;
+  const armTn = armTnOf(vehicle, f.arm);
   const label = `${vehicle.name}: Arm Test (${h.what}; Handling ${handling}${f.gm ? `, GM ${f.gm > 0 ? "+" : ""}${f.gm}` : ""}; Rigger 2 p.34)`;
   if (h.drone) {
     const pools = await dronePools(vehicle, label);
@@ -150,10 +154,11 @@ export async function armSkillDialog(vehicle) {
   const skills = h.drone ? [] : h.actor.items.filter(i => i.type === "skill" && num(i.system.rating) > 0).sort((a, b) => a.name.localeCompare(b.name));
   const f = await prompt(`Skill through the arm — ${vehicle.name}`, `<p>Rigger 2 p.34: the skill's usual target number +${mod} (Handling ${vehicle.system.effectiveHandling} above 3).</p>
     ${h.drone ? `<p>The drone uses its Pilot (${h.dice}).</p>` : `<div class="form-group"><label>Skill</label><select name="skill">${skills.map(s => `<option value="${s.id}">${esc(s.name)} ${s.system.rating}</option>`).join("")}</select></div>`}
+    ${armSelect(vehicle)}
     <div class="form-group"><label>The task's TN</label><input type="number" name="tn" value="4" min="2"></div>`,
-    (e) => ({ skill: e.skill?.value ?? "", tn: Math.max(2, num(e.tn.value)) }));
+    (e) => ({ skill: e.skill?.value ?? "", tn: Math.max(2, num(e.tn.value)), arm: e.arm?.value ?? "" }));
   if (!f) return null;
-  const tn = f.tn + mod + armDamageTn(vehicle), label = `${vehicle.name}'s arm: TN ${f.tn} + ${mod} Handling (Rigger 2 p.34)`;
+  const tn = f.tn + mod + armTnOf(vehicle, f.arm), label = `${vehicle.name}'s arm: TN ${f.tn} + ${mod} Handling (Rigger 2 p.34)`;
   if (h.drone) {
     const pools = await dronePools(vehicle, label);
     if (!pools) return null;
