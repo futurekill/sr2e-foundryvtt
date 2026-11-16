@@ -1324,7 +1324,9 @@ export class SR2EActor extends Actor {
     // By rollable key, else by the node's label as vehicle skills are keyed ("Motorboat" → "motorboat").
     const norm = (s) => String(s).toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
     const target = Object.keys(web.nodes).find((k) => web.nodes[k].skillKey === skillKey)
-      ?? Object.keys(web.nodes).find((k) => web.nodes[k].type === "skill" && norm(web.nodes[k].label) === skillKey) ?? null;
+      ?? Object.keys(web.nodes).find((k) => web.nodes[k].type === "skill" && norm(web.nodes[k].label) === skillKey)
+      ?? (web.nodes[skillKey]?.type === "skill" ? skillKey : null)   // vehicle keys are node keys ("winged"; c-post r1 #2)
+      ?? null;
     return this._webDefaultForNode(target, null, { perCircle: vcr ? vcrPerCircle(target) : undefined });
   }
 

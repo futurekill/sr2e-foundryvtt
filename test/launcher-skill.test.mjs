@@ -21,3 +21,24 @@ describe("Removed 3rd-edition skills (2026-11-15)", () => {
     expect(isVehicleSkillName("Motorboat")).toBe(true);
   });
 });
+
+import { webNodeForLabel } from "../module/rules/sr2e-rules.mjs";
+import { MIGRATIONS } from "../module/migrations.mjs";
+describe("c-post r1 fixes", () => {
+  it("a vehicle skill's book name finds its Skill Web node (#2)", () => {
+    const web = { nodes: { winged: { label: "Winged Aircraft", type: "skill" }, rotor: { label: "Rotor Aircraft", type: "skill" },
+      vectorThrust: { label: "Vector Thrust Aircraft", type: "skill" }, car: { label: "Car", type: "skill" } } };
+    expect(webNodeForLabel(web, "Winged Plane")).toBe("winged");
+    expect(webNodeForLabel(web, "Rotor Craft")).toBe("rotor");
+    expect(webNodeForLabel(web, "Vectored Thrust")).toBe("vectorThrust");
+    expect(webNodeForLabel(web, "Car")).toBe("car");
+    expect(webNodeForLabel(web, "Pilot")).toBe(null);
+  });
+  it("0.158.0 clears a vehicle's 'pilot' skill and moves Launch Weapons launchers (#1)", () => {
+    const m = MIGRATIONS.find(e => e.version === "0.158.0");
+    expect(m.migrateActor({ type: "vehicle", system: { skill: "pilot" } })).toEqual({ "system.skill": "" });
+    expect(m.migrateActor({ type: "vehicle", system: { skill: "winged" } })).toBe(null);
+    expect(m.migrateItem({ type: "weapon", name: "ArmTech MGL-12", system: { skill: "launch_weapons" } })).toEqual({ "system.skill": "firearms" });
+    expect(m.migrateItem({ type: "weapon", name: "Colt", system: { skill: "firearms" } })).toBe(null);
+  });
+});

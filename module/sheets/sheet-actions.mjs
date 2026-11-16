@@ -8,7 +8,7 @@ import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
 import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
-         footprintDistance, areaTargetEligible, blastRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays, taskPoolApplies } from "../rules/sr2e-rules.mjs";
+         footprintDistance, areaTargetEligible, blastRadius, smokeCloudRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays, taskPoolApplies } from "../rules/sr2e-rules.mjs";
 import { miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { contactReaction } from "../rules/ware-rules.mjs";
 import { nullInactivityMod } from "../rules/vr2-decoy-rules.mjs";
@@ -1861,7 +1861,8 @@ export async function rollWeaponInteractive(actor, item) {
   // the roll, so a cancelled click spends nothing.
   if (item.system.blastType && opts.aimAt === "point") {
     const dmg = evaluateDamageCode(item.system.damageCode, this.document);
-    const pt = await promptForCanvasPoint(item.name, { radius: blastRadius(dmg.power, blastFalloffRate(item.system.blastType)), note: "before scatter" });
+    const radius = item.system.blastType === "smoke" ? smokeCloudRadius(item.name) : blastRadius(dmg.power, blastFalloffRate(item.system.blastType));
+    const pt = await promptForCanvasPoint(item.name, { radius, note: "before scatter" });
     if (!pt) return;
     opts.blastPoint = { x: pt.x, y: pt.y, sceneId: canvas.scene?.id ?? null };
   }

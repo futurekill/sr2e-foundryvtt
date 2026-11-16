@@ -716,6 +716,11 @@ export const MIGRATIONS = [
     migrateItem(source) {
       if (source.type !== "weapon" || source.system?.skill !== "launch_weapons") return null;
       return { "system.skill": launcherSkill(source.name) };
+    },
+    // A vehicle explicitly set to the removed "pilot" skill falls back to its type's SR2 skill (c-post r1 #1).
+    migrateActor(source) {
+      if (source.type !== "vehicle" || source.system?.skill !== "pilot") return null;
+      return { "system.skill": "" };
     }
   }
 ];
@@ -1075,10 +1080,27 @@ export function reportInvalidDocuments() {
   ui.notifications.warn(r.notice, { permanent: true });
 }
 
+/**
+ * Characters still holding a skill SR2 doesn't have (removed in 0.158.0): Launch Weapons (launchers are Firearms or
+ * Gunnery) and Pilot (each vehicle type has its own skill). Which skill a rating stood for is the GM's call, so they're
+ * reported on every GM load until replaced, never converted (c-post r1 #1).
+ */
+export function reportLegacySkills() {
+  const hits = [];
+  const scan = (a) => { for (const i of a?.items ?? []) if (i.type === "skill" && /^(launch weapons|pilot)$/i.test(i.name?.trim() ?? "")) hits.push(`${a.name}: ${i.name} ${i.system?.rating ?? 0}`); };
+  for (const a of game.actors ?? []) scan(a);
+  for (const sc of game.scenes ?? []) for (const t of sc.tokens) if (!t.actorLink) scan(t.actor);
+  if (!hits.length) return;
+  console.warn("SR2E | Skills SR2 doesn't have (0.158.0):\n  " + hits.join("\n  "));
+  ui.notifications.warn(`${hits.length} character skill${hits.length === 1 ? "" : "s"} SR2 doesn't have (Launch Weapons, Pilot): replace each with Firearms / Gunnery or the vehicle skill it stood for. The console lists them.`, { permanent: true });
+}
+
 /** Ready-time GM work: migrate, then report, each in its own boundary so one failing can't skip the other. */
 export async function migrateAndReport(migrate = migrateWorld, report = reportInvalidDocuments) {
   try { await migrate(); }
   catch (err) { console.error("SR2E | World migration failed:", err); }
   try { report(); }
   catch (err) { console.error("SR2E | Couldn't report documents that failed to load:", err); }
+  try { if (report === reportInvalidDocuments) reportLegacySkills(); }
+  catch (err) { console.error("SR2E | Couldn't report legacy skills:", err); }
 }

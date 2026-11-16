@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Untrained drivers default properly with the new vehicle skills.** A Winged Plane, Rotor Craft or Vectored Thrust
+  skill now counts on the Skill Web, so a related skill gives its default instead of Reaction +4.
+- **Characters still holding Launch Weapons or Pilot** are listed in a warning on every GM load (with the console
+  naming each) until the GM replaces them; which skill each stood for is the GM's call, so nothing is converted. A
+  vehicle explicitly set to the old "pilot" skill falls back to its type's skill.
+- **Deleting an elemental right after its caster** works: a hold on a spell that no longer exists no longer vetoes it.
+- **Aiming a smoke grenade at a point** previews its 10 m cloud (it previewed 0 m).
+
 ## 0.158.0 — 2026-11-15
 
 ### Added

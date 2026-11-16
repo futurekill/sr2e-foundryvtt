@@ -2191,6 +2191,10 @@ function _refreshConjurer(spirit) {
 Hooks.on("preDeleteActor", (actor) => {
   const s = actor.system;
   if (actor.type !== "spirit" || !(s?.pendingExpireSpellUuid || (s?.service === "sustain" && s?.sustainingSpellUuid))) return;
+  // A hold on a spell that no longer exists (its caster deleted) can't keep anything running: let the delete through,
+  // synchronously, so deleting the elemental right after its caster works (c-post r1 #3).
+  const held = s.pendingExpireSpellUuid || s.sustainingSpellUuid;
+  if (!fromUuidSync(held)) return;
   ui.notifications.warn(`${actor.name} still holds a spell — banish it from its mage's sheet, hand the spell back, or finish expiring it first.`);
   return false;
 });

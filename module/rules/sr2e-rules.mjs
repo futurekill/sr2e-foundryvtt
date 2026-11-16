@@ -1257,6 +1257,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
   return out;
 }
 
+import { VEHICLE_WEB_NODES, vehicleSkillMatches } from "./vehicle-r2-rules.mjs";
 import { limbOptionPrice } from "./limb-stats.mjs";
 import { MUSCLE, muscleFactor } from "./ware-rules.mjs";
 import { programSizes } from "./vr2-options.mjs";
@@ -2179,7 +2180,9 @@ export function webDefaultingTN(web, target, owned = [], { perCircle = () => 2 }
 export function webNodeForLabel(web, name) {
   const norm = (s) => (s ?? "").toLowerCase().trim();
   const t = norm(name);
-  return Object.keys(web?.nodes ?? {}).find((k) => norm(web.nodes[k].label) === t) ?? null;
+  return Object.keys(web?.nodes ?? {}).find((k) => norm(web.nodes[k].label) === t)
+    // A vehicle skill by any of its book names ("Winged Plane" is the "Winged Aircraft" node; c-post r1 #2).
+    ?? Object.keys(web?.nodes ?? {}).find((k) => VEHICLE_WEB_NODES.has(k) && vehicleSkillMatches(name, k)) ?? null;
 }
 
 // --- Bioware / Body Index (Shadowtech FASA7110, p.5–7) ------------------------

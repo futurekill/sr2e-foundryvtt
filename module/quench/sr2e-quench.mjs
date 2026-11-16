@@ -9196,11 +9196,11 @@ export function registerSR2EQuenchTests() {
           await earth.update({ "system.service": "sustain", "system.sustainingSpellUuid": armor.uuid });
           made.splice(made.indexOf(mage), 1);
           await mage.delete();
-          for (let i = 0; i < 40 && earth.system.sustainingSpellUuid; i++) await new Promise(r => setTimeout(r, 50));
-          assert.equal(earth.system.sustainingSpellUuid, "", "the hold on the deleted spell is released");
+          // Immediately, with no wait for the hook's cleanup (c-post r1 #3): a hold on a spell that no longer exists
+          // doesn't veto the delete.
           made.splice(made.indexOf(earth), 1);
           await earth.delete();
-          assert.notOk(game.actors.has(earth.id), "the elemental deletes");
+          assert.notOk(game.actors.has(earth.id), "the elemental deletes at once");
         });
       });
 
