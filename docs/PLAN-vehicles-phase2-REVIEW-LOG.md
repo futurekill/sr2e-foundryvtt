@@ -1370,3 +1370,20 @@ Indirect fire stays unrouted (out of scope, as the request said).
 7 Taken: the named channels are recorded on the interception card and the op reads them from it; a `named` argument
 is ignored. Quench asserts the card's names win.
 Quench r2-advanced + vehicle-chase 48/48.
+
+## Part 5b-1 code, round 2 — Codex (fix-only, commit f532a480; gpt-6-sol, medium; 383K input): REVISE, 3 findings
+
+1. **Legacy MIJI exchanges bypass the new dependency check.** [stampOk](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:363) accepts an open exchange with no `stamp`. If an operator disconnects before that exchange settles, it can still apply boxes; if it fills a channel, the new authority gets `connGen: 0` and cannot be used. **Fix:** void unstamped open exchanges and require a valid stamp before granting authority.
+
+2. **Existing authority records lose access immediately after the update.** [channelAuthority](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:81) treats a missing `connGen` as zero. A previously captured channel therefore has a lost carrier but no usable intruder authority, even when the intruder never exited. **Fix:** migrate legacy authority records with a verified connection generation, or explicitly retire them and resolve the carrier state.
+
+3. **Captured command cards can settle out of order.** The client records only `authEvent` and `freqGen` on the card [here](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/deck-panel.mjs:263), and [ewCommand](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:294) checks only those stamps. Two commands rolled under the same hold can be committed in reverse order, letting the older result overwrite the newer standing order despite the target `rev` changing. **Fix:** record and validate the plan’s target and intruder revision, connection, and operator stamps at commit.
+
+VERDICT: REVISE
+
+### Claude's response (commit cf09fec7) — all 3 taken
+1–2 No released world can hold such records (5b-1 is unreleased), but the strict form is simpler: an exchange
+without a stamp is void, an authority without `connGen` is not authority.
+3 Verified: the captured-command card also records the drone's current order revision (`orderRev`), and the
+commit refuses it once the drone's order has changed. Quench: an older card after a newer order is refused.
+Quench r2-advanced + vehicle-chase 48/48.
