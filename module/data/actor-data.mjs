@@ -607,6 +607,14 @@ export class CharacterData extends SR2EDataModel {
         used += cost;
       }
       this.adeptPowerPoints.value = used;
+      // Limits on TOTALS across powers (two powers can't split their way past them).
+      const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? CONFIG.SR2E.racialMaximums.human;
+      if ((raised.reaction ?? 0) > 1.5 * (maxes.reaction ?? 6)) this.adeptPowerProblems.push(`+${raised.reaction} Reaction from powers is over 1.5 × the racial maximum (p.126).`);
+      for (const [skill, dice] of Object.entries(raised.skills ?? {})) {
+        const sk = (this.parent?.items ?? []).find(i => i.type === "skill" && i.name.toLowerCase() === skill);
+        if (sk && cappedImprovedAbilityDice(sk.name, sk.system.rating, dice) < dice)
+          this.adeptPowerProblems.push(`${dice} Improved Ability dice on ${sk.name} ${sk.system.rating}: a Combat Skill can't have more extra dice than its rating (p.125).`);
+      }
       if (used > this.magic.value) this.adeptPowerProblems.push(`${used} power points used; the Magic Rating gives ${this.magic.value} — give up improvements to match (p.126).`);
     }
 
@@ -714,25 +722,27 @@ export class CharacterData extends SR2EDataModel {
     const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? CONFIG.SR2E.racialMaximums.human;
     const attr = improvedAttributeOf(key, sys.attributeMods);
     const level = Math.max(1, sys.level ?? 1), kind = key.split(":")[0];
-    let ctx = { key };
+    let ctx = { key }, points = level;
     if (attr) {
+      // A generic power raising by more than 1 per level is priced by the points it actually adds.
+      points = level * Math.max(1, Math.floor(Number(sys.attributeMods?.[attr]) || 1));
       const natural = (this[attr]?.base ?? 0) + (this[attr]?.racial ?? 0), before = raised[attr] ?? 0;
       if (before) problems.push(`${item.name}: a second power on ${attr} — priced on from the first (one per attribute is the norm).`);
       ctx = { key, base: natural + before, racialMax: maxes[attr] };
-      raised[attr] = before + level;
+      raised[attr] = before + points;
       if (natural + raised[attr] > 1.5 * maxes[attr]) problems.push(`${item.name}: ${attr} ${natural + raised[attr]} is over 1.5 × the racial maximum (p.125).`);
     }
     if (ADEPT_TABLE_MAX[kind] && level > ADEPT_TABLE_MAX[kind]) problems.push(`${item.name}: level ${level} is past the book's table (${ADEPT_TABLE_MAX[kind]}, p.125–126).`);
-    if (kind === "increased_reaction" && level > 1.5 * (maxes.reaction ?? 6)) problems.push(`${item.name}: +${level} Reaction is over 1.5 × the racial maximum (p.126).`);
+    if (kind === "increased_reaction") raised.reaction = (raised.reaction ?? 0) + level;
     if (kind === "improved_ability") {
       const skill = sys.improvedSkill || improvedAbilitySkill(item.name);
       if (!IMPROVED_ABILITY_COSTS[String(skill).toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim().replace(/^throwing$/, "throwing weapons")])
         problems.push(`${item.name}: ${skill || "no skill named"} is not in the Improved Ability table (p.125) — priced at its listed cost.`);
-      const sk = (this.parent?.items ?? []).find(i => i.type === "skill" && i.name.toLowerCase() === String(skill).toLowerCase());
-      if (sk && cappedImprovedAbilityDice(sk.name, sk.system.rating, level) < level)
-        problems.push(`${item.name}: ${level} dice on ${sk.name} ${sk.system.rating} — a Combat Skill can't have more extra dice than its rating (p.125).`);
+      raised.skills ??= {};
+      const k = String(skill).toLowerCase();
+      raised.skills[k] = (raised.skills[k] ?? 0) + level;
     }
-    return adeptPowerCost({ pointCost: sys.pointCost, level: sys.level, improvedSkill: sys.improvedSkill, name: item.name }, maxes.reaction ?? 6, ctx);
+    return adeptPowerCost({ pointCost: sys.pointCost, level: points, improvedSkill: sys.improvedSkill, name: item.name }, maxes.reaction ?? 6, ctx);
   }
 
   _applyAdeptSkills() {

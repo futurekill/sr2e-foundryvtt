@@ -125,6 +125,9 @@ describe("S13 code review r1", () => {
     expect(adeptPowerKey({ name: "Killing Hands (S)" })).toBe("killing_hands");
     expect(adeptPowerKey({ name: "Killing Hands Plus" })).toBeNull();
     expect(improvedAttributeOf("improved_attribute", { quickness: 1 })).toBe("quickness");
+    expect(adeptPowerKey({ name: "x", _stats: { compendiumSource: "Compendium.other.x" }, flags: { core: { sourceId: SRC("b03361c78fba6c27") } } })).toBe("increased_reflexes");
+    expect(adeptPowerKey({ name: "Improved Physical Senses (Thermo Vision) Deluxe)" })).toBeNull();
+    expect(adeptPowerKey({ name: "Improved Ability (Computers (B/R))" })).toBe("improved_ability");
     expect(improvedAttributeOf("improved_attribute:body", {})).toBe("body");
   });
   it("Combat Sense dice: the highest level, physical adepts only, human form only", () => {
