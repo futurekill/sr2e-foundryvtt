@@ -10,8 +10,8 @@ import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs"
 import { cyberDamageOn } from "../cyberdamage.mjs";
 import { accessoryKindOf, eyeHostAt, fitEyeAccessory, withSource } from "../eye-accessories.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
-import { rowsListValue, wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
-import { streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
+import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
+import { streetPrice, chargenBudget, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
@@ -529,56 +529,10 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 export const priorityTableFor = (system) => shapeshifterOf("character", system) ? SHAPESHIFTER_PRIORITIES : CONFIG.SR2E.priorities;
 
 export function chargenBudgetOf(actor) {
-  const system = actor.system;
-  const prio = priorityTableFor(system);
-  const chosen = system.chargen?.priorities ?? {};
-  const allot = {
-    attributes:  prio[chosen.attributes]?.attributes ?? 0,
-    skills:      prio[chosen.skills]?.skills ?? 0,
-    resources:   prio[chosen.resources]?.resources ?? 0,
-    forcePoints: prio[chosen.resources]?.forcePoints ?? 0
-  };
-  const attrData = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]
-    .map((k) => ({ base: system[k]?.base ?? 0 }));
-  const skillData = actor.items
-    .filter((i) => i.type === "skill")
-    // The lifecycle fields and sub-rating NAMES travel too: chargenSpend
-    // charges the allocation (SR2E p.70), and for a legacy skill with no
-    // `allocated` it has to invert the reduction, which needs the names.
-    .map((i) => ({
-      category: i.system.category,
-      freeLanguage: i.system.freeLanguage,
-      rating: i.system.rating,
-      allocated: i.system.allocated,
-      ratingsFinalized: i.system.ratingsFinalized,
-      concentration: { name: i.system.concentration?.name ?? "" },
-      specialization: { name: i.system.specialization?.name ?? "" }
-    }));
-  const itemData = actor.items.map((i) => ({
-    type: i.type,
-    cost: i.system.cost ?? 0,
-    // Rating/grade/ratingStats travel too — chargenSpend prices through
-    // itemBaseCost, so rated and alpha/beta/cultured ware count properly.
-    rating: i.system.rating ?? 1,
-    grade: i.system.grade,
-    secondhandDiscount: i.system.secondhandDiscount,   // secondhand bioware's own price (Shadowtech p.12)
-    secondhand: i.system.secondhand,   // second-hand cyberware is half price (SSC p.100)
-    bodySystem: i.system.bodySystem,   // neural bioware ignores its grade (Shadowtech p.7)
-    ratingStats: i.system.ratingStats,
-    quantity: i.system.quantity ?? 1,
-    // Ammo's recorded bundle value (set at purchase) — chargenItemCost prices
-    // ammo by this, not cost × rounds.
-    acquiredListValue: i.getFlag("sr2e", "acquiredListValue"),
-    drug: !!drugOf(i),
-    // Ware context (single eye, muscle discount), priced once in itemBaseCost.
-    eyes: i.system.eyes,
-    ...(i.type === "cyberware" || i.type === "bioware" ? wareCtx(actor.items, i) : {}),
-    force: i.system.force ?? 0,
-    bondingCost: i.system.bondingCost ?? 0,
-    // Accessories bought into an eye (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, B5).
-    moduleListValue: rowsListValue(i.system.modules ?? [])
-  }));
-  return chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+  let vr2 = false;
+  try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
+  // The calculation is the pure chargenBudget (rules/sr2e-rules.mjs), shared with the standalone character generator.
+  return chargenBudget({ system: actor.system, items: [...actor.items], table: priorityTableFor(actor.system), vr2 });
 }
 
 /** A program row's part-5b state (plan 5b §5). */

@@ -680,13 +680,33 @@ export function programStreetIndex(rating) {
 
 /**
  * Nuyen cost of a magical focus: Force × the focus type's per-Force unit cost
- * (Power 20,000 / Spell·Spirit·Weapon 10,000 / Spell Lock 5,000 ¥, SR2E p.249).
+ * (SR2E p.263: Specific Spell Focus 45,000¥, Spell Type Focus 75,000¥, Spirit Focus
+ * 60,000¥, Power Focus 105,000¥ per Rating; a Spell Lock is a flat 45,000¥ and a
+ * weapon focus is priced by weaponFocusCost).
  * @param {number} force
  * @param {number} costPerForce
  * @returns {number}
  */
 export function focusCost(force, costPerForce) {
   return force * costPerForce;
+}
+
+/**
+ * Karma (at creation, Force Points) to bond a focus — the Focus Bonding Table, SR2E p.137: specific spell focus =
+ * Rating, spell category focus 3 × Rating, spirit focus 2 × Rating, power focus 5 × Rating, spell lock 1. Null when the
+ * table can't price it from the focus alone (a weapon focus is 4 × or 5 × by the weapon's size; an expendable fetish
+ * focus is the Grimoire's): the authored value stands.
+ * @param {{focusType?:string, force?:number, spellSubtype?:string, expendable?:boolean}} focus
+ * @returns {number|null}
+ */
+export function focusBondingCost({ focusType, force, spellSubtype = "specific", expendable = false } = {}) {
+  if (expendable) return null;
+  const f = Math.max(1, Math.floor(Number(force) || 1));
+  if (focusType === "spell_lock") return 1;
+  if (focusType === "spell") return (spellSubtype === "category" ? 3 : 1) * f;
+  if (focusType === "spirit") return 2 * f;
+  if (focusType === "power") return 5 * f;
+  return null;
 }
 
 /**
@@ -1259,7 +1279,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
 
 import { VEHICLE_WEB_NODES, vehicleSkillMatches } from "./vehicle-r2-rules.mjs";
 import { limbOptionPrice } from "./limb-stats.mjs";
-import { MUSCLE, muscleFactor } from "./ware-rules.mjs";
+import { MUSCLE, muscleFactor, wareCtx, rowsListValue } from "./ware-rules.mjs";
 import { programSizes } from "./vr2-options.mjs";
 // limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
 export { limbOptionCost } from "./limb-stats.mjs";
@@ -1494,8 +1514,43 @@ export function reactionBase(quickness, intelligence, exemptQuickness = 0) {
   return Math.floor((Math.max(0, quickness - exemptQuickness) + intelligence) / 2);
 }
 
-/** Item types whose nuyen cost counts against the chargen Resources budget. */
-export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "bioware", "focus", "lifestyle"];
+/** Item types whose nuyen cost counts against the chargen Resources budget. Programs are incidentals bought with
+ * Resources (SR2E p.46); contacts are priced as extras by `chargenExtrasCost`, not here. */
+export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "bioware", "focus", "lifestyle", "program"];
+
+/**
+ * Cost of Extras (SR2E p.46): every character starts with two free contacts (p.43); each further contact is 5,000¥,
+ * a buddy 10,000¥ (one at creation, p.43), a gang or tribe 50,000¥ (p.44), followers 200,000¥ (p.44). Friends and
+ * enemies (the Companion's tiers) are not bought here.
+ * @param {{contactType?:string}[]} contacts - the character's contact items' data
+ * @returns {number} nuyen
+ */
+export function chargenExtrasCost(contacts = []) {
+  const n = (t) => contacts.filter(c => (c?.contactType ?? "contact") === t).length;
+  return Math.max(0, n("contact") - 2) * 5000 + n("buddy") * 10000 + n("gang") * 50000 + n("follower") * 200000;
+}
+
+/** The Allergy and Severity Table (SR2E p.46): the bonus each grants, by category. */
+export const ALLERGY_TABLE = Object.freeze({
+  rarity: { uncommon: { attributes: 1, skills: 1, forcePoints: 1, nuyen: 200 }, common: { attributes: 2, skills: 2, forcePoints: 2, nuyen: 400 } },
+  severity: { nuisance: { attributes: 0, skills: 0, forcePoints: 0, nuyen: 0 }, mild: { attributes: 1, skills: 2, forcePoints: 1, nuyen: 100 },
+    moderate: { attributes: 2, skills: 3, forcePoints: 2, nuyen: 200 }, severe: { attributes: 3, skills: 4, forcePoints: 3, nuyen: 300 } }
+});
+/**
+ * The extra creation points an allergy grants (SR2E p.46, metahumans only — the caller checks the race): ONE category
+ * for the allergy's rarity and one for its severity, which may differ. Bonus keys: attributes, skills, force, nuyen.
+ * @param {{rarity?:string, severity?:string, rarityBonus?:string, severityBonus?:string}} [allergy]
+ * @returns {{attributes:number, skills:number, forcePoints:number, nuyen:number}}
+ */
+export function allergyBonus({ rarity = "", severity = "", rarityBonus = "", severityBonus = "" } = {}) {
+  const out = { attributes: 0, skills: 0, forcePoints: 0, nuyen: 0 };
+  const key = (b) => ({ attributes: "attributes", skills: "skills", force: "forcePoints", nuyen: "nuyen" })[b];
+  const r = ALLERGY_TABLE.rarity[rarity], v = ALLERGY_TABLE.severity[severity];
+  if (!r || !v) return out;   // an allergy needs both (p.46)
+  if (key(rarityBonus)) out[key(rarityBonus)] += r[key(rarityBonus)];
+  if (key(severityBonus)) out[key(severityBonus)] += v[key(severityBonus)];
+  return out;
+}
 
 /**
  * An attribute's natural, unaugmented rating: what the character has before any
@@ -1681,6 +1736,8 @@ export function startingMoney(unspentResources, roll3d6) {
  * @returns {number}
  */
 export function chargenItemCost(i, ctx = {}) {
+  // A lifestyle is bought by the month, several months may be prepaid (SR2E p.46).
+  if (i?.type === "lifestyle") return (Number(i.monthlyCost) || 0) * Math.max(0, Number(i.monthsPaid) || 0);
   // Ammo and drug packs (a six-dose inhaler) are priced per package, not per unit.
   if (i?.type === "ammo" || i?.drug) {
     return (typeof i.acquiredListValue === "number") ? i.acquiredListValue : itemBaseCost(i, ctx);
@@ -1727,7 +1784,8 @@ export function proportionalRefund({ paid = 0, acquiredQuantity = 0, currentQuan
  *   p.46 gives for free are not charged: the native language and a Street
  *   lifestyle's local dialect (`freeLanguage`).
  * - Resources: sum of gear cost via chargenItemCost (list price, no Street Index;
- *   ammo priced by bundle, not ×rounds).
+ *   ammo priced by bundle, not ×rounds; a lifestyle by its prepaid months; programs
+ *   by rating and multiplier) plus the Cost of Extras for contacts (p.46).
  * - Force Points (magicians only): sum of spell Force + focus Bonding cost.
  *
  * @param {object} data
@@ -1739,7 +1797,7 @@ export function proportionalRefund({ paid = 0, acquiredQuantity = 0, currentQuan
  * @returns {{attributes:object, skills:object, resources:object, forcePoints:object}}
  *          each row is {spent, total, remaining, over}
  */
-export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, allot = {}) {
+export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, allot = {}, ctx = {}) {
   const attrSpent = attributes.reduce((s, a) => s + (a.base ?? 0), 0);
   // The ALLOCATION, not the reduced general (SR2E p.70). Summing `rating`
   // refunded 1 skill point for every concentration and 2 for every
@@ -1752,7 +1810,8 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
   // quantity (rounds) 10×-counted it.
   const resSpent = items
     .filter((i) => CHARGEN_RESOURCE_TYPES.includes(i.type))
-    .reduce((s, i) => s + chargenItemCost(i), 0);
+    .reduce((s, i) => s + chargenItemCost(i, ctx), 0)
+    + chargenExtrasCost(items.filter((i) => i.type === "contact"));
   const forceSpent = items.reduce((s, i) => {
     if (i.type === "spell") return s + (i.force ?? 0);
     if (i.type === "focus") return s + (i.bondingCost ?? 0);
@@ -1765,6 +1824,61 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
     resources:   row(resSpent, allot.resources ?? 0),
     forcePoints: row(forceSpent, allot.forcePoints ?? 0)
   };
+}
+
+/**
+ * The whole creation budget of a character, from its data (SR2E p.44–46): what Foundry's creation panel shows and
+ * what the standalone character generator checks — ONE calculation for both. Items are the actor's items (live
+ * documents or plain sources: `{ type, name, system, flags, _stats, _source? }`).
+ * @param {object} o
+ * @param {object} o.system - the actor's system data
+ * @param {object[]} o.items
+ * @param {object} o.table - the priority table (CONFIG.SR2E.priorities, or the shapeshifter table)
+ * @param {boolean} [o.vr2] - the VR2.0 program pricing setting
+ */
+export function chargenBudget({ system, items = [], table, vr2 = false }) {
+  const chosen = system.chargen?.priorities ?? {};
+  const allergy = system.race && system.race !== "human" ? allergyBonus(system.chargen?.allergy ?? {}) : allergyBonus();
+  const allot = {
+    attributes:  (table[chosen.attributes]?.attributes ?? 0) + allergy.attributes,
+    skills:      (table[chosen.skills]?.skills ?? 0) + allergy.skills,
+    resources:   (table[chosen.resources]?.resources ?? 0) + allergy.nuyen,
+    forcePoints: (table[chosen.resources]?.forcePoints ?? 0) + allergy.forcePoints
+  };
+  const attributes = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"].map((k) => ({ base: system[k]?.base ?? 0 }));
+  const docs = items.map((i) => ({ ...i, id: i.id ?? i._id, _source: i._source ?? { system: i.system } }));
+  const skills = items.filter((i) => i.type === "skill").map((i) => ({
+    // The lifecycle fields and sub-rating NAMES travel too: chargenSpend charges the allocation (p.70), and for a
+    // legacy skill with no `allocated` it has to invert the reduction, which needs the names.
+    category: i.system.category, freeLanguage: i.system.freeLanguage, rating: i.system.rating, allocated: i.system.allocated,
+    ratingsFinalized: i.system.ratingsFinalized,
+    concentration: { name: i.system.concentration?.name ?? "" }, specialization: { name: i.system.specialization?.name ?? "" } }));
+  const data = items.map((i, n) => ({
+    type: i.type, name: i.name,
+    cost: i.system.cost ?? 0,
+    // Rating/grade/ratingStats travel too — chargenItemCost prices through itemBaseCost, so rated and graded ware count.
+    rating: i.system.rating ?? 1, grade: i.system.grade,
+    secondhandDiscount: i.system.secondhandDiscount, secondhand: i.system.secondhand, bodySystem: i.system.bodySystem,
+    ratingStats: i.system.ratingStats, quantity: i.system.quantity ?? 1,
+    costPerRating: i.system.costPerRating, category: i.system.category, grantedSkillCategory: i.system.grantedSkillCategory,
+    costPerStrengthMin: i.system.costPerStrengthMin, strengthMinimum: i.system.strengthMinimum, damageCode: i.system.damageCode,
+    costPerForce: i.system.costPerForce, focusType: i.system.focusType,
+    // Programs (p.46 incidentals): priced by rating and multiplier; a persona program from rating 4 (p.165).
+    multiplier: i.system.multiplier,
+    // Lifestyles: by the month, prepaid months (p.46).
+    monthlyCost: i.system.monthlyCost, monthsPaid: i.system.monthsPaid,
+    // Contacts: priced as extras (p.46).
+    contactType: i.system.contactType,
+    // Ammo's recorded bundle value (set at purchase): chargenItemCost prices ammo by it, not cost × rounds.
+    acquiredListValue: i.flags?.sr2e?.acquiredListValue,
+    drug: i.type === "gear" && !!i.flags?.sr2e?.drug,
+    eyes: i.system.eyes,
+    ...(i.type === "cyberware" || i.type === "bioware" ? wareCtx(docs, docs[n]) : {}),
+    force: i.system.force ?? 0, bondingCost: i.system.bondingCost ?? 0,
+    // Accessories bought into an eye.
+    moduleListValue: rowsListValue(i.system.modules ?? [])
+  }));
+  return { ...chargenSpend({ attributes, skills, items: data }, allot, { vr2 }), allergy };
 }
 
 /**

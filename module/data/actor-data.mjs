@@ -280,6 +280,16 @@ export class CharacterData extends SR2EDataModel {
           skills: new fields.StringField({ initial: "B" }),
           resources: new fields.StringField({ initial: "C" })
         }),
+        // An optional allergy (SR2E p.46, metahumans only): the substance, its rarity and severity, and the ONE bonus
+        // category each grants (they may differ) — chargenBudget adds allergyBonus to the allotments. blank:true on
+        // every choice field, or every existing actor of the type goes invalid.
+        allergy: new fields.SchemaField({
+          substance: new fields.StringField({ initial: "" }),
+          rarity: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", uncommon: "Uncommon", common: "Common" } }),
+          severity: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", nuisance: "Nuisance", mild: "Mild", moderate: "Moderate", severe: "Severe" } }),
+          rarityBonus: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", attributes: "Attributes", skills: "Skills", force: "Force Points", nuyen: "Nuyen" } }),
+          severityBonus: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", attributes: "Attributes", skills: "Skills", force: "Force Points", nuyen: "Nuyen" } })
+        }),
         attributePointsTotal: new fields.NumberField({ integer: true, initial: 30 }),
         attributePointsSpent: new fields.NumberField({ integer: true, initial: 0 }),
         skillPointsTotal: new fields.NumberField({ integer: true, initial: 30 }),

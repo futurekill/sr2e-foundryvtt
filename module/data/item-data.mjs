@@ -12,7 +12,7 @@ import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
 import { QUALITY_RULES, qualityRule } from "../rules/quality-rules.mjs";
 import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
-import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining } from "../rules/sr2e-rules.mjs";
+import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, focusBondingCost } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -1231,8 +1231,12 @@ export class ContactData extends SR2EDataModel {
       contactType: new fields.StringField({ initial: "contact", choices: {
         contact: "SR2E.Contact.Contact", buddy: "SR2E.Contact.Buddy",
         friend: "SR2E.Contact.Friend", follower: "SR2E.Contact.Follower",
-        enemy: "SR2E.Contact.Enemy"
+        gang: "SR2E.Contact.Gang", enemy: "SR2E.Contact.Enemy"
       }}),
+      // A gang or tribe (SR2E p.44): its 2D6 members, rolled once when bought.
+      members: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Followers (SR2E p.44): the five different Archetypes the group is drawn from.
+      archetypes: new fields.ArrayField(new fields.StringField({ initial: "" }), { initial: [] }),
       archetype: new fields.StringField({ initial: "" }),
       // For allies, Loyalty (how reliably they come through for you).
       // For enemies, the same column reads as the foe's animosity / grudge.
@@ -1377,6 +1381,9 @@ export class FocusData extends SR2EDataModel {
     this.cost = derivedItemCost({ type: "focus", force: this.force,
                                   costPerForce: this.costPerForce })
              ?? this._source.cost;
+    // The Focus Bonding Table (p.137) from the Force: raising a focus's Force raises its bond. A weapon or expendable
+    // focus keeps its authored cost (the table needs the weapon's size; fetishes are the Grimoire's).
+    this.bondingCost = focusBondingCost(this) ?? this._source.bondingCost;
 
     // Spell-focus derived state, used by the sheets (SR2E p.137). Cleared before
     // the branch: assigning only inside it let a focus re-typed away from "spell"
