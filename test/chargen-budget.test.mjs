@@ -10,6 +10,14 @@ const actor = ({ chargen = {}, ...o } = {}) => ({ race: "human", chargen: { prio
   body: { base: 3 }, quickness: { base: 3 }, strength: { base: 3 }, charisma: { base: 3 }, intelligence: { base: 4 }, willpower: { base: 4 }, ...o });
 
 describe("chargen prerequisites", () => {
+  it("only magicians receive Force Points (p.46); a physical adept is a magician (p.124)", () => {
+    const fp = (type) => chargenBudget({ system: actor({ magic: { type } }), items: [], table }).forcePoints.total;
+    expect([fp("none"), fp("full_magician"), fp("physical_adept")]).toEqual([0, 50, 50]);
+    expect(chargenBudget({ system: actor(), items: [], table }).forcePoints.total).toBe(0);   // no magic type set
+    const focus = item("focus", { focusType: "power", force: 1, bondingCost: 5 });
+    expect(chargenBudget({ system: actor({ magic: { type: "none" } }), items: [focus], table }).forcePoints.over).toBe(true);
+  });
+
   it("S1: programs are Resources (p.46), priced by rating and multiplier", () => {
     expect(CHARGEN_RESOURCE_TYPES).toContain("program");
     const prog = { type: "program", rating: 3, multiplier: 2, category: "masking", cost: 0 };

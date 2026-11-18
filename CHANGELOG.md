@@ -26,6 +26,9 @@
 - `chargenBudget`: one pure creation-budget calculation, shared with the standalone character generator.
 
 ### Fixed
+- **Force Points only for magicians** (SR2E p.46): the creation panel gave every character the Resources priority's
+  Force Points. A character with no magic now has none, and a focus it buys shows as over budget. Adepts, physical
+  adepts included, are magicians (p.124) and keep theirs.
 - The focus price comment named the wrong prices (the catalog's were right, p.263).
 
 ## 0.160.0 — 2026-11-16

@@ -1845,7 +1845,8 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     attributes:  (table[chosen.attributes]?.attributes ?? 0) + allergy.attributes,
     skills:      (table[chosen.skills]?.skills ?? 0) + allergy.skills,
     resources:   (table[chosen.resources]?.resources ?? 0) + allergy.nuyen,
-    forcePoints: (table[chosen.resources]?.forcePoints ?? 0) + allergy.forcePoints
+    // Only magicians receive Force Points (p.46); an adept, physical adepts included, is one (p.124).
+    forcePoints: (system.magic?.type ?? "none") === "none" ? 0 : (table[chosen.resources]?.forcePoints ?? 0) + allergy.forcePoints
   };
   const attributes = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"].map((k) => ({ base: system[k]?.base ?? 0 }));
   // Live documents go to wareCtx as they are (their flags are accessors a spread would drop); plain sources get the
