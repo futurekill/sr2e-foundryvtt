@@ -903,6 +903,10 @@ function stubWorldSettings(keys) {
           try { await c.sheet._onDropActor(new Event("drop"), { type: "Actor", uuid: v.uuid }); } finally { api.wait = wait; }
           assert.equal(game.actors.size, n, "Cancel: no import");
           assert.equal(c.system.linkedVehicles.length, 1);
+          // An already-linked world vehicle is refused before the dialog (no second charge, r1 #2).
+          let asked = false; api.wait = async () => { asked = true; return "buy"; };
+          try { await c.sheet._onDropActor(new Event("drop"), { type: "Actor", uuid: c.system.linkedVehicles[0] }); } finally { api.wait = wait; }
+          assert.deepEqual([asked, c.system.chargen.vehicles.length], [false, 0]);
         });
 
         it("no permission: refused with no receipt; a failed update deletes the imported copy", async () => {
@@ -916,6 +920,9 @@ function stubWorldSettings(keys) {
           try { assert.equal(await addVehicle(c, v, { buy: true }), false); } finally { delete c.update; }
           assert.equal(game.actors.size, n, "the copy imported for the failed drop is gone");
           assert.equal(c.system.chargen.vehicles.length, 0);
+          c.update = async () => undefined;   // a preUpdateActor veto resolves without throwing (r1 #1)
+          try { assert.equal(await addVehicle(c, v, { buy: true }), false); } finally { delete c.update; }
+          assert.equal(game.actors.size, n, "a vetoed update also deletes the copy");
         });
 
         it("the panel lists the receipt; its remove button refunds it", async () => {

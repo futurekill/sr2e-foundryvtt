@@ -553,7 +553,9 @@ export async function addVehicle(actor, dropped, { buy = false } = {}) {
   if (!current.includes(vehicleUuid)) update["system.linkedVehicles"] = [...current, vehicleUuid];
   if (buy) update["system.chargen.vehicles"] = [...(actor.system.chargen?.vehicles ?? []).map((v) => ({ ...v })), vehicleReceipt(dropped)];
   try {
-    return await actor.update(update);
+    const done = await actor.update(update);
+    if (!done) throw new Error("the update was refused");   // a preUpdateActor veto resolves without throwing
+    return done;
   } catch (err) {
     if (imported) await fromUuidSync(imported)?.delete().catch(() => {});
     console.error("SR2E | Could not add the vehicle:", err);
@@ -682,6 +684,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     if (!dropped || dropped.type !== "vehicle") return false;
     // Don't link an actor to itself
     if (dropped.uuid === this.document.uuid) return false;
+    // Already linked: nothing to add, and a second Buy would charge the same vehicle again (code review S9 r1 #2).
+    if ((this.document.system.linkedVehicles ?? []).includes(dropped.uuid)) {
+      ui.notifications.info(`${dropped.name} is already linked. To buy it at creation instead, unlink it and drop it again.`);
+      return false;
+    }
     // During creation, ask BEFORE any import whether this is a purchase (p.46; S9). A linked vehicle is not a buy.
     let buy = false;
     if (this.document.system.chargen?.inProgress) {
