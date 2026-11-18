@@ -74,7 +74,7 @@ describe("chargen prerequisites", () => {
   });
 });
 
-import { adeptPowerCost, adeptPowerKey, adeptCostNeedsActor, ADEPT_POWER_SOURCES } from "../module/rules/sr2e-rules.mjs";
+import { adeptPowerCost, adeptPowerKey, adeptCostNeedsActor, ADEPT_POWER_SOURCES, improvedAttributeOf, combatSenseDice } from "../module/rules/sr2e-rules.mjs";
 const SRC = (id) => `Compendium.sr2e.adept-powers.Item.${id}`;
 describe("S13: adept power costs by the book's tables (SR2E p.124–126)", () => {
   const p = (id, o = {}) => ({ name: "x", pointCost: 1, level: 1, _stats: { compendiumSource: SRC(id) }, ...o });
@@ -114,5 +114,25 @@ describe("S13: adept power costs by the book's tables (SR2E p.124–126)", () =>
     expect(a("Firearms", 3)).toBe(3);
     expect(adeptPowerCost({ name: "Improved Ability (Gunnery)", pointCost: 0.5, level: 2 })).toBe(2);
     expect(a("Etiquette", 2)).toBe(1);     // not in the table: pointCost × level
+  });
+});
+
+describe("S13 code review r1", () => {
+  it("identity: flags.core.sourceId; exact core names only; a generic attribute key takes its attribute from the mods", () => {
+    expect(adeptPowerKey({ name: "Speedy", flags: { core: { sourceId: SRC("b03361c78fba6c27") } } })).toBe("increased_reflexes");
+    expect(adeptPowerKey({ name: "Improved Physical Senses Deluxe" })).toBeNull();
+    expect(adeptPowerKey({ name: "Improved Physical Senses (Thermo Vision)" })).toBe("improved_senses");
+    expect(adeptPowerKey({ name: "Killing Hands (S)" })).toBe("killing_hands");
+    expect(adeptPowerKey({ name: "Killing Hands Plus" })).toBeNull();
+    expect(improvedAttributeOf("improved_attribute", { quickness: 1 })).toBe("quickness");
+    expect(improvedAttributeOf("improved_attribute:body", {})).toBe("body");
+  });
+  it("Combat Sense dice: the highest level, physical adepts only, human form only", () => {
+    const cs = (level) => ({ type: "adept_power", name: "Combat Sense", system: { level } });
+    expect(combatSenseDice([cs(2)], { physicalAdept: true })).toBe(2);
+    expect(combatSenseDice([cs(5)], { physicalAdept: true })).toBe(3);
+    expect(combatSenseDice([cs(2)], { physicalAdept: false })).toBe(0);
+    expect(combatSenseDice([cs(2)], { physicalAdept: true, powersWork: false })).toBe(0);
+    expect(combatSenseDice([], { physicalAdept: true })).toBe(0);
   });
 });

@@ -26,7 +26,7 @@ import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerKey, adeptPowerCost, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
+import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerKey, adeptPowerCost, improvedAttributeOf, combatSenseDice, ADEPT_TABLE_MAX, IMPROVED_ABILITY_COSTS, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -593,18 +593,21 @@ export class CharacterData extends SR2EDataModel {
     // Cost column, the item sheet, the chat card), and Used is its sum. Rebuilt from scratch every preparation and
     // reset for every actor, so a changed magic type or a removed power leaves nothing behind.
     this.adeptPowerCosts = {};
+    this.adeptPowerProblems = [];
     this.adeptPowerPoints.max = 0;
     this.adeptPowerPoints.value = 0;
     if (this.magic.type === "physical_adept") {
       this.adeptPowerPoints.max = this.magic.value;
       let used = 0;
+      const raised = {};   // attribute → levels already priced, so a second power on it continues the tiers (R4)
       for (const item of this.parent?.items ?? []) {
         if (item.type !== "adept_power") continue;
-        const cost = this.adeptPowerCostOf(item);
+        const cost = this.adeptPowerCostOf(item, raised);
         this.adeptPowerCosts[item.id] = cost;
         used += cost;
       }
       this.adeptPowerPoints.value = used;
+      if (used > this.magic.value) this.adeptPowerProblems.push(`${used} power points used; the Magic Rating gives ${this.magic.value} — give up improvements to match (p.126).`);
     }
 
     // Snapshot the active cyberdeck's specs onto system.cyberdeck.* so every
@@ -706,12 +709,29 @@ export class CharacterData extends SR2EDataModel {
    */
   /** One power's book cost for this character (SR2E p.125–126): the racial maximums, the attribute's natural rating
    * (bought + racial, sr2e-chargen RULINGS R4), the improved skill's name. */
-  adeptPowerCostOf(item) {
-    const key = adeptPowerKey(item) ?? "";
+  adeptPowerCostOf(item, raised = {}) {
+    const key = adeptPowerKey(item) ?? "", sys = item.system, problems = this.adeptPowerProblems ?? [];
     const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? CONFIG.SR2E.racialMaximums.human;
-    const attr = key.startsWith("improved_attribute:") ? key.split(":")[1] : null;
-    const ctx = { key, ...(attr ? { base: (this[attr]?.base ?? 0) + (this[attr]?.racial ?? 0), racialMax: maxes[attr] } : {}) };
-    const sys = item.system;
+    const attr = improvedAttributeOf(key, sys.attributeMods);
+    const level = Math.max(1, sys.level ?? 1), kind = key.split(":")[0];
+    let ctx = { key };
+    if (attr) {
+      const natural = (this[attr]?.base ?? 0) + (this[attr]?.racial ?? 0), before = raised[attr] ?? 0;
+      if (before) problems.push(`${item.name}: a second power on ${attr} — priced on from the first (one per attribute is the norm).`);
+      ctx = { key, base: natural + before, racialMax: maxes[attr] };
+      raised[attr] = before + level;
+      if (natural + raised[attr] > 1.5 * maxes[attr]) problems.push(`${item.name}: ${attr} ${natural + raised[attr]} is over 1.5 × the racial maximum (p.125).`);
+    }
+    if (ADEPT_TABLE_MAX[kind] && level > ADEPT_TABLE_MAX[kind]) problems.push(`${item.name}: level ${level} is past the book's table (${ADEPT_TABLE_MAX[kind]}, p.125–126).`);
+    if (kind === "increased_reaction" && level > 1.5 * (maxes.reaction ?? 6)) problems.push(`${item.name}: +${level} Reaction is over 1.5 × the racial maximum (p.126).`);
+    if (kind === "improved_ability") {
+      const skill = sys.improvedSkill || improvedAbilitySkill(item.name);
+      if (!IMPROVED_ABILITY_COSTS[String(skill).toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim().replace(/^throwing$/, "throwing weapons")])
+        problems.push(`${item.name}: ${skill || "no skill named"} is not in the Improved Ability table (p.125) — priced at its listed cost.`);
+      const sk = (this.parent?.items ?? []).find(i => i.type === "skill" && i.name.toLowerCase() === String(skill).toLowerCase());
+      if (sk && cappedImprovedAbilityDice(sk.name, sk.system.rating, level) < level)
+        problems.push(`${item.name}: ${level} dice on ${sk.name} ${sk.system.rating} — a Combat Skill can't have more extra dice than its rating (p.125).`);
+    }
     return adeptPowerCost({ pointCost: sys.pointCost, level: sys.level, improvedSkill: sys.improvedSkill, name: item.name }, maxes.reaction ?? 6, ctx);
   }
 
@@ -1572,10 +1592,7 @@ export class CharacterData extends SR2EDataModel {
     const equippedArmor = (this.parent?.items ?? [])
       .filter(i => i.type === "armor" && i.system.equipped && !inAnimalForm("character", this));
     // Combat Sense (SR2E p.125): its level in extra Combat Pool dice — a physical adept's power, in human form.
-    const combatSense = this.magic.type === "physical_adept" && adeptPowersWork(this)
-      ? Math.max(0, ...(this.parent?.items ?? []).filter(i => i.type === "adept_power" && adeptPowerKey(i) === "combat_sense")
-        .map(i => Math.min(3, Math.max(1, i.system.level ?? 1))))
-      : 0;
+    const combatSense = combatSenseDice([...(this.parent?.items ?? [])], { physicalAdept: this.magic.type === "physical_adept", powersWork: adeptPowersWork(this) });
     const combatPool = Math.max(0, Math.floor(
       (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
     ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor)) + combatSense;

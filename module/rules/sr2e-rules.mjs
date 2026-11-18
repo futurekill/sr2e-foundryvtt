@@ -1900,11 +1900,12 @@ export const ADEPT_POWER_SOURCES = Object.freeze({
   [ADEPT("81347eccfc7bebee")]: "killing_hands", [ADEPT("003f74fef4a1756e")]: "pain_resistance"
 });
 /** Core names, for powers made by hand (name match is the last resort). */
+// Exact core names; only the book's own bracket conventions are allowed after a name (a custom "…Deluxe" is not core).
 const ADEPT_POWER_NAMES = [
-  [/^astral perception$/i, "astral_perception"], [/^combat sense$/i, "combat_sense"], [/^improved ability\b/i, "improved_ability"],
+  [/^astral perception$/i, "astral_perception"], [/^combat sense$/i, "combat_sense"], [/^improved ability( \(.+\))?$/i, "improved_ability"],
   [/^improved physical attributes? \((body)\)$/i, "improved_attribute:body"], [/^improved physical attributes? \((quickness)\)$/i, "improved_attribute:quickness"],
-  [/^improved physical attributes? \((strength)\)$/i, "improved_attribute:strength"], [/^improved physical senses\b/i, "improved_senses"],
-  [/^increased reaction$/i, "increased_reaction"], [/^increased reflexes$/i, "increased_reflexes"], [/^killing hands\b/i, "killing_hands"],
+  [/^improved physical attributes? \((strength)\)$/i, "improved_attribute:strength"], [/^improved physical senses( \(.+\))?$/i, "improved_senses"],
+  [/^increased reaction$/i, "increased_reaction"], [/^increased reflexes$/i, "increased_reflexes"], [/^killing hands \([lmsd]\)$/i, "killing_hands"],
   [/^pain resistance$/i, "pain_resistance"]
 ];
 /**
@@ -1914,7 +1915,7 @@ const ADEPT_POWER_NAMES = [
 export function adeptPowerKey(power = {}) {
   const f = power.flags?.sr2e?.power;
   if (typeof f === "string" && f) return f;
-  const src = power._stats?.compendiumSource ?? power.source ?? null;
+  const src = power._stats?.compendiumSource ?? power.flags?.core?.sourceId ?? power.source ?? null;
   if (src && ADEPT_POWER_SOURCES[src]) return ADEPT_POWER_SOURCES[src];
   const name = String(power.name ?? "").trim();
   return ADEPT_POWER_NAMES.find(([re]) => re.test(name))?.[1] ?? null;
@@ -1977,6 +1978,21 @@ export function adeptPowerCost(power, racialReactionMax = 6, ctx = {}) {
     default: return linear();
   }
 }
+/** The book's highest level where a table ends (Combat Sense and Increased Reflexes: 3, p.125–126). */
+export const ADEPT_TABLE_MAX = Object.freeze({ combat_sense: 3, increased_reflexes: 3 });
+/** The attribute an Improved Physical Attributes power raises: its key's suffix, else its first non-zero modifier. */
+export function improvedAttributeOf(key, attributeMods = {}) {
+  if (key?.startsWith("improved_attribute:")) return key.split(":")[1];
+  if (key !== "improved_attribute") return null;
+  return ["body", "quickness", "strength"].find(a => Number(attributeMods?.[a]) > 0) ?? null;
+}
+/** Combat Pool dice from Combat Sense (p.125): the highest level held, for a physical adept whose powers work. */
+export function combatSenseDice(items = [], { physicalAdept = false, powersWork = true } = {}) {
+  if (!physicalAdept || !powersWork) return 0;
+  const levels = items.filter(i => i.type === "adept_power" && adeptPowerKey(i) === "combat_sense").map(i => Math.min(3, Math.max(1, i.system?.level ?? 1)));
+  return levels.length ? Math.max(...levels) : 0;
+}
+
 /** Whether a power's book cost needs the character (its race, an attribute, a skill): unowned, it "depends". */
 export const adeptCostNeedsActor = (key) => /^(increased_reaction|improved_attribute|improved_ability)/.test(key ?? "");
 

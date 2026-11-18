@@ -271,6 +271,7 @@
           <i class="fas fa-plus"></i>
         </button>
       </div>
+      {{#each system.adeptPowerProblems}}<p class="hint" style="color:#c84;margin:2px 0 4px;">⚠ {{this}}</p>{{/each}}
       {{#unless isAdept}}
       <p class="hint" style="color:#c84;margin:2px 0 4px;">
         This character's magic type does not grant adept powers — set the
