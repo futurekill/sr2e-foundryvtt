@@ -548,9 +548,8 @@ export async function addVehicle(actor, dropped, { buy = false } = {}) {
     }
   }
   const current = actor.system.linkedVehicles ?? [];
-  if (!vehicleUuid || (current.includes(vehicleUuid) && !buy)) return false; // failed or already linked
-  const update = {};
-  if (!current.includes(vehicleUuid)) update["system.linkedVehicles"] = [...current, vehicleUuid];
+  if (!vehicleUuid || current.includes(vehicleUuid)) return false; // failed, or already linked (never a second Buy, r2)
+  const update = { "system.linkedVehicles": [...current, vehicleUuid] };
   if (buy) update["system.chargen.vehicles"] = [...(actor.system.chargen?.vehicles ?? []).map((v) => ({ ...v })), vehicleReceipt(dropped)];
   try {
     const done = await actor.update(update);
