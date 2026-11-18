@@ -11,7 +11,7 @@ import { cyberDamageOn } from "../cyberdamage.mjs";
 import { accessoryKindOf, eyeHostAt, fitEyeAccessory, withSource } from "../eye-accessories.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
 import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
-import { streetPrice, chargenBudget, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
+import { streetPrice, chargenBudget, focusBondingCost, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
@@ -770,7 +770,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       if (chosen.rating != null) itemData.system.rating = chosen.rating;
       if (chosen.grade != null) itemData.system.grade = chosen.grade;
       if (chosen.grantedSkillCategory != null) itemData.system.grantedSkillCategory = chosen.grantedSkillCategory;
-      if (chosen.force != null) itemData.system.force = chosen.force;
+      if (chosen.force != null) {
+        itemData.system.force = chosen.force;
+        // The Focus Bonding Table (p.137) at the chosen Force; a weapon/expendable focus keeps its authored cost.
+        if (itemData.type === "focus") itemData.system.bondingCost = focusBondingCost(itemData.system) ?? itemData.system.bondingCost;
+      }
       if (chosen.secondhandDiscount != null) itemData.system.secondhandDiscount = chosen.secondhandDiscount;
       if (chosen.secondhand != null) itemData.system.secondhand = chosen.secondhand;
       if (chosen.surgery) return this._surgeryPurchase(itemData, chosen.surgery);

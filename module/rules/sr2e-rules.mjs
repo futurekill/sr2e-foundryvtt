@@ -1742,8 +1742,9 @@ export function chargenItemCost(i, ctx = {}) {
   if (i?.type === "ammo" || i?.drug) {
     return (typeof i.acquiredListValue === "number") ? i.acquiredListValue : itemBaseCost(i, ctx);
   }
-  // A projection may carry its own ware context (single eye, muscle discount).
-  const c = i?.wareRule ? { ...ctx, wareRule: i.wareRule, fullCyberlimbs: i.fullCyberlimbs } : ctx;
+  // A projection may carry its own ware context (single eye, muscle discount) and its authored price.
+  let c = i?.wareRule ? { ...ctx, wareRule: i.wareRule, fullCyberlimbs: i.fullCyberlimbs } : ctx;
+  if (typeof i?.authoredCost === "number") c = { ...c, authoredCost: i.authoredCost };
   // Eye accessories bought into a cybereye count at their list price, after the eye's own.
   return itemBaseCost(i, c) * (i?.quantity ?? 1) + (Number(i?.moduleListValue) || 0);
 }
@@ -1838,7 +1839,8 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
  */
 export function chargenBudget({ system, items = [], table, vr2 = false }) {
   const chosen = system.chargen?.priorities ?? {};
-  const allergy = system.race && system.race !== "human" ? allergyBonus(system.chargen?.allergy ?? {}) : allergyBonus();
+  // Metahumans only (p.46): the four core races, not humans or shapeshifters.
+  const allergy = ["dwarf", "elf", "ork", "troll"].includes(system.race) ? allergyBonus(system.chargen?.allergy ?? {}) : allergyBonus();
   const allot = {
     attributes:  (table[chosen.attributes]?.attributes ?? 0) + allergy.attributes,
     skills:      (table[chosen.skills]?.skills ?? 0) + allergy.skills,
@@ -1846,7 +1848,9 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     forcePoints: (table[chosen.resources]?.forcePoints ?? 0) + allergy.forcePoints
   };
   const attributes = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"].map((k) => ({ base: system[k]?.base ?? 0 }));
-  const docs = items.map((i) => ({ ...i, id: i.id ?? i._id, _source: i._source ?? { system: i.system } }));
+  // Live documents go to wareCtx as they are (their flags are accessors a spread would drop); plain sources get the
+  // id and `_source` it reads.
+  const docs = items.map((i) => (i._source ? i : { ...i, id: i.id ?? i._id, _source: { system: i.system } }));
   const skills = items.filter((i) => i.type === "skill").map((i) => ({
     // The lifecycle fields and sub-rating NAMES travel too: chargenSpend charges the allocation (p.70), and for a
     // legacy skill with no `allocated` it has to invert the reduction, which needs the names.
@@ -1864,7 +1868,9 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     costPerStrengthMin: i.system.costPerStrengthMin, strengthMinimum: i.system.strengthMinimum, damageCode: i.system.damageCode,
     costPerForce: i.system.costPerForce, focusType: i.system.focusType,
     // Programs (p.46 incidentals): priced by rating and multiplier; a persona program from rating 4 (p.165).
-    multiplier: i.system.multiplier,
+    multiplier: i.system.multiplier, objectCodeOnly: i.system.objectCodeOnly, activeOpts: i.system.activeOpts,
+    // The authored price, for items whose derived price falls back to it (a DataSoft's data value).
+    authoredCost: (i._source?.system ?? i.system).cost,
     // Lifestyles: by the month, prepaid months (p.46).
     monthlyCost: i.system.monthlyCost, monthsPaid: i.system.monthsPaid,
     // Contacts: priced as extras (p.46).
