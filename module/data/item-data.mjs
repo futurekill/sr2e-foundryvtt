@@ -12,7 +12,7 @@ import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
 import { QUALITY_RULES, qualityRule } from "../rules/quality-rules.mjs";
 import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
-import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining } from "../rules/sr2e-rules.mjs";
+import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, adeptPowerKey, adeptPowerCost, adeptCostNeedsActor } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -1215,6 +1215,24 @@ export class AdeptPowerData extends SR2EDataModel {
    */
   get totalCost() {
     return this.pointCost * this.level;
+  }
+
+  /**
+   * The power's cost by the book (SR2E p.125–126): the owning character's (CharacterData.adeptPowerCosts), else the
+   * table's where it needs no character, else null ("depends on the character": Increased Reaction, Improved
+   * Physical Attributes, Improved Ability).
+   */
+  get powerCost() {
+    const item = this.parent, actorCosts = item?.parent?.system?.adeptPowerCosts;
+    if (actorCosts && item.id in actorCosts) return actorCosts[item.id];
+    const key = adeptPowerKey(item ?? {});
+    if (adeptCostNeedsActor(key)) return null;
+    return adeptPowerCost({ pointCost: this.pointCost, level: this.level, improvedSkill: this.improvedSkill, name: item?.name }, 6, { key: key ?? "" });
+  }
+  /** For the item sheet: the cost, or why it has none yet. */
+  get powerCostLabel() {
+    const c = this.powerCost;
+    return c == null ? "depends on the character" : `${c} PP`;
   }
 }
 

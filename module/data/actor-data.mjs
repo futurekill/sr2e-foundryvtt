@@ -26,7 +26,7 @@ import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
+import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerKey, adeptPowerCost, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -588,17 +588,21 @@ export class CharacterData extends SR2EDataModel {
     // Calculate Armor from equipped items
     this._calculateArmor();
 
-    // Adept Power Points (Magic rating for Physical Adepts, SR2E p.124). Points
-    // USED = Σ of each power's cost. Sum the SAME per-power cost the sheet shows
-    // in its Cost column (pointCost × level = system.totalCost) so the total
-    // always equals the sum of its parts — non-linear powers (Increased
-    // Reflexes/Reaction) carry their book cost via pointCost, not a hidden
-    // override that made Used disagree with the column.
+    // Adept Power Points (Magic rating for Physical Adepts, SR2E p.124). Each power's cost by the book's tables
+    // (adeptPowerCost, p.125–126) with THIS character's context, in one map that every display reads (the sheet's
+    // Cost column, the item sheet, the chat card), and Used is its sum. Rebuilt from scratch every preparation and
+    // reset for every actor, so a changed magic type or a removed power leaves nothing behind.
+    this.adeptPowerCosts = {};
+    this.adeptPowerPoints.max = 0;
+    this.adeptPowerPoints.value = 0;
     if (this.magic.type === "physical_adept") {
       this.adeptPowerPoints.max = this.magic.value;
       let used = 0;
       for (const item of this.parent?.items ?? []) {
-        if (item.type === "adept_power") used += item.system.totalCost ?? 0;
+        if (item.type !== "adept_power") continue;
+        const cost = this.adeptPowerCostOf(item);
+        this.adeptPowerCosts[item.id] = cost;
+        used += cost;
       }
       this.adeptPowerPoints.value = used;
     }
@@ -700,6 +704,17 @@ export class CharacterData extends SR2EDataModel {
    * add the bonus; the Skills tab shows it as a badge.
    * @private
    */
+  /** One power's book cost for this character (SR2E p.125–126): the racial maximums, the attribute's natural rating
+   * (bought + racial, sr2e-chargen RULINGS R4), the improved skill's name. */
+  adeptPowerCostOf(item) {
+    const key = adeptPowerKey(item) ?? "";
+    const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? CONFIG.SR2E.racialMaximums.human;
+    const attr = key.startsWith("improved_attribute:") ? key.split(":")[1] : null;
+    const ctx = { key, ...(attr ? { base: (this[attr]?.base ?? 0) + (this[attr]?.racial ?? 0), racialMax: maxes[attr] } : {}) };
+    const sys = item.system;
+    return adeptPowerCost({ pointCost: sys.pointCost, level: sys.level, improvedSkill: sys.improvedSkill, name: item.name }, maxes.reaction ?? 6, ctx);
+  }
+
   _applyAdeptSkills() {
     const items = this.parent?.items;
     if (!items) return;
@@ -1556,9 +1571,14 @@ export class CharacterData extends SR2EDataModel {
     // 1 die per point of heavy-armor Ballistic over Quickness (SR2E p.84).
     const equippedArmor = (this.parent?.items ?? [])
       .filter(i => i.type === "armor" && i.system.equipped && !inAnimalForm("character", this));
+    // Combat Sense (SR2E p.125): its level in extra Combat Pool dice — a physical adept's power, in human form.
+    const combatSense = this.magic.type === "physical_adept" && adeptPowersWork(this)
+      ? Math.max(0, ...(this.parent?.items ?? []).filter(i => i.type === "adept_power" && adeptPowerKey(i) === "combat_sense")
+        .map(i => Math.min(3, Math.max(1, i.system.level ?? 1))))
+      : 0;
     const combatPool = Math.max(0, Math.floor(
       (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
-    ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor));
+    ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor)) + combatSense;
     applyPool(this.dicePools.combat, combatPool);
 
     // Astral Combat Pool = ⌊(Int + Wil + Cha) ÷ 2⌋ (SR2E p.147), for the

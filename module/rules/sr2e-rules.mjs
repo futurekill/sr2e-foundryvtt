@@ -1887,36 +1887,98 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
   return { ...chargenSpend({ attributes, skills, items: data }, allot, { vr2 }), allergy };
 }
 
+/** The core book's adept powers by compendium source (as `wareRule` identifies cyberware): no schema field, so
+ * powers already embedded in actors are recognized without a migration. `flags.sr2e.power` overrides. */
+const ADEPT = (id) => `Compendium.sr2e.adept-powers.Item.${id}`;
+export const ADEPT_POWER_SOURCES = Object.freeze({
+  [ADEPT("56f5962337903eec")]: "astral_perception", [ADEPT("9d10344a9456397d")]: "combat_sense",
+  [ADEPT("7a4b0e85072ce4c6")]: "improved_ability", [ADEPT("5075527b8eb8f404")]: "improved_attribute:body",
+  [ADEPT("484c4074c7e97b93")]: "improved_attribute:quickness", [ADEPT("d4646721b2e9fe99")]: "improved_attribute:strength",
+  [ADEPT("9bf2a593eaad85f4")]: "improved_senses", [ADEPT("08e6d90ec7bf4dfe")]: "increased_reaction",
+  [ADEPT("b03361c78fba6c27")]: "increased_reflexes", [ADEPT("30f5e3493545db6b")]: "killing_hands",
+  [ADEPT("7480a901bc283d25")]: "killing_hands", [ADEPT("05d498aa7cbd198c")]: "killing_hands",
+  [ADEPT("81347eccfc7bebee")]: "killing_hands", [ADEPT("003f74fef4a1756e")]: "pain_resistance"
+});
+/** Core names, for powers made by hand (name match is the last resort). */
+const ADEPT_POWER_NAMES = [
+  [/^astral perception$/i, "astral_perception"], [/^combat sense$/i, "combat_sense"], [/^improved ability\b/i, "improved_ability"],
+  [/^improved physical attributes? \((body)\)$/i, "improved_attribute:body"], [/^improved physical attributes? \((quickness)\)$/i, "improved_attribute:quickness"],
+  [/^improved physical attributes? \((strength)\)$/i, "improved_attribute:strength"], [/^improved physical senses\b/i, "improved_senses"],
+  [/^increased reaction$/i, "increased_reaction"], [/^increased reflexes$/i, "increased_reflexes"], [/^killing hands\b/i, "killing_hands"],
+  [/^pain resistance$/i, "pain_resistance"]
+];
 /**
- * Power-point cost of a single physical-adept power (SR2E p.124–126). Most
- * powers are linear (pointCost × level), but two are not:
- *  - **Increased Reflexes**: 1 / 4 / 6 total for 1 / 2 / 3 Initiative dice (p.126).
- *  - **Increased Reaction**: tiered by how the bonus compares to the racial
- *    Reaction maximum — 0.5/+1 up to ½ max, 1/+1 up to max, 2/+1 up to 1.5×max.
- * Identified by name so the compendium data can stay simple.
+ * Which book power an item is: its rule flag, its compendium source, or its core name. Returns "key" or
+ * "improved_attribute:<attr>", or null for a power the book tables don't price (custom, sourcebook).
+ */
+export function adeptPowerKey(power = {}) {
+  const f = power.flags?.sr2e?.power;
+  if (typeof f === "string" && f) return f;
+  const src = power._stats?.compendiumSource ?? power.source ?? null;
+  if (src && ADEPT_POWER_SOURCES[src]) return ADEPT_POWER_SOURCES[src];
+  const name = String(power.name ?? "").trim();
+  return ADEPT_POWER_NAMES.find(([re]) => re.test(name))?.[1] ?? null;
+}
+
+/** Improved Ability's cost per die by the skill's area (SR2E p.125, Improved Ability Costs table). */
+export const IMPROVED_ABILITY_COSTS = Object.freeze({
+  athletics: 0.25, stealth: 0.25, "armed combat": 0.5, "unarmed combat": 0.5, "throwing weapons": 0.5,
+  "projectile weapons": 0.5, firearms: 1, gunnery: 1
+});
+const abilityArea = (skillName) => String(skillName ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim().replace(/^throwing$/, "throwing weapons");
+
+/**
+ * Power-point cost of a physical-adept power (SR2E p.124–126), by the book's tables:
+ *  - Astral Perception 2; Pain Resistance .5 / point; Improved Physical Senses .25 / improvement;
+ *  - Killing Hands: the entry's own cost ((Str)L .5, M 1, S 2, D 4 — one entry per level held);
+ *  - Combat Sense: level 1, 2, 3 cost 2, 3, 4 (the level's cost);
+ *  - Increased Reflexes: +1, +2, +3 dice cost 1, 4, 6;
+ *  - Increased Reaction: each bonus point by the BONUS against the racial Reaction maximum — up to ½ .5, up to the
+ *    maximum 1, up to 1.5 × 2;
+ *  - Improved Physical Attributes: each +1 by the FINAL rating against the attribute's racial maximum — up to ½ .5,
+ *    up to the maximum 1, up to 1.5 × 1.5 (ctx.base = the natural rating before the power; sr2e-chargen RULINGS R4);
+ *  - Improved Ability: dice × the skill area's cost (ctx.skillName, or the power's improvedSkill / name).
+ * A power the tables can't price — unknown, or one that needs a context it wasn't given — costs pointCost × level.
  *
- * @param {{name?:string, pointCost?:number, level?:number}} power
+ * @param {{name?:string, pointCost?:number, level?:number, improvedSkill?:string, flags?:object, _stats?:object}} power
  * @param {number} [racialReactionMax=6] - the adept's racial Reaction maximum
+ * @param {{key?:string, base?:number, racialMax?:number, skillName?:string}} [ctx]
  * @returns {number} power points spent on this power
  */
-export function adeptPowerCost(power, racialReactionMax = 6) {
-  const level = Math.max(1, power.level ?? 1);
-  const name = power.name ?? "";
-  if (/increased reflexes/i.test(name)) {
-    return [1, 4, 6][Math.min(level, 3) - 1] ?? 6;
-  }
-  if (/increased reaction/i.test(name)) {
-    const half = Math.floor(racialReactionMax / 2);
-    let cost = 0;
-    for (let i = 1; i <= level; i++) {
-      if (i <= half) cost += 0.5;
-      else if (i <= racialReactionMax) cost += 1;
-      else cost += 2;
+export function adeptPowerCost(power, racialReactionMax = 6, ctx = {}) {
+  const level = Math.max(1, Math.floor(Number(power.level) || 1));
+  const linear = () => (Number(power.pointCost) || 0) * level;
+  const key = ctx.key ?? adeptPowerKey(power) ?? "";
+  switch (key.split(":")[0]) {
+    case "astral_perception": return 2;
+    case "pain_resistance": return 0.5 * level;
+    case "improved_senses": return 0.25 * level;
+    case "killing_hands": return Number(power.pointCost) || 0;
+    case "combat_sense": return [2, 3, 4][Math.min(level, 3) - 1];
+    case "increased_reflexes": return [1, 4, 6][Math.min(level, 3) - 1];
+    case "increased_reaction": {
+      let cost = 0;
+      for (let i = 1; i <= level; i++) cost += i <= racialReactionMax / 2 ? 0.5 : i <= racialReactionMax ? 1 : 2;
+      return cost;
     }
-    return cost;
+    case "improved_attribute": {
+      if (!Number.isFinite(ctx.base) || !Number.isFinite(ctx.racialMax)) return linear();
+      let cost = 0;
+      for (let k = 1; k <= level; k++) {
+        const final = ctx.base + k;
+        cost += final <= ctx.racialMax / 2 ? 0.5 : final <= ctx.racialMax ? 1 : 1.5;
+      }
+      return cost;
+    }
+    case "improved_ability": {
+      const per = IMPROVED_ABILITY_COSTS[abilityArea(ctx.skillName ?? (power.improvedSkill || improvedAbilitySkill(power.name)))];
+      return per ? per * level : linear();
+    }
+    default: return linear();
   }
-  return (power.pointCost ?? 0) * level;
 }
+/** Whether a power's book cost needs the character (its race, an attribute, a skill): unowned, it "depends". */
+export const adeptCostNeedsActor = (key) => /^(increased_reaction|improved_attribute|improved_ability)/.test(key ?? "");
 
 // ───────────────────────────────────────────────────────────────────────────
 // VIRTUAL REALITIES 2.0 — Matrix 2.0 primitives (FASA7904)

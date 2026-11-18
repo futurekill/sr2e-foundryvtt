@@ -6,8 +6,8 @@
   "system": {
     "pointCost": 0.5,
     "level": 1,
-    "maxLevel": 6,
-    "description": "<p>Improves one Active Skill by +1 die per level (max +6); .5 Power Points per level for combat skills. SR2E p.125.</p>",
+    "maxLevel": 24,
+    "description": "<p>Extra dice for one general skill (they carry over to its concentrations and specializations). Cost per die by area: Athletics .25, Stealth .25, Armed/Unarmed Combat, Throwing and Projectile Weapons .5, Firearms and Gunnery 1. A Combat Skill can't have more extra dice than its rating. SR2E p.125.</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,

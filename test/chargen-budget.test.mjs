@@ -73,3 +73,46 @@ describe("chargen prerequisites", () => {
     expect(elf.allergy).toEqual({ attributes: 1, skills: 0, forcePoints: 0, nuyen: 100 });
   });
 });
+
+import { adeptPowerCost, adeptPowerKey, adeptCostNeedsActor, ADEPT_POWER_SOURCES } from "../module/rules/sr2e-rules.mjs";
+const SRC = (id) => `Compendium.sr2e.adept-powers.Item.${id}`;
+describe("S13: adept power costs by the book's tables (SR2E p.124–126)", () => {
+  const p = (id, o = {}) => ({ name: "x", pointCost: 1, level: 1, _stats: { compendiumSource: SRC(id) }, ...o });
+  it("identifies the core powers by compendium source, then by name", () => {
+    expect(Object.keys(ADEPT_POWER_SOURCES)).toHaveLength(14);
+    expect(adeptPowerKey(p("484c4074c7e97b93"))).toBe("improved_attribute:quickness");
+    expect(adeptPowerKey({ name: "Improved Ability (Firearms)" })).toBe("improved_ability");
+    expect(adeptPowerKey({ name: "Mystic Armor" })).toBeNull();
+    expect(adeptPowerKey({ name: "Mystic Armor", flags: { sr2e: { power: "pain_resistance" } } })).toBe("pain_resistance");
+  });
+  it("the fixed tables", () => {
+    expect([1, 2, 3].map(level => adeptPowerCost(p("9d10344a9456397d", { level })))).toEqual([2, 3, 4]);     // Combat Sense
+    expect([1, 2, 3].map(level => adeptPowerCost(p("b03361c78fba6c27", { level })))).toEqual([1, 4, 6]);     // Increased Reflexes
+    expect(adeptPowerCost(p("003f74fef4a1756e", { level: 10 }))).toBe(5);                                       // Pain Resistance
+    expect(adeptPowerCost(p("9bf2a593eaad85f4", { level: 3 }))).toBe(0.75);                                     // Senses
+    expect(adeptPowerCost(p("56f5962337903eec"))).toBe(2);                                                       // Astral Perception
+    expect(adeptPowerCost(p("30f5e3493545db6b", { pointCost: 4 }))).toBe(4);                                    // Killing Hands (D)
+  });
+  it("Increased Reaction by the bonus against the racial Reaction maximum", () => {
+    expect(adeptPowerCost(p("08e6d90ec7bf4dfe", { level: 3 }), 6)).toBe(1.5);        // human/elf: 3 × .5
+    expect(adeptPowerCost(p("08e6d90ec7bf4dfe", { level: 3 }), 4)).toBe(2);          // troll max 4: .5 + .5 + 1
+    expect(adeptPowerCost(p("08e6d90ec7bf4dfe", { level: 7 }), 6)).toBe(1.5 + 3 + 2); // 7th point past the max: 2
+  });
+  it("Improved Physical Attributes by the FINAL rating against the racial maximum (R4)", () => {
+    const q = (level, base, racialMax) => adeptPowerCost(p("484c4074c7e97b93", { level }), 6, { base, racialMax });
+    expect(q(3, 4, 6)).toBe(3.5);          // 5: 1, 6: 1, 7: 1.5
+    expect(q(2, 1, 6)).toBe(1);            // 2: .5, 3: .5
+    expect(q(1, 10, 11)).toBe(1);          // troll Body 11
+    expect(adeptPowerCost(p("484c4074c7e97b93", { level: 2 }))).toBe(2);   // no context: pointCost × level
+    expect(adeptCostNeedsActor("improved_attribute:body")).toBe(true);
+  });
+  it("Improved Ability by the skill's area", () => {
+    const a = (skillName, level) => adeptPowerCost({ name: "Improved Ability", pointCost: 0.5, level }, 6, { skillName });
+    expect(a("Athletics", 4)).toBe(1);
+    expect(a("Stealth", 2)).toBe(0.5);
+    expect(a("Throwing", 2)).toBe(1);
+    expect(a("Firearms", 3)).toBe(3);
+    expect(adeptPowerCost({ name: "Improved Ability (Gunnery)", pointCost: 0.5, level: 2 })).toBe(2);
+    expect(a("Etiquette", 2)).toBe(1);     // not in the table: pointCost × level
+  });
+});

@@ -431,7 +431,7 @@ export class SR2EItem extends Item {
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="sr2e-power-card">
-        <strong>✋ ${foundry.utils.escapeHTML(this.name)}</strong> (Level ${s.level}, ${s.totalCost} PP)
+        <strong>✋ ${foundry.utils.escapeHTML(this.name)}</strong> (Level ${s.level}, ${s.powerCost ?? s.totalCost} PP)
         ${s.description || ""}${invoke}
       </div>`
     });

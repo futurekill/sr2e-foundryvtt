@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Adept power costs follow the book's tables** (SR2E p.125–126). Combat Sense levels 1/2/3 cost 2/3/4 (it was 1 per
+  level, max 1); Increased Reaction and Improved Physical Attributes are priced by tier against the racial maximum
+  (Improved Physical Attributes by the attribute's natural rating plus the improvement); Improved Ability by the
+  skill's area (Athletics/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1 per die); Pain
+  Resistance .5 per point. Core powers are recognized by their compendium source or name (no migration). **An
+  adept's Used points can change on update**: the Tiger pregen goes from 5 to 6 of 6. Nothing is removed; if Used is
+  over Magic, the player and GM choose what to give up (p.126).
+- **Combat Sense now adds its dice to the Combat Pool** (p.125); its pack entry allows levels 1–3. Pain Resistance,
+  Improved Ability and Improved Physical Senses are no longer capped at 6 (the Magic Rating is the limit).
+- **Character creation budget** (SR2E p.44–46): programs count against Resources; a lifestyle costs its monthly cost
+  × months paid (it was free); contacts are priced as extras — two free, then 5,000¥ each, a buddy 10,000¥, a gang or
+  tribe 50,000¥, followers 200,000¥. Characters with more than two contacts or a prepaid lifestyle show more Resources
+  spent, which also lowers the nuyen left at finish (that is the rule).
+- Buying a focus with a chosen Force sets its bonding cost from the Focus Bonding Table (p.137). Existing foci keep
+  their bonding cost.
+
+### Added
+- **Allergies at creation** (p.46, metahumans only): the actor stores the allergy and its two bonus choices; the
+  creation budget adds the Allergy and Severity Table's points.
+- Contacts can be a **Gang or Tribe** (with its members); followers hold their five archetypes.
+- `chargenBudget`: one pure creation-budget calculation, shared with the standalone character generator.
+
+### Fixed
+- The focus price comment named the wrong prices (the catalog's were right, p.263).
+
 ## 0.160.0 — 2026-11-16
 
 ### Added
