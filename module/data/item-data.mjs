@@ -11,8 +11,8 @@ import { deckModeFields } from "./actor-data.mjs";
 import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
 import { QUALITY_RULES, qualityRule } from "../rules/quality-rules.mjs";
-import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
-import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining, adeptPowerKey, adeptPowerCost, adeptCostNeedsActor } from "../rules/sr2e-rules.mjs";
+import { wareRule, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
+import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, derivedItemCost, wareEssence, strengthMinWeaponStats, focusRemaining, adeptPowerKey, adeptPowerCost, adeptCostNeedsActor } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -782,22 +782,11 @@ export class CyberwareData extends SR2EDataModel {
    * capacity; ordinary cyberware (capacity 0, no modules) is just the base.
    */
   get actualEssenceCost() {
-    // A cranial cyberdeck's Essence is the sum of its installed Matrixware
-    // components, derived from the deck's own ratings (Shadowtech p.54–59),
-    // rather than a flat authored value.
-    // `limbEssence` (Phase 3a) and `limbDiscount` (Phase 3b, muscle replacement) are the
-    // actor's markers, cleared and reassigned every preparation.
-    if (this.cranialDeck) return surgicalEssence(gradeEssenceCost(cranialDeckEssence(this.deck), this.grade), this.surgeryEssencePct);
-    const own = this.limbEssence ?? this.essenceCost;
-    const base = this.limbDiscount != null ? ceil2(own * this.limbDiscount) : own;
-    // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost.
-    // A graded cybereye takes it before the .5 allowance (Cybertechnology p.45); then
-    // the surgeon's change (p.53).
-    const graded = containerEssence({ base, rows: this.capacityUsed ?? 0, capacity: this.capacity ?? 0, eyes: this.eyes,
-      isEye: this.wareRule === "cybereye-pair", graded: this.grade && this.grade !== "standard" },
-      (e) => gradeEssenceCost(e, this.grade));
-    return surgicalEssence(graded, this.surgeryEssencePct);
+    // The pure rule (chargen S5), shared with the standalone character generator. `limbEssence` (Phase 3a) and
+    // `limbDiscount` (Phase 3b) are the actor's markers, cleared and reassigned every preparation.
+    return wareEssence(this);
   }
+
 }
 
 /**

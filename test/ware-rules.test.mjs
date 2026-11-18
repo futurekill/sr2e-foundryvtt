@@ -92,3 +92,16 @@ describe("social (p.57–58)", () => {
     expect(contactReaction(2).tnPlus).toBe(1);
   });
 });
+
+describe("wareEssence (chargen S5): actualEssenceCost as a pure rule", async () => {
+  const { wareEssence, gradeEssenceCost, cranialDeckEssence } = await import("../module/rules/sr2e-rules.mjs");
+  it("plain, cybereyes over the allowance, the muscle discount, a cranial deck", () => {
+    expect(wareEssence({ essenceCost: 0.5, grade: "standard" })).toBe(0.5);
+    // .2 for the eyes + .2 over the .5 allowance (core p.247).
+    expect(wareEssence({ essenceCost: 0.2, grade: "standard", capacity: 0.5, capacityUsed: 0.7, eyes: "pair", wareRule: "cybereye-pair" })).toBeCloseTo(0.4, 9);
+    expect(wareEssence({ essenceCost: 0.25, limbDiscount: 0.8, grade: "standard" })).toBe(0.2);
+    const deck = { mpcp: 4 };
+    expect(wareEssence({ cranialDeck: true, deck, grade: "alpha" })).toBe(gradeEssenceCost(cranialDeckEssence(deck), "alpha"));
+    expect(wareEssence({ essenceCost: 1, grade: "alpha" })).toBe(gradeEssenceCost(1, "alpha"));
+  });
+});

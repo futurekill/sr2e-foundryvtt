@@ -1279,7 +1279,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
 
 import { VEHICLE_WEB_NODES, vehicleSkillMatches } from "./vehicle-r2-rules.mjs";
 import { limbOptionPrice } from "./limb-stats.mjs";
-import { MUSCLE, muscleFactor, wareCtx, rowsListValue } from "./ware-rules.mjs";
+import { MUSCLE, muscleFactor, wareCtx, rowsListValue, containerEssence as wareContainerEssence, ceil2 as wareCeil2 } from "./ware-rules.mjs";
 import { programSizes } from "./vr2-options.mjs";
 // limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
 export { limbOptionCost } from "./limb-stats.mjs";
@@ -2772,6 +2772,25 @@ export function surgicalEssence(graded, pct) {
   const g = Math.max(0, Number(graded) || 0), p = Number(pct) || 0;
   if (!p || !g) return g;
   return Math.max(0.01, Math.ceil(g * (1 + p / 100) * 100 - 1e-9) / 100);
+}
+
+/**
+ * One cyberware item's Essence (chargen S5): what CyberwareData.actualEssenceCost returns, as a pure function of the
+ * item's PREPARED system fields, so the standalone character generator computes the same value. A cranial deck is the
+ * sum of its components (Shadowtech p.54–59); otherwise the authored (or cyberlimb, Phase 3a) Essence, the muscle
+ * replacement discount (Phase 3b), the grade (SSC p.98, rounded up, floor .05) taken before a cybereye's .5
+ * allowance (Cybertechnology p.45), then the surgeon's change (p.53).
+ * @param {object} s - the item's prepared system data
+ * @returns {number}
+ */
+export function wareEssence(s) {
+  if (s.cranialDeck) return surgicalEssence(gradeEssenceCost(cranialDeckEssence(s.deck), s.grade), s.surgeryEssencePct);
+  const own = s.limbEssence ?? s.essenceCost;
+  const base = s.limbDiscount != null ? wareCeil2(own * s.limbDiscount) : own;
+  const graded = wareContainerEssence({ base, rows: s.capacityUsed ?? 0, capacity: s.capacity ?? 0, eyes: s.eyes,
+    isEye: s.wareRule === "cybereye-pair", graded: s.grade && s.grade !== "standard" },
+    (e) => gradeEssenceCost(e, s.grade));
+  return surgicalEssence(graded, s.surgeryEssencePct);
 }
 
 /**

@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Changed
+- **A cyberware item's Essence is a pure rule** (`wareEssence`, chargen S5): the same calculation as before, now
+  shared with the standalone character generator. No value changes (all seven pregens and the 98 cyberware Quench
+  tests unchanged).
 - **Adept power costs follow the book's tables** (SR2E p.125–126). Combat Sense levels 1/2/3 cost 2/3/4 (it was 1 per
   level, max 1); Increased Reaction and Improved Physical Attributes are priced by tier against the racial maximum
   (Improved Physical Attributes by the attribute's natural rating plus the improvement); Improved Ability by the
