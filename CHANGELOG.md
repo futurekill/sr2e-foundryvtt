@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- The Baseball Bat's Concealability is 5, like the Club (it was 99, "cannot be concealed").
+
 ## 0.160.0 — 2026-11-16
 
 ### Added
