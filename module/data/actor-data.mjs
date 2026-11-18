@@ -290,6 +290,14 @@ export class CharacterData extends SR2EDataModel {
           rarityBonus: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", attributes: "Attributes", skills: "Skills", force: "Force Points", nuyen: "Nuyen" } }),
           severityBonus: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", attributes: "Attributes", skills: "Skills", force: "Force Points", nuyen: "Nuyen" } })
         }),
+        // Vehicles bought at creation (SR2E p.46, p.264; chargen S9): a RECEIPT each — the name, the compendium source
+        // (provenance; "" for a world-made vehicle) and the list price paid. chargenBudget sums them; nothing is resolved,
+        // so deleting, editing or copying the vehicle never changes the spend. `initial: []` fills old sources.
+        vehicles: new fields.ArrayField(new fields.SchemaField({
+          name: new fields.StringField({ initial: "" }),
+          source: new fields.StringField({ initial: "", blank: true }),
+          cost: new fields.NumberField({ initial: 0, min: 0 })
+        }), { initial: [] }),
         attributePointsTotal: new fields.NumberField({ integer: true, initial: 30 }),
         attributePointsSpent: new fields.NumberField({ integer: true, initial: 0 }),
         skillPointsTotal: new fields.NumberField({ integer: true, initial: 30 }),

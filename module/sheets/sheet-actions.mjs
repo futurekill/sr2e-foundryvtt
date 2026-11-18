@@ -4396,6 +4396,15 @@ const SHARED_ACTIONS = {
     (await import("../apps/vehicle-workshop.mjs")).openVehicleWorkshop(null, { linkTo: this.document });
   },
 
+  /** Remove a vehicle bought at creation (S9): the receipt goes, so its list price comes back. */
+  removeVehicleReceipt: async function(event, target) {
+    event.preventDefault();
+    const i = Number(target.dataset.index);
+    const list = this.document.system.chargen?.vehicles ?? [];
+    if (!this.document.isOwner || !this.document.system.chargen?.inProgress || !Number.isInteger(i) || !list[i]) return;
+    return this.document.update({ "system.chargen.vehicles": list.filter((_, n) => n !== i).map((v) => ({ ...v })) });
+  },
+
   unlinkVehicle: async function(event, target) {
     event.preventDefault();
     const uuid = target.closest("[data-vehicle-uuid]")?.dataset.vehicleUuid;

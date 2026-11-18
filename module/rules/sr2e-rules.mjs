@@ -1885,7 +1885,23 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     // Accessories bought into an eye.
     moduleListValue: rowsListValue(i.system.modules ?? [])
   }));
-  return { ...chargenSpend({ attributes, skills, items: data }, allot, { vr2 }), allergy };
+  const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2 });
+  // Vehicles bought at creation (p.46, p.264; S9): the receipts' list prices. A receipt with no positive price (p.264's
+  // "Restricted", or a hand edit) counts nothing and is reported, never silently free.
+  const receipts = Array.isArray(system.chargen?.vehicles) ? system.chargen.vehicles : [];
+  const priced = (v) => typeof v?.cost === "number" && Number.isFinite(v.cost) && v.cost > 0;
+  const vehicles = receipts.filter(priced).reduce((s, v) => s + v.cost, 0);
+  const vehicleProblems = receipts.filter((v) => !priced(v)).map((v) => `${v?.name || "A vehicle"} has no list price (p.264): it can't be bought at creation.`);
+  const spent = spend.resources.spent + vehicles;
+  spend.resources = { ...spend.resources, spent, remaining: spend.resources.total - spent, over: spent > spend.resources.total, vehicles, vehicleProblems };
+  return { ...spend, allergy };
+}
+
+/** The receipt a creation purchase of `vehicle` records (S9): its name, compendium source and list price (p.264). */
+export function vehicleReceipt(vehicle) {
+  const cost = Number(vehicle?.system?.cost);
+  return { name: vehicle?.name ?? "", source: vehicle?.pack ? vehicle.uuid : (vehicle?._stats?.compendiumSource ?? ""),
+    cost: Number.isFinite(cost) && cost > 0 ? cost : 0 };
 }
 
 /** The core book's adept powers by compendium source (as `wareRule` identifies cyberware): no schema field, so

@@ -23,6 +23,12 @@
   their bonding cost.
 
 ### Added
+- **Vehicles bought at creation** (SR2E p.46, p.264; chargen S9). While creation is in progress, dropping a vehicle on
+  a character asks **Buy at creation** (at its list price), **Link only** (a vehicle someone else owns) or Cancel,
+  before anything is imported. A purchase is a receipt on the character (name, source, price paid): the Resources row
+  counts it and lists it with a remove button (the refund); deleting or editing the vehicle later never changes what
+  was spent. A vehicle with no list price (p.264 prints "Restricted") can only be linked; a receipt without a price
+  shows in red. The Force Points row now shows for physical adepts too.
 - **Allergies at creation** (p.46, metahumans only): the actor stores the allergy and its two bonus choices; the
   creation budget adds the Allergy and Severity Table's points.
 - Contacts can be a **Gang or Tribe** (with its members); followers hold their five archetypes.

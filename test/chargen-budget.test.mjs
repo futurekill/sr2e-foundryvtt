@@ -147,3 +147,23 @@ describe("S13 code review r1", () => {
     expect(combatSenseDice([], { physicalAdept: true })).toBe(0);
   });
 });
+
+describe("S9: vehicles bought at creation (p.46, p.264)", () => {
+  const withVehicles = (vehicles) => chargenBudget({ system: actor({ chargen: { vehicles } }), items: [], table });
+  it("the receipts' list prices count as Resources; a receipt without a price counts nothing and is reported", () => {
+    const base = chargenBudget({ system: actor(), items: [], table }).resources;
+    expect([base.spent, base.vehicles, base.vehicleProblems]).toEqual([0, 0, []]);   // an old source without the field
+    const r = withVehicles([{ name: "Dodge Scoot", source: "x", cost: 2000 }, { name: "Ford Americar", source: "y", cost: 16000 }]).resources;
+    expect([r.spent, r.vehicles, r.remaining]).toEqual([18000, 18000, 1000000 - 18000]);
+    const bad = withVehicles([{ name: "GMC Banshee", source: "z", cost: 0 }]).resources;
+    expect([bad.spent, bad.vehicleProblems]).toEqual([0, ["GMC Banshee has no list price (p.264): it can't be bought at creation."]]);
+    expect(withVehicles([{ name: "Huge", cost: 2000000 }]).resources.over).toBe(true);
+  });
+  it("vehicleReceipt: name, compendium source, positive list price", async () => {
+    const { vehicleReceipt } = await import("../module/rules/sr2e-rules.mjs");
+    expect(vehicleReceipt({ name: "Dodge Scoot", pack: "sr2e.vehicles", uuid: "Compendium.sr2e.vehicles.Actor.a", system: { cost: 2000 } }))
+      .toEqual({ name: "Dodge Scoot", source: "Compendium.sr2e.vehicles.Actor.a", cost: 2000 });
+    expect(vehicleReceipt({ name: "Van", uuid: "Actor.b", _stats: { compendiumSource: "Compendium.sr2e.vehicles.Actor.c" }, system: { cost: 0 } }))
+      .toEqual({ name: "Van", source: "Compendium.sr2e.vehicles.Actor.c", cost: 0 });
+  });
+});
