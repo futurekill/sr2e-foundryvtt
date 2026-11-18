@@ -410,15 +410,15 @@
         "range": "touch",
         "duration": "permanent",
         "force": 4,
-        "drainCode": "-1(S)",
+        "drainCode": "(F / 2)W",
         "target": "",
         "damageCode": "",
         "isAreaEffect": false,
         "isVoluntary": false,
-        "notes": "SR2E p.184. Heals physical damage. Boxes healed = hits.",
+        "notes": "SR2E p.155. Target number 10 − subject's Essence. Boxes healed = successes. Heal has no time limit. A character can only be magically treated or healed once per set of injuries. Type Mana, Range Touch, Permanent. Drain is (F / 2) at the subject's current Wound Level.",
         "citation": {
           "book": "sr2",
-          "page": "184"
+          "page": "155"
         }
       },
       "effects": [],
@@ -456,7 +456,11 @@
         "damageCode": "",
         "isAreaEffect": true,
         "isVoluntary": true,
-        "notes": "An area-effect, general hypersense spell requiring a voluntary subject. Within range, detects living beings who have hostile intentions toward the subject of the spell. This spell would not detect a trap (it is not alive) nor a terrorist about to shoot into a crowd at random (the intention is not personal)."
+        "notes": "An area-effect, general hypersense spell requiring a voluntary subject. Within range, detects living beings who have hostile intentions toward the subject of the spell. This spell would not detect a trap (it is not alive) nor a terrorist about to shoot into a crowd at random (the intention is not personal).",
+        "citation": {
+          "book": "sr2",
+          "page": "153"
+        }
       },
       "img": "systems/sr2e/assets/item_icons/spells/detect-enemies.webp",
       "effects": [],
@@ -494,7 +498,11 @@
         "damageCode": "M",
         "isAreaEffect": true,
         "isVoluntary": false,
-        "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets."
+        "notes": "An area-effect spell that causes Physical damage. This mana version affects only living targets.",
+        "citation": {
+          "book": "sr2",
+          "page": "151"
+        }
       },
       "img": "systems/sr2e/assets/item_icons/spells/manaball.webp",
       "effects": [],
@@ -532,7 +540,11 @@
         "damageCode": "",
         "isAreaEffect": false,
         "isVoluntary": true,
-        "notes": "A voluntary subject is required. The magician gives the subject built-in armor, knitting his tissues into tougher compounds. Treat one-half the successes made in the Spell Success Test as the Dermal Armor Rating (add to Body) for as long as the spell is maintained."
+        "notes": "A voluntary subject is required. The magician gives the subject built-in armor, knitting his tissues into tougher compounds. Treat one-half the successes made in the Spell Success Test as the Dermal Armor Rating (add to Body) for as long as the spell is maintained.",
+        "citation": {
+          "book": "sr2",
+          "page": "158"
+        }
       },
       "img": "systems/sr2e/assets/item_icons/spells/armor.webp",
       "effects": [
