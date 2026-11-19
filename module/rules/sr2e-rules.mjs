@@ -1910,7 +1910,8 @@ export function itemListValue(item, items = [item]) {
   const n = Math.max(0, items.indexOf(item));
   const value = chargenItemCost(budgetItemInput(item, docs, n));
   const acq = item.flags?.sr2e?.acquiredQuantity, stock = item.type === "ammo" || (item.type === "gear" && !!item.flags?.sr2e?.drug);
-  return stock && Number(acq) > 0 ? Math.floor(value * Math.max(0, Number(item.system?.quantity) || 0) / Number(acq)) : value;
+  // The part left, never more than what was acquired (an edited quantity can't inflate the value, as the refund).
+  return stock && Number(acq) > 0 ? Math.floor(value * Math.min(1, Math.max(0, Number(item.system?.quantity) || 0) / Number(acq))) : value;
 }
 
 /** A fence's percentages (SR2E p.188): 30% base, 5% per extra Negotiation success, never below 10 or above 50. */
@@ -1947,7 +1948,12 @@ export function refundQuote(it) {
  */
 export function saleQuoteOf(item, { mode = "refund", pct = 30, items = [item] } = {}) {
   if (mode !== "fence") return refundQuote(item);
-  if (item.type === "cyberware" && item.system?.secondhandFailed) return { price: 0, note: " (failed second-hand ware: worthless, SSC p.100)" };
+  if (!FENCE_STEPS.includes(pct)) return { price: null, note: " (a fence pays 10–50%, in steps of 5)" };
+  // A failed second-hand part is worthless, but its accessory rows still sell (as the refund keeps them).
+  if (item.type === "cyberware" && item.system?.secondhandFailed) {
+    const rows = rowsListValue(item.system?.modules ?? []), price = fenceValue(rows, pct);
+    return { price, note: ` (failed second-hand ware: worthless, SSC p.100${rows ? `; ${pct}% of ${rows.toLocaleString("en-US")}¥ for its accessories` : ""})` };
+  }
   const list = itemListValue(item, items), price = fenceValue(list, pct);
   return { price, note: price == null ? " (a fence pays 10–50%, in steps of 5)" : ` (a fence pays ${pct}% of its ${list.toLocaleString("en-US")}¥ value, p.188)` };
 }

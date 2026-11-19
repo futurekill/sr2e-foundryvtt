@@ -42,7 +42,9 @@ describe("fence mode (p.188): 30% base, 10–50% in steps of 5", () => {
     expect(saleQuoteOf({ type: "weapon", system: { cost: 450, quantity: 1 }, flags: {} }, { mode: "fence", pct: 30 }).price).toBe(135);
     expect(itemListValue(CASES.ammoHalf)).toBe(30);   // 60¥ of bundles, half left
     expect(saleQuoteOf(CASES.ammoHalf, { mode: "fence", pct: 50 }).price).toBe(15);
-    expect(saleQuoteOf(CASES.failed, { mode: "fence", pct: 50 }).price).toBe(0);
+    expect(saleQuoteOf(CASES.failed, { mode: "fence", pct: 50 }).price).toBe(1500, "its 3,000¥ accessory row still sells");
+    expect(saleQuoteOf(CASES.failed, { mode: "fence", pct: 12 }).price).toBeNull();
+    expect(itemListValue({ ...CASES.ammoHalf, system: { ...CASES.ammoHalf.system, quantity: 20 } })).toBe(60, "an edited quantity can't inflate it");
     expect(saleQuoteOf(CASES.paid, { mode: "fence", pct: 12 }).price).toBeNull();
     expect(saleQuoteOf(CASES.paid, { mode: "refund", pct: 12 })).toEqual(refundQuote(CASES.paid));
   });
