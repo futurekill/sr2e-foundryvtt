@@ -164,6 +164,7 @@
           <input type="checkbox" name="system.chargen.qualitiesUseBP" {{checked system.chargen.qualitiesUseBP}} style="width:auto;"
                  title="The GM's option (Companion p.22–23): Edges cost Building Points and Flaws add them, instead of balancing to 0" />
         </div>
+        {{#if system.chargen.inProgress}}
         <p class="priority-{{#if buildingPoints.over}}warning{{else}}ok{{/if}}">
           {{#if buildingPoints.over}}<i class="fas fa-triangle-exclamation"></i>{{else}}<i class="fas fa-check"></i>{{/if}}
           Building Points <strong>{{buildingPoints.spent}}</strong> / {{buildingPoints.total}}
@@ -171,6 +172,7 @@
           skills {{buildingPoints.parts.skills}}, nuyen {{buildingPoints.parts.resources}}, Force Points {{buildingPoints.parts.forcePoints}}{{#if buildingPoints.parts.qualities}}, Edges/Flaws {{buildingPoints.parts.qualities}}{{/if}}).
         </p>
         {{#each buildingPoints.problems}}<p class="priority-warning"><i class="fas fa-triangle-exclamation"></i> {{this}}</p>{{/each}}
+        {{/if}}
         {{else}}
         <div class="priority-row flexrow">
           <label>Race Priority:</label>

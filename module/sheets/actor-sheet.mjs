@@ -1760,7 +1760,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       ? context.prioritySum <= 10
       : context.priorityDuplicates.length === 0;
     // Shapeshifter creation (Companion pp.36–38): reported, not enforced, like the rest of this panel.
-    context.shapeshifterChargen = shapeshifterOf("character", system) ? [
+    // Under point-based design the priority rules don't apply: the Building Points row reports a shapeshifter instead.
+    context.shapeshifterChargen = shapeshifterOf("character", system) && method !== "points" ? [
       chosen.race !== "A" ? "A shapeshifter must put Race at Priority A." : "",
       method === "sumto10" ? "The Shapeshifter Character Creation Table has no Sum-to-10 option — use Standard." : "",
       system.magic?.type === "full_magician" && chosen.magic !== "B" ? "A shapeshifter magician needs Magic at Priority B." : "",
