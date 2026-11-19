@@ -46,6 +46,8 @@ describe("chargen prerequisites", () => {
     expect(spent({ race: "shapeshifter", shapeshifter: { species: "wolf" } })).toBe(5000);
     expect(spent({ race: "human" })).toBe(0);
     expect([startingKarmaPool("shapeshifter"), startingKarmaPool("shapeshifter", true), startingKarmaPool("ork")]).toEqual([1, 1, 2]);
+    const { humanFormMod } = await import("../module/rules/shapeshift-rules.mjs");
+    expect([humanFormMod({ race: "shapeshifter", shapeshifter: { species: "bear" } }, "body"), humanFormMod({ race: "troll" }, "body")]).toEqual([1, 0]);
   });
 
   it("S4: the Allergy and Severity Table (p.46): one category each for the rarity and the severity", () => {

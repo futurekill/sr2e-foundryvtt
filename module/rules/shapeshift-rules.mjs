@@ -182,6 +182,10 @@ export const dermalDiceOf = (type, sys) => dermalDice({ race: sys?.race,
   noDermal: type === "character" && !!sys?.metavariant?.name && sys.metavariant.base === sys.race && !(sys.metavariant.abilities ?? []).includes("dermal_armor") });
 /** An NPC's active form record, or null ("" or an unknown key = the printed block). */
 export const activeFormOf = (sys) => (sys?.activeForm && (sys.forms ?? []).find(f => f.key === sys.activeForm)) || null;
+/** A character's HUMAN-form modifier for an attribute (0 for anyone else): its racial modifier for pricing
+ * Improved Physical Attributes, where adept powers work (Companion p.36; sr2e-chargen RULINGS R4). */
+export const humanFormMod = (sys, attr) => shapeshifterOf("character", sys)
+  ? formModifiers(sys.shapeshifter.species, "human").attrs[attr] ?? 0 : 0;
 /** Only natural (form-tagged) weapons now: a character in animal form, or an NPC shapeshifter in an alternate form. */
 export const formWeaponsOnly = (type, sys) => inAnimalForm(type, sys)
   || (type === "npc" && shapeshifterOf(type, sys) && !!activeFormOf(sys));

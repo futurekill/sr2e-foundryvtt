@@ -6,7 +6,7 @@ import { isRigger2, r2Option } from "../vehicle-mode.mjs";
 import { fuelGradeEffects } from "../rules/vehicle-fuel-rules.mjs";
 import { subsystemState, applySubsystemEffects } from "../rules/vehicle-subsystem-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
-import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral } from "../rules/shapeshift-rules.mjs";
+import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral, humanFormMod } from "../rules/shapeshift-rules.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
 import { skinBody } from "../rules/cyberdamage-rules.mjs";
@@ -617,7 +617,8 @@ export class CharacterData extends SR2EDataModel {
     this.adeptPowerPoints.value = 0;
     if (this.magic.type === "physical_adept") {
       // The pure rule (adeptPowerBudget), shared with the standalone character generator.
-      const natural = Object.fromEntries(["body", "quickness", "strength"].map(a => [a, (this[a]?.base ?? 0) + (this[a]?.racial ?? 0)]));
+      // A shapeshifter's human-form modifier is its racial modifier here (adept powers work only in human form).
+      const natural = Object.fromEntries(["body", "quickness", "strength"].map(a => [a, (this[a]?.base ?? 0) + (this[a]?.racial ?? 0) + humanFormMod(this, a)]));
       const b = adeptPowerBudget({ items: [...(this.parent?.items ?? [])], maxes: CONFIG.SR2E.racialMaximums[this.race] ? racialProfile(this, CONFIG.SR2E).maxes : CONFIG.SR2E.racialMaximums.human,
         natural, magic: this.magic.value });
       this.adeptPowerPoints.max = this.magic.value;
