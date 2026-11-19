@@ -26,7 +26,7 @@ import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerBudget, combatSenseDice, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
+import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerBudget, combatSenseDice, icInitiativeDice, icClass, secondhandDead, taskPoolDice, racialProfile } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -114,6 +114,17 @@ export class CharacterData extends SR2EDataModel {
       race: new fields.StringField({ required: true, initial: "human" }),
       // Shapeshifter (Companion pp.36–38): race "shapeshifter" + a species. The form picks the attribute
       // modifiers; `bane` is the substance it's allergic and vulnerable to (silver).
+      // A metavariant (Companion p.39–44): the race item's own modifiers and abilities, copied at the drop. Absent unless
+      // `name` is set AND `base` equals `race` (racialProfile), so a race changed any other way never keeps them.
+      metavariant: new fields.SchemaField({
+        name: new fields.StringField({ initial: "", blank: true }),
+        source: new fields.StringField({ initial: "", blank: true }),
+        book: new fields.StringField({ initial: "", blank: true }),
+        base: new fields.StringField({ initial: "", blank: true }),
+        attributeMods: new fields.SchemaField(Object.fromEntries(["body", "quickness", "strength", "charisma", "intelligence", "willpower"]
+          .map(a => [a, new fields.NumberField({ required: true, integer: true, initial: 0 })]))),
+        abilities: new fields.ArrayField(new fields.StringField({ blank: false }), { initial: [] })
+      }),
       shapeshifter: new fields.SchemaField({
         species: new fields.StringField({ initial: "", blank: true, choices: SPECIES_CHOICES }),
         form: new fields.StringField({ initial: "human", choices: { human: "SR2E.Shapeshift.FormHuman", animal: "SR2E.Shapeshift.FormAnimal" } }),
@@ -1259,7 +1270,7 @@ export class CharacterData extends SR2EDataModel {
    * @private
    */
   _applyRacialModifiers() {
-    const raceMods = CONFIG.SR2E.racialModifiers[this.race] || {};
+    const raceMods = racialProfile(this, CONFIG.SR2E).mods;   // a metavariant's own (Companion p.39–44)
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
       if (this[attr]) {
         this[attr].racial = raceMods[attr] ?? 0;

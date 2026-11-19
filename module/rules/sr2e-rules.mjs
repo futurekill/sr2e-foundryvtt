@@ -1574,6 +1574,55 @@ export function allergyBonus({ rarity = "", severity = "", rarityBonus = "", sev
  * @param {number} [maxBonus=0] - Exceptional Attribute's raise to that maximum
  * @returns {number}
  */
+// ── Metatypes and metavariants (core p.45; Companion p.39–44) ────────────────
+
+/** The metatypes a metavariant can belong to (a shapeshifter is its own thing, Companion p.36). */
+export const METAVARIANT_BASES = ["dwarf", "elf", "ork", "troll"];
+/** The Cyclops (Companion p.39): no depth perception, +2 TN on ranged attacks. */
+export const CYCLOPS_SOURCE = "Compendium.sr2e-shadowrun-companion.sc-metatypes.Item.464bc3d8ff50a2fb";
+/** A race item is a metavariant when it isn't the core book's and belongs to a metahuman metatype (never by its modifiers: an Oni's equal the ork's). */
+export const isMetavariantItem = (item) => METAVARIANT_BASES.includes(item?.system?.raceKey)
+  && (item.system?.citation?.book ?? "sr2") !== "sr2";
+/** `system.metavariant` as written from a race item (or the empty record for a core one). */
+export function metavariantFrom(item) {
+  const attrs = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"];
+  if (!isMetavariantItem(item)) return { name: "", source: "", book: "", base: "", attributeMods: Object.fromEntries(attrs.map(a => [a, 0])), abilities: [] };
+  const mods = item.system.attributeMods ?? {};
+  return { name: String(item.name ?? ""), source: item._stats?.compendiumSource ?? item.flags?.core?.sourceId ?? "",
+    book: item.system.citation.book, base: item.system.raceKey,
+    attributeMods: Object.fromEntries(attrs.map(a => [a, Number(mods[a]) || 0])), abilities: [...(item.system.specialAbilities ?? [])] };
+}
+/**
+ * The racial modifiers, maximums and abilities that apply (pure; `tables` = CONFIG.SR2E's racialModifiers,
+ * racialMaximums, racialAbilities). A metavariant counts only when named AND belonging to the current race; its
+ * maximums are always the base metatype's (Companion p.39: only the Cyclops names one, the troll's 10).
+ */
+export function racialProfile(sys, tables) {
+  const race = sys?.race ?? "human", v = sys?.metavariant;
+  const variant = v?.name && v.base === race ? v : null;
+  return { race, variant: variant?.name ?? "", source: variant?.source ?? "",
+    mods: variant ? { ...variant.attributeMods } : { ...(tables.racialModifiers[race] ?? {}) },
+    maxes: { ...(tables.racialMaximums[race] ?? {}) },
+    abilities: variant ? [...(variant.abilities ?? [])] : [...(tables.racialAbilities?.[race] ?? [])] };
+}
+
+/** A Cyclops' +2 on a ranged attack — firearms, launchers, bows and thrown weapons; never melee (Companion p.39). */
+export const cyclopsRangedTN = (actorType, weaponType, sys, tables) =>
+  actorType === "character" && weaponType !== "melee" && racialProfile(sys, tables).source === CYCLOPS_SOURCE ? 2 : 0;
+/** The variant's rules the GM applies, as notes (Companion p.39–44); [] for none. */
+export const DRYAD_SOURCE = "Compendium.sr2e-shadowrun-companion.sc-metatypes.Item.c815e337a7bfc53d";
+export const NIGHT_ONE_SOURCE = "Compendium.sr2e-shadowrun-companion.sc-metatypes.Item.cc8572a19c14cf1c";
+export const ONI_SOURCE = "Compendium.sr2e-shadowrun-companion.sc-metatypes.Item.e80d65521084c7ea";
+export function metavariantNotes(sys, tables) {
+  const p = racialProfile(sys, tables);
+  if (!p.variant) return [];
+  const notes = ["Hostile reaction in initial social contacts with other metahumans (Companion p.39)."];
+  if (p.source === CYCLOPS_SOURCE) notes.push("No depth perception: +2 TN on ranged attacks (Companion p.39).");
+  if (p.source === DRYAD_SOURCE) notes.push("Mild allergy to urban areas; Animal Empathy with birds and small tree-living animals only (Companion p.44).");
+  if (p.source === NIGHT_ONE_SOURCE) notes.push("Mild allergy to sunlight (Companion p.44).");
+  return notes;
+}
+
 export function naturalAttribute(base, racial = 0, edgeBonus = 0, racialMax = null, maxBonus = 0) {
   const natural = (Number(base) || 0) + (Number(racial) || 0) + (Number(edgeBonus) || 0);
   if (racialMax === null || racialMax === undefined) return natural;

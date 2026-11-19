@@ -25,6 +25,13 @@
   their bonding cost.
 
 ### Added
+- **Metavariants** (Shadowrun Companion p.39–44): dropping a metavariant (Cyclops, Fomori, Giant, Minotaur, Koborokuru,
+  Menehune, Gnome, Hobgoblin, Ogre, Oni, Satyr, Wakyambi, Dryad, Night One) now applies ITS racial modifiers and
+  abilities — before, only the base metatype's counted, so a Cyclops had a troll's +4 Strength instead of +6 and kept
+  dermal armor. The sheet shows "Troll (Cyclops)" with the variant's notes (Hostile reaction; Dryad and Night One
+  allergies). A Cyclops takes +2 TN on ranged attacks, thrown weapons included (no depth perception). Racial maximums
+  stay the base metatype's. Dropping a core metatype clears the variant. An oni's priority table notes the Companion's
+  magical-oni option (Race B with Resources A and Magic C, the GM's call).
 - **Selling through a fence** (SR2E p.188): a new world setting, *Selling gear*. "Refund what was paid" is the rule
   your table has used so far (the default — nothing changes until the GM switches). "Through a fence" pays 30% of the
   item's list value, 5% more or less per extra Negotiation success, between 10% and 50%: Sell asks the agreed

@@ -1046,6 +1046,37 @@ function stubWorldSettings(keys) {
       });
     }, { displayName: "SR2E: Sale mode" });
 
+    // ── Metavariants (Shadowrun Companion p.39–44; sr2e-chargen PLAN-M5b) ──
+    // The drop writes the race item's own modifiers; a core race item clears them.
+    quench.registerBatch("sr2e.metavariant", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.sheet?.close(); } catch (e) {} await a.delete().catch(() => {}); } });
+      const { CYCLOPS_SOURCE } = game.sr2e.rules ?? {};
+      const race = (name, raceKey, mods, abilities, book, source = "") => ({ name, type: "race", _stats: { compendiumSource: source },
+        system: { raceKey, attributeMods: mods, specialAbilities: abilities, citation: { book, page: "39" } } });
+      describe("Race drop", () => {
+        it("a Cyclops: Strength racial +6, no dermal die; a core troll afterwards clears the variant", async () => {
+          const a = await Actor.create({ name: "Quench Cyclops", type: "character" });
+          made.push(a);
+          const sheet = a.sheet;
+          await sheet._onDropRace(race("Cyclops", "troll", { body: 5, quickness: -1, strength: 6, charisma: -2, intelligence: -2, willpower: -1 },
+            ["thermographic_vision", "reach_1"], "sc", CYCLOPS_SOURCE ?? "Compendium.sr2e-shadowrun-companion.sc-metatypes.Item.464bc3d8ff50a2fb"));
+          assert.equal(a.system.race, "troll");
+          assert.equal(a.system.metavariant.name, "Cyclops");
+          assert.equal(a.system.strength.racial, 6);
+          const { dermalDiceOf } = await import("../rules/shapeshift-rules.mjs");
+          assert.equal(dermalDiceOf("character", a.system), 0);
+          Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="yes"]')?.click(), 60));
+          await sheet._onDropRace(race("Troll", "troll", { body: 5, quickness: -1, strength: 4, charisma: -2, intelligence: -2, willpower: -1 },
+            ["thermographic_vision", "dermal_armor", "reach_1"], "sr2"));
+          assert.equal(a.system.metavariant.name, "");
+          assert.equal(a.system.strength.racial, 4);
+          assert.equal(dermalDiceOf("character", a.system), 1);
+        });
+      });
+    }, { displayName: "SR2E: Metavariants" });
+
     // ── Attribute Edges apply themselves (Shadowrun Companion p.24) ──
     // The Vitest suite locks naturalAttribute's math; this locks the half Vitest
     // can't see — that a quality item on a real actor actually drives it, and

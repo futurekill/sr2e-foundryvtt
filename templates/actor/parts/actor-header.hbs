@@ -23,7 +23,8 @@
       <label class="race-label">{{localize "SR2E.Race.Label"}}:</label>
       {{!-- Race drop zone: shows current race name; accepts a 'race' item dropped from compendium --}}
       <div class="race-drop-zone" title="Drag a metatype from the SR2E Metatypes compendium to set this character's race." data-drop="race">
-        <span class="race-name">{{localizeRace system.race config.races}}</span>
+        <span class="race-name">{{localizeRace system.race config.races}}{{#if metavariant}} ({{metavariant.name}}){{/if}}</span>
+        {{#if metavariant}}<i class="fas fa-circle-info" title="{{metavariant.notes}}" aria-label="{{metavariant.notes}}"></i>{{/if}}
         <i class="fas fa-arrows-alt race-drop-icon"></i>
       </div>
 

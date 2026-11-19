@@ -43,8 +43,8 @@ export const isSocialSkill = (name) =>
   SOCIAL_SKILLS.includes(String(name ?? "").replace(/\(.*$/, "").trim().toLowerCase());
 
 /** Dermal armor dice added to damage resistance: troll +1 Body (core Racial Modifications Table), bear animal form +2 (p.36). */
-export const dermalDice = ({ race, species, form } = {}) =>
-  race === "troll" ? 1 : race === "shapeshifter" ? formModifiers(species, form).dermalDice : 0;
+export const dermalDice = ({ race, species, form, noDermal = false } = {}) =>
+  race === "troll" ? (noDermal ? 0 : 1) : race === "shapeshifter" ? formModifiers(species, form).dermalDice : 0;
 
 // ── Damage buckets (player characters, Physical only) ───────────────────────
 
@@ -177,7 +177,9 @@ export const characterForm = (sys) => shapeshifterOf("character", sys)
 export const adeptPowersWork = (sys) => !inAnimalForm("character", sys);
 /** Dermal dice for an actor's system data (troll; a shapeshifter character's bear animal form). */
 export const dermalDiceOf = (type, sys) => dermalDice({ race: sys?.race,
-  species: type === "character" ? sys?.shapeshifter?.species : "", form: sys?.shapeshifter?.form });
+  species: type === "character" ? sys?.shapeshifter?.species : "", form: sys?.shapeshifter?.form,
+  // A troll metavariant without Dermal Armor (Cyclops, Fomori, Giants; Companion p.39–41).
+  noDermal: type === "character" && !!sys?.metavariant?.name && sys.metavariant.base === sys.race && !(sys.metavariant.abilities ?? []).includes("dermal_armor") });
 /** An NPC's active form record, or null ("" or an unknown key = the printed block). */
 export const activeFormOf = (sys) => (sys?.activeForm && (sys.forms ?? []).find(f => f.key === sys.activeForm)) || null;
 /** Only natural (form-tagged) weapons now: a character in animal form, or an NPC shapeshifter in an alternate form. */

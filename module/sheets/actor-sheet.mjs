@@ -11,7 +11,7 @@ import { cyberDamageOn } from "../cyberdamage.mjs";
 import { accessoryKindOf, eyeHostAt, fitEyeAccessory, withSource } from "../eye-accessories.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
 import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
-import { streetPrice, chargenBudget, vehicleReceipt, focusBondingCost, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
+import { streetPrice, chargenBudget, vehicleReceipt, focusBondingCost, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost, metavariantFrom, racialProfile, metavariantNotes, ONI_SOURCE } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
@@ -1408,7 +1408,7 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Confirm if replacing an existing non-human race.
     // Use i18n with English fallbacks so the dialog is readable even if the
     // language file hasn't loaded yet.
-    if (currentRace && currentRace !== "human" && currentRace !== raceKey) {
+    if (currentRace && currentRace !== "human" && (currentRace !== raceKey || (actor.system.metavariant?.name ?? "") !== metavariantFrom(itemData).name)) {
       const currentLabel = (() => {
         const key = CONFIG.SR2E.races[currentRace];
         if (!key) return currentRace.charAt(0).toUpperCase() + currentRace.slice(1);
@@ -1428,6 +1428,8 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Set system.race — the CONFIG table handles all modifiers and maximums.
     const updateData = {
       "system.race": raceKey,
+      // A metavariant (Companion p.39–44) carries its own modifiers and abilities; a core race item clears it.
+      "system.metavariant": metavariantFrom(itemData),
       // A shapeshifter race item names its species (Companion p.36); any other race clears it.
       "system.shapeshifter.species": raceKey === "shapeshifter" ? (itemData.system?.species ?? "") : ""
     };
@@ -1477,6 +1479,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     const context = await super._prepareContext(options);
     const actor = this.document;
     const system = actor.system;
+    // A metavariant (Companion p.39–44): its name beside the race, its notes in the tooltip.
+    const mv = racialProfile(system, CONFIG.SR2E);
+    context.metavariant = mv.variant ? { name: mv.variant, notes: metavariantNotes(system, CONFIG.SR2E).join(" ") } : null;
 
     // Organize items by type
     context.skills = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name))
@@ -1717,7 +1722,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     };
     const raceLabels = { metahuman: "Any metatype", human: "Human only", shapeshifter: "Shapeshifter" };
     const desc = {
-      race:       (g) => raceLabels[prio[g].race] ?? "—",
+      // A magical oni may take Race B with Resources A and Magic C, at the GM's discretion (Companion p.42).
+      race:       (g) => (prio[g].race === "human" && g === "B" && racialProfile(system, CONFIG.SR2E).source === ONI_SOURCE
+        ? "Human, or a magical Oni (GM, Companion p.42)" : raceLabels[prio[g].race] ?? "—"),
       magic:      (g) => magicLabels[prio[g].magic] ?? "Mundane",
       attributes: (g) => prio[g].attributes == null ? "—" : `${prio[g].attributes} points`,
       skills:     (g) => prio[g].skills == null ? "—" : `${prio[g].skills} points`,

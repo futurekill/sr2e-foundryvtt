@@ -11,7 +11,7 @@ import { SFX_KEYS } from "../sfx-manifest.mjs";
 import { attackSound, spellSound } from "../rules/combat-sound-rules.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
 import { burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
-         canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating} from "../rules/sr2e-rules.mjs";
+         canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating, cyclopsRangedTN} from "../rules/sr2e-rules.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
 import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
@@ -866,6 +866,8 @@ export class SR2EItem extends Item {
     const targetMod    = options.targetMod   ?? 0;
     let speedMod       = options.speedMod    ?? 0;   // Moving Target Table (p.108)
     const otherMod     = options.otherMod    ?? 0;
+    // A Cyclops has no depth perception: +2 on every ranged attack, thrown weapons included (Companion p.39).
+    const cyclopsMod = cyclopsRangedTN(actor.type, this.system.weaponType, actor.system, CONFIG.SR2E);
     // Light/Moderate damage to the weapon itself: no bonus to reduce → +1 / +3 TN (R2 p.86 Table 8; R6-1).
     const weaponDmgMod = weaponLvl ? (NO_BONUS_TN[weaponLvl] ?? 0) : 0;
 
@@ -929,7 +931,7 @@ export class SR2EItem extends Item {
       const leadTN = lead?.tn ?? 0;
 
       targetNumber = Math.max(2,
-        BASE_TN + reachMod + friendsMod + positionMod + multiMod + meleeVisMod + otherMod
+        BASE_TN + reachMod + friendsMod + positionMod + multiMod + meleeVisMod + otherMod + cyclopsMod
                 + leadTN + defaultingPenalty
       );
 
@@ -943,6 +945,7 @@ export class SR2EItem extends Item {
       if (meleeVisMod)     modParts.push(`visibility +${meleeVisMod}`);
       if (lead)            modParts.push(`${lead.key === "vehicleArm" ? "with" : "leading with"} ${lead.name ?? lead.key} (Str ${lead.strength}) +${lead.tn}`);
       if (otherMod)        modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
+      if (cyclopsMod)      modParts.push(`no depth perception +${cyclopsMod}`);
       label = RL("MeleeAttack", { name: this.name, mods: modParts.length ? " — " + modParts.join(", ") : "", tn: targetNumber });
 
     } else {
@@ -1101,7 +1104,7 @@ export class SR2EItem extends Item {
       const effVis_ = Math.max(visMod, barrierBlind_);
 
       targetNumber = Math.max(2,
-        BASE_TN + rangeMod + coverMod + attackerMod + targetMod + speedMod + meleeMod + otherMod + weaponDmgMod
+        BASE_TN + rangeMod + coverMod + attackerMod + targetMod + speedMod + meleeMod + otherMod + weaponDmgMod + cyclopsMod
                 + cyberwareMod + accessoryMod + recoilMod - gyroMoveCut
                 + effVis_ + spreadMod + defaultingPenalty
                 + calledShotMod_ - aimCut_ + eng.tnMod + (r2?.mode === "manual" ? r2.extra : 0) + designatorMod_
@@ -1141,6 +1144,7 @@ export class SR2EItem extends Item {
       if (options.deployed && acc.needsDeployment.length)
         modParts.push(`${acc.needsDeployment.join("/")} deployed`);
       if (otherMod)    modParts.push(`other ${otherMod > 0 ? "+" : ""}${otherMod}`);
+      if (cyclopsMod)  modParts.push(`no depth perception +${cyclopsMod}`);
       if (weaponDmgMod) modParts.push(`damaged weapon +${weaponDmgMod} (R2 p.86)`);
       if (shortBurstNote) modParts.unshift(shortBurstNote);
       if (eng.tnMod)   modParts.push(`multiple targets +${eng.tnMod}`);
