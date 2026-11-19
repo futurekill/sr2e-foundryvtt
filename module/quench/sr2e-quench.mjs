@@ -870,6 +870,74 @@ function stubWorldSettings(keys) {
           } finally { api.confirm = confirm; CONFIG.Dice.randomUniform = rand; await b.delete(); }
         });
       });
+
+      // S9: vehicles bought at creation are receipts (p.46, p.264).
+      describe("Vehicles bought at creation (S9)", () => {
+        const made = [];
+        after(async () => { for (const d of made) { try { await d.sheet?.close(); } catch (e) {} await d.delete().catch(() => {}); } });
+        const priced = async () => (await game.packs.get("sr2e.vehicles").getDocuments()).find(v => v.type === "vehicle" && v.system.cost > 0);
+        const character = async (name) => { const c = await Actor.create({ name, type: "character", system: { chargen: { priorities: { resources: "A" } } } }); made.push(c); return c; };
+        const importedOf = (c) => (c.system.linkedVehicles ?? []).map(u => fromUuidSync(u)).filter(Boolean).forEach(v => made.push(v));
+
+        it("Buy imports, links and records the receipt; the budget counts its list price; deleting the vehicle keeps it", async () => {
+          const { addVehicle } = await import("../sheets/actor-sheet.mjs");
+          const v = await priced(), c = await character("Quench S9 Buy");
+          const before = chargenBudgetOf(c).resources.spent;
+          await addVehicle(c, v, { buy: true });
+          importedOf(c);
+          assert.equal(c.system.linkedVehicles.length, 1);
+          assert.deepEqual(c.system.chargen.vehicles.map(r => [r.name, r.source, r.cost]), [[v.name, v.uuid, v.system.cost]]);
+          assert.equal(chargenBudgetOf(c).resources.spent, before + v.system.cost);
+          await fromUuidSync(c.system.linkedVehicles[0]).delete();
+          assert.equal(chargenBudgetOf(c).resources.spent, before + v.system.cost, "the receipt, not the vehicle, is what was spent");
+        });
+
+        it("Link only records nothing; the sheet's Cancel imports nothing", async () => {
+          const { addVehicle } = await import("../sheets/actor-sheet.mjs");
+          const v = await priced(), c = await character("Quench S9 Link");
+          await addVehicle(c, v, { buy: false });
+          importedOf(c);
+          assert.deepEqual([c.system.linkedVehicles.length, c.system.chargen.vehicles.length], [1, 0]);
+          const api = foundry.applications.api.DialogV2, wait = api.wait, n = game.actors.size;
+          api.wait = async () => "cancel";
+          try { await c.sheet._onDropActor(new Event("drop"), { type: "Actor", uuid: v.uuid }); } finally { api.wait = wait; }
+          assert.equal(game.actors.size, n, "Cancel: no import");
+          assert.equal(c.system.linkedVehicles.length, 1);
+          // An already-linked world vehicle is refused before the dialog (no second charge, r1 #2).
+          let asked = false; api.wait = async () => { asked = true; return "buy"; };
+          try { await c.sheet._onDropActor(new Event("drop"), { type: "Actor", uuid: c.system.linkedVehicles[0] }); } finally { api.wait = wait; }
+          assert.deepEqual([asked, c.system.chargen.vehicles.length], [false, 0]);
+        });
+
+        it("no permission: refused with no receipt; a failed update deletes the imported copy", async () => {
+          const { addVehicle } = await import("../sheets/actor-sheet.mjs");
+          const v = await priced(), c = await character("Quench S9 Fail");
+          const can = game.sr2e.canCreateActor, n = game.actors.size;
+          game.sr2e.canCreateActor = () => false;
+          try { assert.equal(await addVehicle(c, v, { buy: true }), false); } finally { game.sr2e.canCreateActor = can; }
+          assert.equal(c.system.chargen.vehicles.length, 0);
+          c.update = async () => { throw new Error("Quench: update refused"); };   // an own property over the prototype's
+          try { assert.equal(await addVehicle(c, v, { buy: true }), false); } finally { delete c.update; }
+          assert.equal(game.actors.size, n, "the copy imported for the failed drop is gone");
+          assert.equal(c.system.chargen.vehicles.length, 0);
+          c.update = async () => undefined;   // a preUpdateActor veto resolves without throwing (r1 #1)
+          try { assert.equal(await addVehicle(c, v, { buy: true }), false); } finally { delete c.update; }
+          assert.equal(game.actors.size, n, "a vetoed update also deletes the copy");
+        });
+
+        it("the panel lists the receipt; its remove button refunds it", async () => {
+          const c = await character("Quench S9 Panel");
+          await c.update({ "system.chargen.vehicles": [{ name: "ZZ Van", source: "", cost: 16000 }] });
+          await c.sheet.render(true);
+          let btn = null;
+          for (let i = 0; i < 30 && !btn; i++) { await new Promise(r => setTimeout(r, 100)); btn = c.sheet.element?.querySelector('[data-action="removeVehicleReceipt"]'); }
+          assert.ok(btn, "remove button rendered");
+          assert.match(c.sheet.element.querySelector(".chargen-budget").textContent, /ZZ Van[\s\S]*16,000¥/);
+          btn.click();
+          for (let i = 0; i < 30 && c.system.chargen.vehicles.length; i++) await new Promise(r => setTimeout(r, 100));
+          assert.equal(c.system.chargen.vehicles.length, 0);
+        });
+      });
     }, { displayName: "SR2E: Chargen budget" });
 
     // ── Attribute Edges apply themselves (Shadowrun Companion p.24) ──

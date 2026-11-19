@@ -680,13 +680,33 @@ export function programStreetIndex(rating) {
 
 /**
  * Nuyen cost of a magical focus: Force × the focus type's per-Force unit cost
- * (Power 20,000 / Spell·Spirit·Weapon 10,000 / Spell Lock 5,000 ¥, SR2E p.249).
+ * (SR2E p.263: Specific Spell Focus 45,000¥, Spell Type Focus 75,000¥, Spirit Focus
+ * 60,000¥, Power Focus 105,000¥ per Rating; a Spell Lock is a flat 45,000¥ and a
+ * weapon focus is priced by weaponFocusCost).
  * @param {number} force
  * @param {number} costPerForce
  * @returns {number}
  */
 export function focusCost(force, costPerForce) {
   return force * costPerForce;
+}
+
+/**
+ * Karma (at creation, Force Points) to bond a focus — the Focus Bonding Table, SR2E p.137: specific spell focus =
+ * Rating, spell category focus 3 × Rating, spirit focus 2 × Rating, power focus 5 × Rating, spell lock 1. Null when the
+ * table can't price it from the focus alone (a weapon focus is 4 × or 5 × by the weapon's size; an expendable fetish
+ * focus is the Grimoire's): the authored value stands.
+ * @param {{focusType?:string, force?:number, spellSubtype?:string, expendable?:boolean}} focus
+ * @returns {number|null}
+ */
+export function focusBondingCost({ focusType, force, spellSubtype = "specific", expendable = false } = {}) {
+  if (expendable) return null;
+  const f = Math.max(1, Math.floor(Number(force) || 1));
+  if (focusType === "spell_lock") return 1;
+  if (focusType === "spell") return (spellSubtype === "category" ? 3 : 1) * f;
+  if (focusType === "spirit") return 2 * f;
+  if (focusType === "power") return 5 * f;
+  return null;
 }
 
 /**
@@ -1259,7 +1279,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
 
 import { VEHICLE_WEB_NODES, vehicleSkillMatches } from "./vehicle-r2-rules.mjs";
 import { limbOptionPrice } from "./limb-stats.mjs";
-import { MUSCLE, muscleFactor } from "./ware-rules.mjs";
+import { MUSCLE, muscleFactor, wareCtx, rowsListValue, containerEssence as wareContainerEssence, ceil2 as wareCeil2 } from "./ware-rules.mjs";
 import { programSizes } from "./vr2-options.mjs";
 // limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
 export { limbOptionCost } from "./limb-stats.mjs";
@@ -1494,8 +1514,43 @@ export function reactionBase(quickness, intelligence, exemptQuickness = 0) {
   return Math.floor((Math.max(0, quickness - exemptQuickness) + intelligence) / 2);
 }
 
-/** Item types whose nuyen cost counts against the chargen Resources budget. */
-export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "bioware", "focus", "lifestyle"];
+/** Item types whose nuyen cost counts against the chargen Resources budget. Programs are incidentals bought with
+ * Resources (SR2E p.46); contacts are priced as extras by `chargenExtrasCost`, not here. */
+export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "bioware", "focus", "lifestyle", "program"];
+
+/**
+ * Cost of Extras (SR2E p.46): every character starts with two free contacts (p.43); each further contact is 5,000¥,
+ * a buddy 10,000¥ (one at creation, p.43), a gang or tribe 50,000¥ (p.44), followers 200,000¥ (p.44). Friends and
+ * enemies (the Companion's tiers) are not bought here.
+ * @param {{contactType?:string}[]} contacts - the character's contact items' data
+ * @returns {number} nuyen
+ */
+export function chargenExtrasCost(contacts = []) {
+  const n = (t) => contacts.filter(c => (c?.contactType ?? "contact") === t).length;
+  return Math.max(0, n("contact") - 2) * 5000 + n("buddy") * 10000 + n("gang") * 50000 + n("follower") * 200000;
+}
+
+/** The Allergy and Severity Table (SR2E p.46): the bonus each grants, by category. */
+export const ALLERGY_TABLE = Object.freeze({
+  rarity: { uncommon: { attributes: 1, skills: 1, forcePoints: 1, nuyen: 200 }, common: { attributes: 2, skills: 2, forcePoints: 2, nuyen: 400 } },
+  severity: { nuisance: { attributes: 0, skills: 0, forcePoints: 0, nuyen: 0 }, mild: { attributes: 1, skills: 2, forcePoints: 1, nuyen: 100 },
+    moderate: { attributes: 2, skills: 3, forcePoints: 2, nuyen: 200 }, severe: { attributes: 3, skills: 4, forcePoints: 3, nuyen: 300 } }
+});
+/**
+ * The extra creation points an allergy grants (SR2E p.46, metahumans only — the caller checks the race): ONE category
+ * for the allergy's rarity and one for its severity, which may differ. Bonus keys: attributes, skills, force, nuyen.
+ * @param {{rarity?:string, severity?:string, rarityBonus?:string, severityBonus?:string}} [allergy]
+ * @returns {{attributes:number, skills:number, forcePoints:number, nuyen:number}}
+ */
+export function allergyBonus({ rarity = "", severity = "", rarityBonus = "", severityBonus = "" } = {}) {
+  const out = { attributes: 0, skills: 0, forcePoints: 0, nuyen: 0 };
+  const key = (b) => ({ attributes: "attributes", skills: "skills", force: "forcePoints", nuyen: "nuyen" })[b];
+  const r = ALLERGY_TABLE.rarity[rarity], v = ALLERGY_TABLE.severity[severity];
+  if (!r || !v) return out;   // an allergy needs both (p.46)
+  if (key(rarityBonus)) out[key(rarityBonus)] += r[key(rarityBonus)];
+  if (key(severityBonus)) out[key(severityBonus)] += v[key(severityBonus)];
+  return out;
+}
 
 /**
  * An attribute's natural, unaugmented rating: what the character has before any
@@ -1681,12 +1736,15 @@ export function startingMoney(unspentResources, roll3d6) {
  * @returns {number}
  */
 export function chargenItemCost(i, ctx = {}) {
+  // A lifestyle is bought by the month, several months may be prepaid (SR2E p.46).
+  if (i?.type === "lifestyle") return (Number(i.monthlyCost) || 0) * Math.max(0, Number(i.monthsPaid) || 0);
   // Ammo and drug packs (a six-dose inhaler) are priced per package, not per unit.
   if (i?.type === "ammo" || i?.drug) {
     return (typeof i.acquiredListValue === "number") ? i.acquiredListValue : itemBaseCost(i, ctx);
   }
-  // A projection may carry its own ware context (single eye, muscle discount).
-  const c = i?.wareRule ? { ...ctx, wareRule: i.wareRule, fullCyberlimbs: i.fullCyberlimbs } : ctx;
+  // A projection may carry its own ware context (single eye, muscle discount) and its authored price.
+  let c = i?.wareRule ? { ...ctx, wareRule: i.wareRule, fullCyberlimbs: i.fullCyberlimbs } : ctx;
+  if (typeof i?.authoredCost === "number") c = { ...c, authoredCost: i.authoredCost };
   // Eye accessories bought into a cybereye count at their list price, after the eye's own.
   return itemBaseCost(i, c) * (i?.quantity ?? 1) + (Number(i?.moduleListValue) || 0);
 }
@@ -1727,7 +1785,8 @@ export function proportionalRefund({ paid = 0, acquiredQuantity = 0, currentQuan
  *   p.46 gives for free are not charged: the native language and a Street
  *   lifestyle's local dialect (`freeLanguage`).
  * - Resources: sum of gear cost via chargenItemCost (list price, no Street Index;
- *   ammo priced by bundle, not ×rounds).
+ *   ammo priced by bundle, not ×rounds; a lifestyle by its prepaid months; programs
+ *   by rating and multiplier) plus the Cost of Extras for contacts (p.46).
  * - Force Points (magicians only): sum of spell Force + focus Bonding cost.
  *
  * @param {object} data
@@ -1739,7 +1798,7 @@ export function proportionalRefund({ paid = 0, acquiredQuantity = 0, currentQuan
  * @returns {{attributes:object, skills:object, resources:object, forcePoints:object}}
  *          each row is {spent, total, remaining, over}
  */
-export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, allot = {}) {
+export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, allot = {}, ctx = {}) {
   const attrSpent = attributes.reduce((s, a) => s + (a.base ?? 0), 0);
   // The ALLOCATION, not the reduced general (SR2E p.70). Summing `rating`
   // refunded 1 skill point for every concentration and 2 for every
@@ -1752,7 +1811,8 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
   // quantity (rounds) 10×-counted it.
   const resSpent = items
     .filter((i) => CHARGEN_RESOURCE_TYPES.includes(i.type))
-    .reduce((s, i) => s + chargenItemCost(i), 0);
+    .reduce((s, i) => s + chargenItemCost(i, ctx), 0)
+    + chargenExtrasCost(items.filter((i) => i.type === "contact"));
   const forceSpent = items.reduce((s, i) => {
     if (i.type === "spell") return s + (i.force ?? 0);
     if (i.type === "focus") return s + (i.bondingCost ?? 0);
@@ -1768,35 +1828,190 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
 }
 
 /**
- * Power-point cost of a single physical-adept power (SR2E p.124–126). Most
- * powers are linear (pointCost × level), but two are not:
- *  - **Increased Reflexes**: 1 / 4 / 6 total for 1 / 2 / 3 Initiative dice (p.126).
- *  - **Increased Reaction**: tiered by how the bonus compares to the racial
- *    Reaction maximum — 0.5/+1 up to ½ max, 1/+1 up to max, 2/+1 up to 1.5×max.
- * Identified by name so the compendium data can stay simple.
+ * The whole creation budget of a character, from its data (SR2E p.44–46): what Foundry's creation panel shows and
+ * what the standalone character generator checks — ONE calculation for both. Items are the actor's items (live
+ * documents or plain sources: `{ type, name, system, flags, _stats, _source? }`).
+ * @param {object} o
+ * @param {object} o.system - the actor's system data
+ * @param {object[]} o.items
+ * @param {object} o.table - the priority table (CONFIG.SR2E.priorities, or the shapeshifter table)
+ * @param {boolean} [o.vr2] - the VR2.0 program pricing setting
+ */
+export function chargenBudget({ system, items = [], table, vr2 = false }) {
+  const chosen = system.chargen?.priorities ?? {};
+  // Metahumans only (p.46): the four core races, not humans or shapeshifters.
+  const allergy = ["dwarf", "elf", "ork", "troll"].includes(system.race) ? allergyBonus(system.chargen?.allergy ?? {}) : allergyBonus();
+  const allot = {
+    attributes:  (table[chosen.attributes]?.attributes ?? 0) + allergy.attributes,
+    skills:      (table[chosen.skills]?.skills ?? 0) + allergy.skills,
+    resources:   (table[chosen.resources]?.resources ?? 0) + allergy.nuyen,
+    // Only magicians receive Force Points (p.46); an adept, physical adepts included, is one (p.124).
+    forcePoints: (system.magic?.type ?? "none") === "none" ? 0 : (table[chosen.resources]?.forcePoints ?? 0) + allergy.forcePoints
+  };
+  const attributes = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"].map((k) => ({ base: system[k]?.base ?? 0 }));
+  // Live documents go to wareCtx as they are (their flags are accessors a spread would drop); plain sources get the
+  // id and `_source` it reads.
+  const docs = items.map((i) => (i._source ? i : { ...i, id: i.id ?? i._id, _source: { system: i.system } }));
+  const skills = items.filter((i) => i.type === "skill").map((i) => ({
+    // The lifecycle fields and sub-rating NAMES travel too: chargenSpend charges the allocation (p.70), and for a
+    // legacy skill with no `allocated` it has to invert the reduction, which needs the names.
+    category: i.system.category, freeLanguage: i.system.freeLanguage, rating: i.system.rating, allocated: i.system.allocated,
+    ratingsFinalized: i.system.ratingsFinalized,
+    concentration: { name: i.system.concentration?.name ?? "" }, specialization: { name: i.system.specialization?.name ?? "" } }));
+  const data = items.map((i, n) => ({
+    type: i.type, name: i.name,
+    cost: i.system.cost ?? 0,
+    // Rating/grade/ratingStats travel too — chargenItemCost prices through itemBaseCost, so rated and graded ware count.
+    rating: i.system.rating ?? 1, grade: i.system.grade,
+    secondhandDiscount: i.system.secondhandDiscount, secondhand: i.system.secondhand, bodySystem: i.system.bodySystem,
+    ratingStats: i.system.ratingStats, quantity: i.system.quantity ?? 1,
+    costPerRating: i.system.costPerRating, category: i.system.category, grantedSkillCategory: i.system.grantedSkillCategory,
+    costPerStrengthMin: i.system.costPerStrengthMin, strengthMinimum: i.system.strengthMinimum, damageCode: i.system.damageCode,
+    costPerForce: i.system.costPerForce, focusType: i.system.focusType,
+    // Programs (p.46 incidentals): priced by rating and multiplier; a persona program from rating 4 (p.165).
+    multiplier: i.system.multiplier, objectCodeOnly: i.system.objectCodeOnly, activeOpts: i.system.activeOpts,
+    // The authored price, for items whose derived price falls back to it (a DataSoft's data value).
+    authoredCost: (i._source?.system ?? i.system).cost,
+    // Lifestyles: by the month, prepaid months (p.46).
+    monthlyCost: i.system.monthlyCost, monthsPaid: i.system.monthsPaid,
+    // Contacts: priced as extras (p.46).
+    contactType: i.system.contactType,
+    // Ammo's recorded bundle value (set at purchase): chargenItemCost prices ammo by it, not cost × rounds.
+    acquiredListValue: i.flags?.sr2e?.acquiredListValue,
+    drug: i.type === "gear" && !!i.flags?.sr2e?.drug,
+    eyes: i.system.eyes,
+    ...(i.type === "cyberware" || i.type === "bioware" ? wareCtx(docs, docs[n]) : {}),
+    force: i.system.force ?? 0, bondingCost: i.system.bondingCost ?? 0,
+    // Accessories bought into an eye.
+    moduleListValue: rowsListValue(i.system.modules ?? [])
+  }));
+  const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2 });
+  // Vehicles bought at creation (p.46, p.264; S9): the receipts' list prices. A receipt with no positive price (p.264's
+  // "Restricted", or a hand edit) counts nothing and is reported, never silently free.
+  const receipts = Array.isArray(system.chargen?.vehicles) ? system.chargen.vehicles : [];
+  const priced = (v) => typeof v?.cost === "number" && Number.isFinite(v.cost) && v.cost > 0;
+  const vehicles = receipts.filter(priced).reduce((s, v) => s + v.cost, 0);
+  const vehicleProblems = receipts.filter((v) => !priced(v)).map((v) => `${v?.name || "A vehicle"} has no list price (p.264): it can't be bought at creation.`);
+  const spent = spend.resources.spent + vehicles;
+  spend.resources = { ...spend.resources, spent, remaining: spend.resources.total - spent, over: spent > spend.resources.total, vehicles, vehicleProblems };
+  return { ...spend, allergy };
+}
+
+/** The receipt a creation purchase of `vehicle` records (S9): its name, compendium source and list price (p.264). */
+export function vehicleReceipt(vehicle) {
+  const cost = Number(vehicle?.system?.cost);
+  return { name: vehicle?.name ?? "", source: vehicle?.pack ? vehicle.uuid : (vehicle?._stats?.compendiumSource ?? ""),
+    cost: Number.isFinite(cost) && cost > 0 ? cost : 0 };
+}
+
+/** The core book's adept powers by compendium source (as `wareRule` identifies cyberware): no schema field, so
+ * powers already embedded in actors are recognized without a migration. `flags.sr2e.power` overrides. */
+const ADEPT = (id) => `Compendium.sr2e.adept-powers.Item.${id}`;
+export const ADEPT_POWER_SOURCES = Object.freeze({
+  [ADEPT("56f5962337903eec")]: "astral_perception", [ADEPT("9d10344a9456397d")]: "combat_sense",
+  [ADEPT("7a4b0e85072ce4c6")]: "improved_ability", [ADEPT("5075527b8eb8f404")]: "improved_attribute:body",
+  [ADEPT("484c4074c7e97b93")]: "improved_attribute:quickness", [ADEPT("d4646721b2e9fe99")]: "improved_attribute:strength",
+  [ADEPT("9bf2a593eaad85f4")]: "improved_senses", [ADEPT("08e6d90ec7bf4dfe")]: "increased_reaction",
+  [ADEPT("b03361c78fba6c27")]: "increased_reflexes", [ADEPT("30f5e3493545db6b")]: "killing_hands",
+  [ADEPT("7480a901bc283d25")]: "killing_hands", [ADEPT("05d498aa7cbd198c")]: "killing_hands",
+  [ADEPT("81347eccfc7bebee")]: "killing_hands", [ADEPT("003f74fef4a1756e")]: "pain_resistance"
+});
+/** Core names, for powers made by hand (name match is the last resort). */
+// Exact core names; only the book's own bracket conventions are allowed after a name (a custom "…Deluxe" is not core).
+const ADEPT_POWER_NAMES = [
+  [/^astral perception$/i, "astral_perception"], [/^combat sense$/i, "combat_sense"], [/^improved ability( \((?:[^()]|\([^()]*\))+\))?$/i, "improved_ability"],
+  [/^improved physical attributes? \((body)\)$/i, "improved_attribute:body"], [/^improved physical attributes? \((quickness)\)$/i, "improved_attribute:quickness"],
+  [/^improved physical attributes? \((strength)\)$/i, "improved_attribute:strength"], [/^improved physical senses( \([^()]+\))?$/i, "improved_senses"],
+  [/^increased reaction$/i, "increased_reaction"], [/^increased reflexes$/i, "increased_reflexes"], [/^killing hands \([lmsd]\)$/i, "killing_hands"],
+  [/^pain resistance$/i, "pain_resistance"]
+];
+/**
+ * Which book power an item is: its rule flag, its compendium source, or its core name. Returns "key" or
+ * "improved_attribute:<attr>", or null for a power the book tables don't price (custom, sourcebook).
+ */
+export function adeptPowerKey(power = {}) {
+  const f = power.flags?.sr2e?.power;
+  if (typeof f === "string" && f) return f;
+  for (const src of [power._stats?.compendiumSource, power.flags?.core?.sourceId, power.source])
+    if (src && Object.hasOwn(ADEPT_POWER_SOURCES, src)) return ADEPT_POWER_SOURCES[src];
+  const name = String(power.name ?? "").trim();
+  return ADEPT_POWER_NAMES.find(([re]) => re.test(name))?.[1] ?? null;
+}
+
+/** Improved Ability's cost per die by the skill's area (SR2E p.125, Improved Ability Costs table). */
+export const IMPROVED_ABILITY_COSTS = Object.freeze({
+  athletics: 0.25, stealth: 0.25, "armed combat": 0.5, "unarmed combat": 0.5, "throwing weapons": 0.5,
+  "projectile weapons": 0.5, firearms: 1, gunnery: 1
+});
+const abilityArea = (skillName) => String(skillName ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim().replace(/^throwing$/, "throwing weapons");
+
+/**
+ * Power-point cost of a physical-adept power (SR2E p.124–126), by the book's tables:
+ *  - Astral Perception 2; Pain Resistance .5 / point; Improved Physical Senses .25 / improvement;
+ *  - Killing Hands: the entry's own cost ((Str)L .5, M 1, S 2, D 4 — one entry per level held);
+ *  - Combat Sense: level 1, 2, 3 cost 2, 3, 4 (the level's cost);
+ *  - Increased Reflexes: +1, +2, +3 dice cost 1, 4, 6;
+ *  - Increased Reaction: each bonus point by the BONUS against the racial Reaction maximum — up to ½ .5, up to the
+ *    maximum 1, up to 1.5 × 2;
+ *  - Improved Physical Attributes: each +1 by the FINAL rating against the attribute's racial maximum — up to ½ .5,
+ *    up to the maximum 1, up to 1.5 × 1.5 (ctx.base = the natural rating before the power; sr2e-chargen RULINGS R4);
+ *  - Improved Ability: dice × the skill area's cost (ctx.skillName, or the power's improvedSkill / name).
+ * A power the tables can't price — unknown, or one that needs a context it wasn't given — costs pointCost × level.
  *
- * @param {{name?:string, pointCost?:number, level?:number}} power
+ * @param {{name?:string, pointCost?:number, level?:number, improvedSkill?:string, flags?:object, _stats?:object}} power
  * @param {number} [racialReactionMax=6] - the adept's racial Reaction maximum
+ * @param {{key?:string, base?:number, racialMax?:number, skillName?:string}} [ctx]
  * @returns {number} power points spent on this power
  */
-export function adeptPowerCost(power, racialReactionMax = 6) {
-  const level = Math.max(1, power.level ?? 1);
-  const name = power.name ?? "";
-  if (/increased reflexes/i.test(name)) {
-    return [1, 4, 6][Math.min(level, 3) - 1] ?? 6;
-  }
-  if (/increased reaction/i.test(name)) {
-    const half = Math.floor(racialReactionMax / 2);
-    let cost = 0;
-    for (let i = 1; i <= level; i++) {
-      if (i <= half) cost += 0.5;
-      else if (i <= racialReactionMax) cost += 1;
-      else cost += 2;
+export function adeptPowerCost(power, racialReactionMax = 6, ctx = {}) {
+  const level = Math.max(1, Math.floor(Number(power.level) || 1));
+  const linear = () => (Number(power.pointCost) || 0) * level;
+  const key = ctx.key ?? adeptPowerKey(power) ?? "";
+  switch (key.split(":")[0]) {
+    case "astral_perception": return 2;
+    case "pain_resistance": return 0.5 * level;
+    case "improved_senses": return 0.25 * level;
+    case "killing_hands": return Number(power.pointCost) || 0;
+    case "combat_sense": return [2, 3, 4][Math.min(level, 3) - 1];
+    case "increased_reflexes": return [1, 4, 6][Math.min(level, 3) - 1];
+    case "increased_reaction": {
+      let cost = 0;
+      for (let i = 1; i <= level; i++) cost += i <= racialReactionMax / 2 ? 0.5 : i <= racialReactionMax ? 1 : 2;
+      return cost;
     }
-    return cost;
+    case "improved_attribute": {
+      if (!Number.isFinite(ctx.base) || !Number.isFinite(ctx.racialMax)) return linear();
+      let cost = 0;
+      for (let k = 1; k <= level; k++) {
+        const final = ctx.base + k;
+        cost += final <= ctx.racialMax / 2 ? 0.5 : final <= ctx.racialMax ? 1 : 1.5;
+      }
+      return cost;
+    }
+    case "improved_ability": {
+      const per = IMPROVED_ABILITY_COSTS[abilityArea(ctx.skillName ?? (power.improvedSkill || improvedAbilitySkill(power.name)))];
+      return per ? per * level : linear();
+    }
+    default: return linear();
   }
-  return (power.pointCost ?? 0) * level;
 }
+/** The book's highest level where a table ends (Combat Sense and Increased Reflexes: 3, p.125–126). */
+export const ADEPT_TABLE_MAX = Object.freeze({ combat_sense: 3, increased_reflexes: 3 });
+/** The attribute an Improved Physical Attributes power raises: its key's suffix, else its first non-zero modifier. */
+export function improvedAttributeOf(key, attributeMods = {}) {
+  if (key?.startsWith("improved_attribute:")) return key.split(":")[1];
+  if (key !== "improved_attribute") return null;
+  return ["body", "quickness", "strength"].find(a => Number(attributeMods?.[a]) > 0) ?? null;
+}
+/** Combat Pool dice from Combat Sense (p.125): the highest level held, for a physical adept whose powers work. */
+export function combatSenseDice(items = [], { physicalAdept = false, powersWork = true } = {}) {
+  if (!physicalAdept || !powersWork) return 0;
+  const levels = items.filter(i => i.type === "adept_power" && adeptPowerKey(i) === "combat_sense").map(i => Math.min(3, Math.max(1, i.system?.level ?? 1)));
+  return levels.length ? Math.max(...levels) : 0;
+}
+
+/** Whether a power's book cost needs the character (its race, an attribute, a skill): unowned, it "depends". */
+export const adeptCostNeedsActor = (key) => /^(increased_reaction|improved_attribute|improved_ability)/.test(key ?? "");
 
 // ───────────────────────────────────────────────────────────────────────────
 // VIRTUAL REALITIES 2.0 — Matrix 2.0 primitives (FASA7904)
@@ -2573,6 +2788,25 @@ export function surgicalEssence(graded, pct) {
   const g = Math.max(0, Number(graded) || 0), p = Number(pct) || 0;
   if (!p || !g) return g;
   return Math.max(0.01, Math.ceil(g * (1 + p / 100) * 100 - 1e-9) / 100);
+}
+
+/**
+ * One cyberware item's Essence (chargen S5): what CyberwareData.actualEssenceCost returns, as a pure function of the
+ * item's PREPARED system fields, so the standalone character generator computes the same value. A cranial deck is the
+ * sum of its components (Shadowtech p.54–59); otherwise the authored (or cyberlimb, Phase 3a) Essence, the muscle
+ * replacement discount (Phase 3b), the grade (SSC p.98, rounded up, floor .05) taken before a cybereye's .5
+ * allowance (Cybertechnology p.45), then the surgeon's change (p.53).
+ * @param {object} s - the item's prepared system data
+ * @returns {number}
+ */
+export function wareEssence(s) {
+  if (s.cranialDeck) return surgicalEssence(gradeEssenceCost(cranialDeckEssence(s.deck), s.grade), s.surgeryEssencePct);
+  const own = s.limbEssence ?? s.essenceCost;
+  const base = s.limbDiscount != null ? wareCeil2(own * s.limbDiscount) : own;
+  const graded = wareContainerEssence({ base, rows: s.capacityUsed ?? 0, capacity: s.capacity ?? 0, eyes: s.eyes,
+    isEye: s.wareRule === "cybereye-pair", graded: s.grade && s.grade !== "standard" },
+    (e) => gradeEssenceCost(e, s.grade));
+  return surgicalEssence(graded, s.surgeryEssencePct);
 }
 
 /**

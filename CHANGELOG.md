@@ -1,5 +1,45 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **A cyberware item's Essence is a pure rule** (`wareEssence`, chargen S5): the same calculation as before, now
+  shared with the standalone character generator. No value changes (all seven pregens and the 98 cyberware Quench
+  tests unchanged).
+- **Adept power costs follow the book's tables** (SR2E p.125–126). Combat Sense levels 1/2/3 cost 2/3/4 (it was 1 per
+  level, max 1); Increased Reaction and Improved Physical Attributes are priced by tier against the racial maximum
+  (Improved Physical Attributes by the attribute's natural rating plus the improvement); Improved Ability by the
+  skill's area (Athletics/Stealth .25, Armed/Unarmed/Throwing/Projectile .5, Firearms/Gunnery 1 per die); Pain
+  Resistance .5 per point. Core powers are recognized by their compendium source or name (no migration). **An
+  adept's Used points can change on update**: the Tiger pregen goes from 5 to 6 of 6. Nothing is removed; if Used is
+  over Magic, the player and GM choose what to give up (p.126).
+- **Combat Sense now adds its dice to the Combat Pool** (p.125); its pack entry allows levels 1–3. Pain Resistance,
+  Improved Ability and Improved Physical Senses are no longer capped at 6 (the Magic Rating is the limit).
+- **Character creation budget** (SR2E p.44–46): programs count against Resources; a lifestyle costs its monthly cost
+  × months paid (it was free); contacts are priced as extras — two free, then 5,000¥ each, a buddy 10,000¥, a gang or
+  tribe 50,000¥, followers 200,000¥. Characters with more than two contacts or a prepaid lifestyle show more Resources
+  spent, which also lowers the nuyen left at finish (that is the rule).
+- Buying a focus with a chosen Force sets its bonding cost from the Focus Bonding Table (p.137). Existing foci keep
+  their bonding cost.
+
+### Added
+- **Vehicles bought at creation** (SR2E p.46, p.264; chargen S9). While creation is in progress, dropping a vehicle on
+  a character asks **Buy at creation** (at its list price), **Link only** (a vehicle someone else owns) or Cancel,
+  before anything is imported. A purchase is a receipt on the character (name, source, price paid): the Resources row
+  counts it and lists it with a remove button (the refund); deleting or editing the vehicle later never changes what
+  was spent. A vehicle with no list price (p.264 prints "Restricted") can only be linked; a receipt without a price
+  shows in red. The Force Points row now shows for physical adepts too.
+- **Allergies at creation** (p.46, metahumans only): the actor stores the allergy and its two bonus choices; the
+  creation budget adds the Allergy and Severity Table's points.
+- Contacts can be a **Gang or Tribe** (with its members); followers hold their five archetypes.
+- `chargenBudget`: one pure creation-budget calculation, shared with the standalone character generator.
+
+### Fixed
+- **Force Points only for magicians** (SR2E p.46): the creation panel gave every character the Resources priority's
+  Force Points. A character with no magic now has none, and a focus it buys shows as over budget. Adepts, physical
+  adepts included, are magicians (p.124) and keep theirs.
+- The focus price comment named the wrong prices (the catalog's were right, p.263).
+
 ## 0.160.0 — 2026-11-16
 
 ### Added

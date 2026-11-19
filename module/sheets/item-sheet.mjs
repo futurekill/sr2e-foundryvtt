@@ -68,6 +68,9 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     // Utility options arrive as {0: {...}, 1: {...}}: every field is on the form, so the array is replaced whole.
     const so = submitData?.system?.options;
     if (so && !Array.isArray(so)) submitData.system.options = Object.keys(so).sort((a, b) => a - b).map(k => so[k]);
+    // A follower group's five archetypes (p.44) arrive the same way: an ordered array, blanks dropped.
+    const fa = submitData?.system?.archetypes;
+    if (fa && !Array.isArray(fa)) submitData.system.archetypes = Object.keys(fa).sort((a, b) => a - b).map(k => String(fa[k] ?? "").trim()).filter(Boolean);
     const sub = submitData?.system?.modules;
     if (sub !== undefined) {
       delete submitData.system.modules;

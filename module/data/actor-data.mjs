@@ -26,7 +26,7 @@ import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
+import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerKey, adeptPowerCost, improvedAttributeOf, combatSenseDice, ADEPT_TABLE_MAX, IMPROVED_ABILITY_COSTS, icInitiativeDice, icClass, secondhandDead, taskPoolDice } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -280,6 +280,24 @@ export class CharacterData extends SR2EDataModel {
           skills: new fields.StringField({ initial: "B" }),
           resources: new fields.StringField({ initial: "C" })
         }),
+        // An optional allergy (SR2E p.46, metahumans only): the substance, its rarity and severity, and the ONE bonus
+        // category each grants (they may differ) — chargenBudget adds allergyBonus to the allotments. blank:true on
+        // every choice field, or every existing actor of the type goes invalid.
+        allergy: new fields.SchemaField({
+          substance: new fields.StringField({ initial: "" }),
+          rarity: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", uncommon: "Uncommon", common: "Common" } }),
+          severity: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", nuisance: "Nuisance", mild: "Mild", moderate: "Moderate", severe: "Severe" } }),
+          rarityBonus: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", attributes: "Attributes", skills: "Skills", force: "Force Points", nuyen: "Nuyen" } }),
+          severityBonus: new fields.StringField({ required: true, blank: true, initial: "", choices: { "": "—", attributes: "Attributes", skills: "Skills", force: "Force Points", nuyen: "Nuyen" } })
+        }),
+        // Vehicles bought at creation (SR2E p.46, p.264; chargen S9): a RECEIPT each — the name, the compendium source
+        // (provenance; "" for a world-made vehicle) and the list price paid. chargenBudget sums them; nothing is resolved,
+        // so deleting, editing or copying the vehicle never changes the spend. `initial: []` fills old sources.
+        vehicles: new fields.ArrayField(new fields.SchemaField({
+          name: new fields.StringField({ initial: "" }),
+          source: new fields.StringField({ initial: "", blank: true }),
+          cost: new fields.NumberField({ initial: 0, min: 0 })
+        }), { initial: [] }),
         attributePointsTotal: new fields.NumberField({ integer: true, initial: 30 }),
         attributePointsSpent: new fields.NumberField({ integer: true, initial: 0 }),
         skillPointsTotal: new fields.NumberField({ integer: true, initial: 30 }),
@@ -578,19 +596,34 @@ export class CharacterData extends SR2EDataModel {
     // Calculate Armor from equipped items
     this._calculateArmor();
 
-    // Adept Power Points (Magic rating for Physical Adepts, SR2E p.124). Points
-    // USED = Σ of each power's cost. Sum the SAME per-power cost the sheet shows
-    // in its Cost column (pointCost × level = system.totalCost) so the total
-    // always equals the sum of its parts — non-linear powers (Increased
-    // Reflexes/Reaction) carry their book cost via pointCost, not a hidden
-    // override that made Used disagree with the column.
+    // Adept Power Points (Magic rating for Physical Adepts, SR2E p.124). Each power's cost by the book's tables
+    // (adeptPowerCost, p.125–126) with THIS character's context, in one map that every display reads (the sheet's
+    // Cost column, the item sheet, the chat card), and Used is its sum. Rebuilt from scratch every preparation and
+    // reset for every actor, so a changed magic type or a removed power leaves nothing behind.
+    this.adeptPowerCosts = {};
+    this.adeptPowerProblems = [];
+    this.adeptPowerPoints.max = 0;
+    this.adeptPowerPoints.value = 0;
     if (this.magic.type === "physical_adept") {
       this.adeptPowerPoints.max = this.magic.value;
       let used = 0;
+      const raised = {};   // attribute → levels already priced, so a second power on it continues the tiers (R4)
       for (const item of this.parent?.items ?? []) {
-        if (item.type === "adept_power") used += item.system.totalCost ?? 0;
+        if (item.type !== "adept_power") continue;
+        const cost = this.adeptPowerCostOf(item, raised);
+        this.adeptPowerCosts[item.id] = cost;
+        used += cost;
       }
       this.adeptPowerPoints.value = used;
+      // Limits on TOTALS across powers (two powers can't split their way past them).
+      const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? CONFIG.SR2E.racialMaximums.human;
+      if ((raised.reaction ?? 0) > 1.5 * (maxes.reaction ?? 6)) this.adeptPowerProblems.push(`+${raised.reaction} Reaction from powers is over 1.5 × the racial maximum (p.126).`);
+      for (const [skill, dice] of Object.entries(raised.skills ?? {})) {
+        const sk = (this.parent?.items ?? []).find(i => i.type === "skill" && i.name.toLowerCase() === skill);
+        if (sk && cappedImprovedAbilityDice(sk.name, sk.system.rating, dice) < dice)
+          this.adeptPowerProblems.push(`${dice} Improved Ability dice on ${sk.name} ${sk.system.rating}: a Combat Skill can't have more extra dice than its rating (p.125).`);
+      }
+      if (used > this.magic.value) this.adeptPowerProblems.push(`${used} power points used; the Magic Rating gives ${this.magic.value} — give up improvements to match (p.126).`);
     }
 
     // Snapshot the active cyberdeck's specs onto system.cyberdeck.* so every
@@ -690,6 +723,36 @@ export class CharacterData extends SR2EDataModel {
    * add the bonus; the Skills tab shows it as a badge.
    * @private
    */
+  /** One power's book cost for this character (SR2E p.125–126): the racial maximums, the attribute's natural rating
+   * (bought + racial, sr2e-chargen RULINGS R4), the improved skill's name. */
+  adeptPowerCostOf(item, raised = {}) {
+    const key = adeptPowerKey(item) ?? "", sys = item.system, problems = this.adeptPowerProblems ?? [];
+    const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? CONFIG.SR2E.racialMaximums.human;
+    const attr = improvedAttributeOf(key, sys.attributeMods);
+    const level = Math.max(1, sys.level ?? 1), kind = key.split(":")[0];
+    let ctx = { key }, points = level;
+    if (attr) {
+      // A generic power raising by more than 1 per level is priced by the points it actually adds.
+      points = level * Math.max(1, Math.floor(Number(sys.attributeMods?.[attr]) || 1));
+      const natural = (this[attr]?.base ?? 0) + (this[attr]?.racial ?? 0), before = raised[attr] ?? 0;
+      if (before) problems.push(`${item.name}: a second power on ${attr} — priced on from the first (one per attribute is the norm).`);
+      ctx = { key, base: natural + before, racialMax: maxes[attr] };
+      raised[attr] = before + points;
+      if (natural + raised[attr] > 1.5 * maxes[attr]) problems.push(`${item.name}: ${attr} ${natural + raised[attr]} is over 1.5 × the racial maximum (p.125).`);
+    }
+    if (ADEPT_TABLE_MAX[kind] && level > ADEPT_TABLE_MAX[kind]) problems.push(`${item.name}: level ${level} is past the book's table (${ADEPT_TABLE_MAX[kind]}, p.125–126).`);
+    if (kind === "increased_reaction") raised.reaction = (raised.reaction ?? 0) + level;
+    if (kind === "improved_ability") {
+      const skill = sys.improvedSkill || improvedAbilitySkill(item.name);
+      if (!IMPROVED_ABILITY_COSTS[String(skill).toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").trim().replace(/^throwing$/, "throwing weapons")])
+        problems.push(`${item.name}: ${skill || "no skill named"} is not in the Improved Ability table (p.125) — priced at its listed cost.`);
+      raised.skills ??= {};
+      const k = String(skill).toLowerCase();
+      raised.skills[k] = (raised.skills[k] ?? 0) + level;
+    }
+    return adeptPowerCost({ pointCost: sys.pointCost, level: points, improvedSkill: sys.improvedSkill, name: item.name }, maxes.reaction ?? 6, ctx);
+  }
+
   _applyAdeptSkills() {
     const items = this.parent?.items;
     if (!items) return;
@@ -1546,9 +1609,11 @@ export class CharacterData extends SR2EDataModel {
     // 1 die per point of heavy-armor Ballistic over Quickness (SR2E p.84).
     const equippedArmor = (this.parent?.items ?? [])
       .filter(i => i.type === "armor" && i.system.equipped && !inAnimalForm("character", this));
+    // Combat Sense (SR2E p.125): its level in extra Combat Pool dice — a physical adept's power, in human form.
+    const combatSense = combatSenseDice([...(this.parent?.items ?? [])], { physicalAdept: this.magic.type === "physical_adept", powersWork: adeptPowersWork(this) });
     const combatPool = Math.max(0, Math.floor(
       (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
-    ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor));
+    ) - heavyArmorPoolPenalty(this.quickness.value, equippedArmor)) + combatSense;
     applyPool(this.dicePools.combat, combatPool);
 
     // Astral Combat Pool = ⌊(Int + Wil + Cha) ÷ 2⌋ (SR2E p.147), for the

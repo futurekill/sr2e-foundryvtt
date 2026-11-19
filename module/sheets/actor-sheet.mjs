@@ -10,8 +10,8 @@ import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs"
 import { cyberDamageOn } from "../cyberdamage.mjs";
 import { accessoryKindOf, eyeHostAt, fitEyeAccessory, withSource } from "../eye-accessories.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
-import { rowsListValue, wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
-import { streetPrice, chargenSpend, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
+import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
+import { streetPrice, chargenBudget, vehicleReceipt, focusBondingCost, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
@@ -525,60 +525,52 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
  * Purely informational on the sheet; finishing creation converts what's left of the
  * Resources (p.47).
  */
+/**
+ * Link a vehicle to a character and, for a creation purchase, record its receipt (SR2E p.46, p.264; chargen S9). A
+ * compendium vehicle has no world presence, so a world copy is created first (a GM, or a player with "Create New
+ * Actors"). Both arrays are read after every await, then written in ONE update; if that fails, a copy made for this
+ * call is deleted again. Exported for the Quench tests (the sheet asks Buy / Link only first).
+ * @returns {Promise<Actor|false>}
+ */
+export async function addVehicle(actor, dropped, { buy = false } = {}) {
+  let vehicleUuid = dropped.uuid, imported = null;
+  if (dropped.pack) {
+    if (!game.sr2e?.canCreateActor?.()) {
+      ui.notifications.warn("Can't add this vehicle: importing it needs the “Create New Actors” permission. Ask your GM.");
+      return false;
+    }
+    try {
+      vehicleUuid = imported = await game.sr2e.createActorViaGM(dropped.toObject());
+    } catch (err) {
+      console.error("SR2E | Could not import vehicle:", err);
+      ui.notifications.error("The vehicle could not be added. See the console.");
+      return false;
+    }
+  }
+  const current = actor.system.linkedVehicles ?? [];
+  if (!vehicleUuid || current.includes(vehicleUuid)) return false; // failed, or already linked (never a second Buy, r2)
+  const update = { "system.linkedVehicles": [...current, vehicleUuid] };
+  if (buy) update["system.chargen.vehicles"] = [...(actor.system.chargen?.vehicles ?? []).map((v) => ({ ...v })), vehicleReceipt(dropped)];
+  try {
+    const done = await actor.update(update);
+    if (!done) throw new Error("the update was refused");   // a preUpdateActor veto resolves without throwing
+    return done;
+  } catch (err) {
+    if (imported) await fromUuidSync(imported)?.delete().catch(() => {});
+    console.error("SR2E | Could not add the vehicle:", err);
+    ui.notifications.error("The vehicle could not be added. See the console.");
+    return false;
+  }
+}
+
 /** The priority table: the Shapeshifter Character Creation Table for a shapeshifter (Companion p.36). */
 export const priorityTableFor = (system) => shapeshifterOf("character", system) ? SHAPESHIFTER_PRIORITIES : CONFIG.SR2E.priorities;
 
 export function chargenBudgetOf(actor) {
-  const system = actor.system;
-  const prio = priorityTableFor(system);
-  const chosen = system.chargen?.priorities ?? {};
-  const allot = {
-    attributes:  prio[chosen.attributes]?.attributes ?? 0,
-    skills:      prio[chosen.skills]?.skills ?? 0,
-    resources:   prio[chosen.resources]?.resources ?? 0,
-    forcePoints: prio[chosen.resources]?.forcePoints ?? 0
-  };
-  const attrData = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]
-    .map((k) => ({ base: system[k]?.base ?? 0 }));
-  const skillData = actor.items
-    .filter((i) => i.type === "skill")
-    // The lifecycle fields and sub-rating NAMES travel too: chargenSpend
-    // charges the allocation (SR2E p.70), and for a legacy skill with no
-    // `allocated` it has to invert the reduction, which needs the names.
-    .map((i) => ({
-      category: i.system.category,
-      freeLanguage: i.system.freeLanguage,
-      rating: i.system.rating,
-      allocated: i.system.allocated,
-      ratingsFinalized: i.system.ratingsFinalized,
-      concentration: { name: i.system.concentration?.name ?? "" },
-      specialization: { name: i.system.specialization?.name ?? "" }
-    }));
-  const itemData = actor.items.map((i) => ({
-    type: i.type,
-    cost: i.system.cost ?? 0,
-    // Rating/grade/ratingStats travel too — chargenSpend prices through
-    // itemBaseCost, so rated and alpha/beta/cultured ware count properly.
-    rating: i.system.rating ?? 1,
-    grade: i.system.grade,
-    secondhandDiscount: i.system.secondhandDiscount,   // secondhand bioware's own price (Shadowtech p.12)
-    secondhand: i.system.secondhand,   // second-hand cyberware is half price (SSC p.100)
-    bodySystem: i.system.bodySystem,   // neural bioware ignores its grade (Shadowtech p.7)
-    ratingStats: i.system.ratingStats,
-    quantity: i.system.quantity ?? 1,
-    // Ammo's recorded bundle value (set at purchase) — chargenItemCost prices
-    // ammo by this, not cost × rounds.
-    acquiredListValue: i.getFlag("sr2e", "acquiredListValue"),
-    drug: !!drugOf(i),
-    // Ware context (single eye, muscle discount), priced once in itemBaseCost.
-    eyes: i.system.eyes,
-    ...(i.type === "cyberware" || i.type === "bioware" ? wareCtx(actor.items, i) : {}),
-    force: i.system.force ?? 0,
-    bondingCost: i.system.bondingCost ?? 0,
-    // Accessories bought into an eye (docs/archive/plans/PLAN-money-queue-and-eye-accessories.md, B5).
-    moduleListValue: rowsListValue(i.system.modules ?? [])
-  }));
-  return chargenSpend({ attributes: attrData, skills: skillData, items: itemData }, allot);
+  let vr2 = false;
+  try { vr2 = game.settings.get("sr2e", "matrixRuleset") === "vr2"; } catch (e) { /* core */ }
+  // The calculation is the pure chargenBudget (rules/sr2e-rules.mjs), shared with the standalone character generator.
+  return chargenBudget({ system: actor.system, items: [...actor.items], table: priorityTableFor(actor.system), vr2 });
 }
 
 /** A program row's part-5b state (plan 5b §5). */
@@ -691,27 +683,32 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     if (!dropped || dropped.type !== "vehicle") return false;
     // Don't link an actor to itself
     if (dropped.uuid === this.document.uuid) return false;
-    // A compendium vehicle has no world presence, so it can't be placed on a
-    // map. Create a world copy first, then link that. Creating a world Actor
-    // needs permission a player lacks, so route it through the GM-relay (which
-    // also grants the dropping player ownership of the vehicle).
-    let vehicleUuid = dropped.uuid;
-    if (dropped.pack) {
-      if (!game.sr2e?.canCreateActor?.()) {
-        ui.notifications.warn("Can't add this vehicle: importing it needs the “Create New Actors” permission or a connected GM. Ask your GM.");
-        return false;
-      }
-      try {
-        vehicleUuid = await game.sr2e.createActorViaGM(dropped.toObject());
-      } catch (err) {
-        console.error("SR2E | Could not import vehicle:", err);
-        ui.notifications.error("The vehicle could not be added — the GM may have disconnected. See the console.");
-        return false;
-      }
+    // Already linked: nothing to add, and a second Buy would charge the same vehicle again (code review S9 r1 #2).
+    if ((this.document.system.linkedVehicles ?? []).includes(dropped.uuid)) {
+      ui.notifications.info(`${dropped.name} is already linked. To buy it at creation instead, unlink it and drop it again.`);
+      return false;
     }
-    const current = this.document.system.linkedVehicles ?? [];
-    if (!vehicleUuid || current.includes(vehicleUuid)) return false; // failed or already linked
-    return this.document.update({ "system.linkedVehicles": [...current, vehicleUuid] });
+    // During creation, ask BEFORE any import whether this is a purchase (p.46; S9). A linked vehicle is not a buy.
+    let buy = false;
+    if (this.document.system.chargen?.inProgress) {
+      const receipt = vehicleReceipt(dropped);
+      const esc = foundry.utils.escapeHTML;
+      const action = await foundry.applications.api.DialogV2.wait({
+        window: { title: `Add ${dropped.name}` },
+        rejectClose: false,
+        content: receipt.cost > 0
+          ? `<p>Buy <strong>${esc(dropped.name)}</strong> with this character's Resources at its list price, <strong>${receipt.cost.toLocaleString("en-US")}¥</strong> (SR2E p.46, p.264)? Or only link it (a vehicle someone else owns).</p>`
+          : `<p><strong>${esc(dropped.name)}</strong> has no list price (the book prints “Restricted”, p.264), so it can't be bought at creation. You can still link it.</p>`,
+        buttons: [
+          ...(receipt.cost > 0 ? [{ action: "buy", label: "Buy at creation", default: true }] : []),
+          { action: "link", label: "Link only", default: !(receipt.cost > 0) },
+          { action: "cancel", label: "Cancel" }
+        ]
+      });
+      if (action !== "buy" && action !== "link") return false;
+      buy = action === "buy";
+    }
+    return addVehicle(this.document, dropped, { buy });
   }
 
   /**
@@ -816,7 +813,11 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
       if (chosen.rating != null) itemData.system.rating = chosen.rating;
       if (chosen.grade != null) itemData.system.grade = chosen.grade;
       if (chosen.grantedSkillCategory != null) itemData.system.grantedSkillCategory = chosen.grantedSkillCategory;
-      if (chosen.force != null) itemData.system.force = chosen.force;
+      if (chosen.force != null) {
+        itemData.system.force = chosen.force;
+        // The Focus Bonding Table (p.137) at the chosen Force; a weapon/expendable focus keeps its authored cost.
+        if (itemData.type === "focus") itemData.system.bondingCost = focusBondingCost(itemData.system) ?? itemData.system.bondingCost;
+      }
       if (chosen.secondhandDiscount != null) itemData.system.secondhandDiscount = chosen.secondhandDiscount;
       if (chosen.secondhand != null) itemData.system.secondhand = chosen.secondhand;
       if (chosen.surgery) return this._surgeryPurchase(itemData, chosen.surgery);
@@ -1765,6 +1766,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // the preUpdateActor veto silently undoes.
     context.chargenReopenLocked = !game.user.isGM && !system.chargen?.inProgress;
     context.chargenBudget = chargenBudgetOf(actor);
+    // Vehicles bought at creation (S9): each receipt, removable (the refund) by the owner while creation is open.
+    context.chargenVehicles = (system.chargen?.vehicles ?? []).map((v) => ({ name: v.name, costFmt: (Number(v.cost) || 0).toLocaleString("en-US") }));
+    context.chargenCanEditVehicles = actor.isOwner && !!system.chargen?.inProgress;
     // The Companion's two hard limits on the Attribute Edges (p.24). Reported
     // beside the budget, not enforced — like everything else in this panel.
     context.attributeEdges = attributeEdgeViolations(
@@ -1778,9 +1782,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     for (const k of ["spent", "total", "remaining"]) {
       context.chargenBudget.resources[`${k}Fmt`] = context.chargenBudget.resources[k].toLocaleString("en-US");
     }
-    // Force Points go to spellcasters only (SR2E p.45) — not physical adepts.
+    // Force Points go to magicians only (SR2E p.46); an adept is one (p.124).
     const mt = system.magic?.type ?? "none";
-    context.chargenShowForce = mt !== "none" && mt !== "physical_adept";
+    context.chargenShowForce = mt !== "none";   // every magician, physical adepts too (p.46, p.124)
 
     // Shared Team Karma Pool total (SR2E p.246) — shown on every character sheet.
     context.teamKarma = game.settings.get("sr2e", "teamKarma") ?? 0;

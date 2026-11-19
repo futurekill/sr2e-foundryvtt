@@ -221,6 +221,16 @@
             <span class="budget-value">{{chargenBudget.resources.spentFmt}} / {{chargenBudget.resources.totalFmt}}</span>
             <span class="budget-remaining">{{#if chargenBudget.resources.over}}<i class="fas fa-triangle-exclamation"></i> {{/if}}{{chargenBudget.resources.remainingFmt}} left</span>
           </div>
+          {{#each chargenVehicles}}
+          <div class="budget-row budget-vehicle flexrow">
+            <span class="budget-label" title="Bought at creation with Resources (SR2E p.46, p.264).">↳ {{name}}</span>
+            <span class="budget-value">{{costFmt}}¥</span>
+            {{#if ../chargenCanEditVehicles}}<a class="budget-remaining" data-action="removeVehicleReceipt" data-index="{{@index}}" title="Remove this purchase (its price comes back)"><i class="fas fa-xmark"></i></a>{{/if}}
+          </div>
+          {{/each}}
+          {{#each chargenBudget.resources.vehicleProblems}}
+          <p class="priority-warning"><i class="fas fa-triangle-exclamation"></i> {{this}}</p>
+          {{/each}}
           {{#if chargenShowForce}}
           <div class="budget-row flexrow {{#if chargenBudget.forcePoints.over}}over{{/if}}">
             <span class="budget-label" title="Spell Force totals + focus Bonding costs.">Force Points</span>

@@ -271,6 +271,7 @@
           <i class="fas fa-plus"></i>
         </button>
       </div>
+      {{#each system.adeptPowerProblems}}<p class="hint" style="color:#c84;margin:2px 0 4px;">⚠ {{this}}</p>{{/each}}
       {{#unless isAdept}}
       <p class="hint" style="color:#c84;margin:2px 0 4px;">
         This character's magic type does not grant adept powers — set the
@@ -284,7 +285,7 @@
             <i class="fas fa-hand-sparkles"></i> {{power.name}}
           </span>
           <span>Level: {{power.system.level}}</span>
-          <span title="Power Points spent = cost-per-level × level (Magic Points at chargen / initiation)">Cost: {{power.system.totalCost}} PP</span>
+          <span title="Power Points by the book's tables (SR2E p.125–126)">Cost: {{power.system.powerCost}} PP</span>
           <div class="item-controls">
             <a data-action="editItem"><i class="fas fa-edit"></i></a>
             <a data-action="deleteItem"><i class="fas fa-trash"></i></a>

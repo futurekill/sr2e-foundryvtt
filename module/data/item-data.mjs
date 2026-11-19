@@ -11,8 +11,8 @@ import { deckModeFields } from "./actor-data.mjs";
 import { limbIdentity, resolveLimbType, sourceOf } from "../rules/limb-rules.mjs";
 import { limbOptionPrice } from "../rules/limb-stats.mjs";
 import { QUALITY_RULES, qualityRule } from "../rules/quality-rules.mjs";
-import { wareRule, containerEssence, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
-import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, cranialDeckEssence, gradeEssenceCost, surgicalEssence, derivedItemCost, strengthMinWeaponStats, focusRemaining } from "../rules/sr2e-rules.mjs";
+import { wareRule, eyeReports, ceil2 } from "../rules/ware-rules.mjs";
+import { skillsoftMemory, skillTiersFromAllocation, languageSkillRatings, effectiveBodyCost, derivedItemCost, wareEssence, strengthMinWeaponStats, focusRemaining, adeptPowerKey, adeptPowerCost, adeptCostNeedsActor } from "../rules/sr2e-rules.mjs";
 
 /**
  * Parse a drain code string into { modifier, level, levelFromWound }.
@@ -782,22 +782,11 @@ export class CyberwareData extends SR2EDataModel {
    * capacity; ordinary cyberware (capacity 0, no modules) is just the base.
    */
   get actualEssenceCost() {
-    // A cranial cyberdeck's Essence is the sum of its installed Matrixware
-    // components, derived from the deck's own ratings (Shadowtech p.54–59),
-    // rather than a flat authored value.
-    // `limbEssence` (Phase 3a) and `limbDiscount` (Phase 3b, muscle replacement) are the
-    // actor's markers, cleared and reassigned every preparation.
-    if (this.cranialDeck) return surgicalEssence(gradeEssenceCost(cranialDeckEssence(this.deck), this.grade), this.surgeryEssencePct);
-    const own = this.limbEssence ?? this.essenceCost;
-    const base = this.limbDiscount != null ? ceil2(own * this.limbDiscount) : own;
-    // Grade reduction rounds UP and floors at .05 (SSC p.98) — see gradeEssenceCost.
-    // A graded cybereye takes it before the .5 allowance (Cybertechnology p.45); then
-    // the surgeon's change (p.53).
-    const graded = containerEssence({ base, rows: this.capacityUsed ?? 0, capacity: this.capacity ?? 0, eyes: this.eyes,
-      isEye: this.wareRule === "cybereye-pair", graded: this.grade && this.grade !== "standard" },
-      (e) => gradeEssenceCost(e, this.grade));
-    return surgicalEssence(graded, this.surgeryEssencePct);
+    // The pure rule (chargen S5), shared with the standalone character generator. `limbEssence` (Phase 3a) and
+    // `limbDiscount` (Phase 3b) are the actor's markers, cleared and reassigned every preparation.
+    return wareEssence(this);
   }
+
 }
 
 /**
@@ -1216,6 +1205,24 @@ export class AdeptPowerData extends SR2EDataModel {
   get totalCost() {
     return this.pointCost * this.level;
   }
+
+  /**
+   * The power's cost by the book (SR2E p.125–126): the owning character's (CharacterData.adeptPowerCosts), else the
+   * table's where it needs no character, else null ("depends on the character": Increased Reaction, Improved
+   * Physical Attributes, Improved Ability).
+   */
+  get powerCost() {
+    const item = this.parent, actorCosts = item?.parent?.system?.adeptPowerCosts;
+    if (actorCosts && item.id in actorCosts) return actorCosts[item.id];
+    const key = adeptPowerKey(item ?? {});
+    if (adeptCostNeedsActor(key)) return null;
+    return adeptPowerCost({ pointCost: this.pointCost, level: this.level, improvedSkill: this.improvedSkill, name: item?.name }, 6, { key: key ?? "" });
+  }
+  /** For the item sheet: the cost, or why it has none yet. */
+  get powerCostLabel() {
+    const c = this.powerCost;
+    return c == null ? "depends on the character" : `${c} PP`;
+  }
 }
 
 /**
@@ -1231,8 +1238,12 @@ export class ContactData extends SR2EDataModel {
       contactType: new fields.StringField({ initial: "contact", choices: {
         contact: "SR2E.Contact.Contact", buddy: "SR2E.Contact.Buddy",
         friend: "SR2E.Contact.Friend", follower: "SR2E.Contact.Follower",
-        enemy: "SR2E.Contact.Enemy"
+        gang: "SR2E.Contact.Gang", enemy: "SR2E.Contact.Enemy"
       }}),
+      // A gang or tribe (SR2E p.44): its 2D6 members, rolled once when bought.
+      members: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
+      // Followers (SR2E p.44): the five different Archetypes the group is drawn from.
+      archetypes: new fields.ArrayField(new fields.StringField({ initial: "" }), { initial: [] }),
       archetype: new fields.StringField({ initial: "" }),
       // For allies, Loyalty (how reliably they come through for you).
       // For enemies, the same column reads as the foe's animosity / grudge.

@@ -1178,7 +1178,7 @@
   </div>
   <div class="form-group">
     <label>Total Cost:</label>
-    <span>{{system.totalCost}}</span>
+    <span>{{system.powerCostLabel}}</span>
   </div>
   <fieldset>
     <legend>Attribute Modifiers (per level)</legend>
@@ -1207,9 +1207,26 @@
       <option value="buddy" {{selected system.contactType "buddy"}}>Buddy</option>
       <option value="friend" {{selected system.contactType "friend"}}>Friend For Life</option>
       <option value="follower" {{selected system.contactType "follower"}}>Follower</option>
+      <option value="gang" {{selected system.contactType "gang"}}>Gang or Tribe</option>
       <option value="enemy" {{selected system.contactType "enemy"}}>Enemy</option>
     </select>
   </div>
+  {{#ifEquals system.contactType "gang"}}
+  <div class="form-group">
+    <label>Members (2D6, p.44):</label>
+    <input type="number" name="system.members" value="{{system.members}}" min="0" />
+  </div>
+  {{/ifEquals}}
+  {{#ifEquals system.contactType "follower"}}
+  <div class="form-group stacked">
+    <label>Archetypes (five different, p.44):</label>
+    <input type="text" name="system.archetypes.0" value="{{lookup system.archetypes 0}}" />
+    <input type="text" name="system.archetypes.1" value="{{lookup system.archetypes 1}}" />
+    <input type="text" name="system.archetypes.2" value="{{lookup system.archetypes 2}}" />
+    <input type="text" name="system.archetypes.3" value="{{lookup system.archetypes 3}}" />
+    <input type="text" name="system.archetypes.4" value="{{lookup system.archetypes 4}}" />
+  </div>
+  {{/ifEquals}}
   <div class="form-group">
     <label>Archetype:</label>
     <input type="text" name="system.archetype" value="{{system.archetype}}" />

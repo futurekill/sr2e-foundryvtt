@@ -4,20 +4,20 @@
   "type": "adept_power",
   "img": "systems/sr2e/assets/item_icons/adept-powers/combat-sense.webp",
   "system": {
-    "pointCost": 1,
+    "pointCost": 2,
     "level": 1,
-    "maxLevel": 1,
-    "description": "<p>A sixth sense for threats: each level gives extra Combat Pool dice and lets the adept spend Combat Pool to assist the Reaction Test in surprise situations (p.86). SR2E p.124.</p>",
+    "maxLevel": 3,
+    "description": "<p>A sixth sense for threats: each level gives an extra Combat Pool die and lets the adept spend Combat Pool to assist the Reaction Test in surprise situations (p.86). Level 1 costs 2, level 2 costs 3, level 3 costs 4. SR2E p.125.</p>",
     "attributeMods": {
       "body": 0,
       "quickness": 0,
       "strength": 0,
       "reaction": 0
     },
-    "notes": "SR2E p.124. +1 Combat Pool die. Can spend Combat Pool dice to assist Reaction Tests in surprise situations.",
+    "notes": "SR2E p.125 (Combat Sense Power table): level 1 = +1 Combat Pool die for 2, level 2 = +2 for 3, level 3 = +3 for 4. Combat Pool dice may assist surprise Reaction Tests (p.86).",
     "citation": {
       "book": "sr2",
-      "page": "86"
+      "page": "125"
     }
   },
   "effects": [],
