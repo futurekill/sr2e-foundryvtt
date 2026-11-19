@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Changed
+- **Shapeshifter characters** (Shadowrun Companion p.38): the creation budget no longer gives a shapeshifter two free
+  contacts — every starting contact is bought with Resources. A shapeshifter now starts with the standard 1 Karma
+  Pool point (it was 2, the metahuman grant; core p.47 gives that to metahumans only — sr2e-chargen RULINGS R10).
 - **A physical adept's power points are a pure rule** (`adeptPowerBudget`): the same costs and reports as before,
   now shared with the standalone character generator.
 - **A cyberware item's Essence is a pure rule** (`wareEssence`, chargen S5): the same calculation as before, now

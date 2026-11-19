@@ -853,6 +853,17 @@ function stubWorldSettings(keys) {
             `resources row wrong; got: ${text}`);
         });
 
+        it("a shapeshifter pays for its first contact (Companion p.38) on the shapeshifter table (Resources B = 400,000¥ one letter down)", async () => {
+          const s = await Actor.create({ name: "Quench Wolf Budget", type: "character",
+            system: { race: "shapeshifter", shapeshifter: { species: "wolf" }, chargen: { priorities: { resources: "B" } } } });
+          try {
+            await s.createEmbeddedDocuments("Item", [{ name: "Quench Fixer", type: "contact", system: { contactType: "contact" } }]);
+            const { chargenBudgetOf } = await import("../sheets/actor-sheet.mjs");
+            const r = chargenBudgetOf(s).resources;
+            assert.deepEqual([r.spent, r.total], [5000, 400000]);
+          } finally { await s.delete(); }
+        });
+
         it("finishing creation converts the unspent Resources (10:1) plus 3D6 × 1,000¥ (p.47)", async () => {
           const b = await Actor.create({ name: "Quench Starting Money", type: "character",
             system: { nuyen: 0, chargen: { priorities: { resources: "C" } } } });

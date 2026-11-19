@@ -38,6 +38,16 @@ describe("chargen prerequisites", () => {
     expect(chargenExtrasCost([c("enemy"), c("friend")])).toBe(0);
   });
 
+  it("a shapeshifter gets no free contacts (Companion p.38): its first contact costs 5,000¥; it starts with Karma Pool 1 (R10)", async () => {
+    const { startingKarmaPool } = await import("../module/rules/sr2e-rules.mjs");
+    const { SHAPESHIFTER_PRIORITIES } = await import("../module/rules/shapeshift-rules.mjs");
+    const contact = { type: "contact", name: "Fixer", system: { contactType: "contact" } };
+    const spent = (system) => chargenBudget({ system: actor({ ...system, chargen: { priorities: { resources: "B" } } }), items: [contact], table: SHAPESHIFTER_PRIORITIES }).resources.spent;
+    expect(spent({ race: "shapeshifter", shapeshifter: { species: "wolf" } })).toBe(5000);
+    expect(spent({ race: "human" })).toBe(0);
+    expect([startingKarmaPool("shapeshifter"), startingKarmaPool("shapeshifter", true), startingKarmaPool("ork")]).toEqual([1, 1, 2]);
+  });
+
   it("S4: the Allergy and Severity Table (p.46): one category each for the rarity and the severity", () => {
     expect(allergyBonus({ rarity: "common", severity: "severe", rarityBonus: "attributes", severityBonus: "skills" }))
       .toEqual({ attributes: 2, skills: 4, forcePoints: 0, nuyen: 0 });

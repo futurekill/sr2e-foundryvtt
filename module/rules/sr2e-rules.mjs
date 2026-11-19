@@ -1519,15 +1519,16 @@ export function reactionBase(quickness, intelligence, exemptQuickness = 0) {
 export const CHARGEN_RESOURCE_TYPES = ["weapon", "armor", "gear", "ammo", "cyberware", "bioware", "focus", "lifestyle", "program"];
 
 /**
- * Cost of Extras (SR2E p.46): every character starts with two free contacts (p.43); each further contact is 5,000¥,
+ * Cost of Extras (SR2E p.46): every character starts with two free contacts (p.43) — a shapeshifter none (Companion
+ * p.38: `freeContacts` 0); each further contact is 5,000¥,
  * a buddy 10,000¥ (one at creation, p.43), a gang or tribe 50,000¥ (p.44), followers 200,000¥ (p.44). Friends and
  * enemies (the Companion's tiers) are not bought here.
  * @param {{contactType?:string}[]} contacts - the character's contact items' data
  * @returns {number} nuyen
  */
-export function chargenExtrasCost(contacts = []) {
+export function chargenExtrasCost(contacts = [], freeContacts = 2) {
   const n = (t) => contacts.filter(c => (c?.contactType ?? "contact") === t).length;
-  return Math.max(0, n("contact") - 2) * 5000 + n("buddy") * 10000 + n("gang") * 50000 + n("follower") * 200000;
+  return Math.max(0, n("contact") - freeContacts) * 5000 + n("buddy") * 10000 + n("gang") * 50000 + n("follower") * 200000;
 }
 
 /** The Allergy and Severity Table (SR2E p.46): the bonus each grants, by category. */
@@ -1861,7 +1862,7 @@ export function chargenSpend({ attributes = [], skills = [], items = [] } = {}, 
   const resSpent = items
     .filter((i) => CHARGEN_RESOURCE_TYPES.includes(i.type))
     .reduce((s, i) => s + chargenItemCost(i, ctx), 0)
-    + chargenExtrasCost(items.filter((i) => i.type === "contact"));
+    + chargenExtrasCost(items.filter((i) => i.type === "contact"), ctx.freeContacts ?? 2);
   const forceSpent = items.reduce((s, i) => {
     if (i.type === "spell") return s + (i.force ?? 0);
     if (i.type === "focus") return s + (i.bondingCost ?? 0);
@@ -1908,7 +1909,9 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     ratingsFinalized: i.system.ratingsFinalized,
     concentration: { name: i.system.concentration?.name ?? "" }, specialization: { name: i.system.specialization?.name ?? "" } }));
   const data = items.map((i, n) => budgetItemInput(i, docs, n));
-  const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2 });
+  // A shapeshifter starts with no free contacts: every one is bought with Resources (Companion p.38).
+  const freeContacts = system.race === "shapeshifter" && system.shapeshifter?.species ? 0 : 2;
+  const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2, freeContacts });
   // Vehicles bought at creation (p.46, p.264; S9): the receipts' list prices. A receipt with no positive price (p.264's
   // "Restricted", or a hand edit) counts nothing and is reported, never silently free.
   const receipts = Array.isArray(system.chargen?.vehicles) ? system.chargen.vehicles : [];
@@ -3933,7 +3936,9 @@ export function testTotalSuccesses(state = {}) {
  * @returns {number}
  */
 export function startingKarmaPool(race, moreMetahumans = false) {
-  if (String(race || "human").toLowerCase() === "human") return 1;
+  // p.47: humans 1, metahumans 2 (1 under More Metahumans). A shapeshifter is not a metahuman (Companion p.38) and
+  // its book adds nothing: the standard 1 (sr2e-chargen RULINGS R10, the GM may overturn).
+  if (["human", "shapeshifter"].includes(String(race || "human").toLowerCase())) return 1;
   return moreMetahumans ? 1 : 2;
 }
 
