@@ -153,6 +153,7 @@ export const QUALITY_VALUES = {
 export const PER_SUBJECT = new Set([SC("cc9d282ba61a6abd"), SC("070265cf4575ac64"), SC("c6265f759827b148"), SC("005c8f5815fda252"),
   SC("989cb9d4186fba9a"), SC("ef6b252711dd8c3c"), SC("06b22117907a4d28")]);   // Aptitude, Incompetence, Allergy, Phobia, Compulsive, Addiction, Dependent
 const PER_ATTRIBUTE = new Set(["bonus-attribute-point", "exceptional-attribute"]);
+const CREATION_RULES = new Set(["bonus-attribute-point", "exceptional-attribute", "bonus-skill-point", "bonus-force-point", "extra-contact", "lightning-reflexes", "will-to-live"]);
 
 /** A magically active character (p.23 reductions): any magic type, physical adepts included. */
 export const magicallyActive = (system) => (system?.magic?.type ?? "none") !== "none";
@@ -210,6 +211,11 @@ export function qualityAudit({ system = {}, items = [], natural = () => 0, maxim
     if (seen.has(key)) add(`${q.name} is taken twice: Edges and Flaws don't combine (p.23).`, 23);
     seen.add(key);
     if (PER_ATTRIBUTE.has(r) && !sys.attribute) add(`${q.name}: choose the attribute.`, 24);
+    // An effect belongs to its own quality: a rule set on another one (or none from the table) isn't honoured silently.
+    const expected = (src && QUALITY_SOURCES[src]) || "";
+    if (spec && sys.rule && sys.rule !== expected) add(`${q.name} carries another quality's rule (${sys.rule}): clear it.`, 23);
+    if (!spec && CREATION_RULES.has(r)) add(`${q.name}: only the Companion's own quality has this effect (${r}).`, 23);
+    if (r === "exceptional-attribute" && (Number(sys.maximumBonus) || 0) !== 1) add(`${q.name} raises the maximum by exactly 1 (p.24).`, 24);
     if (!spec) continue;   // not a Companion quality: its own book's rules
     if (spec.attribute) {
       const gain = Number(sys.attributeBonus) || 0, n = natural(sys.attribute), cost = bonusAttributeCost({ natural: n, originalMax: maximum(sys.attribute), gain });

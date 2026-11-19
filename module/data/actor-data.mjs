@@ -623,7 +623,9 @@ export class CharacterData extends SR2EDataModel {
     if (this.magic.type === "physical_adept") {
       // The pure rule (adeptPowerBudget), shared with the standalone character generator.
       // A shapeshifter's human-form modifier is its racial modifier here (adept powers work only in human form).
-      const natural = Object.fromEntries(["body", "quickness", "strength"].map(a => [a, (this[a]?.base ?? 0) + (this[a]?.racial ?? 0) + humanFormMod(this, a)]));
+      // …and a Bonus Attribute Point is part of the natural rating (Companion p.24; sr2e-chargen PLAN-M5d Draft 3).
+      const edgeGain = (a) => [...(this.parent?.items ?? [])].filter(i => i.type === "quality" && i.system.attribute === a).reduce((t, i) => t + (Number(i.system.attributeBonus) || 0), 0);
+      const natural = Object.fromEntries(["body", "quickness", "strength"].map(a => [a, (this[a]?.base ?? 0) + (this[a]?.racial ?? 0) + humanFormMod(this, a) + edgeGain(a)]));
       const b = adeptPowerBudget({ items: [...(this.parent?.items ?? [])], maxes: CONFIG.SR2E.racialMaximums[this.race] ? racialProfile(this, CONFIG.SR2E).maxes : CONFIG.SR2E.racialMaximums.human,
         natural, magic: this.magic.value });
       this.adeptPowerPoints.max = this.magic.value;

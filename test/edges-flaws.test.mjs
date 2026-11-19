@@ -48,6 +48,9 @@ describe("Edges and Flaws", () => {
     expect(run([q("Allergy", Q.allergy, { pointValue: -1, notes: "Silver" }), q("Allergy", Q.allergy, { pointValue: -1, notes: "silver" }), q("Lightning Reflexes", Q.lr, { pointValue: 2 })])).toMatch(/taken twice/);
     expect(run([q("Bonus Attribute Point", Q.bap, { pointValue: 1, attributeBonus: 1, attribute: "" }), q("Allergy", Q.allergy, { pointValue: -1, notes: "x" })])).toMatch(/choose the attribute/);
     expect(run([q("Bonus Attribute Point", Q.bap, { pointValue: 2, attributeBonus: 2, attribute: "body" }), q("Allergy", Q.allergy, { pointValue: -2, notes: "x" })])).toMatch(/costs 3 points/);
+    // Code review r1: a rule moved onto another quality, and an Exceptional Attribute raising the maximum by 2.
+    expect(run([q("At Ease", SC("ba890aa4d65e100c"), { pointValue: 3, rule: "bonus-force-point" }), q("Allergy", Q.allergy, { pointValue: -3, notes: "x" })])).toMatch(/only the Companion's own quality|another quality's rule/);
+    expect(run([q("Exceptional Attribute", SC("5be6c48444d171ce"), { pointValue: 2, attribute: "body", maximumBonus: 2 }), q("Allergy", Q.allergy, { pointValue: -2, notes: "x" })])).toMatch(/exactly 1/);
     expect(run([q("Aptitude", Q.aptitude, { pointValue: 2, notes: "Firearms" }), q("Aptitude", Q.aptitude, { pointValue: 2, notes: "Stealth" }), q("Allergy", Q.allergy, { pointValue: -4, notes: "x" })])).toBe("");
   });
 });
