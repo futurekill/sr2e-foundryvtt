@@ -4614,128 +4614,58 @@ const SHARED_ACTIONS = {
   },
 
   /**
-   * Spend Good Karma on advancement (SR2E p.190).
-   *   Attributes: cost = the NEW rating (×2 above racial maximum, GM call;
-   *     Reaction/Essence/Magic can never be raised directly).
-   *   Skills: 2 × new rating for general skills, 1 × new rating for languages.
+   * Spend Good Karma on advancement (SR2E p.190–191): the shared `advancementOptions` / `karmaTransition`
+   * (rules/sr2e-rules.mjs) price every row, as the standalone character generator does — attributes (the new rating,
+   * ×2 above the racial maximum with the GM's approval), general skills (2×, languages 1×), Concentrations (1.5×,
+   * rounded up), Specializations (1×), and a new Concentration or Specialization from the rating it starts on.
    * @this {ApplicationV2}
    */
   advanceKarma: async function(event, target) {
     event.preventDefault();
     const actor = this.document;
-    const system = actor.system;
-    const available = system.karma?.current ?? 0;
-
-    const ATTRS = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"];
-    const maxes = CONFIG.SR2E.racialMaximums[system.race] ?? {};
-
-    // Priced from the EFFECTIVE natural rating — after the racial clamp, CCSS and permanent
-    // damage losses (core p.113) — against the same lowered ceiling; a raise that would not change
-    // the effective rating is refused (docs/archive/plans/PLAN-deadly-permanent-damage.md §4).
-    const attrCost = key => {
-      const info = system.naturalInfo?.[key];
-      if (!info) {
-        const natural = system[key].base + system[key].racial;
-        const newNat  = natural + 1;
-        const overMax = maxes[key] != null && newNat > maxes[key];
-        return { newNat, cost: newNat * (overMax ? 2 : 1), overMax, natural, stuck: false };
-      }
-      // After creation the maximum no longer clamps (p.192): it only marks the double-cost line.
-      const clamp = system.chargen?.inProgress !== false && info.cap != null;
-      const eff = (raw) => Math.max(1, (clamp ? Math.min(raw, info.cap) : raw) - info.loss);
-      const natural = eff(info.raw), newNat = eff(info.raw + 1);
-      const ceiling = info.cap == null ? null : info.cap - info.loss;
-      const overMax = ceiling != null && info.raw + 1 - info.loss > ceiling;
-      // A raise that would not change the effective rating is never sold. A shapeshifter's form modifier
-      // is part of that rating but not of the price (Companion p.36; form-independent).
-      const live = (raw) => Math.max(1, (clamp ? Math.min(raw, info.cap) : raw) + (info.form ?? 0) - info.loss);
-      return { newNat, cost: newNat * (overMax ? 2 : 1), overMax, natural, stuck: live(info.raw + 1) === live(info.raw) };
-    };
-    const skillCost = item => {
-      const newRating = item.system.rating + 1;
-      const mult = item.system.category === "language" ? 1 : 2;
-      return { newRating, cost: newRating * mult };
-    };
-
-    const attrOptions = ATTRS.map(k => {
-      const { newNat, cost, overMax, natural, stuck } = attrCost(k);
-      const label = game.i18n.localize(CONFIG.SR2E.attributes[k]);
-      if (stuck) return `<option value="attr:${k}" disabled>${label} ${natural} — can't be raised now</option>`;
-      return `<option value="attr:${k}">${label} ${natural} → ${newNat} — ${cost} Karma${overMax ? " (above racial max ×2!)" : ""}</option>`;
-    }).join("");
-
-    const skills = actor.items.filter(i => i.type === "skill")
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const skillOptions = skills.map(s => {
-      const { newRating, cost } = skillCost(s);
-      return `<option value="skill:${s.id}">${foundry.utils.escapeHTML(s.name)} ${newRating - 1} → ${newRating} — ${cost} Karma</option>`;
-    }).join("");
-
-    let choice = null;
+    const { advancementOptions, karmaTransition } = await import("../rules/sr2e-rules.mjs");
+    const { karmaContext, karmaSource, applyKarmaRecord } = await import("../karma-advance.mjs");
+    const ctx = karmaContext(actor), source = karmaSource(actor), available = actor.system.karma?.current ?? 0;
+    const esc = foundry.utils.escapeHTML;
+    const opts = advancementOptions(source, ctx);
+    const row = (o, i) => `<option value="${i}"${o.cost > available ? " disabled" : ""}>${esc(o.label)} — ${o.cost} Karma${o.needs.includes("gmApproved") ? " (above the racial maximum: GM approval, ×2)" : ""}${o.needs.includes("libraryConfirmed") ? " (needs a sorcery library)" : ""}</option>`;
+    const attrs = opts.map((o, i) => [o, i]).filter(([o]) => o.target.attribute).map(([o, i]) => row(o, i)).join("");
+    const skills = opts.map((o, i) => [o, i]).filter(([o]) => o.target.itemId).map(([o, i]) => row(o, i)).join("");
+    const skillItems = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name));
+    let pick = null;
     const action = await foundry.applications.api.DialogV2.wait({
       window: { title: `Karma Advancement — ${available} Good Karma available` },
       rejectClose: false,
       content: `<div>
-        <div class="form-group">
-          <label>Advance:</label>
-          <select name="advance">
-            <optgroup label="Attributes (cost = new rating; ×2 above racial max)">
-              ${attrOptions}
-            </optgroup>
-            ${skillOptions ? `<optgroup label="Skills (2 × new rating; languages 1×)">
-              ${skillOptions}
-            </optgroup>` : ""}
-          </select>
-        </div>
-        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">
-          Costs per SR2E p.190. Reaction, Essence and Magic can never be raised
-          directly. Raises above the racial maximum need GM approval.</p>
+        <div class="form-group"><label>Raise:</label><select name="advance"><option value="">—</option>
+          <optgroup label="Attributes (the new rating; ×2 above the racial maximum)">${attrs}</optgroup>
+          ${skills ? `<optgroup label="Skills (general 2×, Concentration 1.5×, Specialization 1×, language 1× the new rating)">${skills}</optgroup>` : ""}
+        </select></div>
+        <div class="form-group"><label>Or add to:</label><select name="addTo"><option value="">—</option>${skillItems.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select>
+          <select name="addKind"><option value="newConcentration">a Concentration</option><option value="newSpecialization">a Specialization</option></select>
+          <input type="text" name="addName" placeholder="name" maxlength="60"></div>
+        <label class="checkbox"><input type="checkbox" name="gmApproved"> GM approves a raise above the racial maximum</label>
+        <label class="checkbox"><input type="checkbox" name="libraryConfirmed"> A sorcery library rated at least the new Sorcery rating</label>
+        <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">Costs per SR2E p.190–191. Reaction, Essence and Magic can never be raised directly.</p>
       </div>`,
       buttons: [
-        {
-          action: "advance", label: "Advance", default: true,
-          callback: (event, button) => { choice = button.form.elements.advance?.value ?? null; }
-        },
+        { action: "advance", label: "Advance", default: true, callback: (e, button) => {
+          const f = button.form.elements;
+          pick = { index: f.advance.value, addTo: f.addTo.value, addKind: f.addKind.value, addName: f.addName.value,
+            gmApproved: f.gmApproved.checked, libraryConfirmed: f.libraryConfirmed.checked };
+        } },
         { action: "cancel", label: "SR2E.Dialog.Cancel" }
       ]
     });
-    if (action !== "advance" || !choice) return;
-
-    const [kind, key] = choice.split(":");
-    let label, cost;
-
-    if (kind === "attr") {
-      const { newNat, cost: c, overMax, stuck } = attrCost(key);
-      if (stuck) return ui.notifications.warn("Raising that attribute wouldn't change its rating.");
-      cost = c;
-      if (cost > available) {
-        return ui.notifications.warn(`Not enough Good Karma — ${cost} needed, ${available} available.`);
-      }
-      await actor.update({
-        [`system.${key}.base`]: system[key].base + 1,
-        "system.karma.current": available - cost
-      });
-      label = `${game.i18n.localize(CONFIG.SR2E.attributes[key])} raised to ${newNat}` +
-              (overMax ? " (above racial maximum — GM approved)" : "");
-    } else {
-      const item = actor.items.get(key);
-      if (!item) return;
-      const { newRating, cost: c } = skillCost(item);
-      cost = c;
-      if (cost > available) {
-        return ui.notifications.warn(`Not enough Good Karma — ${cost} needed, ${available} available.`);
-      }
-      await item.update({ "system.rating": newRating });
-      await actor.update({ "system.karma.current": available - cost });
-      label = `${item.name} raised to ${newRating}`;
-    }
-
+    if (action !== "advance" || !pick) return;
+    const t = pick.addTo ? { itemId: pick.addTo, [pick.addKind]: pick.addName } : opts[Number(pick.index)]?.target;
+    if (!t) return;
+    const r = karmaTransition(source, { advance: { ...t, gmApproved: pick.gmApproved, libraryConfirmed: pick.libraryConfirmed } }, ctx);
+    if (!r.ok) return ui.notifications.warn(r.reason);
+    if (!(await applyKarmaRecord(actor, r.record))) return;
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
-      content: `<div class="sr2e-item-card">
-        <strong>Advancement:</strong> ${foundry.utils.escapeHTML(label)}
-        <em>(${cost} Good Karma spent — ${available - cost} remaining)</em>
-      </div>`
+      content: `<div class="sr2e-item-card"><strong>Advancement:</strong> ${esc(r.record.summary)} <em>(${available - r.record.cost} Good Karma left)</em></div>`
     });
   },
 

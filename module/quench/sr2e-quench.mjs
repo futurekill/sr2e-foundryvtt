@@ -940,6 +940,47 @@ function stubWorldSettings(keys) {
       });
     }, { displayName: "SR2E: Chargen budget" });
 
+    // ── Karma after creation (SR2E p.190–191; sr2e-chargen docs/PLAN-M4a.md): the shared transition applied ──
+    quench.registerBatch("sr2e.karma-advance", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) await a.delete().catch(() => {}); });
+      const character = async (name) => {
+        const a = await Actor.create({ name, type: "character", system: { chargen: { inProgress: false }, karma: { total: 0, current: 0 } } });
+        made.push(a);
+        return a;
+      };
+      describe("Karma awards and advancement", () => {
+        it("an award of 10 gives 9 Good Karma (the Pool's tenth, p.190–191)", async () => {
+          const a = await character("Quench Karma Award");
+          await game.sr2e.awardKarma(a, 10);
+          assert.deepEqual([a.system.karma.total, a.system.karma.current], [10, 9]);
+        });
+        it("a Concentration raise costs 1.5 × the new rating, rounded up, in one applied record", async () => {
+          const { karmaTransition } = await import("../rules/sr2e-rules.mjs");
+          const { karmaContext, karmaSource, applyKarmaRecord } = await import("../karma-advance.mjs");
+          const a = await character("Quench Karma Conc");
+          await a.update({ "system.karma.current": 20, "system.karma.total": 20 });
+          const [sk] = await a.createEmbeddedDocuments("Item", [{ name: "Firearms", type: "skill", system: { category: "active", rating: 4, ratingsFinalized: true, allocated: 4, concentration: { name: "", rating: 0 }, specialization: { name: "", rating: 0 } } }]);
+          const r = karmaTransition(karmaSource(a), { advance: { itemId: sk.id, newConcentration: "Pistols" } }, karmaContext(a));
+          assert.ok(r.ok, r.reason);
+          assert.ok(await applyKarmaRecord(a, r.record));
+          assert.deepEqual([a.items.get(sk.id).system.concentration.name, a.items.get(sk.id).system.concentration.rating, a.system.karma.current], ["Pistols", 5, 12]);
+        });
+        it("a vetoed Karma write reverts the skill write", async () => {
+          const { karmaTransition } = await import("../rules/sr2e-rules.mjs");
+          const { karmaContext, karmaSource, applyKarmaRecord } = await import("../karma-advance.mjs");
+          const a = await character("Quench Karma Veto");
+          await a.update({ "system.karma.current": 20 });
+          const [sk] = await a.createEmbeddedDocuments("Item", [{ name: "Car", type: "skill", system: { category: "active", rating: 2, ratingsFinalized: true, allocated: 2 } }]);
+          const r = karmaTransition(karmaSource(a), { advance: { itemId: sk.id, tier: "general" } }, karmaContext(a));
+          const hook = Hooks.on("preUpdateActor", (doc, changes) => (doc.id === a.id && changes.system?.karma ? false : undefined));
+          try { assert.equal(await applyKarmaRecord(a, r.record), false); } finally { Hooks.off("preUpdateActor", hook); }
+          assert.deepEqual([a.items.get(sk.id).system.rating, a.system.karma.current], [2, 20]);
+        });
+      });
+    }, { displayName: "SR2E: Karma advancement" });
+
     // ── Attribute Edges apply themselves (Shadowrun Companion p.24) ──
     // The Vitest suite locks naturalAttribute's math; this locks the half Vitest
     // can't see — that a quality item on a real actor actually drives it, and

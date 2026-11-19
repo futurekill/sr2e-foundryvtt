@@ -3,8 +3,9 @@
  *
  * Presents a dialog listing all player characters. The GM selects one or
  * more of them, enters an amount, and clicks "Award Karma". Each selected
- * character's Good Karma (available) and Total Earned karma both increase
- * by the entered amount, and a chat message is posted to the table.
+ * character's Total Earned grows by the amount; one-tenth of Total (rounded up)
+ * is the Karma Pool and the rest becomes Good Karma (SR2E p.190–191), and a
+ * chat message is posted to the table.
  *
  * Only GMs can run this macro.
  */
@@ -33,7 +34,7 @@ const result = await foundry.applications.api.DialogV2.wait({
     <form>
       <p style="margin:0 0 8px;font-size:12px;color:#a0a0a0;">
         Select which characters receive karma, then enter the amount.
-        Good Karma (available to spend) and Total Earned both increase.
+        Total Earned grows by the amount; the Karma Pool takes its tenth and the rest is Good Karma (p.190–191).
       </p>
       <div style="max-height:220px;overflow-y:auto;
                   border:1px solid #30363d;border-radius:4px;
@@ -79,13 +80,9 @@ const awarded = [];
 for (const id of selected) {
   const actor = game.actors.get(id);
   if (!actor) continue;
-  const current = actor.system.karma?.current ?? 0;
-  const total   = actor.system.karma?.total   ?? 0;
-  await actor.update({
-    "system.karma.current": current + amount,
-    "system.karma.total":   total   + amount
-  });
-  awarded.push(actor.name);
+  // The book's split (p.190–191): Total grows by the award; the Karma Pool's tenth comes out of it, the rest is Good Karma.
+  const record = await game.sr2e.awardKarma(actor, amount);
+  if (record) awarded.push(`${actor.name} (+${record.karma.good} Good Karma)`);
 }
 
 if (!awarded.length) return;

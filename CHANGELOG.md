@@ -25,6 +25,11 @@
   their bonding cost.
 
 ### Added
+- **Karma Advancement covers the whole skill table** (SR2E p.190–191): raise a Concentration (1.5 × the new rating,
+  rounded up) or a Specialization (1 ×), or add a named one at the rating it starts from (a Concentration from the
+  general skill, a Specialization from the Concentration). A raise above the racial maximum needs the GM's tick (double
+  cost); a hermetic's Sorcery needs the library tick. The skill and the Karma are written together: if either fails,
+  neither stays. The prices come from one shared function the standalone character generator uses too.
 - **Vehicles bought at creation** (SR2E p.46, p.264; chargen S9). While creation is in progress, dropping a vehicle on
   a character asks **Buy at creation** (at its list price), **Link only** (a vehicle someone else owns) or Cancel,
   before anything is imported. A purchase is a receipt on the character (name, source, price paid): the Resources row
@@ -37,6 +42,9 @@
 - `chargenBudget`: one pure creation-budget calculation, shared with the standalone character generator.
 
 ### Fixed
+- **Karma awards follow the book's split** (SR2E p.190–191): the Award Karma macros added the whole award to Good
+  Karma AND counted its tenth in the Karma Pool. Now Total Earned grows by the award, the Pool is one-tenth of Total
+  (rounded up, as before) and Good Karma gets the rest (an award of 10 to a new character: 9 Good Karma).
 - **Force Points only for magicians** (SR2E p.46): the creation panel gave every character the Resources priority's
   Force Points. A character with no magic now has none, and a focus it buys shows as over budget. Adepts, physical
   adepts included, are magicians (p.124) and keep theirs.

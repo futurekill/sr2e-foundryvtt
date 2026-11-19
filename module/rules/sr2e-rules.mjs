@@ -4789,3 +4789,169 @@ export function taskPoolDice({ encephalon = 0, cerebralBooster = 0 } = {}) {
 export function taskPoolApplies({ category = "active", key = "" } = {}) {
   return category === "knowledge" || category === "build_repair" || TECHNICAL_SKILLS.has(String(key));
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// KARMA AFTER CREATION (SR2E p.190–191; sr2e-chargen docs/PLAN-M4a.md)
+//
+// One pure transition for Foundry and the standalone character generator: what an award, an advancement or an undo
+// changes, with before AND after values so an undo is exact. Callers apply the record; nothing here touches a
+// document.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** An award of `amount` Karma (p.190–191): Total grows by it; the Pool is one-tenth of Total rounded UP
+ * (`karmaPoolCapacity`), so Good Karma gets the rest. */
+export function karmaAward(total, amount) {
+  const t = Math.max(0, Math.floor(Number(total) || 0)), n = Math.max(0, Math.floor(Number(amount) || 0));
+  return { total: t + n, good: n - (Math.ceil((t + n) / 10) - Math.ceil(t / 10)) };
+}
+
+/**
+ * Good Karma for one advancement (p.190–191; null = Karma can't buy it).
+ *  - attribute: the new rating, double above the racial maximum; never Reaction, Essence or Magic;
+ *  - skill: general 2 ×, Concentration 1.5 × (rounded up: "5 × 1.5, or 8"), Specialization 1 ×, a language 1 × the
+ *    new rating;
+ *  - newSkill: 1 (the first rating point).
+ * @param {{kind:"attribute", attribute?:string, newRating:number, overMax?:boolean}
+ *   |{kind:"skill", tier:"general"|"concentration"|"specialization", category?:string, newRating:number}|{kind:"newSkill"}} step
+ * @returns {number|null}
+ */
+export function advancementCost(step = {}) {
+  const r = Math.floor(Number(step.newRating) || 0);
+  if (step.kind === "newSkill") return 1;
+  if (step.kind === "attribute") {
+    if (["reaction", "essence", "magic"].includes(step.attribute) || r < 1) return null;
+    return r * (step.overMax ? 2 : 1);
+  }
+  if (step.kind === "skill" && r >= 1) {
+    const mult = step.category === "language" ? 1 : { general: 2, concentration: 1.5, specialization: 1 }[step.tier];
+    return mult ? Math.ceil(mult * r - 1e-9) : null;
+  }
+  return null;
+}
+
+const KARMA_ATTRS = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"];
+const isSorcery = (item) => /^sorcery$/i.test(String(item?.name ?? "").trim());
+const skillOf = (source, id) => (source.items ?? []).find(i => (i._id ?? i.id) === id && i.type === "skill");
+
+/**
+ * Every advancement the character can buy now, with its price (the Foundry dialog and the app list the same).
+ * `ctx.attributes[a] = { natural, next, overMax, stuck }` is the caller's: Foundry's effective natural rating (after
+ * permanent losses), the app's bought + racial rating.
+ * @returns {{ target: object, label: string, cost: number, needs: string[] }[]}
+ */
+export function advancementOptions(source, ctx = {}) {
+  const out = [], sys = source.system ?? {};
+  for (const a of KARMA_ATTRS) {
+    const info = ctx.attributes?.[a];
+    if (!info || info.stuck) continue;
+    out.push({ target: { attribute: a }, label: `${a[0].toUpperCase()}${a.slice(1)} ${info.natural} → ${info.next}`,
+      cost: advancementCost({ kind: "attribute", attribute: a, newRating: info.next, overMax: info.overMax }), needs: info.overMax ? ["gmApproved"] : [] });
+  }
+  for (const s of (source.items ?? []).filter(i => i.type === "skill").sort((x, y) => x.name.localeCompare(y.name))) {
+    const id = s._id ?? s.id, k = s.system ?? {}, cat = k.category;
+    const library = isSorcery(s) && sys.magic?.tradition === "hermetic" ? ["libraryConfirmed"] : [];
+    out.push({ target: { itemId: id, tier: "general" }, label: `${s.name} ${k.rating ?? 0} → ${(k.rating ?? 0) + 1}`,
+      cost: advancementCost({ kind: "skill", tier: "general", category: cat, newRating: (k.rating ?? 0) + 1 }), needs: library });
+    if (k.concentration?.name) out.push({ target: { itemId: id, tier: "concentration" }, label: `${s.name} (${k.concentration.name}) ${k.concentration.rating} → ${k.concentration.rating + 1}`,
+      cost: advancementCost({ kind: "skill", tier: "concentration", category: cat, newRating: k.concentration.rating + 1 }), needs: [] });
+    if (k.specialization?.name) out.push({ target: { itemId: id, tier: "specialization" }, label: `${s.name} (${k.specialization.name}) ${k.specialization.rating} → ${k.specialization.rating + 1}`,
+      cost: advancementCost({ kind: "skill", tier: "specialization", category: cat, newRating: k.specialization.rating + 1 }), needs: [] });
+  }
+  return out;
+}
+
+/**
+ * The shared Karma transition (PLAN.md D13): `action` is `{ award: n }`, `{ advance: target }` or `{ revert: record }`.
+ * Returns `{ ok: true, record }` — `record = { kind, summary, cost, karma: { total, good } (deltas), actor: { path:
+ * [before, after] }, items: [{ _id, set: { path: [before, after] } }], create: item|null, remove: id|null, meta }` —
+ * or `{ ok: false, reason }`. The caller applies the AFTER values (a revert's record is already inverted).
+ * `ctx`: { moreMetahumans, race, attributes (as advancementOptions) }.
+ */
+export function karmaTransition(source, action = {}, ctx = {}) {
+  const sys = source.system ?? {}, k = sys.karma ?? {};
+  const total = Math.max(0, Number(k.total) || 0), good = Math.max(0, Number(k.current) || 0);
+  const fail = (reason) => ({ ok: false, reason });
+  const karmaPaths = (dTotal, dGood) => ({ "system.karma.total": [total, total + dTotal], "system.karma.current": [good, good + dGood] });
+  if ("award" in action) {
+    const n = Number(action.award);
+    if (!Number.isInteger(n) || n < 1 || n > 1000) return fail("An award is a whole number of Karma from 1 to 1,000.");
+    const a = karmaAward(total, n);
+    return { ok: true, record: { kind: "award", summary: `Awarded ${n} Karma: ${a.good} Good Karma, ${n - a.good} to the Karma Pool`, cost: 0,
+      karma: { total: n, good: a.good }, actor: karmaPaths(n, a.good), items: [], create: null, remove: null, meta: {} } };
+  }
+  if ("revert" in action) return revertKarma(source, action.revert, ctx, { total, good, k });
+  const t = action.advance ?? {};
+  const charge = (cost, summary, rest) => {
+    if (cost == null) return fail("Karma can't buy that.");
+    if (cost > good) return fail(`${cost} Good Karma needed, ${good} available.`);
+    return { ok: true, record: { kind: "advance", summary: `${summary} (${cost} Good Karma)`, cost, karma: { total: 0, good: -cost },
+      actor: { ...karmaPaths(0, -cost), ...(rest.actor ?? {}) }, items: rest.items ?? [], create: rest.create ?? null, remove: null, meta: rest.meta ?? {} } };
+  };
+  if (t.attribute) {
+    if (!KARMA_ATTRS.includes(t.attribute)) return fail("Reaction, Essence and Magic are never raised with Karma (p.190).");
+    const info = ctx.attributes?.[t.attribute];
+    if (!info || info.stuck) return fail("That attribute can't be raised now.");
+    if (info.overMax && !t.gmApproved) return fail("Above the racial maximum only with the gamemaster's approval, at double cost (p.190).");
+    const base = Number(sys[t.attribute]?.base) || 0;
+    return charge(advancementCost({ kind: "attribute", attribute: t.attribute, newRating: info.next, overMax: info.overMax }),
+      `${t.attribute[0].toUpperCase()}${t.attribute.slice(1)} ${info.natural} → ${info.next}${info.overMax ? " (above the racial maximum, GM approved)" : ""}`,
+      { actor: { [`system.${t.attribute}.base`]: [base, base + 1] }, meta: { gmApproved: !!info.overMax } });
+  }
+  if (t.newSkill) {
+    const src = t.newSkill;
+    if (src?.type !== "skill" || typeof src.name !== "string" || !src.name.trim()) return fail("A new skill needs a skill to learn.");
+    if ((source.items ?? []).some(i => i.type === "skill" && i.name.toLowerCase() === src.name.trim().toLowerCase())) return fail(`${src.name} is already known: raise it instead.`);
+    const lang = src.system?.category === "language";
+    const create = { ...structuredClone(src), _id: t.newId ?? src._id,
+      system: { ...structuredClone(src.system ?? {}), rating: 1, allocated: 0, ratingsFinalized: true, ...(lang ? { chargenLanguage: false, freeLanguage: "" } : {}),
+        concentration: { name: "", rating: 0 }, specialization: { name: "", rating: 0 } } };
+    return charge(advancementCost({ kind: "newSkill" }), `${src.name} learned at 1`, { create });
+  }
+  const s = skillOf(source, t.itemId);
+  if (!s) return fail("No such skill on this character.");
+  const ks = s.system ?? {}, id = s._id ?? s.id, cat = ks.category;
+  if (t.newConcentration != null || t.newSpecialization != null) {
+    const conc = t.newConcentration != null, name = String(conc ? t.newConcentration : t.newSpecialization).replace(/\s+/g, " ").trim().slice(0, 60);
+    if (!name) return fail("Name it.");
+    const tier = conc ? "concentration" : "specialization";
+    if (ks[tier]?.name) return fail(`${s.name} already has a ${tier}: raise it instead.`);
+    // New Concentrations start from the general skill; new Specializations from the Concentration, else the general (p.191).
+    const from = conc ? (ks.rating ?? 0) : (ks.concentration?.name ? ks.concentration.rating : (ks.rating ?? 0));
+    return charge(advancementCost({ kind: "skill", tier, category: cat, newRating: from + 1 }), `${s.name}: ${tier} ${name} at ${from + 1}`,
+      { items: [{ _id: id, set: { [`system.${tier}.name`]: [ks[tier]?.name ?? "", name], [`system.${tier}.rating`]: [ks[tier]?.rating ?? 0, from + 1] } }] });
+  }
+  const tier = t.tier ?? "general";
+  if (!["general", "concentration", "specialization"].includes(tier)) return fail("Unknown skill tier.");
+  if (tier !== "general" && !ks[tier]?.name) return fail(`${s.name} has no ${tier}.`);
+  if (tier === "general" && isSorcery(s) && sys.magic?.tradition === "hermetic" && !t.libraryConfirmed)
+    return fail("A hermetic raising Sorcery needs a sorcery library rated at least the new rating (p.191): confirm it.");
+  const path = tier === "general" ? "system.rating" : `system.${tier}.rating`, now = tier === "general" ? (ks.rating ?? 0) : ks[tier].rating;
+  return charge(advancementCost({ kind: "skill", tier, category: cat, newRating: now + 1 }),
+    `${s.name}${tier === "general" ? "" : ` (${ks[tier].name})`} ${now} → ${now + 1}`,
+    { items: [{ _id: id, set: { [path]: [now, now + 1] } }], meta: { libraryConfirmed: !!t.libraryConfirmed } });
+}
+
+/** The inverse of a record, accepted only when the character still holds what it set and the result is valid. */
+function revertKarma(source, rec, ctx, { total, good, k }) {
+  const fail = (reason) => ({ ok: false, reason });
+  if (!rec || !rec.actor) return fail("Nothing to undo.");
+  const get = (obj, path) => path.split(".").reduce((o, p) => o?.[p], obj);
+  const actorNow = { system: source.system };
+  // Karma reverts as a DIFFERENCE from what the character holds now (a hand edit in between is kept); everything else
+  // must still be what the entry set.
+  const isKarma = (path) => path === "system.karma.total" || path === "system.karma.current";
+  for (const [path, [, after]] of Object.entries(rec.actor)) if (!isKarma(path) && get(actorNow, path) !== after) return fail("The character has changed since: that can't be undone now.");
+  for (const it of rec.items ?? []) {
+    const item = (source.items ?? []).find(i => (i._id ?? i.id) === it._id);
+    if (!item) return fail("The skill it changed is gone: that can't be undone now.");
+    for (const [path, [, after]] of Object.entries(it.set)) if (get(item, path) !== after) return fail("The skill has changed since: that can't be undone now.");
+  }
+  if (rec.create && !(source.items ?? []).some(i => (i._id ?? i.id) === rec.create._id)) return fail("The skill it added is gone: that can't be undone now.");
+  const nTotal = total - (rec.karma?.total ?? 0), nGood = good - (rec.karma?.good ?? 0);
+  if (nTotal < 0 || nGood < 0) return fail("That Karma is already spent: undo the later change first.");
+  const cap = karmaPoolCapacity(nTotal, k.burned, k.poolAdjust, ctx.race ?? source.system?.race, !!ctx.moreMetahumans);
+  if (cap < (Number(k.spent) || 0)) return fail("The Karma Pool used this encounter is more than it would hold: refresh it first.");
+  const flip = (m) => Object.fromEntries(Object.entries(m).filter(([p]) => !isKarma(p)).map(([p, [b, a]]) => [p, [a, b]]));
+  return { ok: true, record: { kind: "revert", summary: `Undone: ${rec.summary}`, cost: 0, karma: { total: -(rec.karma?.total ?? 0), good: -(rec.karma?.good ?? 0) },
+    actor: { "system.karma.total": [total, nTotal], "system.karma.current": [good, nGood], ...flip(rec.actor) }, items: (rec.items ?? []).map(it => ({ _id: it._id, set: flip(it.set) })), create: null, remove: rec.create?._id ?? null, meta: {} } };
+}
