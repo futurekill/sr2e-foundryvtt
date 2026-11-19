@@ -4,7 +4,8 @@ import { classOf } from "../chase.mjs";
 import { VEHICLE_POINTS, R2_CLASS_LABELS } from "../rules/vehicle-combat-rules.mjs";
 import { shiftView } from "../shapeshift.mjs";
 import { skInitDice } from "../rules/vr2-frames.mjs";
-import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES, weaponUsable, activeFormOf } from "../rules/shapeshift-rules.mjs";
+import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES, weaponUsable, activeFormOf, humanFormMod } from "../rules/shapeshift-rules.mjs";
+import { qualityAudit } from "../rules/quality-rules.mjs";
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
 import { cymOn, cymFold, cymSurgery, proposeOperation } from "../cybermancy.mjs";
 import { cyberDamageOn } from "../cyberdamage.mjs";
@@ -1785,6 +1786,10 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         maximumBonus: i.system.maximumBonus
       }))
     );
+    // Edges and Flaws (Companion p.22–35): the same audit the standalone generator runs — balance, values, copies.
+    const maxes = racialProfile(system, CONFIG.SR2E).maxes;
+    context.qualityAudit = qualityAudit({ system, items: [...actor.items],
+      natural: (a) => (system[a]?.base ?? 0) + (system[a]?.racial ?? 0) + humanFormMod(system, a), maximum: (a) => maxes[a] ?? 6 });
     // Thousands separators for the ¥ figures (they climb toward 1,000,000).
     for (const k of ["spent", "total", "remaining"]) {
       context.chargenBudget.resources[`${k}Fmt`] = context.chargenBudget.resources[k].toLocaleString("en-US");

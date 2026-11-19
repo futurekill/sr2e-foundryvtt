@@ -28,6 +28,13 @@
   their bonding cost.
 
 ### Added
+- **Edges and Flaws at creation** (Shadowrun Companion p.22–35): the creation panel checks them the Companion's way —
+  Edges and Flaws must balance to 0; each value must be one the Edges/Flaws Table allows (Blind, Bio-Rejection and
+  Sensitive System are worth −2 for a magically active character); each is taken once (Aptitude, Allergy, Phobia…
+  once per subject; the attribute Edges once per attribute); a Bonus Attribute Point past the racial maximum costs 2.
+  Bonus Skill Point adds skill points, Bonus Force Point 2 Force Points per point (magicians only), Extra Contact a free
+  contact per point; Lightning Reflexes adds +1 Reaction per 2 points (riggers too), and Will to Live adds overflow
+  boxes before death on the healing clock.
 - **Metavariants** (Shadowrun Companion p.39–44): dropping a metavariant (Cyclops, Fomori, Giant, Minotaur, Koborokuru,
   Menehune, Gnome, Hobgoblin, Ogre, Oni, Satyr, Wakyambi, Dryad, Night One) now applies ITS racial modifiers and
   abilities — before, only the base metatype's counted, so a Cyclops had a troll's +4 Strength instead of +6 and kept

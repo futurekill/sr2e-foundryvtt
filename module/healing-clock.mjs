@@ -48,7 +48,8 @@ const write = (actor, st, extra = {}, opts = {}) => actor.update({ ...extra, [st
 /** Bleeding never counts time from before the clock was last switched on (D4). */
 const epoch = () => Number(setting("healingClockEpoch", 0)) || 0;
 const naturalBody = (a) => a.system.naturalAttrs?.body ?? Math.max(1, (a.system.body?.base ?? 1) + (a.system.body?.racial ?? 0));
-const lethalFor = (a) => lethalOverflow(naturalBody(a), a.system.cym?.overflowMax ?? null);
+// Will to Live (Companion p.27): one more Damage Overflow box per point before death.
+const lethalFor = (a) => lethalOverflow(naturalBody(a) + (a.system.qualityEffects?.willToLive ?? 0), a.system.cym?.overflowMax ?? null);
 
 // ── The hook (§2a) ─────────────────────────────────────────────────────────
 

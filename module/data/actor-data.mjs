@@ -6,6 +6,7 @@ import { isRigger2, r2Option } from "../vehicle-mode.mjs";
 import { fuelGradeEffects } from "../rules/vehicle-fuel-rules.mjs";
 import { subsystemState, applySubsystemEffects } from "../rules/vehicle-subsystem-rules.mjs";
 import { SR2EDataModel } from "./base-data.mjs";
+import { qualityEffects } from "../rules/quality-rules.mjs";
 import { SPECIES_CHOICES, characterForm, inAnimalForm, adeptPowersWork, activeFormOf, shapeshifterAstral, humanFormMod } from "../rules/shapeshift-rules.mjs";
 import { limbModel, forLimbRules, sourceOf } from "../rules/limb-rules.mjs";
 import { limbStats, limbEssence, lacingArmor, NEUTRAL_LIMBS } from "../rules/limb-stats.mjs";
@@ -549,6 +550,10 @@ export class CharacterData extends SR2EDataModel {
     }
     // A TLE-x episode (Cybertechnology p.55, GM-toggled): Reaction −1D6 (rolled when
     // switched on), inside the clamp, after both branches.
+    // Lightning Reflexes (Companion p.26): +1 Reaction per 2 points, not Initiative dice — after the rigging branch,
+    // which replaces reaction.mod, so a rigger keeps it too.
+    this.qualityEffects = qualityEffects([...(this.parent?.items ?? [])]);
+    this.reaction.mod += this.qualityEffects.reaction;
     const episode = this._mbwFold?.episode;
     if (episode) this.reaction.mod -= episode.reactionLoss;
     if (this._permLoss?.reaction) this.reaction.mod -= this._permLoss.reaction;   // permanent damage (p.113)

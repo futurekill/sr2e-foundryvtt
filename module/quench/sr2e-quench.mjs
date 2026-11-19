@@ -1088,6 +1088,28 @@ function stubWorldSettings(keys) {
       });
     }, { displayName: "SR2E: Metavariants" });
 
+    // ── Edges with creation and derived effects (Companion p.24–32; sr2e-chargen PLAN-M5d) ──
+    quench.registerBatch("sr2e.edge-effects", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.sheet?.close(); } catch (e) {} await a.delete().catch(() => {}); } });
+      const SC = (id) => `Compendium.sr2e-shadowrun-companion.sc-qualities.Item.${id}`;
+      const edge = (name, id, pointValue) => ({ name, type: "quality", system: { kind: "edge", pointValue }, _stats: { compendiumSource: SC(id) } });
+      describe("Edge effects", () => {
+        it("Lightning Reflexes 4 → Reaction +2; Bonus Skill Point 2 → 2 more skill points; the panel's audit asks for balance", async () => {
+          const a = await Actor.create({ name: "Quench Edges", type: "character", system: { chargen: { inProgress: true, priorities: { skills: "C" } } } });
+          made.push(a);
+          const before = a.system.reaction.value;
+          await a.createEmbeddedDocuments("Item", [edge("Lightning Reflexes", "c35b0315e04b0084", 4), edge("Bonus Skill Point", "d3953453f746eccc", 2)]);
+          assert.equal(a.system.reaction.value, before + 2);
+          const { chargenBudgetOf } = await import("../sheets/actor-sheet.mjs");
+          assert.equal(chargenBudgetOf(a).skills.total, 24 + 2);
+          const ctx = await a.sheet._prepareContext({});
+          assert.ok(ctx.qualityAudit.some(p => /balance to 0/.test(p.text)), JSON.stringify(ctx.qualityAudit));
+        });
+      });
+    }, { displayName: "SR2E: Edge effects" });
+
     // ── Attribute Edges apply themselves (Shadowrun Companion p.24) ──
     // The Vitest suite locks naturalAttribute's math; this locks the half Vitest
     // can't see — that a quality item on a real actor actually drives it, and

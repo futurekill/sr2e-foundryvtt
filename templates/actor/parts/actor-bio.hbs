@@ -248,6 +248,9 @@
           the Companion allows no more than 5 (p.24).
         </p>
         {{/if}}
+        {{#each qualityAudit}}
+        <p class="priority-warning"><i class="fas fa-triangle-exclamation"></i> {{this.text}}</p>
+        {{/each}}
         {{#if attributeEdges.exceptionalRepeats.length}}
         <p class="priority-warning">
           <i class="fas fa-triangle-exclamation"></i>

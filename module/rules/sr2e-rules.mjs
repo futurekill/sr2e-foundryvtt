@@ -1281,6 +1281,7 @@ import { VEHICLE_WEB_NODES, vehicleSkillMatches } from "./vehicle-r2-rules.mjs";
 import { limbOptionPrice } from "./limb-stats.mjs";
 import { MUSCLE, muscleFactor, wareCtx, rowsListValue, rowsPaid, containerEssence as wareContainerEssence, ceil2 as wareCeil2 } from "./ware-rules.mjs";
 import { programSizes } from "./vr2-options.mjs";
+import { qualityEffects } from "./quality-rules.mjs";
 // limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
 export { limbOptionCost } from "./limb-stats.mjs";
 
@@ -1891,12 +1892,14 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
   const chosen = system.chargen?.priorities ?? {};
   // Metahumans only (p.46): the four core races, not humans or shapeshifters.
   const allergy = ["dwarf", "elf", "ork", "troll"].includes(system.race) ? allergyBonus(system.chargen?.allergy ?? {}) : allergyBonus();
+  // Edges that add to the ALLOTMENTS (Companion p.24–32): Bonus Skill Point, Bonus Force Point, Extra Contact.
+  const edges = qualityEffects(items);
   const allot = {
     attributes:  (table[chosen.attributes]?.attributes ?? 0) + allergy.attributes,
-    skills:      (table[chosen.skills]?.skills ?? 0) + allergy.skills,
+    skills:      (table[chosen.skills]?.skills ?? 0) + allergy.skills + edges.skillPoints,
     resources:   (table[chosen.resources]?.resources ?? 0) + allergy.nuyen,
     // Only magicians receive Force Points (p.46); an adept, physical adepts included, is one (p.124).
-    forcePoints: (system.magic?.type ?? "none") === "none" ? 0 : (table[chosen.resources]?.forcePoints ?? 0) + allergy.forcePoints
+    forcePoints: (system.magic?.type ?? "none") === "none" ? 0 : (table[chosen.resources]?.forcePoints ?? 0) + allergy.forcePoints + edges.forcePoints
   };
   const attributes = ["body", "quickness", "strength", "charisma", "intelligence", "willpower"].map((k) => ({ base: system[k]?.base ?? 0 }));
   // Live documents go to wareCtx as they are (their flags are accessors a spread would drop); plain sources get the
@@ -1910,7 +1913,7 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     concentration: { name: i.system.concentration?.name ?? "" }, specialization: { name: i.system.specialization?.name ?? "" } }));
   const data = items.map((i, n) => budgetItemInput(i, docs, n));
   // A shapeshifter starts with no free contacts: every one is bought with Resources (Companion p.38).
-  const freeContacts = system.race === "shapeshifter" && system.shapeshifter?.species ? 0 : 2;
+  const freeContacts = (system.race === "shapeshifter" && system.shapeshifter?.species ? 0 : 2) + edges.extraContacts;
   const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2, freeContacts });
   // Vehicles bought at creation (p.46, p.264; S9): the receipts' list prices. A receipt with no positive price (p.264's
   // "Restricted", or a hand edit) counts nothing and is reported, never silently free.
@@ -1920,7 +1923,7 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
   const vehicleProblems = receipts.filter((v) => !priced(v)).map((v) => `${v?.name || "A vehicle"} has no list price (p.264): it can't be bought at creation.`);
   const spent = spend.resources.spent + vehicles;
   spend.resources = { ...spend.resources, spent, remaining: spend.resources.total - spent, over: spent > spend.resources.total, vehicles, vehicleProblems };
-  return { ...spend, allergy };
+  return { ...spend, allergy, freeContacts };
 }
 
 /** One item as the creation budget and the fence price it (`chargenItemCost`'s input): the item's own fields, its
