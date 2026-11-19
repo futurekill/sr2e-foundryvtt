@@ -149,9 +149,28 @@ export const QUALITY_VALUES = {
   [SC("c8f6af316f76ce31")]: { values: [-1] },   // Weak Immune System
   [SC("85ba0ae1a6b8fee8")]: { values: [1, 2, 3] },   // Will to Live
 };
+const CP = (id) => `Compendium.sr2e-cyberpirates.cp-qualities.Item.${id}`;
+// Cyberpirates p.142–144 and Rigger 2 p.15–16, read on the page renders (2026-11-19). Natural Immunity (Cyberpirates) is
+// once per drug or poison (the detail names it).
+Object.assign(QUALITY_VALUES, {
+  [CP("1258fa4a0e011983")]: { values: [-1] },          // Braggart
+  [CP("ca097e4e850955b5")]: { values: [3, 5] },        // Connected: one-way or two-way trading
+  [CP("fd79c4cdec8ca715")]: { values: [-2] },          // Liar
+  [CP("c076a957272eb9b0")]: { values: [3] },           // Natural Immunity (Cyberpirates)
+  [CP("fa299c77e7806f1f")]: { values: [3, 1] },        // Pirate Family: 3, or 1 at the GM's choice
+  [CP("f95c736b9cf5d90f")]: { values: [-2] },          // Sea Legs
+  [CP("61a6a085b6e0cec1")]: { values: [-4] },          // Sea Madness
+  [CP("8ab46ae201e4ab6f")]: { values: [1, 2, 3, 4, 5, 6] },   // Water Sprite: 1 per ability improvement (p.23's limit)
+  [R2("4ddf73e8f8d0d8c2")]: { values: [-3] },          // Computer Illiterate
+  [R2("9064cd10afc7fbd4")]: { values: [-2, -4] },      // Sensitive Neural Structure
+  [R2("f94365525601975a")]: { values: [-2] },          // Simsense Vertigo
+  [R2("c6bc04745d97b6b3")]: { values: [2, 4] },        // Spike Resistance
+  [R2("c4611cd92d4484df")]: { values: [-1, -2, -3, -4] },   // Gremlins
+  [R2("baa69c515123180f")]: { values: [2] }            // Vehicle Empathy
+});
 /** Taken once per subject (the detail names it; p.23 "cannot be combined" otherwise): skill, substance, phobia… */
 export const PER_SUBJECT = new Set([SC("cc9d282ba61a6abd"), SC("070265cf4575ac64"), SC("c6265f759827b148"), SC("005c8f5815fda252"),
-  SC("989cb9d4186fba9a"), SC("ef6b252711dd8c3c"), SC("06b22117907a4d28")]);   // Aptitude, Incompetence, Allergy, Phobia, Compulsive, Addiction, Dependent
+  SC("989cb9d4186fba9a"), SC("ef6b252711dd8c3c"), SC("06b22117907a4d28"), CP("c076a957272eb9b0")]);   // Aptitude, Incompetence, Allergy, Phobia, Compulsive, Addiction, Dependent
 const PER_ATTRIBUTE = new Set(["bonus-attribute-point", "exceptional-attribute"]);
 const CREATION_RULES = new Set(["bonus-attribute-point", "exceptional-attribute", "bonus-skill-point", "bonus-force-point", "extra-contact", "lightning-reflexes", "will-to-live"]);
 
@@ -198,11 +217,11 @@ export function qualityEffects(items = []) {
  * Every creation rule for Edges and Flaws, one list for the app and Foundry's creation panel: the balance (p.22,
  * "combined point values equal zero"), each value against the table (magically active reductions included), one copy
  * (per attribute / per subject), an attribute where one is needed, Bonus Attribute Point's price. `racial(attr)` gives
- * the natural rating before Edges and `maximum(attr)` the ORIGINAL racial maximum. Returns [{ text, page }].
+ * the natural rating before Edges and `maximum(attr)` the ORIGINAL racial maximum. Returns [{ text, page, book }].
  */
 export function qualityAudit({ system = {}, items = [], natural = () => 0, maximum = () => 6 }) {
   const out = [], quals = items.filter(i => i?.type === "quality"), mag = magicallyActive(system), seen = new Set();
-  const add = (text, page) => out.push({ text, page });
+  const add = (text, page, book = "sc") => out.push({ text, page, book });
   let total = 0;
   for (const q of quals) {
     const sys = q.system ?? {}, src = sourceOfItem(q), r = ruleOfItem(q), v = Number(sys.pointValue) || 0, spec = qualityValuesFor(src, { magicallyActive: mag });
@@ -222,7 +241,8 @@ export function qualityAudit({ system = {}, items = [], natural = () => 0, maxim
       if (gain < 1) add(`${q.name}: choose how many points.`, 24);
       else if (v !== cost) add(`${q.name}: +${gain} costs ${cost} points here (2 per point past the racial maximum, p.24).`, 24);
     } else if (!spec.values.includes(v)) {
-      add(`${q.name} is worth ${spec.values.join(", ")}${spec.variable ? " (the GM sets it)" : ""}${QUALITY_VALUES[src]?.magicallyActive ? (mag ? " for a magically active character" : " (not magically active)") : ""}, not ${v} (p.35).`, 35);
+      const own = !String(src).includes("shadowrun-companion"), page = own ? Number(sys.citation?.page) || 0 : 35;
+      add(`${q.name} is worth ${spec.values.join(", ")}${spec.variable ? " (the GM sets it)" : ""}${QUALITY_VALUES[src]?.magicallyActive ? (mag ? " for a magically active character" : " (not magically active)") : ""}, not ${v} (p.${page}).`, page, own ? sys.citation?.book : "sc");
     }
   }
   if (quals.length && total !== 0) {

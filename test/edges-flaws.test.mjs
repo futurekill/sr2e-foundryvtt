@@ -12,7 +12,7 @@ const q = (name, src, system) => ({ type: "quality", name, _stats: { compendiumS
 
 describe("Edges and Flaws", () => {
   it("the p.35 table covers all 86 Companion qualities; ranges and the magically active reductions", () => {
-    expect(Object.keys(QUALITY_VALUES)).toHaveLength(86);
+    expect(Object.keys(QUALITY_VALUES)).toHaveLength(86 + 8 + 6);   // + Cyberpirates and Rigger 2
     expect(qualityValuesFor(Q.lr).values).toEqual([2, 4, 6]);
     expect(qualityValuesFor(Q.allergy).values).toEqual([-1, -2, -3, -4]);
     const blind = Object.entries(QUALITY_VALUES).find(([, v]) => v.magicallyActive?.[0] === -2 && v.values[0] === -6)[0];
