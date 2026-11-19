@@ -1093,6 +1093,14 @@ function stubWorldSettings(keys) {
       });
 
       describe("Adept power points (SR2E p.124)", () => {
+        it("a power's effects stop when the character stops being a physical adept", async () => {
+          const a = await newAdept("Quench Adept Type Change");
+          await a.createEmbeddedDocuments("Item", [{ name: "Quench Reaction Power", type: "adept_power", system: { pointCost: 1, level: 1, attributeMods: { reaction: 1 } } }]);
+          const withPower = a.system.reaction.value;
+          await a.update({ "system.magic.type": "none" });
+          assert.equal(a.system.reaction.value, withPower - 1, "the +1 Reaction is gone for a mundane");
+        });
+
         it("sums pointCost×level of adept powers against Magic", async () => {
           actor = await newAdept("Quench Adept");
           // Generic names on purpose — "Increased Reaction"/"Increased Reflexes"

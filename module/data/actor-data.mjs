@@ -727,7 +727,7 @@ export class CharacterData extends SR2EDataModel {
       delete skill.system._adeptSource;
     }
     // Physical adept powers work only in human form (Companion p.36) — after the reset above.
-    for (const power of adeptPowersWork(this) ? items : []) {
+    for (const power of this.magic?.type === "physical_adept" && adeptPowersWork(this) ? items : []) {   // only a physical adept's powers work
       if (power.type !== "adept_power") continue;
       // The field wins when it is set. When it is not, read the skill from the
       // power's name: the compendium item ships with `improvedSkill` empty and
@@ -1233,7 +1233,7 @@ export class CharacterData extends SR2EDataModel {
           mods.edgeMax[a] = (mods.edgeMax[a] ?? 0) + item.system.maximumBonus;
         }
       }
-      if (item.type === "adept_power" && adeptPowersWork(this)) {   // human form only (Companion p.36)
+      if (item.type === "adept_power" && this.magic?.type === "physical_adept" && adeptPowersWork(this)) {   // a physical adept's, in human form (Companion p.36)
         // Power effects are per-level (SR2E p.124–126): scale by the level.
         const lvl = Math.max(1, item.system.level ?? 1);
         for (const [key, val] of Object.entries(item.system.attributeMods)) {
