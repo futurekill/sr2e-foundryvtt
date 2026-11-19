@@ -1296,6 +1296,11 @@ function _registerSystemSettings() {
   // the GM deliberately: the rule names the new Magic priorities for A and B
   // and says nothing about C, and guessing that entry would be inventing a
   // rule. The setting is honest about this in its hint.
+  // Selling gear (sr2e-chargen RULINGS R6): refund what was paid, or a fence's percentage of the list value (p.188).
+  game.settings.register("sr2e", "saleMode", {
+    name: "SR2E.Settings.SaleMode", hint: "SR2E.Settings.SaleModeHint", scope: "world", config: true, type: String,
+    choices: { refund: "SR2E.Settings.SaleModeRefund", fence: "SR2E.Settings.SaleModeFence" }, default: "refund"
+  });
   game.settings.register("sr2e", "moreMetahumans", {
     name: "SR2E.Settings.MoreMetahumans",
     hint: "SR2E.Settings.MoreMetahumansHint",

@@ -1012,6 +1012,40 @@ function stubWorldSettings(keys) {
       });
     }, { displayName: "SR2E: Karma advancement" });
 
+    // ── Selling under the GM's sale mode (sr2e-chargen RULINGS R6; core p.188) ──
+    quench.registerBatch("sr2e.sale-mode", (context) => {
+      const { describe, it, assert, before, after } = context;
+      const made = [];
+      let unstub;
+      before(() => { unstub = stubWorldSettings(["saleMode"]); });
+      after(async () => { unstub?.(); for (const a of made) { try { await a.sheet?.close(); } catch (e) {} await a.delete().catch(() => {}); } });
+      const sell = (a, id) => a.sheet.options.actions.sellItem.call(a.sheet, { preventDefault() {} }, { closest: () => ({ dataset: { itemId: id } }) });
+      describe("Sell", () => {
+        it("fence mode pays the agreed percentage of the list value (30% of 450¥ = 135¥) and removes the item", async () => {
+          await game.settings.set("sr2e", "saleMode", "fence");
+          const a = await Actor.create({ name: "Quench Fence", type: "character", system: { nuyen: 0, chargen: { inProgress: false } } });
+          made.push(a);
+          const [gun] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Pistol", type: "weapon", system: { cost: 450, quantity: 1 }, flags: { sr2e: { paid: 500 } } }], { sr2eNoCharge: true });
+          const api = foundry.applications.api.DialogV2, prompt = api.prompt;
+          api.prompt = async (cfg) => cfg.ok.callback(null, { form: { elements: { pct: { value: "30" } } } });
+          try { await sell(a, gun.id); } finally { api.prompt = prompt; }
+          await game.sr2e.moneySettled(a);
+          assert.equal(a.system.nuyen, 135);
+          assert.notOk(a.items.get(gun.id), "sold");
+        });
+        it("refund mode still pays what was paid", async () => {
+          await game.settings.set("sr2e", "saleMode", "refund");
+          const a = await Actor.create({ name: "Quench Refund", type: "character", system: { nuyen: 0, chargen: { inProgress: false } } });
+          made.push(a);
+          const [gun] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Pistol", type: "weapon", system: { cost: 450, quantity: 1 }, flags: { sr2e: { paid: 500 } } }], { sr2eNoCharge: true });
+          Hooks.once("renderDialogV2", (app) => setTimeout(() => app.element.querySelector('button[data-action="yes"]')?.click(), 60));
+          await sell(a, gun.id);
+          await game.sr2e.moneySettled(a);
+          assert.equal(a.system.nuyen, 500);
+        });
+      });
+    }, { displayName: "SR2E: Sale mode" });
+
     // ── Attribute Edges apply themselves (Shadowrun Companion p.24) ──
     // The Vitest suite locks naturalAttribute's math; this locks the half Vitest
     // can't see — that a quality item on a real actor actually drives it, and

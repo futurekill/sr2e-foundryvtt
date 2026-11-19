@@ -12,8 +12,7 @@
  * may enqueue (not await). The watchdog makes a stuck entry loud.
  */
 import { enqueueAttack } from "./engagement.mjs";
-import { proportionalRefund, streetPrice } from "./rules/sr2e-rules.mjs";
-import { rowsPaid } from "./rules/ware-rules.mjs";
+import { refundQuote } from "./rules/sr2e-rules.mjs";
 
 const ACTIVE = new Map();   // actor uuid → label of the running entry (this client)
 const STUCK_MS = 30_000;
@@ -102,20 +101,9 @@ export function adjustNuyenQueued(actor, delta, label = "adjust") {
  * The ONE quote selling, consolidation and eye-accessory moves agree on.
  */
 export function saleQuote(it) {
-  const paid = it.getFlag("sr2e", "paid");
-  const acquiredQuantity = it.getFlag("sr2e", "acquiredQuantity");
-  const isDrug = it.type === "gear" && !!it.flags?.sr2e?.drug;
-  if ((it.type === "ammo" || isDrug) && acquiredQuantity != null) return {
-    price: proportionalRefund({ paid: paid ?? 0, acquiredQuantity, currentQuantity: it.system.quantity ?? 0 }),
-    note: ` (${it.system.quantity ?? 0}/${acquiredQuantity} ${isDrug ? "doses" : "rounds"} left — proportional refund)` };
-  // An eye's accessory rows refund what was paid for each, with the eye (Part B).
-  const rows = rowsPaid(it.system?.modules ?? []);
-  // A failed second-hand part is worthless (SSC p.100: it "must be replaced"); its bought
-  // accessory rows are separate purchases and still refund.
-  if (it.type === "cyberware" && it.system?.secondhandFailed) return { price: rows,
-    note: ` (failed second-hand ware: worthless, SSC p.100${rows ? `; ${rows}¥ for its accessories` : ""})` };
-  return { price: (paid ?? streetPrice(Number(it.system.cost) || 0, it.system.streetIndex)) + rows,
-    note: (paid != null ? " (refund of the price paid" : " (street price") + (rows ? `, plus ${rows}¥ for its accessories)` : ")") };
+  // The pure rule (rules/sr2e-rules.mjs refundQuote), shared with the standalone character generator. Refund
+  // semantics always: consolidation and eye-accessory moves account in paid prices whatever the sale mode.
+  return refundQuote({ type: it.type, system: it.system, flags: it.flags });
 }
 
 /** Ammo, or a drug with an acquisition basis: its quantity decides what selling refunds. */

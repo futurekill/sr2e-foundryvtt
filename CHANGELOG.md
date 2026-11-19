@@ -25,6 +25,11 @@
   their bonding cost.
 
 ### Added
+- **Selling through a fence** (SR2E p.188): a new world setting, *Selling gear*. "Refund what was paid" is the rule
+  your table has used so far (the default — nothing changes until the GM switches). "Through a fence" pays 30% of the
+  item's list value, 5% more or less per extra Negotiation success, between 10% and 50%: Sell asks the agreed
+  percentage and shows the price. The sale price comes from one shared function the standalone character generator
+  uses too.
 - **Karma Advancement covers the whole skill table** (SR2E p.190–191): raise a Concentration (1.5 × the new rating,
   rounded up) or a Specialization (1 ×), or add a named one at the rating it starts from (a Concentration from the
   general skill, a Specialization from the Concentration). A raise above the racial maximum needs the GM's tick (double

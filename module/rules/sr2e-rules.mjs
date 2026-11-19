@@ -1279,7 +1279,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
 
 import { VEHICLE_WEB_NODES, vehicleSkillMatches } from "./vehicle-r2-rules.mjs";
 import { limbOptionPrice } from "./limb-stats.mjs";
-import { MUSCLE, muscleFactor, wareCtx, rowsListValue, containerEssence as wareContainerEssence, ceil2 as wareCeil2 } from "./ware-rules.mjs";
+import { MUSCLE, muscleFactor, wareCtx, rowsListValue, rowsPaid, containerEssence as wareContainerEssence, ceil2 as wareCeil2 } from "./ware-rules.mjs";
 import { programSizes } from "./vr2-options.mjs";
 // limbOptionCost lives in limb-stats.mjs (with the Cybertechnology limb pricing).
 export { limbOptionCost } from "./limb-stats.mjs";
@@ -1858,7 +1858,23 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     category: i.system.category, freeLanguage: i.system.freeLanguage, rating: i.system.rating, allocated: i.system.allocated,
     ratingsFinalized: i.system.ratingsFinalized,
     concentration: { name: i.system.concentration?.name ?? "" }, specialization: { name: i.system.specialization?.name ?? "" } }));
-  const data = items.map((i, n) => ({
+  const data = items.map((i, n) => budgetItemInput(i, docs, n));
+  const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2 });
+  // Vehicles bought at creation (p.46, p.264; S9): the receipts' list prices. A receipt with no positive price (p.264's
+  // "Restricted", or a hand edit) counts nothing and is reported, never silently free.
+  const receipts = Array.isArray(system.chargen?.vehicles) ? system.chargen.vehicles : [];
+  const priced = (v) => typeof v?.cost === "number" && Number.isFinite(v.cost) && v.cost > 0;
+  const vehicles = receipts.filter(priced).reduce((s, v) => s + v.cost, 0);
+  const vehicleProblems = receipts.filter((v) => !priced(v)).map((v) => `${v?.name || "A vehicle"} has no list price (p.264): it can't be bought at creation.`);
+  const spent = spend.resources.spent + vehicles;
+  spend.resources = { ...spend.resources, spent, remaining: spend.resources.total - spent, over: spent > spend.resources.total, vehicles, vehicleProblems };
+  return { ...spend, allergy };
+}
+
+/** One item as the creation budget and the fence price it (`chargenItemCost`'s input): the item's own fields, its
+ * ware context, ammo's bundle value, a drug pack, an eye's accessory rows. `docs` are all the items in wareCtx's shape. */
+export function budgetItemInput(i, docs, n) {
+  return {
     type: i.type, name: i.name,
     cost: i.system.cost ?? 0,
     // Rating/grade/ratingStats travel too — chargenItemCost prices through itemBaseCost, so rated and graded ware count.
@@ -1884,17 +1900,56 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
     force: i.system.force ?? 0, bondingCost: i.system.bondingCost ?? 0,
     // Accessories bought into an eye.
     moduleListValue: rowsListValue(i.system.modules ?? [])
-  }));
-  const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2 });
-  // Vehicles bought at creation (p.46, p.264; S9): the receipts' list prices. A receipt with no positive price (p.264's
-  // "Restricted", or a hand edit) counts nothing and is reported, never silently free.
-  const receipts = Array.isArray(system.chargen?.vehicles) ? system.chargen.vehicles : [];
-  const priced = (v) => typeof v?.cost === "number" && Number.isFinite(v.cost) && v.cost > 0;
-  const vehicles = receipts.filter(priced).reduce((s, v) => s + v.cost, 0);
-  const vehicleProblems = receipts.filter((v) => !priced(v)).map((v) => `${v?.name || "A vehicle"} has no list price (p.264): it can't be bought at creation.`);
-  const spent = spend.resources.spent + vehicles;
-  spend.resources = { ...spend.resources, spent, remaining: spend.resources.total - spent, over: spent > spend.resources.total, vehicles, vehicleProblems };
-  return { ...spend, allergy };
+};
+}
+
+/** Clean list value of one owned item (p.188's "actual value"): its list price as the budget prices it, times the part
+ * left for ammo and drugs with an acquisition basis. `items` are the actor's items (the ware context needs them). */
+export function itemListValue(item, items = [item]) {
+  const docs = items.map((i) => (i._source ? i : { ...i, id: i.id ?? i._id, _source: { system: i.system } }));
+  const n = Math.max(0, items.indexOf(item));
+  const value = chargenItemCost(budgetItemInput(item, docs, n));
+  const acq = item.flags?.sr2e?.acquiredQuantity, stock = item.type === "ammo" || (item.type === "gear" && !!item.flags?.sr2e?.drug);
+  return stock && Number(acq) > 0 ? Math.floor(value * Math.max(0, Number(item.system?.quantity) || 0) / Number(acq)) : value;
+}
+
+/** A fence's percentages (SR2E p.188): 30% base, 5% per extra Negotiation success, never below 10 or above 50. */
+export const FENCE_STEPS = Object.freeze([10, 15, 20, 25, 30, 35, 40, 45, 50]);
+/** What a fence pays: the list value × an allowed percentage, whole nuyen; null for any other percentage. */
+export function fenceValue(listValue, pct) {
+  if (!FENCE_STEPS.includes(pct)) return null;
+  return Math.floor(Math.max(0, Number(listValue) || 0) * pct / 100);
+}
+
+/**
+ * Refund on selling (the "refund" sale mode, Foundry's long-standing rule): what was paid; ammo and drugs with an
+ * acquisition basis in proportion to what's left; a failed second-hand part worthless (SSC p.100) but its paid
+ * accessory rows refunded; an untracked item at street price. A plain item: `{ type, system, flags }`.
+ */
+export function refundQuote(it) {
+  const paid = it.flags?.sr2e?.paid;
+  const acquiredQuantity = it.flags?.sr2e?.acquiredQuantity;
+  const isDrug = it.type === "gear" && !!it.flags?.sr2e?.drug;
+  if ((it.type === "ammo" || isDrug) && acquiredQuantity != null) return {
+    price: proportionalRefund({ paid: paid ?? 0, acquiredQuantity, currentQuantity: it.system.quantity ?? 0 }),
+    note: ` (${it.system.quantity ?? 0}/${acquiredQuantity} ${isDrug ? "doses" : "rounds"} left — proportional refund)` };
+  const rows = rowsPaid(it.system?.modules ?? []);
+  if (it.type === "cyberware" && it.system?.secondhandFailed) return { price: rows,
+    note: ` (failed second-hand ware: worthless, SSC p.100${rows ? `; ${rows}¥ for its accessories` : ""})` };
+  return { price: (paid ?? streetPrice(Number(it.system.cost) || 0, it.system.streetIndex)) + rows,
+    note: (paid != null ? " (refund of the price paid" : " (street price") + (rows ? `, plus ${rows}¥ for its accessories)` : ")") };
+}
+
+/**
+ * The sale price under the GM's sale mode (sr2e-chargen RULINGS R6): "refund" → `refundQuote`; "fence" (core p.188) →
+ * the list value × the agreed percentage (10–50 in steps of 5). A failed second-hand part is worthless either way.
+ * @returns {{price:number|null, note:string}} price null = a percentage the book doesn't allow
+ */
+export function saleQuoteOf(item, { mode = "refund", pct = 30, items = [item] } = {}) {
+  if (mode !== "fence") return refundQuote(item);
+  if (item.type === "cyberware" && item.system?.secondhandFailed) return { price: 0, note: " (failed second-hand ware: worthless, SSC p.100)" };
+  const list = itemListValue(item, items), price = fenceValue(list, pct);
+  return { price, note: price == null ? " (a fence pays 10–50%, in steps of 5)" : ` (a fence pays ${pct}% of its ${list.toLocaleString("en-US")}¥ value, p.188)` };
 }
 
 /** The receipt a creation purchase of `vehicle` records (S9): its name, compendium source and list price (p.264). */

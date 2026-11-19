@@ -5,7 +5,7 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { evaluateDamageCode } from "../documents/item.mjs";
 import { cymMagicTN } from "../rules/cym-rules.mjs";
 import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
-import { burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { saleQuoteOf, burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, areaTargetEligible, blastRadius, smokeCloudRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays, taskPoolApplies } from "../rules/sr2e-rules.mjs";
@@ -32,7 +32,7 @@ import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
 import { vr2MatrixAttack, vr2LeaveMatrix, vr2EnterMatrix, liveSession, vr2Maneuver, vr2BuildImprovised,
   vr2Redetect, releaseSuppressed, vr2Medic, vr2SwapMemory, vr2ScanIcon, vr2DisconnectToGrid, currentPlace, topoSnapshot, knownPlaces, mappedHubs, satOf, vr2LocateSatellite } from "../vr2.mjs";
 import { reachable } from "../rules/vr2-grids.mjs";
-import { moneyQueue, adjustNuyen, created, deleted, saleQuote } from "../money.mjs";
+import { moneyQueue, adjustNuyen, created, deleted } from "../money.mjs";
 import { useDose, endDrug, forceFinishDose, repostCard, extendDose, beginRecovery, cleanseSubstance, editSubstance, importSubstance, workingImplant, implantsWork } from "../drugs.mjs";
 import { riggedInto, setControl, hitObjectFlow, isPoolClient } from "../vehicle-play.mjs";
 import { vehicleOperationMod, movingTargetMod } from "../rules/vehicle-play-rules.mjs";
@@ -3235,12 +3235,27 @@ async function onSellItem(event, target) {
     return ui.notifications.info("Unarmed Strike is innate and can't be sold.");
   }
 
-  // Ammo depletes as it's fired: refund proportionally to what's left, so an
-  // emptied box refunds nothing (no more selling a fired-out box for full price).
-  // Everything else refunds the price paid, or street price if untracked.
-  const quote = saleQuote;
+  // The GM's sale mode (RULINGS R6): refund what was paid (ammo and drugs in proportion to what's left), or a
+  // fence's percentage of the list value (p.188), the seller picking the agreed step.
+  const mode = (() => { try { return game.settings.get("sr2e", "saleMode"); } catch (e) { return "refund"; } })();
+  let pct = 30;
+  if (mode === "fence") {
+    const { FENCE_STEPS, itemListValue } = await import("../rules/sr2e-rules.mjs");
+    const list = itemListValue(item, [...actor.items]);
+    const chosen = await foundry.applications.api.DialogV2.prompt({
+      window: { title: `Sell ${item.name} to a fence` }, rejectClose: false,
+      content: `<p>A fence pays 30% of the list value (${list.toLocaleString("en-US")}¥), 5% more or less per extra Negotiation success, between 10% and 50% (SR2E p.188).</p>
+        <div class="form-group"><label>Agreed:</label><select name="pct">${FENCE_STEPS.map(p => `<option value="${p}"${p === 30 ? " selected" : ""}>${p}% — ${Math.floor(list * p / 100).toLocaleString("en-US")}¥</option>`).join("")}</select></div>`,
+      ok: { label: "Sell", callback: (e, button) => Number(button.form.elements.pct.value) }
+    });
+    if (!chosen) return;
+    pct = chosen;
+  }
+  // The live documents (the ware context finds the item among them).
+  const quote = (it) => saleQuoteOf(it, { mode, pct, items: [...actor.items] });
   const { price, note } = quote(item);
-  const confirmed = await foundry.applications.api.DialogV2.confirm({
+  if (price == null) return ui.notifications.warn("A fence pays 10–50%, in steps of 5 (p.188).");
+  const confirmed = mode === "fence" || await foundry.applications.api.DialogV2.confirm({
     window: { title: `Sell ${item.name}?` },
     content: `<p>Sell <strong>${foundry.utils.escapeHTML(item.name)}</strong> for <strong>${price}¥</strong>${note}? The item will be removed.</p>`
   });
@@ -3253,7 +3268,8 @@ async function onSellItem(event, target) {
     const live = actor.items.get(itemId);
     if (!live) return null;
     if (unfinishedCymImplant(actor, live)) { ui.notifications.warn(`${live.name} belongs to an unfinished cybermantic operation: finish or cancel it first.`); return null; }
-    if (quote(live).price !== price) {
+    const liveMode = (() => { try { return game.settings.get("sr2e", "saleMode"); } catch (e) { return "refund"; } })();
+    if (liveMode !== mode || quote(live).price !== price) {
       ui.notifications.warn(`${live.name} changed while you were deciding — sell it again to see the new price.`);
       return null;
     }
