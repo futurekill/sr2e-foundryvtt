@@ -4,11 +4,11 @@
  * Karma; if the Karma write fails or is vetoed, the skill write is reverted (every field it changed; a created skill is
  * deleted), so Karma is never charged without the raise or the raise kept without the charge.
  */
-import { karmaTransition } from "./rules/sr2e-rules.mjs";
+import { karmaTransition, racialProfile } from "./rules/sr2e-rules.mjs";
 
 /** The attribute context `karmaTransition` prices with: Foundry's effective natural rating after permanent losses. */
 export function karmaAttributeContext(actor) {
-  const system = actor.system, maxes = CONFIG.SR2E.racialMaximums[system.race] ?? {}, out = {};
+  const system = actor.system, maxes = racialProfile(system, CONFIG.SR2E).maxes, out = {};
   for (const key of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
     const info = system.naturalInfo?.[key];
     if (!info) {

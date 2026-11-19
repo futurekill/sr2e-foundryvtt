@@ -372,6 +372,14 @@
   text-overflow: ellipsis;
 }
 
+/* A metavariant's notes (Companion p.39–44), visible text so they're readable without hovering. */
+.sr2e-sheet-header .race-notes {
+  flex: 1 1 100%;
+  font-size: 0.8em;
+  opacity: 0.85;
+  white-space: normal;
+}
+
 .sr2e-sheet-header .race-drop-icon {
   flex: 0 0 auto;
   font-size: 9px;

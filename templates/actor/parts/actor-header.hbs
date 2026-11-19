@@ -24,10 +24,10 @@
       {{!-- Race drop zone: shows current race name; accepts a 'race' item dropped from compendium --}}
       <div class="race-drop-zone" title="Drag a metatype from the SR2E Metatypes compendium to set this character's race." data-drop="race">
         <span class="race-name">{{localizeRace system.race config.races}}{{#if metavariant}} ({{metavariant.name}}){{/if}}</span>
-        {{#if metavariant}}<i class="fas fa-circle-info" title="{{metavariant.notes}}" aria-label="{{metavariant.notes}}"></i>{{/if}}
         <i class="fas fa-arrows-alt race-drop-icon"></i>
       </div>
 
+      {{#if metavariant}}<div class="race-notes">{{metavariant.notes}}</div>{{/if}}
       {{!-- Pool dice remaining — only show pools with a computed max > 0 --}}
       <div class="header-pools">
         {{#if system.dicePools.combat.max}}

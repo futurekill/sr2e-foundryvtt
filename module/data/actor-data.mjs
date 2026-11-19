@@ -618,7 +618,7 @@ export class CharacterData extends SR2EDataModel {
     if (this.magic.type === "physical_adept") {
       // The pure rule (adeptPowerBudget), shared with the standalone character generator.
       const natural = Object.fromEntries(["body", "quickness", "strength"].map(a => [a, (this[a]?.base ?? 0) + (this[a]?.racial ?? 0)]));
-      const b = adeptPowerBudget({ items: [...(this.parent?.items ?? [])], maxes: CONFIG.SR2E.racialMaximums[this.race] ?? CONFIG.SR2E.racialMaximums.human,
+      const b = adeptPowerBudget({ items: [...(this.parent?.items ?? [])], maxes: CONFIG.SR2E.racialMaximums[this.race] ? racialProfile(this, CONFIG.SR2E).maxes : CONFIG.SR2E.racialMaximums.human,
         natural, magic: this.magic.value });
       this.adeptPowerPoints.max = this.magic.value;
       this.adeptPowerPoints.value = b.used;
@@ -1421,7 +1421,7 @@ export class CharacterData extends SR2EDataModel {
   _naturalAttribute(attr, mods = null) {
     // The racial maximum caps a character in CREATION (p.44); afterwards Good Karma may raise an
     // attribute above it at double cost with the GM's agreement (p.192), so it no longer clamps.
-    const maxes = this.chargen?.inProgress === false ? {} : (CONFIG.SR2E.racialMaximums[this.race] ?? {});
+    const maxes = this.chargen?.inProgress === false ? {} : (racialProfile(this, CONFIG.SR2E).maxes);
     // CCSS reductions (Cybertechnology p.55) and permanent damage (core p.113) lower the NATURAL
     // rating, floor 1 — subtracted once, after the clamp, so the ceiling drops by the same amount.
     const loss = (this._mbwLoss?.[attr] ?? 0) + (this._permLoss?.[attr] ?? 0);
@@ -1458,7 +1458,7 @@ export class CharacterData extends SR2EDataModel {
       if (this[attr]) {
         this.naturalAttrs[attr] = this._naturalAttribute(attr, mods);
         // For advancement: the unclamped natural rating, the ceiling and the permanent losses.
-        const max = (CONFIG.SR2E.racialMaximums[this.race] ?? {})[attr];
+        const max = (racialProfile(this, CONFIG.SR2E).maxes)[attr];
         (this.naturalInfo ??= {})[attr] = { raw: (this[attr].base ?? 0) + (this[attr].racial ?? 0) + (mods?.edgeAttr?.[attr] ?? 0),
           cap: max == null ? null : max + (mods?.edgeMax?.[attr] ?? 0),
           loss: (this._mbwLoss?.[attr] ?? 0) + (this._permLoss?.[attr] ?? 0),
@@ -1486,7 +1486,7 @@ export class CharacterData extends SR2EDataModel {
         // edge doesn't read as "+N edge" with a phantom "−N other".
         const edgeItems = mods.edgeSources?.[attr] ?? [];
         if (edgeItems.length) {
-          const maxes = CONFIG.SR2E.racialMaximums[this.race] ?? {};
+          const maxes = racialProfile(this, CONFIG.SR2E).maxes;
           const natNoEdge = naturalAttribute(this[attr].base ?? 0, racial, 0, maxes[attr] ?? null, mods?.edgeMax?.[attr] ?? 0);
           const edgeEff = this._naturalAttribute(attr, mods) - natNoEdge;
           if (edgeEff > 0) named.push({ name: edgeItems.map((e) => e.name).join(" + "), value: edgeEff });
