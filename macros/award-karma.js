@@ -57,8 +57,8 @@ const action = await foundry.applications.api.DialogV2.wait({
       label: "Award Karma",
       default: true,
       callback: (event, button) => {
-        const amount = parseInt(button.form.elements.amount.value) || 0;
-        if (amount <= 0 || amount > 200) return;
+        const amount = Number(button.form.elements.amount.value);
+        if (!Number.isInteger(amount) || amount < 1 || amount > 200) return;   // 200.9 is refused, never rounded
         const selected = characters
           .filter(a => button.form.elements[`char-${a.id}`]?.checked)
           .map(a => a.id);

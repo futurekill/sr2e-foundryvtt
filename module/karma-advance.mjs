@@ -63,8 +63,8 @@ export async function applyKarmaRecord(actor, record) {
     if (!(await actor.update(after(record.actor)))) throw new Error("the Karma write was refused");
     undo.push(["the Karma back", () => actor.update(before(record.actor))]);
     if (record.remove) {
-      const gone = actor.items.get(record.remove);
-      if (gone && !(await gone.delete())) throw new Error("the skill removal was refused");
+      const gone = actor.items.get(record.remove);   // gone already = nothing to undo against: refund nothing (r2)
+      if (!gone || !(await gone.delete())) throw new Error("the skill to remove is gone or its removal was refused");
     }
     return true;
   } catch (err) {

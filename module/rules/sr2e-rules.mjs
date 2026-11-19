@@ -4949,7 +4949,7 @@ function revertKarma(source, rec, ctx, { total, good, k }) {
   if (rec.create) {   // the learned skill must still be as learned, or the undo would delete a raised skill for 1 Karma (r1 #3)
     const made = (source.items ?? []).find(i => (i._id ?? i.id) === rec.create._id);
     if (!made) return fail("The skill it added is gone: that can't be undone now.");
-    const same = ["rating", "concentration.name", "concentration.rating", "specialization.name", "specialization.rating"]
+    const same = made.name === rec.create.name && ["category", "rating", "concentration.name", "concentration.rating", "specialization.name", "specialization.rating"]
       .every(p => (get(made.system, p) ?? 0) === (get(rec.create.system, p) ?? 0));
     if (!same) return fail(`${made.name} has changed since it was learned: undo the later changes first.`);
   }
