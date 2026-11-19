@@ -8,7 +8,7 @@
     "skill": "armed_combat",
     "damageCode": "(Str+2)S",
     "damageType": "stun",
-    "concealability": 99,
+    "concealability": 5,
     "reach": 1,
     "firingModes": {
       "ss": false,

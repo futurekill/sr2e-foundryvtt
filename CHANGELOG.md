@@ -42,6 +42,7 @@
 - The sample runners Hexen and Whisper carried an old copy of **Heal**: p.184 and drain "-1(S)". They now match the
   spell list: p.155, drain (F ÷ 2) at the subject's Wound Level. Five of their spells gained their page reference.
   Characters already copied from these samples keep their old copy (edit the spell or drag a new one from the list).
+- The Baseball Bat's Concealability is 5, like the Club (it was 99, "cannot be concealed").
 
 ## 0.160.0 — 2026-11-16
 
