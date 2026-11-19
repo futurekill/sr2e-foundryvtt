@@ -39,6 +39,9 @@
   Force Points. A character with no magic now has none, and a focus it buys shows as over budget. Adepts, physical
   adepts included, are magicians (p.124) and keep theirs.
 - The focus price comment named the wrong prices (the catalog's were right, p.263).
+- The sample runners Hexen and Whisper carried an old copy of **Heal**: p.184 and drain "-1(S)". They now match the
+  spell list: p.155, drain (F ÷ 2) at the subject's Wound Level. Five of their spells gained their page reference.
+  Characters already copied from these samples keep their old copy (edit the spell or drag a new one from the list).
 
 ## 0.160.0 — 2026-11-16
 
