@@ -4874,7 +4874,7 @@ export function karmaTransition(source, action = {}, ctx = {}) {
   const karmaPaths = (dTotal, dGood) => ({ "system.karma.total": [total, total + dTotal], "system.karma.current": [good, good + dGood] });
   if ("award" in action) {
     const n = Number(action.award);
-    if (!Number.isInteger(n) || n < 1 || n > 1000) return fail("An award is a whole number of Karma from 1 to 1,000.");
+    if (!Number.isInteger(n) || n < 1 || n > 200) return fail("An award is a whole number of Karma from 1 to 200.");
     const a = karmaAward(total, n);
     return { ok: true, record: { kind: "award", summary: `Awarded ${n} Karma: ${a.good} Good Karma, ${n - a.good} to the Karma Pool`, cost: 0,
       karma: { total: n, good: a.good }, actor: karmaPaths(n, a.good), items: [], create: null, remove: null, meta: {} } };
@@ -4946,7 +4946,13 @@ function revertKarma(source, rec, ctx, { total, good, k }) {
     if (!item) return fail("The skill it changed is gone: that can't be undone now.");
     for (const [path, [, after]] of Object.entries(it.set)) if (get(item, path) !== after) return fail("The skill has changed since: that can't be undone now.");
   }
-  if (rec.create && !(source.items ?? []).some(i => (i._id ?? i.id) === rec.create._id)) return fail("The skill it added is gone: that can't be undone now.");
+  if (rec.create) {   // the learned skill must still be as learned, or the undo would delete a raised skill for 1 Karma (r1 #3)
+    const made = (source.items ?? []).find(i => (i._id ?? i.id) === rec.create._id);
+    if (!made) return fail("The skill it added is gone: that can't be undone now.");
+    const same = ["rating", "concentration.name", "concentration.rating", "specialization.name", "specialization.rating"]
+      .every(p => (get(made.system, p) ?? 0) === (get(rec.create.system, p) ?? 0));
+    if (!same) return fail(`${made.name} has changed since it was learned: undo the later changes first.`);
+  }
   const nTotal = total - (rec.karma?.total ?? 0), nGood = good - (rec.karma?.good ?? 0);
   if (nTotal < 0 || nGood < 0) return fail("That Karma is already spent: undo the later change first.");
   const cap = karmaPoolCapacity(nTotal, k.burned, k.poolAdjust, ctx.race ?? source.system?.race, !!ctx.moreMetahumans);

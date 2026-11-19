@@ -28,7 +28,9 @@ const charRows = characters.map(a => `
   </div>
 `).join("");
 
-const result = await foundry.applications.api.DialogV2.wait({
+// DialogV2.wait returns the ACTION; the form data is captured by the callback (code review M4a r1 #1).
+let result = null;
+const action = await foundry.applications.api.DialogV2.wait({
   window: { title: "Award Karma — SR2E" },
   content: `
     <form>
@@ -44,7 +46,7 @@ const result = await foundry.applications.api.DialogV2.wait({
       </div>
       <div class="form-group" style="align-items:center;gap:10px;">
         <label style="font-size:13px;white-space:nowrap;">Karma to Award:</label>
-        <input type="number" name="amount" value="1" min="1" max="100" autofocus
+        <input type="number" name="amount" value="1" min="1" max="200" autofocus
                style="width:70px;text-align:center;font-size:14px;font-weight:bold;">
       </div>
     </form>
@@ -56,11 +58,11 @@ const result = await foundry.applications.api.DialogV2.wait({
       default: true,
       callback: (event, button) => {
         const amount = parseInt(button.form.elements.amount.value) || 0;
-        if (amount <= 0) return null;
+        if (amount <= 0 || amount > 200) return;
         const selected = characters
           .filter(a => button.form.elements[`char-${a.id}`]?.checked)
           .map(a => a.id);
-        return { amount, selected };
+        result = { amount, selected };
       }
     },
     {
@@ -72,7 +74,7 @@ const result = await foundry.applications.api.DialogV2.wait({
   close: () => null
 });
 
-if (!result || !result.selected?.length) return;
+if (action !== "award" || !result || !result.selected?.length) return;
 
 const { amount, selected } = result;
 const awarded = [];

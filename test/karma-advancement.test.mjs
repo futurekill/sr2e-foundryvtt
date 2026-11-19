@@ -63,5 +63,12 @@ describe("karmaTransition", () => {
     const award = karmaTransition(iris(), { award: 10 }, ctx).record;
     const spent = iris(); spent.system.karma = { total: 50, current: 0, burned: 0, spent: 0, poolAdjust: 0 };
     expect(karmaTransition(spent, { revert: award }, ctx).reason).toMatch(/already spent/);
+    // A learned skill raised since (outside this history) can't be undone away for 1 Karma (code review r1 #3).
+    const learned = karmaTransition(src, { advance: { newSkill: { type: "skill", name: "Car", system: { category: "active" } }, newId: "c" } }, ctx).record;
+    const later = iris(); later.items.push({ ...learned.create, system: { ...learned.create.system, rating: 4 } });
+    expect(karmaTransition(later, { revert: learned }, ctx).reason).toMatch(/has changed since it was learned/);
+    const same = iris(); same.items.push(learned.create); same.system.karma.current = 29;
+    expect(karmaTransition(same, { revert: learned }, ctx).record.remove).toBe("c");
+    expect(karmaTransition(iris(), { award: 201 }, ctx).ok).toBe(false);
   });
 });

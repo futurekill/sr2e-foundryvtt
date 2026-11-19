@@ -4632,6 +4632,9 @@ const SHARED_ACTIONS = {
     const attrs = opts.map((o, i) => [o, i]).filter(([o]) => o.target.attribute).map(([o, i]) => row(o, i)).join("");
     const skills = opts.map((o, i) => [o, i]).filter(([o]) => o.target.itemId).map(([o, i]) => row(o, i)).join("");
     const skillItems = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name));
+    // A new skill (1 Good Karma for rating 1, p.191): any skill in the system's compendium not yet known.
+    const pack = game.packs.get("sr2e.skills"), known = new Set(skillItems.map(s => s.name.toLowerCase()));
+    const learnable = pack ? [...(await pack.getIndex())].filter(e => !known.has(e.name.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name)) : [];
     let pick = null;
     const action = await foundry.applications.api.DialogV2.wait({
       window: { title: `Karma Advancement — ${available} Good Karma available` },
@@ -4644,6 +4647,7 @@ const SHARED_ACTIONS = {
         <div class="form-group"><label>Or add to:</label><select name="addTo"><option value="">—</option>${skillItems.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select>
           <select name="addKind"><option value="newConcentration">a Concentration</option><option value="newSpecialization">a Specialization</option></select>
           <input type="text" name="addName" placeholder="name" maxlength="60"></div>
+        ${learnable.length ? `<div class="form-group"><label>Or learn:</label><select name="learn"><option value="">—</option>${learnable.map(e => `<option value="${e._id}">${esc(e.name)} — 1 Karma</option>`).join("")}</select></div>` : ""}
         <label class="checkbox"><input type="checkbox" name="gmApproved"> GM approves a raise above the racial maximum</label>
         <label class="checkbox"><input type="checkbox" name="libraryConfirmed"> A sorcery library rated at least the new Sorcery rating</label>
         <p style="margin:4px 0 0;font-size:10px;color:#aaa1c0;">Costs per SR2E p.190–191. Reaction, Essence and Magic can never be raised directly.</p>
@@ -4651,14 +4655,18 @@ const SHARED_ACTIONS = {
       buttons: [
         { action: "advance", label: "Advance", default: true, callback: (e, button) => {
           const f = button.form.elements;
-          pick = { index: f.advance.value, addTo: f.addTo.value, addKind: f.addKind.value, addName: f.addName.value,
+          pick = { index: f.advance.value, addTo: f.addTo.value, addKind: f.addKind.value, addName: f.addName.value, learn: f.learn?.value ?? "",
             gmApproved: f.gmApproved.checked, libraryConfirmed: f.libraryConfirmed.checked };
         } },
         { action: "cancel", label: "SR2E.Dialog.Cancel" }
       ]
     });
     if (action !== "advance" || !pick) return;
-    const t = pick.addTo ? { itemId: pick.addTo, [pick.addKind]: pick.addName } : opts[Number(pick.index)]?.target;
+    let t = pick.addTo ? { itemId: pick.addTo, [pick.addKind]: pick.addName } : opts[Number(pick.index)]?.target;
+    if (pick.learn) {
+      const doc = await pack.getDocument(pick.learn);
+      t = doc ? { newSkill: { ...doc.toObject(), _stats: { ...(doc.toObject()._stats ?? {}), compendiumSource: doc.uuid } }, newId: foundry.utils.randomID() } : null;
+    }
     if (!t) return;
     const r = karmaTransition(source, { advance: { ...t, gmApproved: pick.gmApproved, libraryConfirmed: pick.libraryConfirmed } }, ctx);
     if (!r.ok) return ui.notifications.warn(r.reason);

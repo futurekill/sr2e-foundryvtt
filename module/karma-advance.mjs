@@ -38,35 +38,41 @@ export function karmaContext(actor) {
 export const karmaSource = (actor) => ({ system: actor.system, items: actor.items.map(i => ({ _id: i.id, type: i.type, name: i.name, system: i.system })) });
 
 /**
- * Apply a transition record. Returns true when both writes landed.
+ * Apply a transition record. Returns true when every write landed. Order (code review M4a r1 #2, #5): skill changes,
+ * a created skill, then the Karma, and only then a removal — so a vetoed Karma write never follows a delete. On a
+ * failure every earlier write is reversed, each reversal CHECKED; if one fails too, the GM is told exactly what to
+ * repair (nothing is reported as cleanly refused while a change still stands).
  * @param {Actor} actor
  * @param {object} record - from karmaTransition(...).record
  */
 export async function applyKarmaRecord(actor, record) {
   const after = (m) => Object.fromEntries(Object.entries(m).map(([p, [, a]]) => [p, a]));
   const before = (m) => Object.fromEntries(Object.entries(m).map(([p, [b]]) => [p, b]));
-  const undo = [];
+  const undo = [];   // [label, fn → truthy on success]
   try {
     for (const it of record.items ?? []) {
       const item = actor.items.get(it._id);
       if (!item || !(await item.update(after(it.set)))) throw new Error("the skill write was refused");
-      undo.push(() => item.update(before(it.set)));
+      undo.push([`${item.name} back to its old rating`, () => item.update(before(it.set))]);
     }
     if (record.create) {
       const [made] = await actor.createEmbeddedDocuments("Item", [record.create], { keepId: !!record.create._id });
       if (!made) throw new Error("the new skill was refused");
-      undo.push(() => made.delete());
+      undo.push([`remove ${made.name}`, () => made.delete()]);
     }
+    if (!(await actor.update(after(record.actor)))) throw new Error("the Karma write was refused");
+    undo.push(["the Karma back", () => actor.update(before(record.actor))]);
     if (record.remove) {
       const gone = actor.items.get(record.remove);
       if (gone && !(await gone.delete())) throw new Error("the skill removal was refused");
     }
-    if (!(await actor.update(after(record.actor)))) throw new Error("the Karma write was refused");
     return true;
   } catch (err) {
-    for (const fn of undo.reverse()) await Promise.resolve(fn()).catch(() => {});
-    console.error("SR2E | Karma change not applied:", err);
-    ui.notifications.error(`${actor.name}: the Karma change wasn't applied (${err.message}).`);
+    const stuck = [];
+    for (const [label, fn] of undo.reverse()) if (!(await Promise.resolve().then(fn).catch(() => null))) stuck.push(label);
+    console.error("SR2E | Karma change not applied:", err, stuck);
+    if (stuck.length) ui.notifications.error(`${actor.name}: the Karma change failed (${err.message}) and couldn't be fully reversed — fix by hand: ${stuck.join("; ")}.`, { permanent: true });
+    else ui.notifications.error(`${actor.name}: the Karma change wasn't applied (${err.message}).`);
     return false;
   }
 }

@@ -978,6 +978,37 @@ function stubWorldSettings(keys) {
           try { assert.equal(await applyKarmaRecord(a, r.record), false); } finally { Hooks.off("preUpdateActor", hook); }
           assert.deepEqual([a.items.get(sk.id).system.rating, a.system.karma.current], [2, 20]);
         });
+        it("undoing a learned skill with a vetoed Karma write keeps the skill (code review r1 #2)", async () => {
+          const { karmaTransition } = await import("../rules/sr2e-rules.mjs");
+          const { karmaContext, karmaSource, applyKarmaRecord } = await import("../karma-advance.mjs");
+          const a = await character("Quench Karma Learn Undo");
+          await a.update({ "system.karma.current": 5 });
+          const learn = karmaTransition(karmaSource(a), { advance: { newSkill: { type: "skill", name: "Car", system: { category: "active" } }, newId: foundry.utils.randomID() } }, karmaContext(a));
+          assert.ok(await applyKarmaRecord(a, learn.record));
+          const back = karmaTransition(karmaSource(a), { revert: learn.record }, karmaContext(a));
+          assert.ok(back.ok, back.reason);
+          const hook = Hooks.on("preUpdateActor", (doc, changes) => (doc.id === a.id && changes.system?.karma ? false : undefined));
+          try { assert.equal(await applyKarmaRecord(a, back.record), false); } finally { Hooks.off("preUpdateActor", hook); }
+          assert.ok(a.items.some(i => i.name === "Car"), "the skill is still there");
+          assert.equal(a.system.karma.current, 4);
+        });
+        it("the Advancement dialog learns a new skill from the compendium for 1 Karma", async () => {
+          const a = await character("Quench Karma Dialog");
+          await a.update({ "system.karma.current": 3 });
+          const pack = game.packs.get("sr2e.skills"), entry = [...(await pack.getIndex())].find(e => e.name === "Car");
+          const api = foundry.applications.api.DialogV2, wait = api.wait;
+          api.wait = async (cfg) => {
+            const els = { advance: { value: "" }, addTo: { value: "" }, addKind: { value: "newConcentration" }, addName: { value: "" }, learn: { value: entry._id },
+              gmApproved: { checked: false }, libraryConfirmed: { checked: false } };
+            cfg.buttons.find(b => b.action === "advance").callback(null, { form: { elements: els } });
+            return "advance";
+          };
+          try { await a.sheet.render(true); await a.sheet.options.actions.advanceKarma.call(a.sheet, new Event("click"), null); }
+          finally { api.wait = wait; await a.sheet.close(); }
+          const car = a.items.find(i => i.name === "Car");
+          assert.ok(car, "learned");
+          assert.deepEqual([car.system.rating, car.system.ratingsFinalized, a.system.karma.current], [1, true, 2]);
+        });
       });
     }, { displayName: "SR2E: Karma advancement" });
 
