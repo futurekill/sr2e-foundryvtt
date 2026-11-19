@@ -853,6 +853,16 @@ function stubWorldSettings(keys) {
             `resources row wrong; got: ${text}`);
         });
 
+        it("point-based design (Companion p.20–21): the panel shows the Building Points row and hides the letters", async () => {
+          const pb = await Actor.create({ name: "Quench Points", type: "character", system: { chargen: { inProgress: true, priorityMethod: "points", buildingPoints: 100, nuyenTier: 5000 } } });
+          try {
+            await pb.sheet.render(true); await new Promise(r => setTimeout(r, 300));
+            const text = pb.sheet.element.textContent.replace(/\s+/g, " ");
+            assert.match(text, /Building Points \d+ \/ 100/);
+            assert.notOk(pb.sheet.element.querySelector('select[name="system.chargen.priorities.race"]'), "no priority letters under points");
+          } finally { await pb.sheet.close(); await pb.delete(); }
+        });
+
         it("a shapeshifter pays for its first contact (Companion p.38) on the shapeshifter table (Resources B = 400,000¥ one letter down)", async () => {
           const s = await Actor.create({ name: "Quench Wolf Budget", type: "character",
             system: { race: "shapeshifter", shapeshifter: { species: "wolf" }, chargen: { priorities: { resources: "B" } } } });

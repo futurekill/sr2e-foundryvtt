@@ -137,8 +137,41 @@
           <select name="system.chargen.priorityMethod">
             <option value="standard" {{#ifEquals priorityMethod "standard"}}selected{{/ifEquals}}>Standard (A–E once each)</option>
             <option value="sumto10" {{#ifEquals priorityMethod "sumto10"}}selected{{/ifEquals}}>Sum-to-10 (Companion)</option>
+            <option value="points" {{#ifEquals priorityMethod "points"}}selected{{/ifEquals}}>Point-based (Companion)</option>
           </select>
         </div>
+        {{#ifEquals priorityMethod "points"}}
+        {{!-- Point-based design (Companion p.20–21): the Building Points buy every part. --}}
+        <div class="priority-row flexrow">
+          <label>Building Points:</label>
+          <input type="number" name="system.chargen.buildingPoints" value="{{system.chargen.buildingPoints}}" min="1" max="1000" step="1" />
+        </div>
+        <div class="priority-row flexrow">
+          <label>Nuyen:</label>
+          <select name="system.chargen.nuyenTier" data-dtype="Number">
+            {{#each bpTiers as |t|}}<option value="{{t.value}}" {{#if t.selected}}selected{{/if}}>{{t.label}}</option>{{/each}}
+          </select>
+        </div>
+        {{#ifEquals system.magic.type "full_magician"}}
+        <div class="priority-row flexrow">
+          <label>Force Points traded:</label>
+          <input type="number" name="system.chargen.forcePointTrade" value="{{system.chargen.forcePointTrade}}" min="-15" max="500" step="1"
+                 title="+1 buys 2 Force Points for 1 Building Point; −1 sells 2 for 1 (at most your 30)" />
+        </div>
+        {{/ifEquals}}
+        <div class="priority-row flexrow">
+          <label>Edges/Flaws in BP:</label>
+          <input type="checkbox" name="system.chargen.qualitiesUseBP" {{checked system.chargen.qualitiesUseBP}} style="width:auto;"
+                 title="The GM's option (Companion p.22–23): Edges cost Building Points and Flaws add them, instead of balancing to 0" />
+        </div>
+        <p class="priority-{{#if buildingPoints.over}}warning{{else}}ok{{/if}}">
+          {{#if buildingPoints.over}}<i class="fas fa-triangle-exclamation"></i>{{else}}<i class="fas fa-check"></i>{{/if}}
+          Building Points <strong>{{buildingPoints.spent}}</strong> / {{buildingPoints.total}}
+          (race {{buildingPoints.parts.race}}, magic {{buildingPoints.parts.magic}}, attributes {{buildingPoints.parts.attributes}},
+          skills {{buildingPoints.parts.skills}}, nuyen {{buildingPoints.parts.resources}}, Force Points {{buildingPoints.parts.forcePoints}}{{#if buildingPoints.parts.qualities}}, Edges/Flaws {{buildingPoints.parts.qualities}}{{/if}}).
+        </p>
+        {{#each buildingPoints.problems}}<p class="priority-warning"><i class="fas fa-triangle-exclamation"></i> {{this}}</p>{{/each}}
+        {{else}}
         <div class="priority-row flexrow">
           <label>Race Priority:</label>
           <select name="system.chargen.priorities.race">
@@ -194,6 +227,7 @@
           unused: <strong>{{#each priorityUnused}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</strong>{{/if}}.
         </p>
         {{/unless}}
+        {{/ifEquals}}
         {{/ifEquals}}
 
         {{#each shapeshifterChargen}}

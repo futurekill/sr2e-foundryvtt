@@ -12,7 +12,7 @@ import { cyberDamageOn } from "../cyberdamage.mjs";
 import { accessoryKindOf, eyeHostAt, fitEyeAccessory, withSource } from "../eye-accessories.mjs";
 import { CCSS_ROWS } from "../rules/mbw-rules.mjs";
 import { wareCtx, physicalLimbs, sourcesOf, fullCyberlimbs, muscleFactor, MUSCLE, ceil2 } from "../rules/ware-rules.mjs";
-import { streetPrice, chargenBudget, vehicleReceipt, focusBondingCost, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost, metavariantFrom, racialProfile, metavariantNotes, ONI_SOURCE } from "../rules/sr2e-rules.mjs";
+import { streetPrice, chargenBudget, vehicleReceipt, focusBondingCost, attributeEdgeViolations, overstressPenalty, itemBaseCost, derivedItemCost, purchasePromptFields, strengthMinWeaponStats, personaBudgetOver, surgeryEssencePct, surgeonTN, surgeryCategory, secondhandPriceMultiplier, gradeEssenceCost, surgicalEssence, effectiveBodyCost, metavariantFrom, racialProfile, metavariantNotes, ONI_SOURCE, BP_NUYEN_TIERS } from "../rules/sr2e-rules.mjs";
 import { phaseKey, currentRecoil } from "../engagement.mjs";
 import { moneyQueue, created as createdDocs, deleted as deletedDocs, updated, adjustNuyen, hasRefundableStock, queuedQuantityEdit } from "../money.mjs";
 import { isVR2, utilityOptionsOn, topologyOn } from "../vr2-mode.mjs";
@@ -1786,6 +1786,9 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
         maximumBonus: i.system.maximumBonus
       }))
     );
+    // Point-based design (Companion p.20–21): the Building Points row and the nuyen tiers.
+    context.buildingPoints = context.chargenBudget.buildingPoints ?? null;
+    context.bpTiers = Object.entries(BP_NUYEN_TIERS).map(([v, bp]) => ({ value: Number(v), label: `${Number(v).toLocaleString("en-US")}¥ (${bp > 0 ? "+" : ""}${bp} BP)`, selected: Number(v) === Number(system.chargen?.nuyenTier ?? 500) }));
     // Edges and Flaws (Companion p.22–35): the same audit the standalone generator runs — balance, values, copies.
     const maxes = racialProfile(system, CONFIG.SR2E).maxes;
     context.qualityAudit = qualityAudit({ system, items: [...actor.items],

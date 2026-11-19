@@ -245,7 +245,9 @@ export function qualityAudit({ system = {}, items = [], natural = () => 0, maxim
       add(`${q.name} is worth ${spec.values.join(", ")}${spec.variable ? " (the GM sets it)" : ""}${QUALITY_VALUES[src]?.magicallyActive ? (mag ? " for a magically active character" : " (not magically active)") : ""}, not ${v} (p.${page}).`, page, own ? sys.citation?.book : "sc");
     }
   }
-  if (quals.length && total !== 0) {
+  // Point-based design with the GM's option: Edges and Flaws are paid in Building Points, not balanced (p.22–23).
+  const paidInBP = system?.chargen?.priorityMethod === "points" && !!system?.chargen?.qualitiesUseBP;
+  if (quals.length && total !== 0 && !paidInBP) {
     const e = quals.filter(q => (Number(q.system?.pointValue) || 0) > 0).reduce((t, q) => t + Number(q.system.pointValue), 0);
     add(`Edges +${e}, Flaws ${total - e}: they must balance to 0 (p.22).`, 22);
   }

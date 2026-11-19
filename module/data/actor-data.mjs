@@ -283,8 +283,14 @@ export class CharacterData extends SR2EDataModel {
         // Priority assignment method: "standard" (each A–E used once) or "sumto10"
         // (Companion p.20 — any grades whose point values A=4…E=0 sum to 10).
         priorityMethod: new fields.StringField({ initial: "standard", choices: {
-          standard: "Standard (A–E once each)", sumto10: "Sum-to-10"
+          standard: "Standard (A–E once each)", sumto10: "Sum-to-10", points: "Point-based"
         }}),
+        // Point-based design (Companion p.20–21): the GM's allotment, the nuyen tier, Force Points traded (+ buys 2 per
+        // Building Point, − sells), and the GM's option to price Edges and Flaws in Building Points.
+        buildingPoints: new fields.NumberField({ integer: true, initial: 100, min: 1, max: 1000 }),
+        nuyenTier: new fields.NumberField({ integer: true, initial: 500, min: 0 }),
+        forcePointTrade: new fields.NumberField({ integer: true, initial: 0, min: -15, max: 500 }),
+        qualitiesUseBP: new fields.BooleanField({ initial: false }),
         priorities: new fields.SchemaField({
           race: new fields.StringField({ initial: "E" }),
           magic: new fields.StringField({ initial: "E" }),

@@ -1914,7 +1914,22 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
   const data = items.map((i, n) => budgetItemInput(i, docs, n));
   // A shapeshifter starts with no free contacts: every one is bought with Resources (Companion p.38).
   const freeContacts = (system.race === "shapeshifter" && system.shapeshifter?.species ? 0 : 2) + edges.extraContacts;
+  // Point-based design (Companion p.20–21; sr2e-chargen PLAN-M5h): the Building Points buy the parts; the allotments
+  // become what was bought (attributes, skills) or the BP choices (the nuyen tier, Force Points).
+  const points = system.chargen?.priorityMethod === "points";
+  if (points) {
+    const c = system.chargen, magician = system.magic?.type === "full_magician";
+    allot.resources = (BP_NUYEN_TIERS[Number(c.nuyenTier)] !== undefined ? Number(c.nuyenTier) : 500) + allergy.nuyen;
+    const trade = magician ? Math.max(-15, Math.trunc(Number(c.forcePointTrade) || 0)) : 0;
+    allot.forcePoints = magician ? Math.max(0, 30 + 2 * trade + allergy.forcePoints + edges.forcePoints) : 0;   // a physical adept: none (p.21)
+  }
   const spend = chargenSpend({ attributes, skills, items: data }, allot, { vr2, freeContacts });
+  if (points) {
+    const row = (sp) => ({ spent: sp, total: sp, remaining: 0, over: false });
+    spend.attributes = row(spend.attributes.spent);
+    spend.skills = row(spend.skills.spent);
+    spend.buildingPoints = buildingPointsOf({ system, attributesSpent: spend.attributes.spent, skillsSpent: spend.skills.spent, allergy, edges, items });
+  }
   // Vehicles bought at creation (p.46, p.264; S9): the receipts' list prices. A receipt with no positive price (p.264's
   // "Restricted", or a hand edit) counts nothing and is reported, never silently free.
   const receipts = Array.isArray(system.chargen?.vehicles) ? system.chargen.vehicles : [];
@@ -1924,6 +1939,36 @@ export function chargenBudget({ system, items = [], table, vr2 = false }) {
   const spent = spend.resources.spent + vehicles;
   spend.resources = { ...spend.resources, spent, remaining: spend.resources.total - spent, over: spent > spend.resources.total, vehicles, vehicleProblems };
   return { ...spend, allergy, freeContacts };
+}
+
+/** The Building Points Table's Resources (Companion p.20): nuyen → Building Points. */
+export const BP_NUYEN_TIERS = { 0: -5, 500: 0, 5000: 5, 90000: 10, 200000: 15, 400000: 20, 650000: 25, 1000000: 30 };
+/**
+ * Point-based design (Companion p.20–21): what the character's choices cost in Building Points, with each part and the
+ * problems the table can't price. Race: metahuman 10, human 0 (a shapeshifter has its own table); Magic: magician 20 (30
+ * Force Points), physical adept 15 (none); 2 per Attribute Point and 1 per Skill Point beyond the allergy's and Bonus
+ * Skill Point's free ones; the nuyen tier; Force Points traded 2 per BP (a magician sells at most his 30, −15 BP); and,
+ * when the GM allows it, the Edges' and Flaws' values (p.22–23).
+ */
+export function buildingPointsOf({ system, attributesSpent = 0, skillsSpent = 0, allergy = {}, edges = {}, items = [] }) {
+  const c = system.chargen ?? {}, race = system.race ?? "human", mtype = system.magic?.type ?? "none", problems = [];
+  const raceBP = ["dwarf", "elf", "ork", "troll"].includes(race) ? 10 : race === "human" ? 0 : (problems.push("A shapeshifter has its own creation table: use standard priorities (Companion p.36)."), 0);
+  const MAGIC = { none: 0, full_magician: 20, physical_adept: 15 };
+  const magicBP = mtype in MAGIC ? MAGIC[mtype] : (problems.push("That magic type isn't in the Building Points Table (Companion p.20)."), 0);
+  const tier = BP_NUYEN_TIERS[Number(c.nuyenTier)] !== undefined ? Number(c.nuyenTier) : (problems.push("Choose a nuyen tier from the table."), 500);
+  let trade = Math.trunc(Number(c.forcePointTrade) || 0);
+  if (trade && mtype !== "full_magician") { problems.push("Only a magician trades Force Points (Companion p.21)."); trade = 0; }
+  if (trade < -15) { problems.push("A magician sells at most his 30 Force Points (15 Building Points)."); trade = -15; }
+  const quals = c.qualitiesUseBP ? items.filter(i => i?.type === "quality").reduce((t, i) => t + (Number(i.system?.pointValue) || 0), 0) : 0;
+  const parts = {
+    race: raceBP, magic: magicBP,
+    attributes: 2 * Math.max(0, attributesSpent - (allergy.attributes ?? 0)),
+    skills: Math.max(0, skillsSpent - (allergy.skills ?? 0) - (edges.skillPoints ?? 0)),
+    resources: BP_NUYEN_TIERS[tier], forcePoints: trade, qualities: quals
+  };
+  const total = Math.max(1, Math.trunc(Number(c.buildingPoints) || 100));
+  const spent = Object.values(parts).reduce((t, v) => t + v, 0);
+  return { spent, total, remaining: total - spent, over: spent > total, parts, problems };
 }
 
 /** One item as the creation budget and the fence price it (`chargenItemCost`'s input): the item's own fields, its

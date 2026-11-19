@@ -28,6 +28,11 @@
   their bonding cost.
 
 ### Added
+- **Point-based design** (Shadowrun Companion p.20–21): the creation panel's Method offers "Point-based". The
+  character spends a Building Point allotment (100 by default): metahuman 10, magician 20 (30 Force Points), physical
+  adept 15 (no Force Points), 2 per Attribute Point, 1 per Skill Point, a nuyen tier (0¥ gives 5 back … 1,000,000¥
+  costs 30), Force Points traded 2 per Building Point (a magician sells at most his 30), and — at the GM's option —
+  Edges and Flaws in Building Points. The panel shows the total and each part.
 - **Edges and Flaws at creation** (Shadowrun Companion p.22–35): the creation panel checks them the Companion's way —
   Edges and Flaws must balance to 0; each value must be one the Edges/Flaws Table allows (Blind, Bio-Rejection and
   Sensitive System are worth −2 for a magically active character); each is taken once (Aptitude, Allergy, Phobia…
