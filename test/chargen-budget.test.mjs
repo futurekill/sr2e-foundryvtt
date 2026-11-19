@@ -167,3 +167,24 @@ describe("S9: vehicles bought at creation (p.46, p.264)", () => {
       .toEqual({ name: "Van", source: "Compendium.sr2e.vehicles.Actor.c", cost: 0 });
   });
 });
+
+describe("adeptPowerBudget: a physical adept's power points, pure (SR2E p.124–126)", async () => {
+  const { adeptPowerBudget } = await import("../module/rules/sr2e-rules.mjs");
+  const P = (id, name, system, src) => ({ id, type: "adept_power", name, system: { level: 1, pointCost: 1, attributeMods: {}, ...system }, flags: {}, _stats: { compendiumSource: src ?? null } });
+  const human = SR2E.racialMaximums.human;
+  it("prices each power by the book with the character's context and reports totals", () => {
+    // Human Quickness 4 (natural) +3: 5 → 1, 6 → 1, 7 → 1.5 = 3.5 (p.125, R4); Increased Reflexes +2 = 4; Combat Sense 2 = 3.
+    const items = [P("q", "Improved Physical Attributes (Quickness)", { level: 3, attributeMods: { quickness: 1 } }),
+      P("r", "Increased Reflexes", { level: 2 }), P("c", "Combat Sense", { level: 2 })];
+    const b = adeptPowerBudget({ items, maxes: human, natural: { quickness: 4 }, magic: 6 });
+    expect(b.costs).toEqual({ q: 3.5, r: 4, c: 3 });
+    expect(b.used).toBe(10.5);
+    expect(b.problems).toEqual(["10.5 power points used; the Magic Rating gives 6 — give up improvements to match (p.126)."]);
+  });
+  it("Improved Ability on Firearms 2 with 3 dice is reported (p.125); non-powers are ignored", () => {
+    const items = [P("a", "Improved Ability", { level: 3, improvedSkill: "Firearms" }), { id: "s", type: "skill", name: "Firearms", system: { rating: 2 } }];
+    const b = adeptPowerBudget({ items, maxes: human, natural: {}, magic: 6 });
+    expect([b.costs, b.used]).toEqual([{ a: 3 }, 3]);
+    expect(b.problems.join()).toMatch(/3 Improved Ability dice on Firearms 2/);
+  });
+});

@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Changed
+- **A physical adept's power points are a pure rule** (`adeptPowerBudget`): the same costs and reports as before,
+  now shared with the standalone character generator.
 - **A cyberware item's Essence is a pure rule** (`wareEssence`, chargen S5): the same calculation as before, now
   shared with the standalone character generator. No value changes (all seven pregens and the 98 cyberware Quench
   tests unchanged).

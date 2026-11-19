@@ -2013,6 +2013,59 @@ export function combatSenseDice(items = [], { physicalAdept = false, powersWork 
 /** Whether a power's book cost needs the character (its race, an attribute, a skill): unowned, it "depends". */
 export const adeptCostNeedsActor = (key) => /^(increased_reaction|improved_attribute|improved_ability)/.test(key ?? "");
 
+/**
+ * A physical adept's power points (SR2E p.124–126): each power's book cost with the character's context, the total
+ * Used, and what to report (never blocked: the player and GM choose what to give up, p.126). Pure — CharacterData
+ * shows it and the standalone character generator checks it, with the same numbers.
+ * @param {object} o
+ * @param {object[]} o.items - the character's items (`{ id|_id, type, name, system, flags, _stats }`)
+ * @param {object} o.maxes - the race's maximums (CONFIG.SR2E.racialMaximums[race])
+ * @param {{body?:number, quickness?:number, strength?:number}} o.natural - bought + racial modifier (RULINGS R4)
+ * @param {number} o.magic - the Magic Rating (the power points available)
+ * @returns {{ costs: Object<string, number>, used: number, problems: string[] }}
+ */
+export function adeptPowerBudget({ items = [], maxes = {}, natural = {}, magic = 0 }) {
+  const costs = {}, problems = [], raised = {};   // raised: attribute → levels already priced, so a second power continues the tiers (R4)
+  let used = 0;
+  for (const item of items) {
+    if (item.type !== "adept_power") continue;
+    const key = adeptPowerKey(item) ?? "", sys = item.system ?? {};
+    const attr = improvedAttributeOf(key, sys.attributeMods);
+    const level = Math.max(1, sys.level ?? 1), kind = key.split(":")[0];
+    let ctx = { key }, points = level;
+    if (attr) {
+      // A generic power raising by more than 1 per level is priced by the points it actually adds.
+      points = level * Math.max(1, Math.floor(Number(sys.attributeMods?.[attr]) || 1));
+      const nat = natural[attr] ?? 0, before = raised[attr] ?? 0;
+      if (before) problems.push(`${item.name}: a second power on ${attr} — priced on from the first (one per attribute is the norm).`);
+      ctx = { key, base: nat + before, racialMax: maxes[attr] };
+      raised[attr] = before + points;
+      if (nat + raised[attr] > 1.5 * maxes[attr]) problems.push(`${item.name}: ${attr} ${nat + raised[attr]} is over 1.5 × the racial maximum (p.125).`);
+    }
+    if (ADEPT_TABLE_MAX[kind] && level > ADEPT_TABLE_MAX[kind]) problems.push(`${item.name}: level ${level} is past the book's table (${ADEPT_TABLE_MAX[kind]}, p.125–126).`);
+    if (kind === "increased_reaction") raised.reaction = (raised.reaction ?? 0) + level;
+    if (kind === "improved_ability") {
+      const skill = sys.improvedSkill || improvedAbilitySkill(item.name);
+      if (!IMPROVED_ABILITY_COSTS[abilityArea(skill)]) problems.push(`${item.name}: ${skill || "no skill named"} is not in the Improved Ability table (p.125) — priced at its listed cost.`);
+      raised.skills ??= {};
+      const k = String(skill).toLowerCase();
+      raised.skills[k] = (raised.skills[k] ?? 0) + level;
+    }
+    const cost = adeptPowerCost({ pointCost: sys.pointCost, level: points, improvedSkill: sys.improvedSkill, name: item.name }, maxes.reaction ?? 6, ctx);
+    costs[item.id ?? item._id] = cost;
+    used += cost;
+  }
+  // Limits on TOTALS across powers (two powers can't split their way past them).
+  if ((raised.reaction ?? 0) > 1.5 * (maxes.reaction ?? 6)) problems.push(`+${raised.reaction} Reaction from powers is over 1.5 × the racial maximum (p.126).`);
+  for (const [skill, dice] of Object.entries(raised.skills ?? {})) {
+    const sk = items.find(i => i.type === "skill" && i.name.toLowerCase() === skill);
+    if (sk && cappedImprovedAbilityDice(sk.name, sk.system.rating, dice) < dice)
+      problems.push(`${dice} Improved Ability dice on ${sk.name} ${sk.system.rating}: a Combat Skill can't have more extra dice than its rating (p.125).`);
+  }
+  if (used > magic) problems.push(`${used} power points used; the Magic Rating gives ${magic} — give up improvements to match (p.126).`);
+  return { costs, used, problems };
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // VIRTUAL REALITIES 2.0 — Matrix 2.0 primitives (FASA7904)
 //
