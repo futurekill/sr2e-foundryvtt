@@ -710,7 +710,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
   // Killing Hands (SR2E p.125-126): offer the physical-damage declaration on
   // unarmed attacks when the adept has the power. Best (highest) level wins.
   let killingHands = "";
-  if (isMelee && /unarmed/i.test(weapon.name) && adeptPowersWork(actor.system)) {   // human form only (Companion p.36)
+  if (isMelee && /unarmed/i.test(weapon.name) && actor.system.magic?.type === "physical_adept" && adeptPowersWork(actor.system)) {   // a physical adept, human form only (Companion p.36)
     const order = { L: 1, M: 2, S: 3, D: 4 };
     for (const p of actor.items) {
       if (p.type !== "adept_power") continue;

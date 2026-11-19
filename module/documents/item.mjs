@@ -1260,7 +1260,7 @@ export class SR2EItem extends Item {
       // Stun. Applied when the dialog checkbox was ticked (options.killingHands
       // carries the level letter).
       if (viaArm) { /* no adept or bioware unarmed options through a machine */ }
-      else if (options.killingHands && /unarmed/i.test(this.name) && adeptPowersWork(actor.system)) {
+      else if (options.killingHands && /unarmed/i.test(this.name) && actor.system.magic?.type === "physical_adept" && adeptPowersWork(actor.system)) {
         level = options.killingHands;
         damageType = "physical";
         weaponName = `${this.name} (Killing Hands)`;
