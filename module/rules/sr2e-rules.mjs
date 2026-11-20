@@ -5124,3 +5124,19 @@ function revertKarma(source, rec, ctx, { total, good, k }) {
   return { ok: true, record: { kind: "revert", summary: `Undone: ${rec.summary}`, cost: 0, karma: { total: -(rec.karma?.total ?? 0), good: -(rec.karma?.good ?? 0) },
     actor: { "system.karma.total": [total, nTotal], "system.karma.current": [good, nGood], ...flip(rec.actor) }, items: (rec.items ?? []).map(it => ({ _id: it._id, set: flip(it.set) })), create: null, remove: rec.create?._id ?? null, meta: {} } };
 }
+
+/**
+ * The Reflex Recorder's die (Shadowtech p.27): +1 die on every Success Test with the skill it "learned" — an Active or
+ * Vehicle Skill, never a B/R skill — and never on a skill the character gets through skillwires or hardwires. The
+ * General size learns a whole skill (its concentration and specialization rolls too); the Concentration size learns
+ * one concentration of one skill (that concentration's rolls, and its specialization's). Not cumulative: 0 or 1.
+ * @param {{ recorders: {skill: string, concentration?: string, size?: string}[], skillName: string, category?: string,
+ *   chipped?: boolean, tier?: "base"|"concentration"|"specialization", concentration?: string }} p
+ */
+export function reflexRecorderDice({ recorders = [], skillName = "", category = "active", chipped = false, tier = "base", concentration = "" } = {}) {
+  if (chipped || category !== "active" || !skillName) return 0;
+  const norm = (s) => String(s ?? "").toLowerCase().replace(/\s*\(b\/r\)\s*/g, "").replace(/\s+/g, " ").trim();
+  const name = norm(skillName), conc = norm(concentration);
+  return recorders.some(r => norm(r.skill) === name && (r.size !== "concentration"
+    || (tier !== "base" && !!conc && norm(r.concentration) === conc))) ? 1 : 0;
+}

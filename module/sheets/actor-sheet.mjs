@@ -1487,6 +1487,12 @@ export class SR2ECharacterSheet extends SR2EBaseActorSheet {
     // Organize items by type
     context.skills = actor.items.filter(i => i.type === "skill").sort((a, b) => a.name.localeCompare(b.name))
       .concat(actor.system.chippedSkills ?? []); // synthetic skills from slotted skillsofts
+    // Reflex recorders (Shadowtech p.27): a badge on each skill that gets the die, for its base or concentration roll.
+    const recs = actor._recorders?.() ?? [];   // one snapshot for every skill
+    context.recorderBySkill = Object.fromEntries((recs.length ? context.skills : []).filter(sk => sk.id)
+      .map(sk => [sk.id, actor._recorderDice(sk, "base", recs) ? "Reflex recorder: +1 die (Shadowtech p.27)"
+        : actor._recorderDice(sk, "concentration", recs) ? `Reflex recorder: +1 die on ${sk.system.concentration?.name || "its concentration"} (Shadowtech p.27)` : ""])
+      .filter(([, v]) => v));
     context.weapons = actor.items.filter(i => i.isWeaponLike);
     context.armors = actor.items.filter(i => i.type === "armor");
     context.spells = actor.items.filter(i => i.type === "spell");

@@ -886,6 +886,11 @@ export class BiowareData extends SR2EDataModel {
       damageCompensator: new fields.BooleanField({ initial: false }),
       // Pain Editor (p.26): while ACTIVE, mental/Stun wound penalties are ignored.
       ignoresStunPenalty: new fields.BooleanField({ initial: false }),
+      // Reflex Recorder (Shadowtech p.27): the skill it learned (by name), and for the Concentration size that skill's
+      // concentration. Fixed once chosen (surgical reprogramming only): the item sheet locks it for players.
+      recorderSize: new fields.StringField({ initial: "general", choices: { general: "SR2E.Bioware.RecorderGeneral", concentration: "SR2E.Bioware.RecorderConcentration" } }),
+      recordedSkill: new fields.StringField({ initial: "" }),
+      recordedConcentration: new fields.StringField({ initial: "" }),
       notes: new fields.StringField({ initial: "" })
     };
   }

@@ -349,7 +349,7 @@ export async function crashStepClick(message) {
   const empathy = driver?.qualityValues?.()["vehicle-empathy"] && vehicle.system.vehicleType !== "drone" ? -1 : 0;
   // The optional terrain limit (p.53) applies to the vehicle's resistance, not to the Crash Test.
   const capTerrain = step === "resist" && c.ruleset === "rigger2" && game.settings.get("sr2e", "r2ControlPoolTerrain") ? (findEntry(vehicle.uuid)?.entry?.terrain ?? "normal") : "normal";
-  const cap = driver && !npc && isPoolClient(driver) ? Math.min(driver.system.dicePools?.control?.value ?? 0, terrainControlCap(skill, capTerrain)) : 0;
+  const cap = driver && !npc && isPoolClient(driver) ? Math.min(driver.system.dicePools?.control?.value ?? 0, terrainControlCap(sk?.cap ?? skill, capTerrain)) : 0;   // capped by the rating, not the dice
   const pr = driver?.type === "npc" ? (driver.system.professionalRating ?? 0) : 0;
   const terrain0 = entry?.terrain ?? "normal";
   const codeAt = (sp) => (c.kind === "impact" ? { power: c.power, level: c.level } : r2 ? r2Impact(sp) : impactDamage(sp));

@@ -28,6 +28,10 @@
   their bonding cost.
 
 ### Added
+- **The Reflex Recorder works** (Shadowtech p.27; with sr2e-shadowtech's new Concentration size). Set the learned
+  skill on the bioware (and, for the Concentration size, the concentration); once set, only the GM can change it. The
+  skill gets +1 die on every Success Test (weapon attacks, melee defense, vehicle tests, Conjuring and Centering
+  included), a ◉+1 badge on the skills list, and nothing when a chip supplies it or the implant is broken.
 - **Point-based design** (Shadowrun Companion p.20–21): the creation panel's Method offers "Point-based". The
   character spends a Building Point allotment (100 by default): metahuman 10, magician 20 (30 Force Points), physical
   adept 15 (no Force Points), 2 per Attribute Point, 1 per Skill Point, a nuyen tier (0¥ gives 5 back … 1,000,000¥
@@ -69,6 +73,8 @@
 - `chargenBudget`: one pure creation-budget calculation, shared with the standalone character generator.
 
 ### Fixed
+- **Conjuring and Centering take Enhanced Articulation's die**, as the Rulings page already said (they read the
+  skill's rating alone).
 - **A turned vehicle's box turns with it.** Core Foundry rotates only a token's image, so a 2×4 car turned 90° kept a
   2-wide, 4-tall selection border and click area. A vehicle token whose rotation isn't locked now turns its border and
   click area with its image (also during the turn animation). The grid squares core Foundry counts for movement stay

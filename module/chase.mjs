@@ -234,7 +234,7 @@ async function dpStart({ combatId, round, eid, control = 0 }, user) {
     const sk = drone ? pilotSkill(vehicle) : driver._vehicleSkill(vehicle, { mode: riggedOf(e) ? "rigged" : "manual" });
     const npc = isNpc(driver);
     const inputs = { skill: sk.dice, note: sk.note ?? "", pr: npc && !drone ? (driver.system.professionalRating ?? 0) : 0,
-                     control: npc || drone ? 0 : Math.max(0, Math.min(Math.floor(Number(control) || 0), sk.dice)) };
+                     control: npc || drone ? 0 : Math.max(0, Math.min(Math.floor(Number(control) || 0), sk.cap ?? sk.dice)) };   // the cap is the rating
     const aid = foundry.utils.randomID(16);
     await write(combat, { [`actions.${aid}`]: { kind: "dp", eid, round, actor: actingActorOf(e), user: user.id, state: "rolling", inputs,
                                                    ...(operatorOf(e) ? { stamps: { [eid]: stampOf(e) } } : {}) },
@@ -1082,7 +1082,7 @@ export async function rollDriverPoints(combat, eid) {
     const ch = chaseOf(combat), e = ch.entries[eid];
     const driver = fromUuidSync(actingActorOf(e));
     if (!driver) throw new Error("set a driver on the chase panel first (or connect its network)");
-    const cap = isNpc(driver) || pilotOnly(e) ? 0 : Math.min(driver.system.dicePools?.control?.value ?? 0, driver._vehicleSkill(fromUuidSync(e.uuid)).dice);
+    const cap = isNpc(driver) || pilotOnly(e) ? 0 : Math.min(driver.system.dicePools?.control?.value ?? 0, driver._vehicleSkill(fromUuidSync(e.uuid)).cap);
     const control = await askControl(`${driver.name}: Driver Points`, `<p>Open Test: vehicle skill dice${isNpc(driver) ? " + Professional Rating" : " + Control Pool dice you allocate (held for the rest of the turn)"}; keep the highest die, sixes re-rolled and added (R2 p.42).</p>`, cap);
     if (control === null) return;
     if (control > 0 && !isPoolClient(driver)) throw new Error(`${driver.name}'s Control Pool is spent on their player's client`);

@@ -8,7 +8,7 @@ import { SHARED_ACTIONS } from "./sheet-actions.mjs";
 import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
 import { UTILITY_OPTION_KINDS, UTILITY_OPTIONS, LIMIT_TARGETS } from "../rules/vr2-options.mjs";
 import { hasRefundableStock, queuedQuantityEdit, moneyQueue, adjustNuyen, updated } from "../money.mjs";
-import { withRowIds } from "../rules/ware-rules.mjs";
+import { withRowIds, wareRule } from "../rules/ware-rules.mjs";
 import { rollSecondhandTest } from "../secondhand.mjs";
 
 
@@ -255,6 +255,12 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         context.biowareGrades = CONFIG.SR2E.biowareGrades;
         context.bodySystems = CONFIG.SR2E.bodySystems;
         context.hasRatingTable = (item.system.ratingStats?.length ?? 0) > 0;
+        // Reflex Recorder (Shadowtech p.27): the learned skill is fixed once set — only the GM can change it.
+        context.isRecorder = wareRule(item.flags, item._stats?.compendiumSource ?? item.flags?.core?.sourceId ?? null) === "reflex-recorder";
+        // Locked only once the choice is complete (a Concentration recorder needs both fields).
+        context.recorderLocked = context.isRecorder && !game.user.isGM && !!item.system.recordedSkill
+          && (item.system.recorderSize !== "concentration" || !!item.system.recordedConcentration);
+        context.recorderSizes = { general: "SR2E.Bioware.RecorderGeneral", concentration: "SR2E.Bioware.RecorderConcentration" };
         break;
       case "program":
         context.programCategories = CONFIG.SR2E.programCategories;

@@ -4,6 +4,7 @@ import { rigDumpActive } from "../rig-dump.mjs";
 import { spottingTnMod } from "../vehicle-indirect.mjs";
 import { vehicleSkillMatches, vcrPerCircle } from "../rules/vehicle-r2-rules.mjs";
 import { neuralWillpower } from "../rules/quality-rules.mjs";
+import { wareRule } from "../rules/ware-rules.mjs";
 /**
  * Extended Actor document for the Shadowrun 2E system.
  */
@@ -54,7 +55,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost, totemConjuringBonus, spiritAttackSummary, karmaRerollCost } from "../rules/sr2e-rules.mjs";
+         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost, totemConjuringBonus, spiritAttackSummary, karmaRerollCost, reflexRecorderDice } from "../rules/sr2e-rules.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
@@ -1270,6 +1271,32 @@ export class SR2EActor extends Actor {
     return this.system.activeSkillDice ?? 0;
   }
 
+  /** This character's WORKING reflex recorders (Shadowtech p.27), as the pure rule reads them. */
+  _recorders() {
+    return this.items.filter(i => i.type === "bioware" && workingImplant(this, i)
+      && wareRule(i.flags, i._stats?.compendiumSource ?? i.flags?.core?.sourceId ?? null) === "reflex-recorder" && i.system.recordedSkill)
+      .map(i => ({ skill: i.system.recordedSkill, concentration: i.system.recordedConcentration, size: i.system.recorderSize }));
+  }
+
+  /**
+   * The Reflex Recorder's die for a test with this skill at this tier (base / concentration / specialization): 0 or 1,
+   * never on a chipped skill. Every path adds it AFTER deciding trained vs defaulted from the rating, so a defaulted
+   * test keeps its penalty and still gets the die (the ruling). `recorders`: a snapshot, for a caller asking many times.
+   */
+  _recorderDice(skill, tier = "base", recorders = this._recorders()) {
+    if (!skill?.name) return 0;
+    return reflexRecorderDice({ recorders, skillName: skill.name, category: skill.system?.category ?? "active",
+      chipped: !!skill.system?._chipped, tier, concentration: skill.system?.concentration?.name ?? "" });
+  }
+  /** A skill the character may not own, by its key or name, as the recorder rule reads it. */
+  _skillByName(name) {
+    const n = String(name ?? "").replace(/_/g, " ").toLowerCase().trim();
+    const own = this.items.find(i => i.type === "skill" && i.name.toLowerCase().trim() === n);
+    if (own) return own;
+    const key = skillKeyOf(n);
+    return { name: n, system: { category: CONFIG.SR2E.activeSkills?.[key] ? "active" : "knowledge" } };
+  }
+
   _bodyTestOpts() {
     return { extraTN: this.system.bodyOverstressTN ?? 0, extraTNLabel: "biosystem overstress" };
   }
@@ -1428,6 +1455,9 @@ export class SR2EActor extends Actor {
       label = RL("DefaultAttr", { name: skillName, attr: attrName(attrKey), penalty: CONFIG.SR2E.defaultingPenalty });
     }
     const key = skillKeyOf(skillName);
+    // A recorder that learned this skill still gives its die to the defaulted test (Shadowtech p.27; the ruling).
+    const recDie = this._recorderDice(this._skillByName(skillName));
+    if (recDie) { dicePool += recDie; label += " +1 reflex recorder"; }
     return this.rollSuccessTest(dicePool, targetNumber, { tnContext: skillTnContext(key, CONFIG.SR2E.activeSkills?.[key] ? "active" : "knowledge"), ...options, label });
   }
 
@@ -1460,6 +1490,7 @@ export class SR2EActor extends Actor {
     // its rating directly.
     let dicePool = skillRollRating(skill.system) + bonus;
     let label = RL("Test", { name: skill.name }) + tag;
+    let tier = "base";   // the tier actually rolled, for a Concentration-size reflex recorder
 
     // Concentration/Specialization variant (SR2E p.70): roll that rating
     // instead of the general skill's.
@@ -1471,6 +1502,7 @@ export class SR2EActor extends Actor {
       const eff = effectiveSkillRating(skill.system, v);
       if (skill.system[v]?.name && !skill.system._subRatingsSuppressed && eff > 0) {
         dicePool = eff + bonus;
+        tier = v;
         label = RL("SubTest", { name: skill.name, sub: skill.system[v].name }) + tag;
       }
     }
@@ -1501,6 +1533,10 @@ export class SR2EActor extends Actor {
         label = RL("DefaultAttr", { name: skill.name, attr: attrName(attrKey), penalty: CONFIG.SR2E.defaultingPenalty });
       }
     }
+
+    // Reflex recorder (Shadowtech p.27): +1 die, after defaulting (a defaulted test keeps its penalty).
+    const recDie = this._recorderDice(skill, tier);
+    if (recDie) { dicePool += recDie; label += " +1 reflex recorder"; }
 
     // Move-by-wire (Cybertechnology p.39): +level dice for Athletics and Stealth, added
     // AFTER defaulting so an untrained skill still defaults (and still gets them).
@@ -1589,10 +1625,10 @@ export class SR2EActor extends Actor {
     const charisma = this.system.charisma?.value ?? 1;
 
     // Conjuring skill rating (defaults to 0 — no test possible untrained here)
-    let conjuring = 0;
+    let conjuring = 0, conjuringSkill = null;
     for (const item of this.items) {
       if (item.type === "skill" && item.name.toLowerCase() === "conjuring") {
-        conjuring = item.system.rating; break;
+        conjuring = item.system.rating; conjuringSkill = item; break;
       }
     }
 
@@ -1613,7 +1649,9 @@ export class SR2EActor extends Actor {
       return ui.notifications.warn("Can't summon: creating the spirit needs the “Create New Actors” permission or a connected GM. Ask your GM.");
     }
 
-    const conjuringDice = conjuring + totemBonus + fociDice;
+    // Passive dice on an Active Skill test (Enhanced Articulation, a reflex recorder: Shadowtech p.27, p.34); the
+    // rating alone still decides whether a test is possible and caps what it can do.
+    const conjuringDice = conjuring + totemBonus + fociDice + (conjuring > 0 ? this._activeSkillBonus(conjuringSkill) + this._recorderDice(conjuringSkill) : 0);
     if (conjuringDice <= 0) {
       return ui.notifications.warn("No Conjuring skill — a magician needs the Conjuring skill to summon spirits.");
     }
@@ -1992,6 +2030,9 @@ export class SR2EActor extends Actor {
       }
     }
 
+    // Reflex recorder (Shadowtech p.27): +1 die after defaulting.
+    const recDie = this._recorderDice(skillItem ?? this._skillByName(skillKey));
+    if (recDie) { dice += recDie; defaultingNote += " +1 reflex recorder"; }
     const tn = Math.max(2, 4 + choice.reachMod + choice.meleeVis + choice.otherMod + defaultingPenalty);
     const defWeaponName = weapon ? weapon.name : "Unarmed";
 
@@ -2140,9 +2181,22 @@ export class SR2EActor extends Actor {
     if (web?.kind === "attribute" && web.source === "reaction") web.dice = Math.max(1, reaction);
     const r = vehicleSkillDice({ rating, web, reaction,
       defaultingPenalty: CONFIG.SR2E.defaultingPenalty / (r2rig ? 2 : 1) });
-    const note = r.defaulted === "reaction" ? RL("DefaultingToTag", { attr: AL("reaction"), penalty: r.penalty })
+    r.note = r.defaulted === "reaction" ? RL("DefaultingToTag", { attr: AL("reaction"), penalty: r.penalty })
       : r.defaulted ? `, ${r.defaulted}` : "";
-    return { key, ...r, note };
+    // A reflex recorder that learned this vehicle skill (Shadowtech p.27): +1 die to the test (defaulting too, the
+    // ruling), never when a chip supplies the skill; the Control Pool cap stays on the rating (`cap`).
+    const natives = this.items.filter(i => i.type === "skill" && vehicleSkillMatches(i.name, key));
+    // A slotted chip overwrites the native skill's prepared rating and marks it `_chipped`; with no native item the
+    // rating can only come from a chip (or nothing, when defaulting).
+    // An encephalon's chip (Rigger 2, rigged) doesn't mark the native skill: it is in use when it beats the native rating.
+    const nativeMax = Math.max(0, ...natives.map(i => i.system?.rating ?? 0));
+    const chipMax = Math.max(0, ...chips.filter(([n]) => vehicleSkillMatches(n, key)).map(([, cr]) => cr || 0));
+    const chipped = natives.some(i => i.system?._chipped) || chipMax > nativeMax;
+    if (!chipped && this._recorders().some(rec => rec.size !== "concentration" && vehicleSkillMatches(rec.skill, key))) {
+      r.dice += 1;   // the test's dice; r.cap (the Control Pool limit) stays on the rating
+      r.note = `${r.note ?? ""} +1 reflex recorder`;
+    }
+    return { key, ...r };
   }
 
   /**
@@ -2436,7 +2490,7 @@ export class SR2EActor extends Actor {
     const ctl = controllerOf(this);
     const rigger = isPoolClient(ctl) && (ctl.system.dicePools?.control?.value ?? 0) > 0 ? ctl : null;
     // Rigger 2 p.53: at most the driving skill (optionally less by terrain); core p.85: the test's base dice.
-    const r2Cap = r2 && rigger ? terrainControlCap(rigger._vehicleSkill(this).dice,
+    const r2Cap = r2 && rigger ? terrainControlCap(rigger._vehicleSkill(this).cap,   // the skill's rating, not its dice (a recorder die)
       game.settings.get("sr2e", "r2ControlPoolTerrain") ? (findEntry(this.uuid)?.entry?.terrain ?? "normal") : "normal") : dice;
     const controlAvail = Math.min(rigger?.system.dicePools.control.value ?? 0, r2 ? r2Cap : dice);
 

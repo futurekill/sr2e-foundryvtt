@@ -756,8 +756,10 @@ export class SR2EItem extends Item {
     const linkedSkill = skillKeys
       .map(k => actor.items.find(i => i.type === "skill" && normalize(i.name) === k))
       .find(Boolean);
+    let recSkill = null, recTier = "base";   // the skill and tier rolled, for a reflex recorder (Shadowtech p.27)
     if (linkedSkill) {
       const item = linkedSkill;
+      recSkill = item;
       // Improved Ability (adept) adds its levels in dice to the skill (p.125).
       const adeptBonus = item.system._adeptBonus ?? 0;
       // Enhanced Articulation (Shadowtech p.34) — a weapon attack IS a Success
@@ -773,6 +775,7 @@ export class SR2EItem extends Item {
         if (eff > 0) {
           skillRating = eff + bonus;
           skillVariantNote = item.system[v].name;
+          recTier = v;
         }
       }
     }
@@ -797,6 +800,7 @@ export class SR2EItem extends Item {
             skillRating = sub.rating
               + (item.system._adeptBonus ?? 0) + (actor._activeSkillBonus?.(item) ?? 0);
             skillVariantNote = sub.name;
+            recSkill = item; recTier = v;
             break;
           }
         }
@@ -856,6 +860,9 @@ export class SR2EItem extends Item {
         defaultingNote = `defaulting to ${attrLabel} +${defaultingPenalty}`;
       }
     }
+    // Reflex recorder (Shadowtech p.27): +1 die, after defaulting (a defaulted attack keeps its penalty).
+    const recDie = actor._recorderDice?.(recSkill ?? actor._skillByName?.(skillKeys.find(k => CONFIG.SR2E.activeSkills[k]) ?? ""), recTier) ?? 0;
+    if (recDie) { dicePool += recDie; focusNote = `${focusNote ? `${focusNote}, ` : ""}+1 reflex recorder`; }
     // Weapon focus adds its Force in dice on top of the skill (SR2E p.126).
     dicePool += focusDice;
 
@@ -1899,7 +1906,9 @@ export class SR2EItem extends Item {
         && mgC?.centeringSkill && penaltyC > 0) {
       const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
       const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mgC.centeringSkill));
-      const cDice = cSkill?.system?.rating ?? 0;
+      const cRating = cSkill?.system?.rating ?? 0;
+      // + passive dice (Enhanced Articulation, a reflex recorder: Shadowtech p.27, p.34) on the trained skill.
+      const cDice = cRating > 0 ? cRating + (actor._activeSkillBonus?.(cSkill) ?? 0) + (actor._recorderDice?.(cSkill) ?? 0) : 0;
       if (cDice > 0) {
         const cTN = centeringTestTN(targetNumber + penaltyC, mgC.initiateGrade);
         // cTN already carries the penalties: roll it as is (policy "table"
@@ -1987,7 +1996,9 @@ export class SR2EItem extends Item {
         && mg?.centeringSkill && drainSuccesses >= 1) {
       const norm = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
       const cSkill = actor.items.find(i => i.type === "skill" && norm(i.name) === norm(mg.centeringSkill));
-      const cDice = cSkill?.system?.rating ?? 0;
+      const cRating = cSkill?.system?.rating ?? 0;
+      // + passive dice (Enhanced Articulation, a reflex recorder: Shadowtech p.27, p.34) on the trained skill.
+      const cDice = cRating > 0 ? cRating + (actor._activeSkillBonus?.(cSkill) ?? 0) + (actor._recorderDice?.(cSkill) ?? 0) : 0;
       if (cDice > 0) {
         const cResult = await actor.rollSuccessTest(cDice, drainTN, {
           label: RL("CenteringDrain", { skill: cSkill.name, tn: drainTN }), isResistance: true

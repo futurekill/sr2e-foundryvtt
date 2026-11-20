@@ -384,6 +384,26 @@
       {{/each}}
     </select>
   </div>
+  {{#if isRecorder}}
+  <div class="form-group">
+    <label>{{localize "SR2E.Bioware.RecorderSize"}}:</label>
+    <select name="system.recorderSize" {{#if recorderLocked}}disabled{{/if}}>
+      {{#each recorderSizes as |label key|}}
+      <option value="{{key}}" {{selected ../system.recorderSize key}}>{{localize label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>{{localize "SR2E.Bioware.RecordedSkill"}}:</label>
+    <input type="text" name="system.recordedSkill" value="{{system.recordedSkill}}" {{#if recorderLocked}}disabled title="{{localize "SR2E.Bioware.RecorderLocked"}}"{{/if}}>
+  </div>
+  {{#ifEquals system.recorderSize "concentration"}}
+  <div class="form-group">
+    <label>{{localize "SR2E.Bioware.RecordedConcentration"}}:</label>
+    <input type="text" name="system.recordedConcentration" value="{{system.recordedConcentration}}" {{#if recorderLocked}}disabled title="{{localize "SR2E.Bioware.RecorderLocked"}}"{{/if}}>
+  </div>
+  {{/ifEquals}}
+  {{/if}}
   {{#ifEquals system.grade "secondhand"}}
   <div class="form-group">
     <label>Secondhand discount (%):</label>

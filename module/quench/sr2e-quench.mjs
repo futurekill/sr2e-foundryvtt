@@ -1906,6 +1906,48 @@ function stubWorldSettings(keys) {
     // movement operation, so the enforcement, cumulative per-phase ledger, active-
     // combatant scope, and method exemption are all exercised end-to-end without
     // faking a canvas drag. The pure walk/run math lives in test/movement.test.mjs.
+    // Reflex Recorder (Shadowtech p.27): +1 die on the learned skill, never on a chip, never from a broken implant.
+    quench.registerBatch("sr2e.reflex-recorder", (context) => {
+      const { describe, it, assert, after } = context;
+      let a;
+      after(async () => { try { await a?.delete(); } catch (e) {} });
+      // As the Shadowtech pack ships it: the rule flag, no compendium source (a copy may lose its provenance).
+      const rec = (o = {}) => ({ name: "Reflex Recorder (General)", type: "bioware", flags: { sr2e: { rule: "reflex-recorder" } },
+        system: { bodySystem: "neural", bodyCost: 0.25, installed: true, recorderSize: "general", recordedSkill: "Firearms", ...o } });
+      // The dice and TN a roll would use, without rolling.
+      const pool = async (fn) => { let got; const orig = a.rollSuccessTest; a.rollSuccessTest = async (d, tn) => { got = { d, tn }; };
+        try { await fn(); } finally { a.rollSuccessTest = orig; } return got; };
+      describe("the recorder's die in real roll pools", () => {
+        it("Firearms 4 rolls 5; its concentration too; Armed Combat no; a defaulted recorded skill keeps its penalty and gets the die", async () => {
+          a = await Actor.create({ name: "Quench Recorder", type: "character", system: { quickness: { base: 4 }, intelligence: { base: 4 } } });
+          await a.createEmbeddedDocuments("Item", [
+            { name: "Firearms", type: "skill", system: { category: "active", rating: 4, concentration: { name: "Pistols", rating: 6 } } },
+            { name: "Armed Combat", type: "skill", system: { category: "active", rating: 3 } },
+            { name: "Stealth", type: "skill", system: { category: "active", rating: 0 } },
+            rec(), rec({ recordedSkill: "Stealth" })]);
+          const id = (n) => a.items.find(i => i.type === "skill" && i.name === n).id;
+          assert.equal((await pool(() => a.rollSkillTest(id("Firearms"), 4))).d, 5);
+          assert.equal((await pool(() => a.rollSkillTest(id("Firearms"), 4, { variant: "concentration" }))).d, 7);
+          assert.equal((await pool(() => a.rollSkillTest(id("Armed Combat"), 4))).d, 3);
+          const plain = await pool(() => a.rollNamedSkill("Athletics", 4));
+          const st = await pool(() => a.rollSkillTest(id("Stealth"), 4));
+          assert.isAbove(st.tn, 4, "defaulting keeps its penalty");
+          assert.equal(st.d, plain.d + 1, "and the recorder adds its die (the same web default as an unrecorded skill, +1)");
+          // A slotted Firearms ActiveSoft replaces the native skill (SR2E p.248): the chip's rating, no recorder die.
+          const [wires, soft] = await a.createEmbeddedDocuments("Item", [
+            { name: "Skillwires", type: "cyberware", system: { location: "bodyware", installed: true, rating: 6 } },
+            { name: "Firearms ActiveSoft", type: "gear", system: { category: "skillsoft", rating: 3, slotted: true,
+              grantedSkill: "Firearms", grantedSkillCategory: "active", grantedSkillAttribute: "quickness" } }]);
+          assert.ok(a.items.get(id("Firearms")).system._chipped, "the chip is in use");
+          assert.equal((await pool(() => a.rollSkillTest(id("Firearms"), 4))).d, 3, "never on a chip");
+          await a.deleteEmbeddedDocuments("Item", [wires.id, soft.id]);
+          const gen = a.items.find(i => i.type === "bioware" && i.system.recordedSkill === "Firearms");
+          await gen.update({ "system.destroyed": true });
+          assert.equal((await pool(() => a.rollSkillTest(id("Firearms"), 4))).d, 4, "a destroyed implant gives nothing");
+        });
+      });
+    });
+
     // A turned vehicle's border and click area turn with its image (core turns only the mesh).
     quench.registerBatch("sr2e.vehicle-token-rotation", (context) => {
       const { describe, it, assert, before, after } = context;
@@ -4319,9 +4361,11 @@ function stubWorldSettings(keys) {
       });
 
       async function pc(chargen = true, skills = []) {
+        // Adept powers work only for a physical adept (82c23302): a character holding one is made one.
+        const adept = skills.some(i => i.type === "adept_power");
         const a = await Actor.create({
           name: "Quench Skill Tiers", type: "character",
-          system: { quickness: { base: 4 }, chargen: { inProgress: chargen } },
+          system: { quickness: { base: 4 }, chargen: { inProgress: chargen }, ...(adept ? { magic: { type: "physical_adept" } } : {}) },
           items: skills
         });
         made.push(a); return a;
