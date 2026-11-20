@@ -14,6 +14,7 @@
 
 import { astralAllowsView } from "./rules/sr2e-rules.mjs";
 import { fabRevealed } from "./fab.mjs";
+import { rotatePoints } from "./rules/vehicle-play-rules.mjs";
 
 /** Whether an actor is astrally active (perceiving or projecting). */
 function isAstralActive(actor) {
@@ -61,6 +62,26 @@ globalThis.Hooks?.once("init", () => {
   // astral rule on top of normal visibility.
   const BaseToken = CONFIG.Token.objectClass;
   CONFIG.Token.objectClass = class SR2EToken extends BaseToken {
+    // A rotation redraws the shape too, so a turned vehicle's border and click area turn with its image.
+    static RENDER_FLAGS = { ...BaseToken.RENDER_FLAGS, refreshRotation: { ...BaseToken.RENDER_FLAGS.refreshRotation,
+      propagate: [...(BaseToken.RENDER_FLAGS.refreshRotation?.propagate ?? []), "refreshShape"] } };
+
+    /**
+     * A vehicle whose rotation isn't locked: its footprint turned with its image. Core Foundry turns only the image
+     * (`mesh.angle`), so a 2×4 car turned 90° kept a 2-wide, 4-tall border. The grid squares core movement counts stay
+     * axis-aligned (core's own).
+     * @override
+     */
+    getShape() {
+      const shape = super.getShape(), deg = this.document.rotation % 360;
+      if (this.actor?.type !== "vehicle" || this.document.lockRotation || !deg) return shape;
+      const { width, height } = this.document.getSize();
+      const points = shape instanceof PIXI.Polygon ? shape.points
+        : shape instanceof PIXI.Rectangle ? [shape.x, shape.y, shape.x + shape.width, shape.y, shape.x + shape.width, shape.y + shape.height, shape.x, shape.y + shape.height]
+        : null;
+      return points ? new PIXI.Polygon(rotatePoints(points, width / 2, height / 2, deg)) : shape;
+    }
+
     /** @override */
     get isVisible() {
       const astralOnly = this.document?.getFlag?.("sr2e", "astralOnly");

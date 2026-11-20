@@ -111,3 +111,16 @@ export function reservedControl(reserve, combatId, round) {
   if (!reserve || reserve.combatId !== combatId || reserve.round !== round) return 0;
   return Object.values(reserve.byTest ?? {}).reduce((t, n) => t + Math.max(0, Number(n) || 0), 0);
 }
+
+/**
+ * A rotated token's footprint (its border and click area): the shape's points turned by `deg` degrees around (cx, cy),
+ * clockwise on screen as PIXI turns the token's image. A flat [x0, y0, x1, y1, …] list in, the same out.
+ */
+export function rotatePoints(points, cx, cy, deg) {
+  const r = (deg * Math.PI) / 180, cos = Math.cos(r), sin = Math.sin(r), out = [];
+  for (let i = 0; i < points.length; i += 2) {
+    const dx = points[i] - cx, dy = points[i + 1] - cy;
+    out.push(cx + dx * cos - dy * sin, cy + dx * sin + dy * cos);
+  }
+  return out;
+}

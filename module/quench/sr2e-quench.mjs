@@ -1906,6 +1906,38 @@ function stubWorldSettings(keys) {
     // movement operation, so the enforcement, cumulative per-phase ledger, active-
     // combatant scope, and method exemption are all exercised end-to-end without
     // faking a canvas drag. The pure walk/run math lives in test/movement.test.mjs.
+    // A turned vehicle's border and click area turn with its image (core turns only the mesh).
+    quench.registerBatch("sr2e.vehicle-token-rotation", (context) => {
+      const { describe, it, assert, before, after } = context;
+      let env, prevScene;
+      before(async function () {
+        this.timeout(15000);
+        prevScene = canvas.scene;
+        const car = await Actor.create({ name: "Quench Car", type: "vehicle" });
+        const scene = await Scene.create({ name: "Quench Rotation", width: 2000, height: 2000, grid: { type: CONST.GRID_TYPES.SQUARE, size: 100, distance: 1, units: "m" } });
+        await scene.createEmbeddedDocuments("Token", [{ name: car.name, actorId: car.id, x: 500, y: 500, width: 2, height: 4, lockRotation: false }]);
+        await scene.view();
+        env = { car, scene, tok: scene.tokens.find(t => t.actorId === car.id) };
+      });
+      after(async function () {
+        this.timeout(15000);
+        try { await env?.scene?.delete(); } catch (e) {}
+        try { await env?.car?.delete(); } catch (e) {}
+        try { await prevScene?.view(); } catch (e) {}
+      });
+      const size = () => { env.tok.object.applyRenderFlags(); const b = env.tok.object.shape.getBounds(); return [Math.round(b.width), Math.round(b.height)]; };
+      describe("the shape follows the rotation", () => {
+        it("a 2×4 car turned 90° has a 400×200 border and click area; locked, 200×400", async () => {
+          assert.deepEqual(size(), [200, 400]);
+          await env.tok.update({ rotation: 90 }, { animate: false });   // an animated turn moves the shape frame by frame
+          assert.deepEqual(size(), [400, 200]);
+          assert.strictEqual(env.tok.object.hitArea, env.tok.object.shape);
+          await env.tok.update({ lockRotation: true }, { animate: false });
+          assert.deepEqual(size(), [200, 400]);
+        });
+      });
+    });
+
     quench.registerBatch("sr2e.movement", (context) => {
       const { describe, it, assert, before, after, beforeEach } = context;
       const SQUARE = CONST.GRID_TYPES.SQUARE;

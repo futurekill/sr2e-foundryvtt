@@ -69,6 +69,10 @@
 - `chargenBudget`: one pure creation-budget calculation, shared with the standalone character generator.
 
 ### Fixed
+- **A turned vehicle's box turns with it.** Core Foundry rotates only a token's image, so a 2×4 car turned 90° kept a
+  2-wide, 4-tall selection border and click area. A vehicle token whose rotation isn't locked now turns its border and
+  click area with its image (also during the turn animation). The grid squares core Foundry counts for movement stay
+  as they were.
 - **Karma awards follow the book's split** (SR2E p.190–191): the Award Karma macros added the whole award to Good
   Karma AND counted its tenth in the Karma Pool. Now Total Earned grows by the award, the Pool is one-tenth of Total
   (rounded up, as before) and Good Karma gets the rest (an award of 10 to a new character: 9 Good Karma).
