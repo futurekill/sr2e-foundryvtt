@@ -443,7 +443,7 @@ export function vr2LocateSatellite(actor) {
     const tn = satLocateTN({ condition: pick.condition, badWeather: pick.badWeather, dish });
     const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer");
     const trained = (computer?.system?.rating ?? 0) > 0;
-    const res = await actor.rollSuccessTest(trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1), tn + (trained ? 0 : 4), {
+    const res = await actor.rollSuccessTest((trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1)) + (actor._passiveSkillDice?.("computer") ?? 0), tn + (trained ? 0 : 4), {
       label: RL("LocateSatellite", { name: sat?.name ?? "satellite", tn }), tnContext: skillTnContext("computer"),
       poolDice: pick.hacking ? { hacking: pick.hacking } : undefined });
     if (!res) return;
@@ -767,7 +767,10 @@ async function systemTestNow(actor, host, operation, opts) {
   if (coreDinab && !(icon.system.dinabLeft > 0)) return ui.notifications.warn(`${icon.name}'s core has no DINAB left.`);
   if (dinab && !coreDinab && !dinabLeft(utilityItem)) return ui.notifications.warn(`No ${op.utility ?? "utility"} with DINAB left is loaded.`);
   const trained = smart || dinab || (computer?.system?.rating ?? 0) > 0;
-  const dice = smart && !dinab ? (icon.system.dinab ?? 0) : coreDinab ? icon.system.dinabLeft : dinab ? dinabLeft(utilityItem) : trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1);
+  // A decker's own Computer test takes the passive dice (Improved Ability, Enhanced Articulation, a reflex recorder);
+  // a frame's DINAB doesn't (it is not the decker's skill).
+  const dice = smart && !dinab ? (icon.system.dinab ?? 0) : coreDinab ? icon.system.dinabLeft : dinab ? dinabLeft(utilityItem)
+    : (trained ? computer.system.rating : (actor.system.intelligence?.value ?? 1)) + (actor._passiveSkillDice?.("computer") ?? 0);
   const utility = utilityItem ? programRating(utilityItem) : 0;
   // Untrained: the Skill Web default to Intelligence, +4 TN (core p.84).
   // A Graceful Logoff with trace IC locating is harder by each trace's rating (p.45).
@@ -2032,7 +2035,7 @@ export async function vr2BuildImprovised(actor) {
   }
   const computer = computerOf(actor);
   await (await import("./frames.mjs")).ownAction(actor, "Build improvised");   // 6a-2b §4: the decker acts
-  const res = await actor.rollSuccessTest(computer > 0 ? computer : (actor.system.intelligence?.value ?? 0),
+  const res = await actor.rollSuccessTest((computer > 0 ? computer : (actor.system.intelligence?.value ?? 0)) + (actor._passiveSkillDice?.("computer") ?? 0),
     power + (computer > 0 ? 0 : 4), {
       label: RL("Improvised", { tn: power, untrained: computer > 0 ? "" : RL("UntrainedTag") }),
       closed: true, tnContext: skillTnContext("computer") });
@@ -2208,7 +2211,8 @@ export async function vr2ScanIcon(actor, ctx = null) {
   else await (await import("./frames.mjs")).ownAction(actor, "Scan Icon");
   const refused = await spendUse(icon, scanner, { dinab });
   if (refused) return ui.notifications.warn(refused);
-  const res = await actor.rollSuccessTest(Math.max(1, dinab ? dinabLeft(scanner) : ctx?.smart ? (icon.system.dinab ?? 0) : computerOf(actor)), tn, dinab
+  const res = await actor.rollSuccessTest(Math.max(1, dinab ? dinabLeft(scanner) : ctx?.smart ? (icon.system.dinab ?? 0)
+    : computerOf(actor) + (actor._passiveSkillDice?.("computer") ?? 0)), tn, dinab
     ? { label: RL("ScanIcon", { target: `${target.name} (DINAB)`, tn }), tnContext: { kind: "other" }, tnPolicy: "table", closed: true }
     : { label: RL("ScanIcon", { target: target.name, tn }), tnContext: skillTnContext("computer"),
         poolDice: o.hacking ? { hacking: o.hacking } : undefined, miscDice: o.miscDice, miscLabel: o.miscLabel });

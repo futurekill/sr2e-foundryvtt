@@ -177,7 +177,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #ewDecrypt(_e, el) {
     const target = fromUuidSync(el.dataset.uuid), op = this.#op;
     if (!op) return warn("connect the deck first");
-    const id = await EWX.rollEwCard(op, { kind: "decrypt", dice: EWX.ewSkillDice(op) + EWX.moduleRating(this.deck, "decryption"),
+    const id = await EWX.rollEwCard(op, { kind: "decrypt", dice: EWX.ewMaxDice(op) + EWX.moduleRating(this.deck, "decryption"),   // with the passive dice
       tn: EW.decryptTn(EWX.moduleRating(target, "rc-encryption")), label: `Break ${target.parent?.name}'s encryption (Electronic Warfare; Rigger 2 p.69)`,
       extra: { freqGen: EWX.freqGen(netOf(target)), target: target.uuid } });
     if (id) return rc("ewDecrypt", { intruderDeckUuid: this.deck.uuid, targetDeckUuid: target.uuid, messageId: id })
@@ -244,7 +244,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
   }
   static async #ewReconnect(_e, el) {
     const op = this.#op, ch = el.dataset.channel, boxes = EWX.channelBoxesOf(netOf(this.deck), ch);
-    const id = await EWX.rollEwCard(op, { kind: "reconnect", dice: EWX.controlSystemsDice(op), tn: EW.reconnectTn({ boxes, damageMod: op?.system?.woundPenalty ?? 0 }),
+    const id = await EWX.rollEwCard(op, { kind: "reconnect", dice: EWX.controlSystemsMaxDice(op), tn: EW.reconnectTn({ boxes, damageMod: op?.system?.woundPenalty ?? 0 }),
       label: `Re-connect the ${ch} carrier (Control Systems; Rigger 2 p.72)` });
     if (id) return rc("ewReconnect", { deckUuid: this.deck.uuid, channel: ch, messageId: id })
       .then(r => ui.notifications.info(r.ok ? `The ${ch} carrier is back.` : "Not enough successes.")).catch(warn);

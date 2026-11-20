@@ -53,6 +53,25 @@ export function concentrationDice(actor, concRe, skillRe = /^electronics$/i) {
 }
 export const ewSkillDice = (actor) => concentrationDice(actor, /electronic warfare/i);
 export const controlSystemsDice = (actor) => concentrationDice(actor, /control systems/i);
+/**
+ * The most dice a player may roll on an Electronics-concentration test: the best of each eligible skill's OWN dice plus
+ * its OWN passive dice (Improved Ability, Enhanced Articulation, a reflex recorder; Shadowtech p.27, p.34) — a skill's
+ * bonus never rides on another skill's rating. Only the dice limit: as a TN or a Task Pool cap it stays the rating.
+ */
+function maxDiceWithPassive(actor, concRe) {
+  let best = 0;
+  for (const sk of actor?.items?.filter(i => i.type === "skill") ?? []) {
+    const own = (rating, tier) => num(rating) > 0 ? num(rating) + (actor._passiveSkillDice?.(sk.name, tier) ?? 0) : 0;
+    if (concRe.test(sk.name)) best = Math.max(best, own(sk.system.rating, "base"));
+    if (/^electronics$/i.test(sk.name)) {
+      best = Math.max(best, own(sk.system.rating, "base"));
+      if (concRe.test(sk.system.concentration?.name ?? "")) best = Math.max(best, own(sk.system.concentration.rating, "concentration"));
+    }
+  }
+  return Math.max(best, concentrationDice(actor, concRe));   // never below the rating-only dice
+}
+export const ewMaxDice = (actor) => maxDiceWithPassive(actor, /electronic warfare/i);
+export const controlSystemsMaxDice = (actor) => maxDiceWithPassive(actor, /control systems/i);
 /** Task Pool dice on an equipment-rolled test are capped at Electronics or the concentration in use (R5-7). */
 export const taskCap = (actor) => concentrationDice(actor, /electronic warfare|control systems/i);
 
@@ -166,7 +185,7 @@ export function registerEw() {
     const enc = moduleRating(target, "rc-encryption");
     if (!enc) throw new Error("that network isn't encrypted");
     const net = RC.freshNet(target);
-    const test = checkCard(net, messageId, { kind: "decrypt", actor: op, maxDice: ewSkillDice(op) + moduleRating(intruder, "decryption"), minTn: EW.decryptTn(enc),
+    const test = checkCard(net, messageId, { kind: "decrypt", actor: op, maxDice: ewMaxDice(op) + moduleRating(intruder, "decryption"), minTn: EW.decryptTn(enc),
       bind: { freqGen: freqGen(net), target: target.uuid } });
     const ok = EW.decryptOk(await successesOf(test), num(target.system.rating));
     if (!ok) net.alert = num(net.alert) + 1;
@@ -331,7 +350,7 @@ export function registerEw() {
     if (!carrierLost(net, channel)) throw new Error("that carrier isn't lost");
     const boxes = channelBoxesOf(net, channel);
     if (!EW.reconnectAllowed(boxes)) throw new Error("clear at least one box first (regenerate, Rigger 2 p.72)");
-    const test = checkCard(net, messageId, { kind: "reconnect", actor: op, maxDice: controlSystemsDice(op),
+    const test = checkCard(net, messageId, { kind: "reconnect", actor: op, maxDice: controlSystemsMaxDice(op),
       minTn: EW.reconnectTn({ boxes, damageMod: op?.system?.woundPenalty ?? 0 }) });
     const ok = EW.reconnectOk(await successesOf(test), boxes);
     if (ok) { delete net.carriers[channel]; if (net.channelAuthority) delete net.channelAuthority[channel]; }   // the intruder's authority ends (5b.0)

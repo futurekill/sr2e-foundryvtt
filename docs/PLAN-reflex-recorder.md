@@ -1,5 +1,5 @@
 # Plan: the Reflex Recorder (Shadowtech p.27)
-_Draft 2 (2026-11-20), built (2 Codex plan rounds; r2 folded). Deviation, recorded here: the die reaches the general skill paths (sheet and named rolls, weapons, melee defense, vehicles, Conjuring, Centering); the Matrix, electronic warfare, First Aid and spell-learning tests don't take passive dice yet (Enhanced Articulation either) — a follow-up. Release/0.161.0 work (ships after the Friday game). The chargen app offers it afterwards._
+_Draft 2 (2026-11-20), built (2 Codex plan rounds; r2 folded). Deviation, recorded here: the die reaches the general skill paths (sheet and named rolls, weapons, melee defense, vehicles, Conjuring, Centering); the Matrix, electronic warfare, First Aid and spell-learning tests were done in a second commit (`_passiveSkillDice`). Release/0.161.0 work (ships after the Friday game). The chargen app offers it afterwards._
 
 ## The book (p.27, prose; the numbers checked against the item data)
 Each recorder "learns" ONE Active or Vehicle skill (not a B/R skill) at **+1 die to all Success Tests** with it, from

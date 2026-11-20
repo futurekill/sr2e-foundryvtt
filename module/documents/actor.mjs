@@ -1288,6 +1288,18 @@ export class SR2EActor extends Actor {
     return reflexRecorderDice({ recorders, skillName: skill.name, category: skill.system?.category ?? "active",
       chipped: !!skill.system?._chipped, tier, concentration: skill.system?.concentration?.name ?? "" });
   }
+  /**
+   * The passive dice on one Success Test with this skill (by name; owned or not): Improved Ability (SR2E p.125),
+   * Enhanced Articulation and a reflex recorder (Shadowtech p.27, p.34). For paths that read a skill's rating as TEST
+   * DICE directly; a rating used as a limit, a TN or a pool size stays the rating.
+   */
+  _passiveSkillDice(name, tier = "base") {
+    const sk = this._skillByName(name);
+    // Improved Ability and Enhanced Articulation need the skill itself (a trained rating); the recorder's die joins a
+    // defaulted test too (the Shadowtech p.27 ruling).
+    const trained = (sk.system?.rating ?? 0) > 0;
+    return (trained ? (sk.system?._adeptBonus ?? 0) + this._activeSkillBonus(sk) : 0) + this._recorderDice(sk, tier);
+  }
   /** A skill the character may not own, by its key or name, as the recorder rule reads it. */
   _skillByName(name) {
     const n = String(name ?? "").replace(/_/g, " ").toLowerCase().trim();
@@ -3453,6 +3465,7 @@ export class SR2EActor extends Actor {
       dice = this.system.intelligence?.value ?? 1;
       defaultPenalty = 4; // untrained Skill Web default (p.84)
     }
+    dice += this._passiveSkillDice("computer");   // after the defaulting decision
 
     const priorAttempts = host.system.attempts ?? 0;          // attempts before this one
     const tn = systemOperationTN(host.system.systemRating, priorAttempts, defaultPenalty);
@@ -3723,7 +3736,9 @@ export class SR2EActor extends Actor {
     if ((this.system.karma?.current ?? 0) < force) return warn(`needs ${force} Good Karma to learn it (p.133).`);
     const { sorcery, theory } = this._learningSkills();
     const category = def.system?.category;
-    let dice = sorcery + theory + this._totemSpellDice(category);
+    // One test of both skills: the larger of their passive dice, never both.
+    let dice = sorcery + theory + this._totemSpellDice(category)
+      + Math.max(sorcery > 0 ? this._passiveSkillDice("sorcery") : 0, theory > 0 ? this._passiveSkillDice("magical theory") : 0);
     let aidNote = "";
     const key = canonicalSpellName(def.name);
     if (o.aidSpiritUuid) {
@@ -4104,6 +4119,7 @@ export class SR2EActor extends Actor {
       dice = web?.dice ?? Math.max(1, this.system.intelligence?.value ?? 1);
       defaultMod = web?.penalty ?? CONFIG.SR2E.defaultingPenalty;
     }
+    dice += this._passiveSkillDice("biotech");   // after the defaulting decision
 
     // First Aid Table TN + modifiers
     let tn = CONFIG.SR2E.firstAidTN[level] ?? 6;

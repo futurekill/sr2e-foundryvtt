@@ -1026,7 +1026,7 @@ export async function vr2HogPurge(actor, card) {
   const tn = hogPurgeTN(h.rating, hardening, last.original);
   const computer = actor.items.find(i => i.type === "skill" && i.name.toLowerCase() === "computer")?.system?.rating ?? 0;
   const item = actor.items.get(last.itemId);
-  const r = await actor.rollSuccessTest(computer, tn, { label: RL("HogPurge", { what: item?.name ?? "", tn }), tnContext: { kind: "matrix" } });
+  const r = await actor.rollSuccessTest(computer + (actor._passiveSkillDice?.("computer") ?? 0), tn, { label: RL("HogPurge", { what: item?.name ?? "", tn }), tnContext: { kind: "matrix" } });
   if (!r) return;
   await request(actor, "hogPurge", { card, itemId: last.itemId, loadGen: last.loadGen, successes: r.successes });
 }
@@ -1342,7 +1342,7 @@ export async function relocate(actor, icKey) {
   const tracker = t.track ? (sync(recordsOf(actor).find(e => e.type === "trace" && e.icKey === icKey)?.via?.uuid) ?? sync(parseAttackerKey(t.attacker).uuid)) : null;
   const tn = t.track ? Math.max(2, (tracker?.system?.matrixPersona?.sensor ?? 0) - rel) : relocateTN(t.rating, rel);
   const boundary = openBoundaryOf(actor, t);
-  const r = await actor.rollSuccessTest(computer, tn, { label: RL("Relocate", { tn }), tnContext: { kind: "matrix" } });
+  const r = await actor.rollSuccessTest(computer + (actor._passiveSkillDice?.("computer") ?? 0), tn, { label: RL("Relocate", { tn }), tnContext: { kind: "matrix" } });
   if (!r) return;
   const host = sync(V.liveSession(actor)?.hostUuid);
   if (host) {

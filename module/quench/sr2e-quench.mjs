@@ -1945,6 +1945,21 @@ function stubWorldSettings(keys) {
           await gen.update({ "system.destroyed": true });
           assert.equal((await pool(() => a.rollSkillTest(id("Firearms"), 4))).d, 4, "a destroyed implant gives nothing");
         });
+        it("paths that read a rating as dice take the passive dice; EW's limit only for its own concentration", async () => {
+          const b = await Actor.create({ name: "Quench Passive", type: "character" });
+          try {
+            await b.createEmbeddedDocuments("Item", [
+              { name: "Computer", type: "skill", system: { category: "active", rating: 5 } },
+              { name: "Electronics", type: "skill", system: { category: "active", rating: 3, concentration: { name: "Electronic Warfare", rating: 5 } } },
+              rec({ recordedSkill: "Computer" }),
+              rec({ recorderSize: "concentration", recordedSkill: "Electronics", recordedConcentration: "Electronic Warfare" })]);
+            assert.equal(b._passiveSkillDice("computer"), 1);
+            assert.equal(b._passiveSkillDice("biotech"), 0);
+            const ew = await import("../ew.mjs");
+            assert.equal(ew.ewMaxDice(b), ew.ewSkillDice(b) + 1, "its concentration's recorder raises the EW dice limit");
+            assert.equal(ew.controlSystemsMaxDice(b), ew.controlSystemsDice(b), "not Control Systems'");
+          } finally { await b.delete(); }
+        });
       });
     });
 

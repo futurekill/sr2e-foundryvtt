@@ -26,9 +26,12 @@ const computerOf = (actor) => skillOf(actor, /^computer$/i);
 function programmingSkillOf(actor) {
   const c = actor?.items.find(i => i.type === "skill" && /^computer$/i.test(i.name))?.system;
   if (!c) return 0;
-  const conc = /software/i.test(c.concentration?.name ?? "") ? (c.concentration.rating ?? 0) : 0;
-  const spec = /matrix programming/i.test(c.specialization?.name ?? "") ? (c.specialization.rating ?? 0) : 0;
-  return Math.max(c.rating ?? 0, conc, spec);
+  // Each tier with its own passive dice (Improved Ability, Enhanced Articulation, a reflex recorder; Shadowtech p.27,
+  // p.34) before the best is taken and before a team's average (p.102).
+  const plus = (rating, tier) => (rating > 0 ? rating + (actor._passiveSkillDice?.("computer", tier) ?? 0) : 0);
+  const conc = /software/i.test(c.concentration?.name ?? "") ? plus(c.concentration.rating ?? 0, "concentration") : 0;
+  const spec = /matrix programming/i.test(c.specialization?.name ?? "") ? plus(c.specialization.rating ?? 0, "specialization") : 0;
+  return Math.max(plus(c.rating ?? 0, "base"), conc, spec);
 }
 /** What the program IS: identity and design. A change makes it a different program (the lock in sr2e.mjs matches). */
 export const designOf = (item) => ({ name: item.name, category: item.system.category, offense: item.system.offense ?? "",

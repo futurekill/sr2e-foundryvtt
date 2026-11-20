@@ -73,6 +73,10 @@
 - `chargenBudget`: one pure creation-budget calculation, shared with the standalone character generator.
 
 ### Fixed
+- **Every skill test takes its passive dice** (Improved Ability, Enhanced Articulation, a reflex recorder): the
+  Matrix Computer tests (system operations, locating a satellite, purging a hog, relocating), First Aid's Biotech,
+  spell learning (the larger of Sorcery's and Magical Theory's) and the electronic-warfare dice limit read the rating
+  alone. Where a skill is a target number or a pool's cap it stays the rating.
 - **Conjuring and Centering take Enhanced Articulation's die**, as the Rulings page already said (they read the
   skill's rating alone).
 - **A turned vehicle's box turns with it.** Core Foundry rotates only a token's image, so a 2×4 car turned 90° kept a
