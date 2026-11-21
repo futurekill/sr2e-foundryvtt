@@ -3402,6 +3402,28 @@ function stubWorldSettings(keys) {
         assert.equal(twice(a).system.initiative.dice, 3);
       });
 
+      it("a synaptic accelerator adds nothing beside working wired or boosted reflexes (Shadowtech p.28)", async () => {
+        const sa = (rating) => ware("Synaptic Accelerator", "synaptic-accelerator", { rating, bodySystem: "neural", bodyCost: 0.3, attributeMods: { initiativeDice: 1 } }, "bioware");
+        const a = await mk({ name: "Quench Synaptic", type: "character" });
+        const [w] = await a.createEmbeddedDocuments("Item", [ware("Wired", "wired-reflexes:1", { attributeMods: { reaction: 2, initiativeDice: 1 } })]);
+        await a.createEmbeddedDocuments("Item", [sa(2)]);
+        twice(a);
+        assert.equal(a.system.initiative.dice, 2, "Wired 1's die only");
+        assert.equal(a.system.mbw.reflexDice, 1, "the reflex check sees no accelerator dice either");
+        assert.isTrue(a.system.mbw.conflicts.some(c => /Shadowtech p\.28/.test(c)));
+        await w.update({ "system.switchedOff": true });
+        await a.createEmbeddedDocuments("Item", [ware("Trigger", "reflex-trigger")]);
+        twice(a);
+        assert.equal(a.system.initiative.dice, 3, "wired switched off: the accelerator's 2 dice count");
+        assert.isFalse(a.system.mbw.conflicts.some(c => /Shadowtech p\.28/.test(c)), "no note: the note is rebuilt every preparation");
+        await w.delete();
+        await a.createEmbeddedDocuments("Item", [ware("Boosted", "boosted-reflexes", { rating: 1, attributeMods: { reaction: 1, initiativeDice: 1 } })]);
+        twice(a);
+        assert.equal(a.system.initiative.dice, 2, "boosted works the same");
+        await a.items.getName("Synaptic Accelerator").delete();
+        assert.equal(twice(a).system.initiative.dice, 2, "the accelerator gone: boosted alone");
+      });
+
       it("the schedule: one notice per batch, scheduled slots fill in order, a stress test leaves them", async () => {
         const a = await mk({ name: "Quench MBW Schedule", type: "character" });
         await a.createEmbeddedDocuments("Item", [mbwItem(2)]);

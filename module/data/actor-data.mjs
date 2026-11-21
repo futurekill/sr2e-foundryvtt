@@ -1153,6 +1153,8 @@ export class CharacterData extends SR2EDataModel {
     mods.limbs = this._limbEssenceAndModel(working);
     const ware = this._wareCyberInteractions(working);
     mods.reactionEnhancer = 0; mods.wareInitiativeDice = 0; mods.wareBody = mods.limbs.pairBody ?? 0; mods.wareWillpower = 0;
+    // Shadowtech p.28: the synaptic accelerator "cannot be combined" with wired/boosted reflexes (PLAN-synaptic-accelerator).
+    mods.synapticDice = 0; mods.synapticNames = []; mods.reflexwareWorking = false; mods.reflexwareNames = [];
     if (working && mods.limbs.pairBody) {
       mods.body += mods.limbs.pairBody;
       mods.sources.body.push({ name: game.i18n.localize("SR2E.Limb.PairBody"), value: mods.limbs.pairBody });
@@ -1183,6 +1185,7 @@ export class CharacterData extends SR2EDataModel {
           mods.wareWillpower += item.system.attributeMods?.willpower || 0;
           if (rule === "reaction-enhancer") mods.reactionEnhancer += item.system.attributeMods?.reaction || 0;
           if (/^wired-reflexes:/.test(rule ?? "")) this.mbw.wiredWorking = true;
+          if (/^(wired-reflexes:|boosted-reflexes$)/.test(rule ?? "")) { mods.reflexwareWorking = true; mods.reflexwareNames.push(item.name); }
           // Muscle Replacement/Augmentation Quickness doesn't raise Reaction
           // (flag, with a name fallback for pre-0.28 world copies). Inside the guard: a
           // part whose Quickness doesn't count must not take Reaction away either.
@@ -1230,6 +1233,7 @@ export class CharacterData extends SR2EDataModel {
             if (key === "reaction" && rule === "enhanced-articulation") { mods.articulationReaction += a; continue; }
             if (key === "quickness") mods.biowareQuickness += a;
             if (key === "initiativeDice") mods.wareInitiativeDice += a;
+            if (key === "initiativeDice" && rule === "synaptic-accelerator" && a) { mods.synapticDice += a; mods.synapticNames.push(item.name); }
             if (key === "body") mods.wareBody += a;
             if (key === "willpower") mods.wareWillpower += a;
             if (key in mods) mods[key] += a;
@@ -1272,6 +1276,11 @@ export class CharacterData extends SR2EDataModel {
     mods.bodyIndex = biowareRaw;
     // Reaction Enhancers: +6 at most for player characters (Cybertechnology p.38).
     if (mods.reactionEnhancer > 6) { this.mbw.enhancerExcess = mods.reactionEnhancer - 6; mods.reaction -= this.mbw.enhancerExcess; }
+    // Ruling: beside working wired/boosted reflexes the accelerator adds nothing, so the pair is never greater (p.28).
+    if (mods.reflexwareWorking && mods.synapticDice > 0) {
+      mods.initiativeDice -= mods.synapticDice; mods.wareInitiativeDice -= mods.synapticDice;
+      this.mbw.conflicts.push(`${mods.synapticNames.join(", ")}: adds nothing beside ${mods.reflexwareNames.join(", ")} (not combinable, Shadowtech p.28)`);
+    }
     this.mbw.reflexDice = mods.wareInitiativeDice;
     // Awakened characters pay Essence equal to their bioware Body Index; mundanes
     // pay none (Shadowtech p.6). Same raw total for exact parity.

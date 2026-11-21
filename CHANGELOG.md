@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **The synaptic accelerator beside wired or boosted reflexes** (Shadowtech p.28: "cannot be combined"): while any
+  wired or boosted reflexes work, the accelerator adds no Initiative dice. The move-by-wire & reflexes panel shows a
+  note. Before, every die was added. (Wiki Rulings; docs/PLAN-synaptic-accelerator.md.)
+
 ## 0.161.0 — 2026-11-20
 
 ### Changed
