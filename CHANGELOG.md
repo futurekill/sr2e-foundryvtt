@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.161.0 — 2026-11-20
 
 ### Changed
 - **Shapeshifter characters** (Shadowrun Companion p.38): the creation budget no longer gives a shapeshifter two free
