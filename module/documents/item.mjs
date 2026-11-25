@@ -1921,10 +1921,10 @@ export class SR2EItem extends Item {
       const cDice = cRating > 0 ? cRating + (actor._activeSkillBonus?.(cSkill) ?? 0) + (actor._recorderDice?.(cSkill) ?? 0) : 0;
       if (cDice > 0) {
         const cTN = centeringTestTN(targetNumber + penaltyC, mgC.initiateGrade);
-        // cTN already carries the penalties: roll it as is (policy "table"
-        // adds no caster modifiers), or they would count twice.
+        // cTN already carries the penalties: roll it as is. "equipment" adds NO character modifier — "table" still adds
+        // cybermancy's CDS +3, which penaltyC already holds (2026-11-25: it counted twice).
         const cResult = await actor.rollSuccessTest(cDice, cTN, {
-          label: RL("Centering", { skill: cSkill.name, tn: cTN }), isResistance: true, tnPolicy: "table"
+          label: RL("Centering", { skill: cSkill.name, tn: cTN }), isResistance: true, tnPolicy: "equipment"
         });
         centeringReduction = centeringPenaltyReduction(cResult?.successes ?? 0, penaltyC);
       }

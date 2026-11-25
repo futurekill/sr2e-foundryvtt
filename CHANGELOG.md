@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.163.1 — 2026-11-25
+
+### Fixed
+- **A magician's Centering on a spell counted the cybermancy CDS penalty twice** (Grimoire p.44; Cybertechnology
+  p.80): the Centering Test's target number already holds every penalty, but its roll still added CDS's +3. It now adds
+  no character modifier again, as the adept's Centering does.
+
 ## 0.163.0 — 2026-11-25
 
 ### Added
