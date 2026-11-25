@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.162.0 — 2026-11-25
 
 ### Added
 - **The Grimoire's and the Corporate Security Handbook's adept powers** (Grimoire p.34, CSH p.104; Phase A of
@@ -15,7 +15,7 @@
 ### Changed
 - **The synaptic accelerator beside wired or boosted reflexes** (Shadowtech p.28: "cannot be combined"): while any
   wired or boosted reflexes work, the accelerator adds no Initiative dice. The move-by-wire & reflexes panel shows a
-  note. Before, every die was added. (Wiki Rulings; docs/PLAN-synaptic-accelerator.md.)
+  note. Before, every die was added. (Wiki Rulings; docs/archive/plans/PLAN-synaptic-accelerator.md.)
 
 ## 0.161.0 — 2026-11-20
 

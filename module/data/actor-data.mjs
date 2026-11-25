@@ -1153,7 +1153,7 @@ export class CharacterData extends SR2EDataModel {
     mods.limbs = this._limbEssenceAndModel(working);
     const ware = this._wareCyberInteractions(working);
     mods.reactionEnhancer = 0; mods.wareInitiativeDice = 0; mods.wareBody = mods.limbs.pairBody ?? 0; mods.wareWillpower = 0;
-    // Shadowtech p.28: the synaptic accelerator "cannot be combined" with wired/boosted reflexes (PLAN-synaptic-accelerator).
+    // Shadowtech p.28: the synaptic accelerator "cannot be combined" with wired/boosted reflexes (docs/archive/plans/PLAN-synaptic-accelerator.md).
     mods.synapticDice = 0; mods.synapticNames = []; mods.reflexwareWorking = false; mods.reflexwareNames = [];
     if (working && mods.limbs.pairBody) {
       mods.body += mods.limbs.pairBody;
