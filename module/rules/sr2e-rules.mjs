@@ -577,6 +577,21 @@ export function rangedEngagement({ record, key, targetUuid, mode, weaponUuid, sm
 }
 
 /**
+ * Why a weapon can't fire again this Combat Phase (SR2E p.92), or null: a single-shot weapon "cannot be fired again
+ * that Combat Phase"; semi-auto and burst fire are Simple Actions, so one weapon fires at most twice in those modes.
+ * Full auto (a Complex Action, split across targets as the system already models) and anything out of combat are
+ * not limited here. `record.fired` lists this phase's SS/SA/BF shots per weapon id.
+ */
+export function phaseFireBlock({ record, key, weaponId, mode, inCombat = true } = {}) {
+  if (!inCombat || !["ss", "sa", "bf"].includes(mode)) return null;
+  // `fired` is a list of [weaponId, count] (a list, so a flag update replaces it: no stale counts merge in).
+  const n = record && record.key === key ? nonNegInt((Array.isArray(record.fired) ? record.fired : []).find(([id]) => id === weaponId)?.[1]) : 0;
+  if (mode === "ss" && n >= 1) return "A single-shot weapon can't fire again this Combat Phase (SR2E p.92).";
+  if (n >= 2) return "That weapon has already fired twice this Combat Phase: two Simple Actions (SR2E p.92).";
+  return null;
+}
+
+/**
  * Recoil still in force: the stored counter belongs to the phase it was
  * committed under, and reads as 0 once the phase key has moved on (p.93: recoil
  * accumulates within a Combat Phase). Nothing zeroes it at a boundary.

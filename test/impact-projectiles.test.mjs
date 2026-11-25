@@ -22,3 +22,18 @@ describe("impact projectiles", () => {
     expect(isSlowMissile("firearm")).toBe(false);
   });
 });
+
+import { phaseFireBlock } from "../module/rules/sr2e-rules.mjs";
+describe("shots per Combat Phase (SR2E p.92)", () => {
+  const rec = (fired) => ({ key: "c:1:0", fired });
+  it("single shot once; SA/BF twice; full auto and other phases unlimited here", () => {
+    expect(phaseFireBlock({ record: rec([]), key: "c:1:0", weaponId: "w", mode: "ss" })).toBeNull();
+    expect(phaseFireBlock({ record: rec([["w", 1]]), key: "c:1:0", weaponId: "w", mode: "ss" })).toMatch(/single-shot/);
+    expect(phaseFireBlock({ record: rec([["w", 1]]), key: "c:1:0", weaponId: "w", mode: "sa" })).toBeNull();
+    expect(phaseFireBlock({ record: rec([["w", 2]]), key: "c:1:0", weaponId: "w", mode: "bf" })).toMatch(/twice/);
+    expect(phaseFireBlock({ record: rec([["w", 2]]), key: "c:1:0", weaponId: "other", mode: "sa" })).toBeNull();
+    expect(phaseFireBlock({ record: rec([["w", 2]]), key: "c:2:0", weaponId: "w", mode: "sa" })).toBeNull();
+    expect(phaseFireBlock({ record: rec([["w", 9]]), key: "c:1:0", weaponId: "w", mode: "fa" })).toBeNull();
+    expect(phaseFireBlock({ record: rec([["w", 9]]), key: "c:1:0", weaponId: "w", mode: "sa", inCombat: false })).toBeNull();
+  });
+});

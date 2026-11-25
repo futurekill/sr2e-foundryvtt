@@ -10,7 +10,7 @@ import { sfxFlags, playSfx } from "../sfx.mjs";
 import { SFX_KEYS } from "../sfx-manifest.mjs";
 import { attackSound, spellSound } from "../rules/combat-sound-rules.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { adeptPowerKey, throwingWeaponRange, rangedArmorType, isSlowMissile, burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { adeptPowerKey, phaseFireBlock, throwingWeaponRange, rangedArmorType, isSlowMissile, burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating, cyclopsRangedTN} from "../rules/sr2e-rules.mjs";
 import { powerCardButtons } from "../adept-powers.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
@@ -650,8 +650,16 @@ export class SR2EItem extends Item {
     // rejected attack still eats the grenade.
     const wType_ = this.system.weaponType;
     const modes_ = this.system.firingModes ?? {};
-    const declaredMode_ = options.firingMode ?? "sa";
+    // No mode passed (a direct roll): the weapon's own — an SS-only gun is single shot (code r1).
+    const declaredMode_ = options.firingMode ?? (modes_.sa ? "sa" : modes_.ss ? "ss" : modes_.bf ? "bf" : "sa");
 
+    // Shots per Combat Phase (p.92), in combat only: single shot once; SA/BF twice (Simple Actions). Before anything is
+    // spent. A GM's "Reset recoil" starts a new phase identity, which clears it.
+    // Not for a resumed attack (a missile's Phase 0 finishing the test it already counted).
+    if (["firearm", "heavy"].includes(wType_) && engage && !options.resumeTest && !/^(free|missile):/.test(String(engage.key ?? ""))) {
+      const block = phaseFireBlock({ record: engagedRecord(actor), key: engage.key, weaponId: this.id, mode: declaredMode_ });
+      if (block) { ui.notifications.warn(`${this.name}: ${block}`); return; }
+    }
     if (options.calledShot && !canCallShot(wType_, declaredMode_, modes_)) {
       ui.notifications.warn(game.i18n.localize("SR2E.Warn.CalledShotIneligible")
         || "Called shots need a weapon firing SS, SA or BF (SR2E p.92).");
@@ -996,7 +1004,7 @@ export class SR2EItem extends Item {
       if (r2?.mode === "sensor" || r2?.mode === "missile") dicePool += r2.sensorDice;
       const range    = blastRange ?? options.range ?? "short";
       attackRange = range;
-      firingMode     = options.firingMode ?? "sa";
+      firingMode     = options.firingMode ?? declaredMode_;
       // A bow or a thrown weapon fires one shot: no SA/BF/FA, whatever a macro passes (Draft 2; code r1).
       if (!["firearm", "heavy"].includes(this.system.weaponType)) firingMode = "ss";
       const coverMod = options.coverMod   ?? 0;
@@ -1237,6 +1245,7 @@ export class SR2EItem extends Item {
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
+    if (!result) return null;   // refused (e.g. pools locked during a round change): no shot fired, nothing recorded (code r1)
 
     // Optional Token Magic FX + sound on the targets (no-op without the module)
     if (isRanged && !resumed && ["firearm", "heavy"].includes(this.system.weaponType)) {
@@ -1268,7 +1277,11 @@ export class SR2EItem extends Item {
       const spent = eng.walked + rounds;
       if (engage) {
         const prior = engagedRecord(actor);
-        const cur = prior?.key === engage.key ? prior : { targets: [], lastFA: null };
+        const cur = prior?.key === engage.key ? prior : { targets: [], lastFA: null, fired: [] };
+        // This phase's SS/SA/BF shots per weapon (p.92; phaseFireBlock) — a list, never a merged object (flag merge trap).
+        const firedMap = new Map(Array.isArray(cur.fired) ? cur.fired : []);
+        if (["ss", "sa", "bf"].includes(firingMode)) firedMap.set(this.id, (Number(firedMap.get(this.id)) || 0) + 1);
+        const fired = [...firedMap];
         const to = engage.token;
         const targets = [...new Set([...(cur.targets ?? []), ...(tracksTargets && to ? [to.uuid] : [])])];
         const lastFA = tracksTargets && firingMode === "fa"
@@ -1277,7 +1290,7 @@ export class SR2EItem extends Item {
           : null;
         await actor.update({
           "system.combatRecoil": hasRecoil ? shotsFired + spent : shotsFired,
-          "flags.sr2e.engaged": { key: engage.key, targets, lastFA }
+          "flags.sr2e.engaged": { key: engage.key, targets, lastFA, fired }
         });
       } else if (hasRecoil) {
         await actor.update({ "system.combatRecoil": shotsFired + spent });

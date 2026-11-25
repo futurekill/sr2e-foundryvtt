@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.164.2 — 2026-11-25
+
+### Fixed
+- **Shots per Combat Phase** (SR2E p.92), in combat: a single-shot weapon "cannot be fired again that Combat Phase",
+  and a weapon fires at most twice in semi-auto or burst fire (each a Simple Action). The system allowed any number.
+  A refusal says why; "Reset recoil" starts a new phase when the GM needs one. Full auto (a Complex Action the system
+  already splits across targets), bows and thrown weapons aren't limited here. Rigger 2 missile and area launches are
+  not covered yet.
+- An attack whose test was refused (e.g. while the Combat Pool is locked during a round change) no longer counts as a
+  shot fired.
+
 ## 0.164.1 — 2026-11-25
 
 ### Fixed
