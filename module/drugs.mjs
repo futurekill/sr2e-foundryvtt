@@ -950,8 +950,9 @@ export function resistToxin(message) {
     const key = `${st.exposureId}_${st.seq ?? 0}`;
     if (actor.getFlag("sr2e", "toxinDone")?.[key]) return ui.notifications.warn("That damage has already been resisted.");
     const { power, level, type } = st.damage;
-    const t = await actor.rollSuccessTest(actor.system.body?.value ?? 1, power, {
-      label: RL("ResistToxin", { name: st.name, power, level, stun: type === "stun" ? RL("StunTag") : "" }),
+    const bc = actor.system.bodyControlDice ?? 0;   // Body Control: +1 die per level against toxins (Grimoire p.34)
+    const t = await actor.rollSuccessTest((actor.system.body?.value ?? 1) + bc, power, {
+      label: RL("ResistToxin", { name: st.name, power, level, stun: type === "stun" ? RL("StunTag") : "" }) + (bc ? ` +${bc} Body Control` : ""),
       isResistance: true, ...actor._bodyTestOpts?.() });
     if (!t) return;
     const final = toxinLevel(level, t.successes ?? 0);

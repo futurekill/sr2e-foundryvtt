@@ -1212,6 +1212,21 @@
     <label title="Improved Ability (SR2E p.125): the Active Skill this power boosts by +1 die per level. Must match the skill's name on the Skills tab. Leave blank if this power doesn't improve a skill.">Improved Skill:</label>
     <input type="text" name="system.improvedSkill" value="{{system.improvedSkill}}" placeholder="e.g. Firearms" />
   </div>
+  {{#ifEquals adeptKey "attribute_boost"}}
+  <div class="form-group">
+    <label title="Bought separately for Body, Quickness or Strength (Grimoire p.34).">Boosted attribute:</label>
+    <select name="system.boostAttribute">{{selectOptions boostChoices selected=system.boostAttribute}}</select>
+  </div>
+  {{/ifEquals}}
+  {{#ifEquals adeptKey "enhanced_centering"}}
+  <div class="form-group">
+    <label title="One skill category per purchase, 2 points; a Special Skill 1 point (Grimoire p.34).">Category:</label>
+    <select name="system.centeringCategory">{{selectOptions centeringChoices selected=system.centeringCategory}}</select>
+  </div>
+  {{#ifEquals system.centeringCategory "special"}}
+  <div class="form-group"><label>Special Skill:</label><input type="text" name="system.centeringSkill" value="{{system.centeringSkill}}" /></div>
+  {{/ifEquals}}
+  {{/ifEquals}}
   <div class="form-group stacked">
     <label>Description:</label>
     <prose-mirror name="system.description">{{{system.description}}}</prose-mirror>

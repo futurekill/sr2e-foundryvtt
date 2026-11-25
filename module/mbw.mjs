@@ -215,7 +215,8 @@ export async function hourlySurvival(uuid) {
 /** Reflex jumpiness (p.53): Perception at base + reflex dice; Willpower at base to hold off. */
 export async function reflexCheck(actor, base) {
   const n = actor.system.mbw?.reflexDice ?? 0;
-  await actor.rollSuccessTest(actor.system.intelligence?.value ?? 0, base + n, { label: RL("ReflexPerception", { base, n }) });
+  const ep = actor.system.enhancedPerception ?? 0;   // a Perception Test: Enhanced Perception's dice (CSH p.104)
+  await actor.rollSuccessTest((actor.system.intelligence?.value ?? 0) + ep, base + n, { label: RL("ReflexPerception", { base, n }) + (ep ? ` +${ep} Enhanced Perception` : "") });
   await actor.rollSuccessTest(actor.system.willpower?.value ?? 0, base, { label: RL("ReflexWillpower", { base }) });
 }
 

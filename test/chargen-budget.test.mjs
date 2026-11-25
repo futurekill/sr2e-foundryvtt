@@ -99,11 +99,11 @@ const SRC = (id) => `Compendium.sr2e.adept-powers.Item.${id}`;
 describe("S13: adept power costs by the book's tables (SR2E p.124–126)", () => {
   const p = (id, o = {}) => ({ name: "x", pointCost: 1, level: 1, _stats: { compendiumSource: SRC(id) }, ...o });
   it("identifies the core powers by compendium source, then by name", () => {
-    expect(Object.keys(ADEPT_POWER_SOURCES)).toHaveLength(14);
+    expect(Object.keys(ADEPT_POWER_SOURCES)).toHaveLength(24);   // 14 core + 10 Grimoire/CSH (PLAN-sourcebook-adept-powers)
     expect(adeptPowerKey(p("484c4074c7e97b93"))).toBe("improved_attribute:quickness");
     expect(adeptPowerKey({ name: "Improved Ability (Firearms)" })).toBe("improved_ability");
-    expect(adeptPowerKey({ name: "Mystic Armor" })).toBeNull();
-    expect(adeptPowerKey({ name: "Mystic Armor", flags: { sr2e: { power: "pain_resistance" } } })).toBe("pain_resistance");
+    expect(adeptPowerKey({ name: "Iron Skin" })).toBeNull();   // a homebrew name; Mystic Armor is now known (Grimoire)
+    expect(adeptPowerKey({ name: "Iron Skin", flags: { sr2e: { power: "pain_resistance" } } })).toBe("pain_resistance");
   });
   it("the fixed tables", () => {
     expect([1, 2, 3].map(level => adeptPowerCost(p("9d10344a9456397d", { level })))).toEqual([2, 3, 4]);     // Combat Sense

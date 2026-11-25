@@ -331,6 +331,8 @@ async function begin({ combatId, round, eid, kind, actorUuid = null, target = nu
       // R2 p.17: an improved datajack (Level 2+) adds Level − 1 dice to Perception Tests while rigging.
       const dj = riggedInto(actorDoc, vehicle) ? actorDoc.improvedDatajackDice?.() ?? 0 : 0;
       if (dj) { dice += dj; note = ` + ${dj} improved datajack (R2 p.17)`; }
+      const ep = actorDoc?.system?.enhancedPerception ?? 0;   // a Perception Test (CSH p.104)
+      if (ep) { dice += ep; note += ` + ${ep} Enhanced Perception (CSH p.104)`; }
     } else {
       const sk = pilotOnly(e) ? pilotSkill(vehicle) : actorDoc._vehicleSkill(vehicle, { mode: vcr ? "rigged" : "manual" });
       const oppMs = opponents.length ? highestMs(ch, round, opponents) : t.ms;

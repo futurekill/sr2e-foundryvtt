@@ -1200,6 +1200,12 @@ export class AdeptPowerData extends SR2EDataModel {
       // Improved Ability boosts one named Active Skill by +1 die per level
       // (SR2E p.125). The skill name is matched on the Skills tab.
       improvedSkill: new fields.StringField({ initial: "" }),
+      // Sourcebook powers (docs/PLAN-sourcebook-adept-powers.md): Attribute Boost's attribute and Enhanced Centering's
+      // one category (or Special Skill), Grimoire p.34. blank:true — "" is "not chosen yet" (the StringField blank trap).
+      boostAttribute: new fields.StringField({ initial: "", blank: true, choices: ["", "body", "quickness", "strength"] }),
+      centeringCategory: new fields.StringField({ initial: "", blank: true,
+        choices: ["", "build_repair", "combat", "knowledge", "language", "magical", "social", "technical", "vehicle", "special"] }),
+      centeringSkill: new fields.StringField({ initial: "" }),
       notes: new fields.StringField({ initial: "" })
     };
   }
@@ -1221,7 +1227,8 @@ export class AdeptPowerData extends SR2EDataModel {
     if (actorCosts && item.id in actorCosts) return actorCosts[item.id];
     const key = adeptPowerKey(item ?? {});
     if (adeptCostNeedsActor(key)) return null;
-    return adeptPowerCost({ pointCost: this.pointCost, level: this.level, improvedSkill: this.improvedSkill, name: item?.name }, 6, { key: key ?? "" });
+    return adeptPowerCost({ pointCost: this.pointCost, level: this.level, improvedSkill: this.improvedSkill, name: item?.name }, 6,
+      { key: key ?? "", centeringCategory: this.centeringCategory });
   }
   /** For the item sheet: the cost, or why it has none yet. */
   get powerCostLabel() {

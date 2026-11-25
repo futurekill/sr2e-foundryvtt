@@ -148,7 +148,7 @@ export async function fabSearch(behavior) {
   const gens = new Map(intruders.map(t => [t.id, t.getFlag("sr2e", `fabExitGen.${behavior.id}`) ?? 0]));
   const roller = searchers[choice.roller] ?? searchers[0];
   const tn = fabSearchTN(regionAreaM2(region), searchers.length);
-  const perception = await roller.actor.rollAttributeTest("intelligence", tn, { whisperGM: true });
+  const perception = await roller.actor.rollAttributeTest("intelligence", tn, { whisperGM: true, perception: true });
   const hits = perception?.successes ?? 0;
   const searcherInt = roller.actor.system.intelligence?.value ?? 0;
 

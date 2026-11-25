@@ -1314,11 +1314,13 @@ export class SR2EActor extends Actor {
   }
 
   async rollAttributeTest(attribute, targetNumber = 4, options = {}) {
-    const attrValue = this.system[attribute]?.value || 0;
+    // A Perception Test (an Intelligence test the caller names) takes Enhanced Perception's dice (CSH p.104).
+    const ep = options.perception && attribute === "intelligence" ? (this.system.enhancedPerception ?? 0) : 0;
+    const attrValue = (this.system[attribute]?.value || 0) + ep;
     // AL covers the special attributes too (a Reaction test, e.g. surprise — SR2E p.84).
     const label = AL(attribute);
     return this.rollSuccessTest(attrValue, targetNumber, {
-      label: RL("Test", { name: label }),
+      label: RL("Test", { name: label }) + (ep ? ` +${ep} Enhanced Perception` : ""),
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
       // Centering (Grimoire p.44) was being dropped here — pass it through.

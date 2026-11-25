@@ -195,6 +195,13 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
       <label title="Heavily chromed characters put people off in casual social situations; untick when it doesn't apply (a Johnson hiring muscle, an interrogation). Cybertechnology p.58.">${game.i18n.localize("SR2E.Social.TnLabel")} +${socialTN}</label>
       <input type="checkbox" name="socialTN" checked>
     </div>` : "";
+  // Enhanced Perception (CSH p.104): its dice only on a Perception Test, which the player marks.
+  const perceptionDice = attribute === "intelligence" ? (actor?.system?.enhancedPerception ?? 0) : 0;
+  const perceptionHTML = perceptionDice > 0 ? `
+    <div class="form-group">
+      <label title="Enhanced Perception adds its dice to Perception Tests only (Corporate Security Handbook p.104).">Perception Test (+${perceptionDice} Enhanced Perception)</label>
+      <input type="checkbox" name="perception">
+    </div>` : "";
   // Collect pools that have dice available, capping each by both available and skillCap.
   // `pools` names extra pools this test allows even when the general pools aren't shown (the Task Pool, 5a.0).
   const availablePools = POOL_DEFS.filter(p => p.only ? pools.includes(p.key) : showPools)
@@ -256,6 +263,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
           <input type="number" name="tn" value="4" min="2" max="30" autofocus>
         </div>
         ${socialHTML}
+        ${perceptionHTML}
         ${poolHTML}
         ${karmaHTML}
         ${miscDiceHTML()}
@@ -279,7 +287,8 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
           const karmaDice = readKarmaDice(button.form, actor, baseDice);
           rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice, ...readMiscDice(button.form),
             socialTN: cymTN > 0 ? (button.form.elements.cymIntimidate?.checked ? 0 : cymTN)
-              : socialTN > 0 && button.form.elements.socialTN?.checked ? socialTN : 0 };
+              : socialTN > 0 && button.form.elements.socialTN?.checked ? socialTN : 0,
+            perception: perceptionDice > 0 && !!button.form.elements.perception?.checked };
         }
       },
       {
@@ -311,7 +320,7 @@ async function onRollAttribute(event, target) {
   if (!opts) return;
   return actor.rollAttributeTest(attribute, opts.tn, {
     poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel,
-    socialTN: opts.socialTN
+    socialTN: opts.socialTN, perception: opts.perception
   });
 }
 

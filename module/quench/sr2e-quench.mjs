@@ -17,6 +17,7 @@ import { chargenBudgetOf } from "../sheets/actor-sheet.mjs";
 import { evaluateDamageCode } from "../documents/item.mjs";
 import { testTotalSuccesses, effectiveSkillRating as sr2eEffectiveSkillRating, gradeCostMultiplier } from "../rules/sr2e-rules.mjs";
 import { saleQuote } from "../money.mjs";
+import { resistToxin } from "../drugs.mjs";
 import { settleSecondhandTest, settlementsOf, settleState, decorateSettleButton } from "../secondhand.mjs";
 
 export function registerSR2EQuenchTests() {
@@ -1907,6 +1908,52 @@ function stubWorldSettings(keys) {
     // combatant scope, and method exemption are all exercised end-to-end without
     // faking a canvas drag. The pure walk/run math lives in test/movement.test.mjs.
     // Reflex Recorder (Shadowtech p.27): +1 die on the learned skill, never on a chip, never from a broken implant.
+    // The sourcebook adept powers, Phase A (docs/PLAN-sourcebook-adept-powers.md; Grimoire p.34, CSH p.104).
+    quench.registerBatch("sr2e.sourcebook-adept-powers", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+      const power = (name, key, level = 1, extra = {}) => ({ name, type: "adept_power", flags: { sr2e: { power: key } }, system: { level, pointCost: 1, ...extra } });
+      const twice = (a) => { a.reset(); a.reset(); return a; };
+      describe("Mystic Armor, Enhanced Perception, Body Control", () => {
+        it("Mystic Armor adds Impact up to the current Magic Rating; removal clears it; a magician gets nothing", async () => {
+          const a = await Actor.create({ name: "Quench Mystic", type: "character", system: { magic: { type: "physical_adept", value: 4 } } }); made.push(a);
+          const before = twice(a).system.armor.impact, magic = a.system.magic.value;
+          assert.isAbove(magic, 0);
+          await a.createEmbeddedDocuments("Item", [power("Mystic Armor", "mystic_armor", magic + 2)]);
+          assert.equal(twice(a).system.armor.impact, before + magic, "capped at the Magic Rating");
+          await a.items.getName("Mystic Armor").update({ "system.level": 1 });
+          assert.equal(twice(a).system.armor.impact, before + 1);
+          await a.update({ "system.magic.type": "full_magician" });
+          assert.equal(twice(a).system.armor.impact, before, "only a physical adept's power works");
+          await a.update({ "system.magic.type": "physical_adept" });
+          await a.items.getName("Mystic Armor").delete();
+          assert.equal(twice(a).system.armor.impact, before, "removed: nothing left behind");
+        });
+        it("Enhanced Perception dice only on a Perception Test; Body Control dice on a toxin's resistance", async () => {
+          const a = await Actor.create({ name: "Quench Perception", type: "character", system: { magic: { type: "physical_adept", value: 4 }, intelligence: { base: 4 } } }); made.push(a);
+          await a.createEmbeddedDocuments("Item", [power("Enhanced Perception (Tier 1)", "enhanced_perception", 2),
+            power("Enhanced Perception (Tier 2)", "enhanced_perception", 1), power("Body Control", "body_control", 2)]);
+          twice(a);
+          assert.equal(a.system.enhancedPerception, 3, "the tier items summed");
+          assert.equal(a.system.bodyControlDice, 2);
+          let got; const orig = a.rollSuccessTest; a.rollSuccessTest = async (d) => { got = d; };
+          try {
+            await a.rollAttributeTest("intelligence", 4);
+            assert.equal(got, a.system.intelligence.value, "a plain Intelligence test: no Perception dice");
+            await a.rollAttributeTest("intelligence", 4, { perception: true });
+            assert.equal(got, a.system.intelligence.value + 3);
+            // The real toxin card action (the stub returns nothing, so no damage is committed).
+            got = null;
+            await resistToxin({ id: "quenchToxinCard", flags: { sr2e: { drugCard: { actorUuid: a.uuid, name: "Quench toxin", exposureId: "quench", seq: 0,
+              damage: { power: 4, level: "S", type: "physical" } } } } });
+            assert.equal(got, a.system.body.value + 2, "Body + Body Control 2");
+          } finally { a.rollSuccessTest = orig; }
+          assert.isTrue(a.system.adeptPowerProblems.length === 0 || !a.system.adeptPowerProblems.some(p => /Perception/.test(p)));
+        });
+      });
+    });
+
     quench.registerBatch("sr2e.reflex-recorder", (context) => {
       const { describe, it, assert, after } = context;
       let a;

@@ -2068,6 +2068,8 @@ export function vehicleReceipt(vehicle) {
 /** The core book's adept powers by compendium source (as `wareRule` identifies cyberware): no schema field, so
  * powers already embedded in actors are recognized without a migration. `flags.sr2e.power` overrides. */
 const ADEPT = (id) => `Compendium.sr2e.adept-powers.Item.${id}`;
+const GRIM_POWER = (id) => `Compendium.sr2e-grimoire.grim-adept-powers.Item.${id}`;
+const CSH_POWER = (id) => `Compendium.sr2e-corporate-security.csh-adept-powers.Item.${id}`;
 export const ADEPT_POWER_SOURCES = Object.freeze({
   [ADEPT("56f5962337903eec")]: "astral_perception", [ADEPT("9d10344a9456397d")]: "combat_sense",
   [ADEPT("7a4b0e85072ce4c6")]: "improved_ability", [ADEPT("5075527b8eb8f404")]: "improved_attribute:body",
@@ -2075,7 +2077,13 @@ export const ADEPT_POWER_SOURCES = Object.freeze({
   [ADEPT("9bf2a593eaad85f4")]: "improved_senses", [ADEPT("08e6d90ec7bf4dfe")]: "increased_reaction",
   [ADEPT("b03361c78fba6c27")]: "increased_reflexes", [ADEPT("30f5e3493545db6b")]: "killing_hands",
   [ADEPT("7480a901bc283d25")]: "killing_hands", [ADEPT("05d498aa7cbd198c")]: "killing_hands",
-  [ADEPT("81347eccfc7bebee")]: "killing_hands", [ADEPT("003f74fef4a1756e")]: "pain_resistance"
+  [ADEPT("81347eccfc7bebee")]: "killing_hands", [ADEPT("003f74fef4a1756e")]: "pain_resistance",
+  // The Grimoire's (p.34) and the Corporate Security Handbook's (p.104), docs/PLAN-sourcebook-adept-powers.md.
+  [GRIM_POWER("8910da4d6b4d8736")]: "attribute_boost", [GRIM_POWER("ba2ae6d7b6371ee8")]: "body_control",
+  [GRIM_POWER("aa5b3ad241d4737b")]: "enhanced_centering", [GRIM_POWER("f7cddaf8ff7bc502")]: "missile_parry",
+  [GRIM_POWER("52fa826e15730ecb")]: "mystic_armor", [GRIM_POWER("5d99b6e3588f2101")]: "suspended_state",
+  [CSH_POWER("728210b0653b6d85")]: "enhanced_perception", [CSH_POWER("23ff1ea134b6ebb7")]: "enhanced_perception",
+  [CSH_POWER("eb25a29169bb25a1")]: "enhanced_perception", [CSH_POWER("89f5edb79a7f7c24")]: "extended_missile_parry"
 });
 /** Core names, for powers made by hand (name match is the last resort). */
 // Exact core names; only the book's own bracket conventions are allowed after a name (a custom "…Deluxe" is not core).
@@ -2084,7 +2092,11 @@ const ADEPT_POWER_NAMES = [
   [/^improved physical attributes? \((body)\)$/i, "improved_attribute:body"], [/^improved physical attributes? \((quickness)\)$/i, "improved_attribute:quickness"],
   [/^improved physical attributes? \((strength)\)$/i, "improved_attribute:strength"], [/^improved physical senses( \([^()]+\))?$/i, "improved_senses"],
   [/^increased reaction$/i, "increased_reaction"], [/^increased reflexes$/i, "increased_reflexes"], [/^killing hands \([lmsd]\)$/i, "killing_hands"],
-  [/^pain resistance$/i, "pain_resistance"]
+  [/^pain resistance$/i, "pain_resistance"],
+  [/^attribute boost( \((body|quickness|strength)\))?$/i, "attribute_boost"], [/^body control$/i, "body_control"],
+  [/^enhanced centering( \([^()]+\))?$/i, "enhanced_centering"], [/^missile parry$/i, "missile_parry"],
+  [/^mystic armor$/i, "mystic_armor"], [/^suspended state$/i, "suspended_state"],
+  [/^enhanced perception( \(tier [123]\))?$/i, "enhanced_perception"], [/^extended missile parry$/i, "extended_missile_parry"]
 ];
 /**
  * Which book power an item is: its rule flag, its compendium source, or its core name. Returns "key" or
@@ -2149,6 +2161,16 @@ export function adeptPowerCost(power, racialReactionMax = 6, ctx = {}) {
       }
       return cost;
     }
+    // Grimoire p.34: 2 per skill category, 1 per Special Skill; one category per item (the plan's Draft 2).
+    case "enhanced_centering": return ctx.centeringCategory === "special" ? 1 : 2;
+    // CSH p.104: each +1 priced by the BONUS against racial maximum Intelligence; `before` = levels already priced on
+    // other Enhanced Perception items (the three tier items are priced together).
+    case "enhanced_perception": {
+      if (!Number.isFinite(ctx.intMax)) return linear();
+      let cost = 0;
+      for (let k = (ctx.before ?? 0) + 1; k <= (ctx.before ?? 0) + level; k++) cost += k <= ctx.intMax / 2 ? 0.25 : k <= ctx.intMax ? 0.5 : 1;
+      return cost;
+    }
     case "improved_ability": {
       const per = IMPROVED_ABILITY_COSTS[abilityArea(ctx.skillName ?? (power.improvedSkill || improvedAbilitySkill(power.name)))];
       return per ? per * level : linear();
@@ -2172,7 +2194,7 @@ export function combatSenseDice(items = [], { physicalAdept = false, powersWork 
 }
 
 /** Whether a power's book cost needs the character (its race, an attribute, a skill): unowned, it "depends". */
-export const adeptCostNeedsActor = (key) => /^(increased_reaction|improved_attribute|improved_ability)/.test(key ?? "");
+export const adeptCostNeedsActor = (key) => /^(increased_reaction|improved_attribute|improved_ability|enhanced_perception)/.test(key ?? "");
 
 /**
  * A physical adept's power points (SR2E p.124–126): each power's book cost with the character's context, the total
@@ -2185,7 +2207,7 @@ export const adeptCostNeedsActor = (key) => /^(increased_reaction|improved_attri
  * @param {number} o.magic - the Magic Rating (the power points available)
  * @returns {{ costs: Object<string, number>, used: number, problems: string[] }}
  */
-export function adeptPowerBudget({ items = [], maxes = {}, natural = {}, magic = 0 }) {
+export function adeptPowerBudget({ items = [], maxes = {}, natural = {}, magic = 0, initiateGrade = 0, metamagic = [] }) {
   const costs = {}, problems = [], raised = {};   // raised: attribute → levels already priced, so a second power continues the tiers (R4)
   let used = 0;
   for (const item of items) {
@@ -2212,6 +2234,27 @@ export function adeptPowerBudget({ items = [], maxes = {}, natural = {}, magic =
       const k = String(skill).toLowerCase();
       raised.skills[k] = (raised.skills[k] ?? 0) + level;
     }
+    if (kind === "enhanced_perception") {   // CSH p.104: the bonus across every Enhanced Perception item
+      ctx = { key, intMax: maxes.intelligence ?? 6, before: raised.perception ?? 0 };
+      raised.perception = (raised.perception ?? 0) + level;
+    }
+    if (kind === "enhanced_centering") {   // Grimoire p.34: one category (or Special Skill) per item, initiates only
+      const cat = sys.centeringCategory ?? "", what = cat === "special" ? `special:${String(sys.centeringSkill ?? "").trim().toLowerCase()}` : cat;
+      ctx = { key, centeringCategory: cat };
+      if (level > 1) problems.push(`${item.name}: one category per purchase — buy another for a second category (level ${level} counts as 1).`);
+      if (!cat) problems.push(`${item.name}: choose the skill category it covers (Grimoire p.34).`);
+      else if (cat === "special" && !String(sys.centeringSkill ?? "").trim()) problems.push(`${item.name}: name the Special Skill it covers (Grimoire p.34).`);
+      else if ((raised.centering ??= new Set()).has(what)) problems.push(`${item.name}: that category is already covered.`);
+      else raised.centering.add(what);
+      if (!(initiateGrade >= 1 && (metamagic ?? []).includes("centering"))) problems.push(`${item.name}: only an initiate with the Centering metamagic can use it (Grimoire p.34).`);
+    }
+    if (kind === "attribute_boost") {   // Grimoire p.34: bought separately for Body, Quickness or Strength
+      const at = sys.boostAttribute ?? "";
+      if (!at) problems.push(`${item.name}: choose the attribute it boosts (Grimoire p.34).`);
+      else if ((raised.boost ??= new Set()).has(at)) problems.push(`${item.name}: ${at} already has an Attribute Boost.`);
+      else raised.boost.add(at);
+    }
+    if (kind === "mystic_armor") raised.mystic = (raised.mystic ?? 0) + level;
     const cost = adeptPowerCost({ pointCost: sys.pointCost, level: points, improvedSkill: sys.improvedSkill, name: item.name }, maxes.reaction ?? 6, ctx);
     costs[item.id ?? item._id] = cost;
     used += cost;
@@ -2223,6 +2266,8 @@ export function adeptPowerBudget({ items = [], maxes = {}, natural = {}, magic =
     if (sk && cappedImprovedAbilityDice(sk.name, sk.system.rating, dice) < dice)
       problems.push(`${dice} Improved Ability dice on ${sk.name} ${sk.system.rating}: a Combat Skill can't have more extra dice than its rating (p.125).`);
   }
+  if ((raised.mystic ?? 0) > magic) problems.push(`Mystic Armor ${raised.mystic} is over the Magic Rating ${magic} (Grimoire p.34): only ${magic} counts.`);
+  if ((raised.perception ?? 0) > 1.5 * (maxes.intelligence ?? 6)) problems.push(`Enhanced Perception +${raised.perception} is over 1.5 × the racial maximum Intelligence (CSH p.104).`);
   if (used > magic) problems.push(`${used} power points used; the Magic Rating gives ${magic} — give up improvements to match (p.126).`);
   return { costs, used, problems };
 }

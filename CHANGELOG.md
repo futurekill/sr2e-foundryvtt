@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+- **The Grimoire's and the Corporate Security Handbook's adept powers** (Grimoire p.34, CSH p.104; Phase A of
+  docs/PLAN-sourcebook-adept-powers.md): priced by the books in the power-point budget (Enhanced Centering 2 per
+  category or 1 per Special Skill; Enhanced Perception by the bonus against racial maximum Intelligence, its three tier
+  items together), with their limits reported. **Mystic Armor** adds Impact armor (at most the Magic Rating).
+  **Enhanced Perception** adds dice to Perception Tests (a "Perception Test" box on Intelligence rolls, the reflex
+  check, the fat-bacteria search, a chase relocation). **Body Control** adds dice to a toxin card's Body test.
+  Attribute Boost and Enhanced Centering ask their choice on the power's sheet; their rolls, Missile Parry and Suspended
+  State are by hand for now (the power card says so).
+
 ### Changed
 - **The synaptic accelerator beside wired or boosted reflexes** (Shadowtech p.28: "cannot be combined"): while any
   wired or boosted reflexes work, the accelerator adds no Initiative dice. The move-by-wire & reflexes panel shows a

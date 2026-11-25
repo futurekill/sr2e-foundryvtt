@@ -4,6 +4,7 @@ const { ItemSheetV2 } = foundry.applications.sheets;
 
 import { BOOKS, NO_BOOK, citationLabel, citationTitle } from "../rules/books.mjs";
 import { SPECIES_CHOICES } from "../rules/shapeshift-rules.mjs";
+import { adeptPowerKey } from "../rules/sr2e-rules.mjs";
 import { SHARED_ACTIONS } from "./sheet-actions.mjs";
 import { isVR2, utilityOptionsOn } from "../vr2-mode.mjs";
 import { UTILITY_OPTION_KINDS, UTILITY_OPTIONS, LIMIT_TARGETS } from "../rules/vr2-options.mjs";
@@ -119,6 +120,13 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.item = item;
     context.system = item.system;
     context.isGM = game.user.isGM;
+    // A sourcebook power's choice (Grimoire p.34): which field the sheet shows.
+    if (item.type === "adept_power") {
+      context.adeptKey = adeptPowerKey(item) ?? "";
+      context.boostChoices = { "": "—", body: "Body", quickness: "Quickness", strength: "Strength" };
+      context.centeringChoices = { "": "—", build_repair: "Build/Repair", combat: "Combat", knowledge: "Knowledge", language: "Language",
+        magical: "Magical", social: "Social", technical: "Technical", vehicle: "Vehicle", special: "A Special Skill" };
+    }
     // Where it's printed (chargen M1b): the badge, and the GM's two fields.
     const cite = item.system.citation ?? {};
     context.citation = { label: citationLabel(cite), title: citationTitle(cite), book: cite.book ?? "", page: cite.page ?? "",

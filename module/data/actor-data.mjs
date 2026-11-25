@@ -27,7 +27,7 @@ import { shifted } from "../rules/vr2-grids.mjs";
 import { effectChanges, changeIsAdd } from "../effects-compat.mjs";
 import { elementalHolderOf } from "../elementals.mjs";
 import { substancesOf, workingImplant, drugsInForce } from "../drugs.mjs";
-import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerBudget, combatSenseDice, icInitiativeDice, icClass, secondhandDead, taskPoolDice, racialProfile } from "../rules/sr2e-rules.mjs";
+import { vr2HackingPool, astralCombatPool, totalWoundPenalty, compensatedWoundPenalty, overstressPenalty, mpcpMaxRating, MPCP_OVERLOAD_TN, personaAttribute, icReactionBase, alertAdjustedRating, astralReaction, skillsoftMemory, skillwireCapacity, wornArmorTotals, heavyArmorPoolPenalty, reactionBase, unarmedDamageCode, derivedItemCost, naturalAttribute, spiritAttributes, languageSkillRatings, karmaPoolCapacity, karmaPoolAvailable, improvedAbilitySkill, cappedImprovedAbilityDice, adeptPowerBudget, adeptPowerKey, combatSenseDice, icInitiativeDice, icClass, secondhandDead, taskPoolDice, racialProfile } from "../rules/sr2e-rules.mjs";
 
 /**
  * VR2.0 ASIST settings shared by a gear cyberdeck, a cranial deck and the actor's
@@ -633,7 +633,7 @@ export class CharacterData extends SR2EDataModel {
       const edgeGain = (a) => [...(this.parent?.items ?? [])].filter(i => i.type === "quality" && i.system.attribute === a).reduce((t, i) => t + (Number(i.system.attributeBonus) || 0), 0);
       const natural = Object.fromEntries(["body", "quickness", "strength"].map(a => [a, (this[a]?.base ?? 0) + (this[a]?.racial ?? 0) + humanFormMod(this, a) + edgeGain(a)]));
       const b = adeptPowerBudget({ items: [...(this.parent?.items ?? [])], maxes: CONFIG.SR2E.racialMaximums[this.race] ? racialProfile(this, CONFIG.SR2E).maxes : CONFIG.SR2E.racialMaximums.human,
-        natural, magic: this.magic.value });
+        natural, magic: this.magic.value, initiateGrade: this.magic.initiateGrade, metamagic: this.magic.metamagic });
       this.adeptPowerPoints.max = this.magic.value;
       this.adeptPowerPoints.value = b.used;
       this.adeptPowerCosts = b.costs;
@@ -1682,6 +1682,31 @@ export class CharacterData extends SR2EDataModel {
    * Calculate total armor from equipped armor items.
    * @private
    */
+  /** Body Control (Grimoire p.34): +1 die per level on Damage Resistance Tests against gases, drugs and poisons. */
+  get bodyControlDice() {
+    if (this.magic?.type !== "physical_adept" || !adeptPowersWork(this)) return 0;
+    return (this.parent?.items ?? []).filter(i => i.type === "adept_power" && adeptPowerKey(i) === "body_control")
+      .reduce((t, i) => t + Math.max(1, Number(i.system.level) || 1), 0);
+  }
+
+  /** Enhanced Perception (CSH p.104): +1 die per level on Perception Tests, every such power summed; a working adept's. */
+  get enhancedPerception() {
+    if (this.magic?.type !== "physical_adept" || !adeptPowersWork(this)) return 0;
+    return (this.parent?.items ?? []).filter(i => i.type === "adept_power" && adeptPowerKey(i) === "enhanced_perception")
+      .reduce((t, i) => t + Math.max(1, Number(i.system.level) || 1), 0);
+  }
+
+  /**
+   * Mystic Armor (Grimoire p.34): Impact armor, cumulative with worn impact armor, at most the CURRENT Magic Rating;
+   * a physical adept's power, in human form. Computed fresh from the items every pass.
+   */
+  get mysticArmor() {
+    if (this.magic?.type !== "physical_adept" || !adeptPowersWork(this)) return 0;
+    const lv = (this.parent?.items ?? []).filter(i => i.type === "adept_power" && adeptPowerKey(i) === "mystic_armor")
+      .reduce((t, i) => t + Math.max(1, Number(i.system.level) || 1), 0);
+    return Math.max(0, Math.min(lv, Number(this.magic.value) || 0));
+  }
+
   _calculateArmor() {
     // Preserve Active Effect contributions (e.g. an Armor spell adding to
     // system.armor.ballistic) — at this point the fields hold source (0) + AEs.
@@ -1713,7 +1738,7 @@ export class CharacterData extends SR2EDataModel {
       }
     }
     this.armor.ballistic = worn.ballistic + aeBallistic + implantBallistic;
-    this.armor.impact = worn.impact + aeImpact + implantImpact;
+    this.armor.impact = worn.impact + aeImpact + implantImpact + this.mysticArmor;
   }
 
   /**
