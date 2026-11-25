@@ -474,8 +474,8 @@ async function onRollInitiative(event, target) {
   return this.document.rollSR2Initiative();
 }
 
-/** Range TN modifiers over the base Short TN of 4 (SR2E p.102). */
-const RANGE_TN_MODS = { short: 0, medium: 2, long: 4, extreme: 6 };
+/** Range TN modifiers over the base Short TN of 4: the one table in config.mjs (SR2E p.88). */
+const rangeTnMod = (r) => CONFIG.SR2E.rangeTnMods?.[r] ?? 0;   // read at roll time: CONFIG.SR2E is set at init
 const RANGE_LABELS   = { short: "Short", medium: "Medium", long: "Long", extreme: "Extreme" };
 
 /**
@@ -1077,7 +1077,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         // Imaging scope shifts the effective bracket left by its rating (p.88)
         const selected = rangeSelect?.value ?? "short";
         const rng  = shiftRangeBracket(selected, accBase.rangeShift);
-        const rMod = RANGE_TN_MODS[rng] ?? 0;
+        const rMod = rangeTnMod(rng);
         const cMod = parseInt(coverSelect?.value) || 0;
         const vMod = parseInt(root.querySelector("#sr2e-visibility")?.value) || 0;
         // Firing while in melee: +2 per opponent engaging the attacker (p.90)

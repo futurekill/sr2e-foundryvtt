@@ -41,9 +41,9 @@ describe("Metatype attribute tables (SR2E p.40)", () => {
   });
 });
 
-describe("Ranged TN modifiers (SR2E p.91)", () => {
-  it("is 0/2/4/6 for short/medium/long/extreme", () => {
-    expect(SR2E.rangeTnMods).toEqual({ short: 0, medium: 2, long: 4, extreme: 6 });
+describe("Ranged TN modifiers (SR2E p.88 Weapon Range Table; p.87 prose)", () => {
+  it("gives base TNs 4/5/6/9 for short/medium/long/extreme", () => {
+    expect(SR2E.rangeTnMods).toEqual({ short: 0, medium: 1, long: 2, extreme: 5 });
   });
 });
 

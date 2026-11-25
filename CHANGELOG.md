@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.163.2 — 2026-11-25
+
+### Fixed
+- **Ranged attacks at medium, long and extreme range were too hard.** The Weapon Range Table gives base target numbers
+  4 / 5 / 6 / 9 (SR2E p.88; p.87 says so in words); the system used 4 / 6 / 8 / 10 — +1 too high at medium, +2 at long,
+  +1 at extreme — since its first release. Short range was right. The sheet's attack dialog preview reads the same
+  corrected table.
+
 ## 0.163.1 — 2026-11-25
 
 ### Fixed

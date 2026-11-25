@@ -92,8 +92,10 @@ SR2E.conditionLevels = {
 // Damage staging: L -> M -> S -> D -> Overflow/Dead
 SR2E.damageStages = ["L", "M", "S", "D"];
 
-// Ranged-attack target-number modifiers by range bracket (SR2E p.91).
-SR2E.rangeTnMods = { short: 0, medium: 2, long: 4, extreme: 6 };
+// Ranged-attack target numbers by range bracket, as modifiers over Short's 4: the Weapon Range Table's base TNs are
+// 4 / 5 / 6 / 9 (SR2E p.88; p.87: "medium range … a 5, long range against a 6, and extreme range against a 9").
+// Rendered and fixed 2026-11-25: it was 0/2/4/6 (4/6/8/10) since the first release.
+SR2E.rangeTnMods = { short: 0, medium: 1, long: 2, extreme: 5 };
 
 // Each condition level = 3 boxes by default (10 boxes total for standard monitor)
 SR2E.conditionBoxesPerLevel = 3;
