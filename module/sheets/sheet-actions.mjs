@@ -1308,12 +1308,10 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
         }</select>
       </div>` : ""}
       <div class="sr2e-attack__field">
-        <label>Cover:</label>
+        <label title="Ranged Combat Modifiers Table (SR2E p.89): the book has ONE cover level — Partial Cover +4 (brush, foliage, crates, windows, doorways…). Smoke and darkness are Visibility, not cover.">Cover:</label>
         <select id="sr2e-cover" name="cover">
           <option value="0">None</option>
-          <option value="2">Partial (+2)</option>
-          <option value="4">Good (+4)</option>
-          <option value="6">Near-Total (+6)</option>
+          <option value="4">Partial cover (+4)</option>
         </select>
       </div>
       <div class="sr2e-attack__field">

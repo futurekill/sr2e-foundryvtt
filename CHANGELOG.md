@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.164.1 — 2026-11-25
+
+### Fixed
+- **Cover in the ranged attack dialog** (SR2E p.89, rendered): the book has one cover level, **Partial Cover +4**. The
+  dialog offered Partial +2, Good +4 and Near-Total +6 — the usual pick was 2 too low, and the other two aren't in the
+  book. It now offers None or Partial cover (+4). (An audit of the p.89 and p.101 tables against the page: visibility,
+  movement, multiple targets, melee, smartlink/goggles/laser values all match.)
+
 ## 0.164.0 — 2026-11-25
 
 ### Changed
