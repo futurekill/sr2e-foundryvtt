@@ -1,4 +1,4 @@
-// The sourcebook adept powers (docs/PLAN-sourcebook-adept-powers.md): Grimoire p.34, CSH p.104.
+// The sourcebook adept powers (docs/archive/plans/PLAN-sourcebook-adept-powers.md): Grimoire p.34, CSH p.104.
 import { describe, it, expect } from "vitest";
 import { adeptPowerBudget, adeptPowerKey, adeptCostNeedsActor } from "../module/rules/sr2e-rules.mjs";
 

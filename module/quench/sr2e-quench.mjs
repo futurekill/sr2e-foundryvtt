@@ -1908,7 +1908,7 @@ function stubWorldSettings(keys) {
     // combatant scope, and method exemption are all exercised end-to-end without
     // faking a canvas drag. The pure walk/run math lives in test/movement.test.mjs.
     // Reflex Recorder (Shadowtech p.27): +1 die on the learned skill, never on a chip, never from a broken implant.
-    // The sourcebook adept powers, Phase A (docs/PLAN-sourcebook-adept-powers.md; Grimoire p.34, CSH p.104).
+    // The sourcebook adept powers, Phase A (docs/archive/plans/PLAN-sourcebook-adept-powers.md; Grimoire p.34, CSH p.104).
     quench.registerBatch("sr2e.sourcebook-adept-powers", (context) => {
       const { describe, it, assert, after } = context;
       const made = [];
@@ -1950,6 +1950,68 @@ function stubWorldSettings(keys) {
             assert.equal(got, a.system.body.value + 2, "Body + Body Control 2");
           } finally { a.rollSuccessTest = orig; }
           assert.isTrue(a.system.adeptPowerProblems.length === 0 || !a.system.adeptPowerProblems.some(p => /Perception/.test(p)));
+        });
+      });
+      // Phase B (docs/PLAN-adept-powers-phase-b.md).
+      describe("Phase B: Centering on skill tests, Attribute Boost", () => {
+        const calls = []; let queue = [];
+        const stub = (a) => { const orig = a.rollSuccessTest; a.rollSuccessTest = async (d, tn, o = {}) => { calls.push({ d, tn, o }); return { successes: queue.shift() ?? 0 }; }; return () => { a.rollSuccessTest = orig; }; };
+        it("an initiated adept centers a Physical Skill test when declared; Combat needs Enhanced Centering (Grimoire p.44)", async () => {
+          const a = await Actor.create({ name: "Quench Centering", type: "character", system: { magic: { type: "physical_adept", value: 4, initiateGrade: 1,
+            metamagic: ["centering"], centeringSkill: "Meditation" }, conditionMonitor: { physical: { value: 3 } } } }); made.push(a);
+          await a.createEmbeddedDocuments("Item", [
+            { name: "Meditation", type: "skill", system: { category: "special", rating: 4 } },
+            { name: "Athletics", type: "skill", system: { category: "active", rating: 3 } },
+            { name: "Firearms", type: "skill", system: { category: "active", rating: 3 } }]);
+          twice(a);
+          const pen = a.system.woundPenalty; assert.isAbove(pen, 0, "a wound penalty to reduce");
+          const id = (n) => a.items.find(i => i.type === "skill" && i.name === n).id;
+          const restore = stub(a);
+          try {
+            calls.length = 0; queue = [4, 2];
+            await a.rollSkillTest(id("Athletics"), 4, { center: true });
+            assert.equal(calls.length, 2, "the Centering Test, then the skill test");
+            assert.equal(calls[0].o.tnPolicy, "equipment", "no modifier counted twice");
+            assert.equal(calls[0].tn, Math.max(2, 4 + pen - 1), "the test's TN with its penalties, less the grade");
+            assert.equal(calls[1].o.centeringReduction, Math.min(2, pen));
+            calls.length = 0; queue = [4, 2];
+            await a.rollSkillTest(id("Athletics"), 4, {});
+            assert.equal(calls.length, 1, "not declared: no Centering");
+            calls.length = 0; queue = [4, 2];
+            await a.rollSkillTest(id("Firearms"), 4, { center: true });
+            assert.equal(calls.length, 1, "Combat isn't covered without Enhanced Centering");
+            await a.createEmbeddedDocuments("Item", [power("Enhanced Centering", "enhanced_centering", 1, { centeringCategory: "combat" })]);
+            calls.length = 0; queue = [4, 2];
+            await a.rollSkillTest(id("Firearms"), 4, { center: true });
+            assert.equal(calls.length, 2, "with Enhanced Centering (Combat)");
+          } finally { restore(); }
+        });
+        it("Attribute Boost: one per attribute, +level while it runs; ending once posts a Drain resolved once (Grimoire p.34)", async () => {
+          const { activateBoost, endBoost, resistBoostDrain } = await import("../adept-powers.mjs");
+          const a = await Actor.create({ name: "Quench Boost", type: "character", system: { magic: { type: "physical_adept", value: 5 }, body: { base: 4 } } }); made.push(a);
+          const [p] = await a.createEmbeddedDocuments("Item", [power("Attribute Boost", "attribute_boost", 2, { boostAttribute: "body" })]);
+          const before = twice(a).system.body.value;
+          const restore = stub(a);
+          try {
+            queue = [3];
+            await activateBoost({ flags: { sr2e: { powerCard: { actorUuid: a.uuid, itemId: p.id } } } });
+            const eff = a.effects.find(e => e.flags?.sr2e?.attributeBoost);
+            assert.ok(eff, "the boost effect");
+            assert.equal(twice(a).system.body.value, before + 2);
+            queue = [3];
+            await activateBoost({ flags: { sr2e: { powerCard: { actorUuid: a.uuid, itemId: p.id } } } });
+            assert.equal(a.effects.filter(e => e.flags?.sr2e?.attributeBoost).length, 1, "no second boost on Body");
+            const boostId = eff.flags.sr2e.attributeBoost.boostId;
+            await endBoost(a, eff.id); await endBoost(a, eff.id);
+            assert.equal(twice(a).system.body.value, before, "ended");
+            assert.equal(a.getFlag("sr2e", "boostDrain")?.[boostId]?.state, "pending");
+            const stunBefore = a.system.conditionMonitor.stun.value;
+            const msg = { flags: { sr2e: { boostDrainCard: { actorUuid: a.uuid, boostId } } } };
+            queue = [0]; await resistBoostDrain(msg);
+            queue = [0]; await resistBoostDrain(msg);
+            assert.equal(a.getFlag("sr2e", "boostDrain")[boostId].state, "done");
+            assert.isAbove(a.system.conditionMonitor.stun.value, stunBefore, "Stun taken once");
+          } finally { restore(); }
         });
       });
     });

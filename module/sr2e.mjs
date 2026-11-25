@@ -30,6 +30,7 @@ import { registerNatureSpiritSettings, registerNatureSpiritHooks, natureSpiritsD
 import { wireRitualButtons, startRitual } from "./ritual.mjs";
 import { registerSpiritServiceHooks } from "./spirit-services.mjs";
 import { registerDrugHooks, wireDrugButtons, workingImplant } from "./drugs.mjs";
+import { wireAdeptPowerButtons, registerAdeptPowerHooks } from "./adept-powers.mjs";
 import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
 import { registerHealingClockSettings, registerHealingClockHooks } from "./healing-clock.mjs";
 import { registerPermanentDamage } from "./permanent-damage.mjs";
@@ -565,6 +566,7 @@ Hooks.once("init", async () => {
   registerCyberDamageHooks();   // cyberware damage, repair, scarring (pp.44–49, 56; optional)
   registerCybermancyHooks();    // cybermancy (Cybertechnology pp.78–84; optional)
   registerDrugHooks();
+  registerAdeptPowerHooks();
   registerCalendariaHooks();
   registerHealingClockHooks();     // healing on the game clock (docs/archive/plans/PLAN-healing-clock.md)
   registerPermanentDamage();       // Deadly wounds' permanent damage (core p.113–114)
@@ -2830,6 +2832,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
   wireSpellEffectButtons(message, html);
   wireRitualButtons(message, html);
   wireDrugButtons(message, html);
+  wireAdeptPowerButtons(message, html);
   wireNetButtons(message, html);
   wireVR2Buttons(message, html);
   wireCombatSpellButtons(message, html);

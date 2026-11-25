@@ -12,6 +12,7 @@ import { attackSound, spellSound } from "../rules/combat-sound-rules.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
 import { adeptPowerKey, burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating, cyclopsRangedTN} from "../rules/sr2e-rules.mjs";
+import { powerCardButtons } from "../adept-powers.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
 import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
@@ -425,11 +426,13 @@ export class SR2EItem extends Item {
   async _displayPowerCard() {
     const actor = this.parent;
     const s = this.system;
-    // The sourcebook powers (docs/PLAN-sourcebook-adept-powers.md): say what the system does with each.
+    // The sourcebook powers (docs/archive/plans/PLAN-sourcebook-adept-powers.md): say what the system does with each.
     const key = adeptPowerKey(this) ?? "";
     const BY_HAND = ["attribute_boost", "missile_parry", "extended_missile_parry", "suspended_state", "enhanced_centering"];
     const invoke = /killing hands/i.test(this.name)
       ? `<br><em>Invoke via the "Killing Hands" checkbox on an Unarmed Strike attack.</em>`
+      : key === "attribute_boost" || key === "suspended_state" ? "<br>"
+      : key === "enhanced_centering" ? `<br><em>Tick "Center first" in a covered skill's roll dialog (Grimoire p.44).</em>`
       : BY_HAND.includes(key) ? `<br><em>Not automated yet: roll it by hand (Grimoire p.34; CSH p.104).</em>`
       : key === "enhanced_perception" ? `<br><em>Added to Perception Tests (tick "Perception Test" on an Intelligence roll).</em>`
       : key === "body_control" ? `<br><em>Added to the Body test against a toxin or drug card.</em>`
@@ -438,8 +441,9 @@ export class SR2EItem extends Item {
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `<div class="sr2e-power-card">
         <strong>✋ ${foundry.utils.escapeHTML(this.name)}</strong> (Level ${s.level}, ${s.powerCostLabel})
-        ${s.description || ""}${invoke}
-      </div>`
+        ${s.description || ""}${invoke}${actor ? powerCardButtons(key) : ""}
+      </div>`,
+      flags: actor ? { sr2e: { powerCard: { actorUuid: actor.uuid, itemId: this.id } } } : {}
     });
   }
 

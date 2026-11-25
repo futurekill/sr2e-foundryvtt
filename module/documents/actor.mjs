@@ -24,6 +24,8 @@ const SPELL_RESIST_IN_FLIGHT = new Set();
 
 /** A skill name as its CONFIG key ("Build/Repair (Car)" → "build_repair_car"). */
 const skillKeyOf = (name) => String(name ?? "").toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+import { adeptCentering, centerAgainstPenalties } from "../adept-powers.mjs";
+import { SKILL_GROUPS } from "../rules/adept-phase-b-rules.mjs";
 /** What a skill test is, for drug TN penalties (drugTnFor). */
 export const skillTnContext = (key, category = "active") =>
   ({ kind: "skill", key, skillCategory: category, magic: !!CONFIG.SR2E.activeSkills?.[key]?.magical });
@@ -480,8 +482,9 @@ export class SR2EActor extends Actor {
     const riggerTN = riggerParts.reduce((t, [, n]) => t + n, 0);
     // Centering vs. Penalties (Grimoire p.44): an initiate can buy down the
     // negative TN modifiers, but never below the base target number.
+    // `extraReducible`: a penalty the caller already folded into the TN (defaulting, Grimoire p.44 via the adept path).
     const centeringReduction = inAnimalForm(this.type, this.system) ? 0 : Math.min(options.centeringReduction ?? 0,
-      woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN + ewTN);
+      Math.max(0, options.extraReducible ?? 0) + woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN + ewTN);
     const total = woundPenalty + sustainPenalty + dumpShock + mpcpOverload + extraTN + drugTN + addictionTN
       + coordinationTN + socialTN + cdsTN + phobiaTN + riggerTN + ewTN - centeringReduction;
     return { woundPenalty, sustainPenalty, dumpShock, mpcpOverload, extraTN, drugTN, addictionTN, addictionPenalty,
@@ -1450,10 +1453,11 @@ export class SR2EActor extends Actor {
 
     // Untrained → default. Reuse the web path via a synthetic skill snapshot.
     const web = this._webDefault({ name: skillName, id: null, system: { rating: 0 } });
-    let dicePool, label;
+    let dicePool, label, defaultPenalty;
     if (web) {
       dicePool = web.dice;
       targetNumber += web.penalty;
+      defaultPenalty = web.penalty;
       label = RL("TestNote", { name: skillName, note: web.label });
     } else {
       // Flat fallback (skill not on the web): guess the attribute from the
@@ -1466,13 +1470,36 @@ export class SR2EActor extends Actor {
         : (this.system[attrKey]?.value ?? 1);
       dicePool = Math.max(1, attrValue);
       targetNumber += CONFIG.SR2E.defaultingPenalty;
+      defaultPenalty = CONFIG.SR2E.defaultingPenalty;
       label = RL("DefaultAttr", { name: skillName, attr: attrName(attrKey), penalty: CONFIG.SR2E.defaultingPenalty });
     }
     const key = skillKeyOf(skillName);
     // A recorder that learned this skill still gives its die to the defaulted test (Shadowtech p.27; the ruling).
     const recDie = this._recorderDice(this._skillByName(skillName));
     if (recDie) { dicePool += recDie; label += " +1 reflex recorder"; }
-    return this.rollSuccessTest(dicePool, targetNumber, { tnContext: skillTnContext(key, CONFIG.SR2E.activeSkills?.[key] ? "active" : "knowledge"), ...options, label });
+    const tnContext = skillTnContext(key, CONFIG.SR2E.activeSkills?.[key] ? "active" : "knowledge");
+    // The untrained skill's group for Centering (code review r1): Build/Repair by its "(B/R)", an Active Skill by its key.
+    const centerCat = /\(b\/r\)/i.test(skillName) ? "build_repair" : (CONFIG.SR2E.activeSkills?.[key] || SKILL_GROUPS[key]) ? "active" : "knowledge";
+    const center = options.center ? await this._adeptCenter({ key, category: centerCat, name: skillName },
+      { targetNumber, defaultPenalty, tnContext, extraTN: options.extraTN, socialTN: options.socialTN }) : null;
+    if (center?.note) label += center.note;
+    return this.rollSuccessTest(dicePool, targetNumber, { tnContext, ...options, label,
+      ...(center ? { centeringReduction: center.reduction, extraReducible: defaultPenalty } : {}) });
+  }
+
+  /**
+   * An adept's declared Centering against a skill test's penalties (Grimoire p.44; docs/PLAN-adept-powers-phase-b.md):
+   * the reducible penalties are the final test's own modifiers plus a defaulting penalty already in the TN.
+   * Returns null when it doesn't apply, else { reduction, note }.
+   */
+  async _adeptCenter(test, { targetNumber, defaultPenalty = 0, tnContext, extraTN, socialTN }) {
+    const c = adeptCentering(this, test);
+    if (!c) return null;
+    const mods = this.testTnModifiers({ tnContext, extraTN, socialTN });
+    const reducible = mods.total + defaultPenalty;
+    if (reducible <= 0) return null;
+    const { reduction, leftover } = await centerAgainstPenalties(this, c, { tnWithPenalties: targetNumber + mods.total, reducible, skillName: test.name });
+    return { reduction, note: ` (centered −${reduction}${leftover > 0 ? `; −${leftover} more against the GM's situational modifiers` : ""})` };
   }
 
   async rollSkillTest(skillId, targetNumber = 4, options = {}) {
@@ -1505,6 +1532,7 @@ export class SR2EActor extends Actor {
     let dicePool = skillRollRating(skill.system) + bonus;
     let label = RL("Test", { name: skill.name }) + tag;
     let tier = "base";   // the tier actually rolled, for a Concentration-size reflex recorder
+    let defaultPenalty = 0;   // folded into the TN when defaulting: a penalty Centering may reduce (Grimoire p.44)
 
     // Concentration/Specialization variant (SR2E p.70): roll that rating
     // instead of the general skill's.
@@ -1536,6 +1564,7 @@ export class SR2EActor extends Actor {
       if (web) {
         dicePool = web.dice;
         targetNumber += web.penalty;
+        defaultPenalty = web.penalty;
         label = RL("TestNote", { name: skill.name, note: web.label });
       } else {
         const attrKey = skill.system.linkedAttribute || "quickness";
@@ -1544,6 +1573,7 @@ export class SR2EActor extends Actor {
           : (this.system[attrKey]?.value ?? 1);
         dicePool = Math.max(1, attrValue);
         targetNumber += CONFIG.SR2E.defaultingPenalty;
+        defaultPenalty = CONFIG.SR2E.defaultingPenalty;
         label = RL("DefaultAttr", { name: skill.name, attr: attrName(attrKey), penalty: CONFIG.SR2E.defaultingPenalty });
       }
     }
@@ -1558,9 +1588,14 @@ export class SR2EActor extends Actor {
       ? this.system.mbw.level : 0;
     if (mbwDice) { dicePool += mbwDice; label += ` +${mbwDice} move-by-wire`; }
 
+    const tnContext = options.tnContext ?? skillTnContext(skey, skill.system.category);
+    const center = options.center ? await this._adeptCenter({ key: skey, category: skill.system.category, name: skill.name },
+      { targetNumber, defaultPenalty, tnContext, extraTN: options.extraTN, socialTN: options.socialTN }) : null;
+    if (center?.note) label += center.note;
     return this.rollSuccessTest(dicePool, targetNumber, {
       label,
-      tnContext: options.tnContext ?? skillTnContext(skey, skill.system.category),
+      tnContext,
+      ...(center ? { centeringReduction: center.reduction, extraReducible: defaultPenalty } : {}),
       poolDice: options.poolDice,
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel,
       // A caller's situational TN (e.g. +4 assensing inside fat bacteria, CSH p.103).
@@ -1600,10 +1635,16 @@ export class SR2EActor extends Actor {
     // Skillwire-driven skills cannot use dice POOLS (Combat Pool, etc.; core
     // p.243) — the wires override the character's own reflexes. So pool dice are
     // NOT forwarded here, even if the roll dialog offered them.
+    // A chipped TESTED skill may still be centered (only the Centering skill must be learned, Grimoire p.44).
+    const chipName = soft.system.grantedSkill || soft.name, chipCat = chip?.system.category ?? soft.system.grantedSkillCategory ?? "active";
+    const tnContext = skillTnContext(skillKeyOf(chipName), chipCat);
+    const center = options.center ? await this._adeptCenter({ key: skillKeyOf(chipName), category: chipCat, name: chipName },
+      { targetNumber, tnContext }) : null;
     return this.rollSuccessTest(Math.max(1, dicePool), targetNumber, {
-      label: RL("Chipped", { name: family ? (chip.system.languageFamily || RL("LanguageFamily")) : (soft.system.grantedSkill || soft.name),
-        bonus: artBonus ? RL("ArticulationTag", { n: artBonus }) : "" }),
-      tnContext: skillTnContext(skillKeyOf(soft.system.grantedSkill || soft.name), chip?.system.category ?? soft.system.grantedSkillCategory ?? "active"),
+      label: RL("Chipped", { name: family ? (chip.system.languageFamily || RL("LanguageFamily")) : chipName,
+        bonus: artBonus ? RL("ArticulationTag", { n: artBonus }) : "" }) + (center?.note ?? ""),
+      tnContext,
+      ...(center ? { centeringReduction: center.reduction } : {}),
       karmaDice: options.karmaDice, miscDice: options.miscDice, miscLabel: options.miscLabel
     });
   }

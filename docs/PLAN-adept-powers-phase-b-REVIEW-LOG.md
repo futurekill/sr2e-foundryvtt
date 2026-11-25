@@ -1,0 +1,66 @@
+# Plan Review Log: adept powers Phase B
+
+## Round 1 — Codex (gpt-6-sol, high; 1.49M in / 10.0k out)
+- [B-1](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:31>) can count CDS twice: `penalty` includes it, but [`tnPolicy: "table"`](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:429>) still adds it to the Centering roll; **fix:** make that roll use exactly the already modified Centering TN.
+- [B-1’s automatic roll](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:34>) grants Centering without declaring or spending its required Free Action in the same phase; **fix:** require an explicit declaration and enforce the phase action cost.
+- [B-1’s modifier preview](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:30>) passes only `tnContext`, missing `extraTN` and `socialTN` that the final [`rollSkillTest`](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:1561>) can apply; **fix:** calculate Centering from the final test’s complete options.
+- [B-1’s reduction](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:32>) cannot remove defaulting penalties or weapon recoil, visibility, and similar penalties already folded into `targetNumber`, because [`testTnModifiers`](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:483>) caps reduction to its own modifiers; **fix:** track the reducible TN penalties separately from the base TN and apply the reduction across both sources.
+- [B-1’s three hooks](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:27>) miss skill tests that call `rollSuccessTest` directly, including [chipped skills](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:1577>), [vehicle tests](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:2258>), First Aid, Computer, and [area Gunnery](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/vehicle-indirect.mjs:225>); **fix:** route every eligible skill test through a shared Centering step.
+- [Magical category coverage](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:25>) has no way to enforce the quoted “mundane effects only” limit; **fix:** require an explicit mundane-use context before granting Magical Skill Centering.
+- [B-3’s ware check](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:41>) cannot reliably identify ware from [`mods.sources`](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/actor-data.mjs:1121>), which is transient and contains name/value entries for ware and adept powers alike; **fix:** inspect typed, active ware items and applied spell effects by origin and change key, while allowing Improved Physical Attributes.
+- [B-3’s “already running” check](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:42>) is a client-side race: two owners can both pass it and create additive effects; **fix:** arbitrate creation on the server with a deterministic actor-and-attribute effect identity.
+- [B-3’s duration](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:44>) conflates V13 `turns` with Combat Turns and supplies no out-of-combat expiry hook; V13 [distinguishes rounds, turns, and seconds](https://foundryvtt.com/api/v13/interfaces/foundry.documents.types.EffectDurationData.html), and duration does not itself delete the effect here; **fix:** use rounds with combat start metadata or seconds outside combat, then explicitly end expired effects on both clocks.
+- [B-3’s round-only hook](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:46>) can end a boost at the next round boundary before a full turn has elapsed since a mid-round activation; **fix:** compare the effect’s prepared remaining duration at combat turn changes against its recorded start phase.
+- [B-3’s ending sequence](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:46>) claims only the hook and deletes the effect before the Drain obligation is durable; `commitDamage`’s [receipt](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/drugs.mjs:65>) alone does not deduplicate commits across clients; **fix:** use one claim for manual and automatic ending, persist pending Drain before deletion, and commit with a stored receipt plus `skipIf`.
+- [B-4](</Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:53>) fixes a meditative skill on the power although the rule permits any available meditative Special Skill, and zero successes would yield factor zero; **fix:** choose an eligible owned skill at activation and report no suspended effect on zero successes.
+
+VERDICT: REVISE
+### Response
+All 12 addressed in Draft 2; B-1 narrowed to the sheet's skill rolls with an explicit declaration box (other paths: a ruling).
+
+## Round 2 — Codex (gpt-6-sol, high; 326k in / 4.7k out)
+- [Draft 2, line 69](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:69): The sheet’s named-skill picker uses its own dialog, so adding a box to `promptRollOptions` will miss that path. **Fix:** Add the declaration box to `onDefaultSkill` and pass its choice to `rollNamedSkill`.
+- [Draft 2, line 79](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:79): `rollSkillTest` and `rollChippedSkill` currently drop `centeringReduction`; `rollSkillTest` also drops `tnPolicy`, which would double count modifiers if used for the Centering Test. **Fix:** Forward the reduction through both final-roll paths and call `rollSuccessTest` directly with `tnPolicy: "equipment"` for the Centering Test.
+- [Draft 2, line 81](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:81): Defaulting adds its penalty to `targetNumber`, while `testTnModifiers` caps reduction against its own modifiers; the proposed reduction therefore cannot remove that penalty. **Fix:** Include defaulting in the final roll’s reducible-modifier calculation.
+- [Draft 2, line 91](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:91): Reusing the attribute’s deterministic effect ID also reuses the end claim and Drain record ID; a later boost can be blocked by the earlier claim, and an old Drain card can affect the new record. **Fix:** Give each activation a unique ID for its end claim and Drain record while retaining the fixed effect ID for active-boost exclusion.
+- [Draft 2, line 94](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:94): The specified V13 round-duration fields are valid, but the object omits the encounter’s `combat` ID, leaving the duration and `endsAt` ambiguous when combats change. **Fix:** Store the combat ID in both the [V13 duration](https://foundryvtt.com/api/v13/interfaces/foundry.documents.types.EffectDurationData.html) and `endsAt`, and match it in the hook.
+- [Draft 2, line 99](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:99): An actor update cannot delete an embedded effect, and a failure after `once()` leaves the end claim spent before the Drain card exists. **Fix:** Use separate update and effect-delete calls, with a retryable reconciliation step for the pending Drain record and card.
+- [Draft 2, line 101](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-adept-powers-phase-b.md:101): `commitDamage` runs `skipIf` inside its queue; a captured `state` can remain `"pending"` after another roll commits. **Fix:** Have `skipIf` read the actor’s current, activation-specific Drain state on each queued attempt.
+
+VERDICT: REVISE
+### Response
+All 7 folded without round 3.
+
+## Code review round 1 — Codex (gpt-6-sol, high; 1.47M in / 11.7k out)
+## Findings
+
+- **P1 — [module/adept-powers.mjs:167](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:167):** An old End button targets the fixed effect ID. After Body Boost ends and is activated again, clicking the first card ends the *new* boost. **Fix:** Store `boostId` on the card and require it to match the current effect before ending.
+
+- **P1 — [module/adept-powers.mjs:109](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:109):** The end claim is spent before the pending Drain write. If that update fails or is cancelled, the effect remains, later end attempts lose the claim, and ready reconciliation sees no pending record. **Fix:** Verify the write and reconcile claim-only end attempts.
+
+- **P1 — [module/adept-powers.mjs:111](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:111):** A failed or cancelled effect deletion is ignored; the code posts Drain while the boost still applies, and the spent claim prevents another end attempt. **Fix:** Confirm the effect is absent before posting Drain and retry deletion during reconciliation.
+
+- **P1 — [module/adept-powers.mjs:136](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:136):** `commitDamage` queues only within one client. Two owners can both read `pending`, roll different Drain results, pass their local `skipIf`, and send competing monitor updates and result cards. **Fix:** Arbitrate the Drain commit across clients by `boostId` and report only the winning commit.
+
+- **P2 — [module/documents/actor.mjs:1479](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/documents/actor.mjs:1479):** An untrained named skill absent from `activeSkills` is classified as Knowledge. “Hovercraft” is in the Skill Web but gets Knowledge coverage instead of Enhanced Centering (Vehicle); “Firearms (B/R)” similarly misses Build/Repair coverage. **Fix:** Derive the selected skill’s category from Skill Web metadata before checking coverage.
+
+- **P2 — [module/adept-powers.mjs:94](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:94):** Activation posts a success card without checking that creation returned the fixed-ID effect. A `preCreateActiveEffect` cancellation can return no created document without an exception, leaving a card for a boost that never started. [Foundry’s V13 creation API permits excluding a document before creation.](https://foundryvtt.com/api/v13/classes/foundry.documents.BaseScene.html) **Fix:** Check the returned document ID and its `boostId` before posting the card.
+
+- **P2 — [module/adept-powers.mjs:74](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:74):** The button handlers do not recheck that the actor is an active physical adept with the matching power. A previously posted card can activate Boost or Suspended State after the actor changes magic type or enters animal form. **Fix:** Validate the actor, power key, and `adeptPowersWork` when each button is clicked.
+
+- **P2 — [module/adept-powers.mjs:188](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:188):** Ready reconciliation scans world actors only. A character represented by an unlinked token can retain pending Drain after a crash before card creation, with no card restored on reload. **Fix:** Include synthetic token actors in the pending-Drain scan.
+
+The fixed effect ID with `keepId` is appropriate for active-boost exclusion. I found no direct `adept-powers → drugs → actor` import cycle or static owner-permission blocker. This was a read-only review; I did not run Foundry interaction tests.
+
+VERDICT: REVISE
+### Response
+All 8 fixed: endBoost is repeatable (no claim before the record), the card carries boostId, the Drain is claimed before the roll, untrained skill categories, the created effect checked, every click rechecks the power, the reconcile covers unlinked tokens.
+
+## Code review round 2 — fix-only (gpt-6-sol, medium; 260k in / 2.8k out)
+- **End recovery can still lose the Drain card** ([adept-powers.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/adept-powers.mjs:121)). If `ChatMessage.create` fails after the effect is deleted, `postDrainCard` has already spent `once("boost-card:<id>")`. A second `endBoost` call returns because the effect is gone, and the ready reconcile cannot post the card because the claim is spent. The pending Drain record survives, but the promised repeatable sequence cannot finish. The card needs a recoverable posting step.
+
+The other specified fixes have no concrete failing case from this review. I did not re-raise the settled claim-before-roll behavior.
+
+VERDICT: REVISE
+### Response
+Fixed: the ready reconcile re-posts a missing Drain card without the claim (it checks the chat log first). Folded without round 3.

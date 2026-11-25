@@ -39,6 +39,8 @@ import { vehicleOperationMod, movingTargetMod } from "../rules/vehicle-play-rule
 import { manualExtras, defaultGunneryMode, TARGET_SIZE_MODS, vehicleRecoil } from "../rules/vehicle-gunnery-rules.mjs";
 import { isRigger2 } from "../vehicle-mode.mjs";
 import { boundElementals, elementalHolderOf, elementalTransition, releaseElemental, spellBlockedByElemental, reservedDiceFor, CLEAR_DEFENSE_AID, mutateBindings } from "../elementals.mjs";
+import { adeptCentering } from "../adept-powers.mjs";
+const skillKeyOf = (name) => String(name ?? "").toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 
 // ===========================================================================
 // SR2E SHARED SHEET ACTIONS
@@ -178,7 +180,7 @@ function readKarmaDice(form, actor, baseDice) {
  * @param {boolean} [opts.showPools=true]    - Whether dice pools may be used on this test.
  * @returns {Promise<{tn: number, poolDice: object, karmaDice: number}|null>}
  */
-async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, showPools = true, attribute = null, pools = [] } = {}) {
+async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, showPools = true, attribute = null, pools = [], centering = false } = {}) {
   // Cyberware social penalty (Cybertechnology p.58, optional): a pre-ticked box on
   // Charisma and Charisma-linked rolls when the world setting is on.
   let cyberSocial = false;
@@ -197,6 +199,12 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
     </div>` : "";
   // Enhanced Perception (CSH p.104): its dice only on a Perception Test, which the player marks.
   const perceptionDice = attribute === "intelligence" ? (actor?.system?.enhancedPerception ?? 0) : 0;
+  // An initiated adept's Centering against this test's penalties (Grimoire p.44): declared, a Free Action.
+  const centeringHTML = centering ? `
+    <div class="form-group">
+      <label title="Roll your Centering skill first; every 2 successes take 1 off this test's penalties (Grimoire p.44). A Free Action.">Center first (Free Action)</label>
+      <input type="checkbox" name="center">
+    </div>` : "";
   const perceptionHTML = perceptionDice > 0 ? `
     <div class="form-group">
       <label title="Enhanced Perception adds its dice to Perception Tests only (Corporate Security Handbook p.104).">Perception Test (+${perceptionDice} Enhanced Perception)</label>
@@ -264,6 +272,7 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
         </div>
         ${socialHTML}
         ${perceptionHTML}
+        ${centeringHTML}
         ${poolHTML}
         ${karmaHTML}
         ${miscDiceHTML()}
@@ -288,7 +297,8 @@ async function promptRollOptions(actor, { skillCap = Infinity, baseDice = 0, sho
           rollResult = { tn: isNaN(tn) ? 4 : tn, poolDice, karmaDice, ...readMiscDice(button.form),
             socialTN: cymTN > 0 ? (button.form.elements.cymIntimidate?.checked ? 0 : cymTN)
               : socialTN > 0 && button.form.elements.socialTN?.checked ? socialTN : 0,
-            perception: perceptionDice > 0 && !!button.form.elements.perception?.checked };
+            perception: perceptionDice > 0 && !!button.form.elements.perception?.checked,
+            center: centering && !!button.form.elements.center?.checked };
         }
       },
       {
@@ -342,12 +352,14 @@ async function onRollSkill(event, target) {
     const chipVariant = target?.dataset?.variant
       ?? event.target?.closest?.("[data-variant]")?.dataset?.variant ?? "";
     const family = chipVariant === "family" && chip?.system.familyRating > 0;
+    const chipName = chip?.name ?? "";
     const opts = await promptRollOptions(actor, {
       showPools: false,
-      baseDice: (family ? chip.system.familyRating : skillRollRating(chip?.system)) || 1
+      baseDice: (family ? chip.system.familyRating : skillRollRating(chip?.system)) || 1,
+      centering: !!adeptCentering(actor, { key: skillKeyOf(chipName), category: chip?.system?.category, name: chipName })
     });
     if (!opts) return;
-    return actor.rollChippedSkill(softId, opts.tn, { variant: family ? "family" : "", poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel });
+    return actor.rollChippedSkill(softId, opts.tn, { variant: family ? "family" : "", poolDice: opts.poolDice, karmaDice: opts.karmaDice, miscDice: opts.miscDice, miscLabel: opts.miscLabel, center: opts.center });
   }
   const skillId = target.closest("[data-item-id]")?.dataset.itemId;
   if (!skillId) return;
@@ -377,12 +389,13 @@ async function onRollSkill(event, target) {
   // Task Pool dice on Technical, Knowledge and Build/Repair skill tests, at most the skill's rating (R2 p.16; 5a.0).
   const taskOk = (actor.system.dicePools?.task?.max ?? 0) > 0
     && taskPoolApplies({ category: skillItem?.system?.category, key: String(skillItem?.name ?? "").toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "") });
-  const opts = await promptRollOptions(actor, { showPools: false, baseDice, attribute: skillItem?.system?.linkedAttribute,
+  const centering = !!adeptCentering(actor, { key: skillKeyOf(skillItem?.name), category: skillItem?.system?.category, name: skillItem?.name });
+  const opts = await promptRollOptions(actor, { showPools: false, baseDice, attribute: skillItem?.system?.linkedAttribute, centering,
     ...(taskOk ? { pools: ["task"], skillCap: Math.max(0, effectiveSkillRating(skillItem?.system, variant) || 0) } : {}) });
   if (!opts) return;
   return actor.rollSkillTest(skillId, opts.tn, {
     poolDice: opts.poolDice, karmaDice: opts.karmaDice, variant, miscDice: opts.miscDice, miscLabel: opts.miscLabel,
-    socialTN: opts.socialTN
+    socialTN: opts.socialTN, center: opts.center
   });
 }
 
@@ -409,6 +422,9 @@ function allSkillNames() {
 async function onDefaultSkill(event, target) {
   event.preventDefault();
   const actor = this.document;
+  // The box shows for an initiated adept with Centering; the roll checks the chosen skill's coverage (Grimoire p.44).
+  const mg = actor.system.magic;
+  const canCenter = actor.type === "character" && mg?.type === "physical_adept" && (mg.initiateGrade ?? 0) >= 1 && !!mg.metamagic?.includes?.("centering") && !!mg.centeringSkill;
   const opts = allSkillNames().map(n => `<option value="${foundry.utils.escapeHTML(n)}">${foundry.utils.escapeHTML(n)}</option>`).join("");
   let result = null;
   const action = await foundry.applications.api.DialogV2.wait({
@@ -425,6 +441,7 @@ async function onDefaultSkill(event, target) {
           <input type="number" name="tn" value="4" min="2" max="30">
         </div>
         <p style="font-size:10px;color:#aaa1c0;margin:4px 0 0;">Trained skills roll their rating; if the character doesn't have the skill it defaults through the Skill Web automatically.</p>
+        ${canCenter ? `<div class="form-group"><label title="An initiated adept's Centering against the test's penalties, where it covers the skill (Grimoire p.44). A Free Action.">Center first (Free Action)</label><input type="checkbox" name="center"></div>` : ""}
         ${miscDiceHTML()}
       </div>`,
     buttons: [
@@ -434,6 +451,7 @@ async function onDefaultSkill(event, target) {
           result = {
             skill: button.form.elements.skill.value,
             tn: parseInt(button.form.elements.tn.value) || 4,
+            center: canCenter && !!button.form.elements.center?.checked,
             ...readMiscDice(button.form)
           };
         }
@@ -442,7 +460,7 @@ async function onDefaultSkill(event, target) {
     ]
   });
   if (action !== "roll" || !result) return;
-  return actor.rollNamedSkill(result.skill, result.tn, { miscDice: result.miscDice, miscLabel: result.miscLabel });
+  return actor.rollNamedSkill(result.skill, result.tn, { miscDice: result.miscDice, miscLabel: result.miscLabel, center: result.center });
 }
 
 /**

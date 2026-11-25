@@ -2078,7 +2078,7 @@ export const ADEPT_POWER_SOURCES = Object.freeze({
   [ADEPT("b03361c78fba6c27")]: "increased_reflexes", [ADEPT("30f5e3493545db6b")]: "killing_hands",
   [ADEPT("7480a901bc283d25")]: "killing_hands", [ADEPT("05d498aa7cbd198c")]: "killing_hands",
   [ADEPT("81347eccfc7bebee")]: "killing_hands", [ADEPT("003f74fef4a1756e")]: "pain_resistance",
-  // The Grimoire's (p.34) and the Corporate Security Handbook's (p.104), docs/PLAN-sourcebook-adept-powers.md.
+  // The Grimoire's (p.34) and the Corporate Security Handbook's (p.104), docs/archive/plans/PLAN-sourcebook-adept-powers.md.
   [GRIM_POWER("8910da4d6b4d8736")]: "attribute_boost", [GRIM_POWER("ba2ae6d7b6371ee8")]: "body_control",
   [GRIM_POWER("aa5b3ad241d4737b")]: "enhanced_centering", [GRIM_POWER("f7cddaf8ff7bc502")]: "missile_parry",
   [GRIM_POWER("52fa826e15730ecb")]: "mystic_armor", [GRIM_POWER("5d99b6e3588f2101")]: "suspended_state",

@@ -1,10 +1,26 @@
 # Changelog
 
+## 0.163.0 — 2026-11-25
+
+### Added
+- **Adept Centering on skill tests** (Grimoire p.44): an initiated physical adept with the Centering metamagic gets a
+  "Center first (Free Action)" box in the skill roll dialogs (the sheet's skill roll, "Roll a Skill…", a chipped
+  skill). Ticked, the Centering skill is rolled against the test's target number with its penalties, less the grade;
+  every 2 successes take 1 off the penalties (wounds, sustaining, drugs and the other modifiers the system adds, and a
+  defaulting penalty). It works on Physical Skills (Athletics, Stealth) and on the categories an **Enhanced Centering**
+  power covers. Any reduction left over is printed for the GM's own situational modifiers.
+- **Attribute Boost** (Grimoire p.34): an Activate button on the power's chat card rolls Magic against the attribute;
+  any success raises it by the level for that many Combat Turns (ended on time in combat, or by the card's button).
+  Ending posts a Drain card (Willpower against half the boosted value, its level by the racial maximum, Stun). One
+  boost per attribute; not with ware or spells raising that attribute.
+- **Suspended State** (Grimoire p.34): a button rolls Willpower plus a meditative Special Skill against 4 and reports
+  the Hibernate factor (core p.157). The healing clock isn't slowed by it: the card tells the GM.
+
 ## 0.162.0 — 2026-11-25
 
 ### Added
 - **The Grimoire's and the Corporate Security Handbook's adept powers** (Grimoire p.34, CSH p.104; Phase A of
-  docs/PLAN-sourcebook-adept-powers.md): priced by the books in the power-point budget (Enhanced Centering 2 per
+  docs/archive/plans/PLAN-sourcebook-adept-powers.md): priced by the books in the power-point budget (Enhanced Centering 2 per
   category or 1 per Special Skill; Enhanced Perception by the bonus against racial maximum Intelligence, its three tier
   items together), with their limits reported. **Mystic Armor** adds Impact armor (at most the Magic Rating).
   **Enhanced Perception** adds dice to Perception Tests (a "Perception Test" box on Intelligence rolls, the reflex
