@@ -1,8 +1,9 @@
 /**
- * Adept powers, Phase B (docs/PLAN-adept-powers-phase-b.md): an initiated adept's Centering against a skill test's
+ * Adept powers, Phase B (docs/archive/plans/PLAN-adept-powers-phase-b.md): an initiated adept's Centering against a skill test's
  * penalties (Grimoire p.44), Attribute Boost (p.34) and Suspended State (p.34, Hibernate core p.157).
  */
-import { adeptPowerKey, centeringTestTN, centeringPenaltyReduction, racialProfile, toxinLevel, DAMAGE_BOXES } from "./rules/sr2e-rules.mjs";
+import { adeptPowerKey, centeringTestTN, centeringPenaltyReduction, racialProfile, toxinLevel, DAMAGE_BOXES, missileParryTN, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
+import { isCardResolved } from "./astral-combat.mjs";
 import { skillGroup, adeptCenteringCovers, attributeBoostDrainLevel, attributeBoostDrainTN, suspendedFactor } from "./rules/adept-phase-b-rules.mjs";
 import { once } from "./claims.mjs";
 import { claimId } from "./rules/claim-rules.mjs";
@@ -184,6 +185,7 @@ export function wireAdeptPowerButtons(message, html) {
   on(".sr2e-boost-activate-btn", activateBoost);
   on(".sr2e-suspend-btn", enterSuspendedState);
   on(".sr2e-boost-drain-btn", resistBoostDrain);
+  on(".sr2e-parry-btn", (m) => parryMissile(m));
   on(".sr2e-boost-end-btn", (m) => { const s = m.flags?.sr2e?.boostCard ?? {}; const a = fromUuidSync(s.actorUuid);
     if (!mayAct(a)) return ui.notifications.warn("Only the owner or the GM can do that."); return endBoost(a, s.effectId, s.boostId); });
 }
@@ -214,4 +216,56 @@ export function registerAdeptPowerHooks() {
         if (d?.state === "pending" && !carded.has(id) && !actor.effects.some(e => e.flags?.sr2e?.attributeBoost?.boostId === id)) postDrainCard(actor, id, { recover: true });
     }
   });
+}
+
+// ── Missile Parry / Extended Missile Parry (Grimoire p.34; CSH p.104; docs/archive/plans/PLAN-impact-projectiles.md) ──────────
+
+/** The live attack's successes: the test message's total (Karma included), else the card's copy. */
+function liveAttackSuccesses(card) {
+  const st = card?.flags?.sr2e?.rangedDamage;
+  const test = st?.testMessageId ? game.messages.get(st.testMessageId)?.flags?.sr2e?.test : null;
+  return test ? testTotalSuccesses(test) : (st?.successes ?? 0);
+}
+
+/** `who`: the parrying actor (tests); a click uses the selected token's actor, else the user's character. */
+export async function parryMissile(message, who = null, { pool: presetPool = null } = {}) {
+  const st = message.flags?.sr2e?.rangedDamage;
+  if (!st?.parry || !(st.successes > 0)) return;
+  if (isCardResolved(message, "rangedDamage")) return ui.notifications.warn("That attack is already resolved.");
+  const actor = who ?? canvas?.tokens?.controlled?.[0]?.actor ?? game.user.character;
+  if (!actor) return ui.notifications.warn("Select the adept's token (or assign a character) to parry.");
+  if (!mayAct(actor)) return ui.notifications.warn(`Only ${actor.name}'s owner or the GM can roll for them.`);
+  if (actor.system.magic?.type !== "physical_adept" || !adeptPowersWork(actor.system)) return ui.notifications.warn(`${actor.name} can't use adept powers now.`);
+  const has = (k) => actor.items.some(i => i.type === "adept_power" && adeptPowerKey(i) === k);
+  const isTarget = actor.uuid === st.targetUuid;
+  if (isTarget ? !(has("missile_parry") || has("extended_missile_parry")) : !has("extended_missile_parry"))
+    return ui.notifications.warn(isTarget ? `${actor.name} has no Missile Parry (Grimoire p.34).` : `Only Extended Missile Parry protects someone else (CSH p.104).`);
+  if (!isTarget) {   // within 3 m of the target, both on the attack's scene (CSH p.104)
+    const tgt = st.parry.targetTokenUuid ? fromUuidSync(st.parry.targetTokenUuid) : null;
+    const mine = actor.getActiveTokens?.().map(t => t.document).find(d => d.parent?.id === st.parry.sceneId);
+    if (!tgt || !mine || tgt.parent?.id !== st.parry.sceneId) return ui.notifications.warn("The protector and the target must both be on the attack's scene.");
+    const g = tgt.parent.grid, c = (d) => ({ x: d.x + d.width * g.size / 2, y: d.y + d.height * g.size / 2 });
+    const a = c(mine), b = c(tgt), meters = Math.hypot(a.x - b.x, a.y - b.y) / g.size * g.distance;
+    if (meters > 3 + 1e-6) return ui.notifications.warn(`${actor.name} is ${Math.round(meters * 10) / 10} m from the target: Extended Missile Parry reaches 3 m (CSH p.104).`);
+  }
+  const attack = liveAttackSuccesses(message);
+  const pool = Math.max(0, actor.system.dicePools?.combat?.value ?? 0);
+  const n = presetPool != null ? Math.max(0, Math.min(pool, presetPool)) : await foundry.applications.api.DialogV2.prompt({ window: { title: "Missile Parry (Grimoire p.34)" },
+    content: `<p>Reaction ${actor.system.reaction?.value ?? 0} + Combat Pool dice against ${missileParryTN(st.parry.rangeTN)}; catch it with more than ${attack} successes.</p>
+      <div class="form-group"><label>Combat Pool dice (0–${pool}):</label><input type="number" name="pool" value="0" min="0" max="${pool}"></div>`,
+    ok: { callback: (ev, button) => Math.max(0, Math.min(pool, parseInt(button.form.elements.pool.value) || 0)) }, rejectClose: false });
+  if (n == null) return;
+  if (!(await once(actor, `parry:${message.id}`))) return ui.notifications.warn(`${actor.name} has already tried to catch that one.`);
+  const live = game.messages.get(message.id);
+  if (!live || isCardResolved(live, "rangedDamage")) return ui.notifications.warn("That attack was resolved meanwhile.");
+  const r = await actor.rollSuccessTest(actor.system.reaction?.value ?? 1, missileParryTN(st.parry.rangeTN),
+    { label: `Missile Parry — Reaction vs ${missileParryTN(st.parry.rangeTN)} (Grimoire p.34)`, ...(n ? { poolDice: { combat: n } } : {}) });
+  if (!r) return;
+  const after = liveAttackSuccesses(game.messages.get(message.id));
+  const caught = (r.successes ?? 0) > after;
+  if (caught && isCardResolved(game.messages.get(message.id), "rangedDamage")) return ui.notifications.warn("That attack was resolved meanwhile.");
+  return ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }),
+    content: `<div class="sr2e-damage-result">${caught ? `<strong>${esc(actor.name)} catches the ${esc(st.weaponName)}</strong> — no damage (${r.successes} against ${after}).`
+      : `${esc(actor.name)} misses the catch (${r.successes ?? 0} against ${after}; ties go to the attacker): resist normally.`}</div>`,
+    flags: caught ? { sr2e: { resolves: message.id, closesTests: st.testMessageId ? [st.testMessageId] : [] } } : {} });
 }

@@ -10,7 +10,7 @@ import { sfxFlags, playSfx } from "../sfx.mjs";
 import { SFX_KEYS } from "../sfx-manifest.mjs";
 import { attackSound, spellSound } from "../rules/combat-sound-rules.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
-import { adeptPowerKey, burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
+import { adeptPowerKey, throwingWeaponRange, rangedArmorType, isSlowMissile, burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating, cyclopsRangedTN} from "../rules/sr2e-rules.mjs";
 import { powerCardButtons } from "../adept-powers.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
@@ -229,7 +229,10 @@ export function renderRangedDamageCard(state) {
             title="Defender rolls Body vs. TN = Power − Armor; damage stages on net successes (SR2E p.91)">
       ${game.i18n.localize("SR2E.Chat.ResistDamage")}
     </button>` : "";
-  return `<div class="sr2e-damage-result">${body}${state.resolved ? "<br><strong>Resolved.</strong>" : ""}${button}</div>`;
+  // Missile Parry (Grimoire p.34; CSH p.104): a slow missile can be caught by an adept with the power.
+  const parryBtn = n > 0 && !state.barrier && !state.resolved && state.parry
+    ? ` <button type="button" class="sr2e-parry-btn" title="An adept with Missile Parry catches it: Reaction (+ Combat Pool) vs 10 − the range TN; more successes than the attacker's (Grimoire p.34). A Free Action.">Missile Parry</button>` : "";
+  return `<div class="sr2e-damage-result">${body}${state.resolved ? "<br><strong>Resolved.</strong>" : ""}${button}${parryBtn}</div>`;
 }
 
 /**
@@ -593,7 +596,7 @@ export class SR2EItem extends Item {
     // Ranged fire is per-phase state (recoil, targets engaged, walking fire —
     // p.92–93): capture the phase and the aimed token NOW, then run one attack
     // at a time per gunner so back-to-back shots at A and B see each other.
-    if (!options._engage && !["melee", "throwing"].includes(this.system.weaponType)) {
+    if (!options._engage && this.system.weaponType !== "melee") {   // thrown weapons are ranged too (p.87, p.96)
       const tok = firstTarget() ?? null;
       const _engage = {
         key: phaseKey(actor, this),
@@ -623,12 +626,15 @@ export class SR2EItem extends Item {
     // Rigger 2 missiles (4b.4): a launch rolls nothing now — the missile strikes at Phase 0.
     if (isRigger2() && options.gunneryMode === "launch") return launchMissile(this, actor, options, engage);
     // An area-effect attack (p.60–61; r1 #9): the round is spent through the ammunition queue, then the scatter flow.
-    if (isRigger2() && options.gunneryMode === "area") return areaFromDialog(this, actor, options);
+    if (isRigger2() && options.gunneryMode === "area" && !["throwing", "projectile", "melee"].includes(this.system.weaponType))
+      return areaFromDialog(this, actor, options);
 
     const RANGE_TN_MODS = CONFIG.SR2E.rangeTnMods;
     const BASE_TN = 4;
 
-    const isMelee  = ["melee", "throwing"].includes(this.system.weaponType);
+    // Thrown weapons use the ranged procedure (p.87: "firearms, projectile weapons, or thrown weapons … in the same
+    // manner"; p.96) — docs/archive/plans/PLAN-impact-projectiles.md. Only melee weapons take the opposed melee test.
+    const isMelee  = this.system.weaponType === "melee";
     const isRanged = !isMelee;
     // Drug TN context (Atropine, Shadowtech p.96): +1 more in melee or a
     // close-range FIREARM shot — the resolved short bracket, nothing else.
@@ -685,9 +691,11 @@ export class SR2EItem extends Item {
       if (onScene) {
         let dist = NaN;
         try { dist = canvas.grid.measurePath([from.center, { x: aim.x, y: aim.y }]).distance; } catch (e) { dist = NaN; }
-        const brackets = ["throwing", "grenade"].includes(this.system.weaponType)
+        const brackets = this.system.weaponType === "grenade"
           ? thrownRange(actor.system?.strength?.value ?? 1, this.system.aerodynamic ?? false)
-          : (this.system.ranges ?? {});
+          : this.system.weaponType === "throwing"
+            ? throwingWeaponRange(actor.system?.strength?.value ?? 1, { shuriken: !!this.system.aerodynamic })
+            : (this.system.ranges ?? {});
         const b = rangeBracketFor(dist, brackets);
         if (b.outOfRange) {
           ui.notifications.warn(`${this.name}: ${Math.round(dist)} m is beyond extreme range.`);
@@ -705,6 +713,18 @@ export class SR2EItem extends Item {
       }
     }
 
+    // A thrown weapon past Extreme range (p.88 rows) is refused BEFORE one is used up (Draft 2).
+    if (this.system.weaponType === "throwing" && engage?.token) {
+      // From the token actually throwing: a controlled token of this actor, else its first (code r1).
+      const mineT = actor.getActiveTokens?.() ?? [];
+      const from = mineT.find(t => t.controlled) ?? mineT[0], to = fromUuidSync(engage.token.uuid)?.object;
+      if (from && to && canvas?.ready && from.document.parent?.id === to.document.parent?.id && canvas.scene?.id === from.document.parent?.id) {
+        let dist = NaN;
+        try { dist = canvas.grid.measurePath([from.center, to.center]).distance; } catch (e) { dist = NaN; }
+        if (Number.isFinite(dist) && rangeBracketFor(dist, throwingWeaponRange(actor.system?.strength?.value ?? 1, { shuriken: !!this.system.aerodynamic })).outOfRange)
+          return ui.notifications.warn(`${this.name}: ${Math.round(dist)} m is beyond extreme range for a throw (SR2E p.88).`);
+      }
+    }
     const isThrown = ["throwing", "grenade"].includes(this.system.weaponType);
     if (isThrown) {
       const qty = this.system.quantity ?? 0;
@@ -897,6 +917,7 @@ export class SR2EItem extends Item {
     let shotsFired = 0;
     let hasRecoil  = false;
     let firingMode = "sa";
+    let attackRange = "short";   // the bracket shot at, for a slow missile's Missile Parry (Grimoire p.34)
     let isBurst    = false;
     let shortBurstNote = "";
     // Multiple targets / walking fire (p.92–93), resolved in the ranged branch.
@@ -968,12 +989,16 @@ export class SR2EItem extends Item {
     } else {
       // ── Ranged TN (SR2E p.100–110) ─────────────────────────────────────────
       // Rigger 2 gunnery (docs/PLAN-vehicles-phase2.md 4b.1–4b.3): one explicit mode; "core" is every caller's default.
-      const r2 = await r2GunneryContext(this, actor, options, engage);
+      // Rigger 2 gunnery is for guns and launchers; a bow or a thrown weapon never takes a sensor/missile mode (code r1).
+      const r2 = ["throwing", "projectile"].includes(this.system.weaponType) ? null : await r2GunneryContext(this, actor, options, engage);
       if (r2?.refused) return ui.notifications.warn(`${this.name}: ${r2.refused}`);
       if (r2?.mode === "manual") { attackerMod = 0; speedMod = 0; }   // p.57 replaces the p.89 movement rows and p.108
       if (r2?.mode === "sensor" || r2?.mode === "missile") dicePool += r2.sensorDice;
       const range    = blastRange ?? options.range ?? "short";
+      attackRange = range;
       firingMode     = options.firingMode ?? "sa";
+      // A bow or a thrown weapon fires one shot: no SA/BF/FA, whatever a macro passes (Draft 2; code r1).
+      if (!["firearm", "heavy"].includes(this.system.weaponType)) firingMode = "ss";
       const coverMod = options.coverMod   ?? 0;
       const visMod   = options.visMod     ?? 0;   // Visibility Table (p.89)
       const meleeMod = options.meleeMod   ?? 0;
@@ -998,7 +1023,7 @@ export class SR2EItem extends Item {
       // A weapon is a smartweapon via its factory flag or an attached smartgun
       // system (p.241). Receptor benefit (p.90): smartlink cyberware −2 (the
       // cyberware's combatTnMod), else equipped smart goggles −1.
-      const smartCapable = this.system.smartgunCompatible || acc.grantsSmartgun;
+      const smartCapable = this.system.weaponType !== "throwing" && (this.system.smartgunCompatible || acc.grantsSmartgun);
 
       // Multiple targets and walking fire (p.92–93). "Smartguns never waste
       // rounds." Refused BEFORE anything is spent when the walk can't be sized.
@@ -1083,8 +1108,9 @@ export class SR2EItem extends Item {
       // Heavy weapons (M/HMGs, shotguns) double uncompensated recoil (p.89-90)
       const heavyRecoil   = this.system.weaponType === "heavy" || (this.system.choke ?? 0) >= 2;
       // Rounds walked between targets were fired before this burst (p.93).
-      let recoilMod       = recoilPenalty(shotsFired + (hasRecoil ? eng.walked : 0), rounds,
-                                          { isBurst, hasRecoil, recoilComp, heavyRecoil });
+      // A weapon without recoil (bow, thrown) takes none, even after gunshots this phase (code r1).
+      let recoilMod       = hasRecoil ? recoilPenalty(shotsFired + eng.walked, rounds,
+                                          { isBurst, hasRecoil, recoilComp, heavyRecoil }) : 0;
       // Vehicle weapon mounts (R2 p.57, p.131): their compensation, or fixed/turret halving before accessories.
       if (r2 && r2.mount && hasRecoil) recoilMod = vehicleRecoil({ heavy: heavyRecoil, mount: r2.mount, accessories: recoilComp,
         recoil: shotsFired + eng.walked + (isBurst ? rounds : 0) });
@@ -1221,7 +1247,7 @@ export class SR2EItem extends Item {
     // explosive rounds loaded, the weapon explodes — the shooter resists the
     // weapon's NORMAL damage code (no explosive bonus, no Combat Pool, the
     // "attack" gets 1D6 successes) and the attack in progress misses.
-    if (isRanged && result?.glitch && /explosive/i.test(this.system.ammo?.loadedName ?? "")) {
+    if (isRanged && this.system.weaponType !== "throwing" && result?.glitch && /explosive/i.test(this.system.ammo?.loadedName ?? "")) {
       ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
         content: `<div class="sr2e-damage-result" style="border-left:3px solid #e44;">
@@ -1324,7 +1350,7 @@ export class SR2EItem extends Item {
 
     // Nets (SSC p.72, CSH p.103) fire a net, not damage: a net card the target resists,
     // routed ahead of the blast and spread branches (docs/archive/plans/PLAN-netguns.md).
-    if (isRanged && this.system.ammo?.type === "net") {
+    if (isRanged && this.system.weaponType !== "throwing" && this.system.ammo?.type === "net") {
       const targetTok = engage?.token?.obj ?? firstTarget();
       const kind = netKind(this, this.system.ammo?.loadedName ?? "");
       const state = {
@@ -1399,7 +1425,7 @@ export class SR2EItem extends Item {
       // Evaluate damage code with actor context so formula codes like
       // "(Str+3)S" resolve against the attacker's current attributes.
       const dmg          = evaluateDamageCode(this.system.damageCode, actor);
-      const armorType    = "ballistic";
+      const armorType    = rangedArmorType(this.system.weaponType);   // Impact against impact projectiles (ruling, p.238)
       let effectivePower = dmg.power;
       let levelBonus     = 0;
       let burstPowerAdded = 0;
@@ -1407,7 +1433,7 @@ export class SR2EItem extends Item {
 
       // Loaded ammunition effects (SR2E p.93–94) — ranged, tracked weapons only
       const ammo      = this.system.ammo;
-      const hasAmmo   = isRanged && ammo?.max > 0;
+      const hasAmmo   = isRanged && this.system.weaponType !== "throwing" && ammo?.max > 0;   // a throw carries no rounds
       const ammoCalc  = hasAmmo ? (ammo.armorCalc || "standard") : "standard";
       const ammoMod   = hasAmmo ? (ammo.armorMod ?? 0) : 0;
       const ammoName  = hasAmmo ? (ammo.loadedName || "") : "";
@@ -1516,8 +1542,11 @@ export class SR2EItem extends Item {
         ? ChatMessage.getSpeaker({ actor: defender, token: targetTok?.document,
                                    alias: `${defender.name} — resisting` })
         : ChatMessage.getSpeaker({ actor, alias: `${attackerName} — no target` });
+      // Missile Parry (Grimoire p.34): a slow missile carries its base range TN (p.88) and where its target stood.
+      const parry = isSlowMissile(this.system.weaponType) ? { rangeTN: BASE_TN + (RANGE_TN_MODS[attackRange] ?? 0),
+        targetTokenUuid: targetTok?.document?.uuid ?? "", sceneId: targetTok?.document?.parent?.id ?? "" } : null;
       const state = {
-        testMessageId: result.testMessageId, successes: result.successes, resolved: false,
+        testMessageId: result.testMessageId, successes: result.successes, resolved: false, weaponType: this.system.weaponType, parry,
         weaponName: this.name, attackerName, attributed: !!defender, targetUuid,
         power: effectivePower, basePower, baseLevel: stages[finalIdx], ratedLevel: dmg.level,
         calledShot: !!calledShotSteps, armorType, damageType, armorCalc: ammoCalc, armorMod: ammoMod,

@@ -5,7 +5,7 @@ import { parseDrainCode } from "../data/item-data.mjs";
 import { evaluateDamageCode } from "../documents/item.mjs";
 import { cymMagicTN } from "../rules/cym-rules.mjs";
 import { firstTarget, targetTokens, handleFor } from "../targeting.mjs";
-import { saleQuoteOf, burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
+import { saleQuoteOf, burstFired, spellForces, rangedEngagement, rangeBracketFor, meleeVisibilityMod, MELEE_VISIBILITY, thrownRange, throwingWeaponRange, accessorySummary, gyroReduction, shiftRangeBracket, biowareHealingTnMod, healingDrainLevel, woundLevel, healingSpellTN, skillRollRating, effectiveSkillRating,
          maxAimActions, canAim, canCallShot, CALLED_SHOT_TN, BARRIER_RATINGS,
          countEngagingFoes, ENGAGEMENT_RANGE_M, ENGAGED_TN_PER_FOE, poolsAllowedFor,
          footprintDistance, areaTargetEligible, blastRadius, smokeCloudRadius, blastFalloffRate, elementalMaterialsCost, focusEligibleFor, focusRemaining, areaSpellGeometry, spellCastDice, manipulationDamage, elementalAidsCategory, clampFocusAllocation, canonicalSpellName, spellLearningTN, spellLearningDays, taskPoolApplies } from "../rules/sr2e-rules.mjs";
@@ -584,7 +584,8 @@ function detectAttackTarget(attacker, weapon) {
   const grid  = canvas?.ready ? canvas.grid : scene?.grid;
   if (!scene || !grid) return presets;
   const originToken = canvas?.ready
-    ? (attacker?.getActiveTokens?.()[0] ?? canvas.tokens?.controlled?.[0])
+    // The attacker's controlled token first, else its first token — the same origin as the roll's range check (code r2).
+    ? ((attacker?.getActiveTokens?.() ?? []).find(t => t.controlled) ?? attacker?.getActiveTokens?.()[0] ?? canvas.tokens?.controlled?.[0])
     : handleFor(scene.tokens.find(t => t.actor === attacker || t.actorId === attacker?.id));
   if (!originToken || originToken === targetToken || originToken.id === targetToken.id) return presets;
 
@@ -612,9 +613,12 @@ function detectAttackTarget(attacker, weapon) {
   // SR2 scales their brackets with the thrower's Strength (Grenade Range Table,
   // core p.96-97). A Str-6 throw reaches 18 m short / 30 medium / 60 long.
   const wt = weapon?.system?.weaponType;
-  const r = (wt === "throwing" || wt === "grenade")
+  // Grenades: the Grenade Range Table; knives and shuriken: their Weapon Range Table rows (p.88).
+  const r = wt === "grenade"
     ? thrownRange(attacker?.system?.strength?.value ?? 1, weapon?.system?.aerodynamic ?? false)
-    : (weapon?.system?.ranges ?? {});
+    : wt === "throwing"
+      ? throwingWeaponRange(attacker?.system?.strength?.value ?? 1, { shuriken: !!weapon?.system?.aerodynamic })
+      : (weapon?.system?.ranges ?? {});
   const b = rangeBracketFor(distance, r);
   if (b.range) presets.range = b.range;
   if (b.outOfRange) presets.outOfRange = true;
@@ -651,7 +655,7 @@ function detectAttackTarget(attacker, weapon) {
 async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, baseDice = 0,
                                          defaultingPenalty = 0, presets = {}) {
   const BASE_TN    = 4;
-  const isMelee    = ["melee", "throwing"].includes(weapon.system.weaponType);
+  const isMelee    = weapon.system.weaponType === "melee";   // thrown weapons are ranged (p.87, p.96)
   const isRanged   = !isMelee;
   // Moving Target Table (p.108): the target's speed against the firer's — the vehicle a mounted weapon is on, else a
   // vehicle the attacker rides in (picked), else 5 (stationary). Shown when a vehicle is involved; always overridable.
@@ -777,7 +781,7 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
 
   // Smartweapon via factory flag or attached smartgun system (p.241);
   // receptor benefit: smartlink cyberware −2, else smart goggles −1 (p.90).
-  const smartCapable = weapon.system.smartgunCompatible || accBase.grantsSmartgun;
+  const smartCapable = weapon.system.weaponType !== "throwing" && (weapon.system.smartgunCompatible || accBase.grantsSmartgun);
   let cyberwareMod = 0;
   let cywareName = "";
   if (smartCapable) {

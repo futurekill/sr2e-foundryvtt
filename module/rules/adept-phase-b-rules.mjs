@@ -1,5 +1,5 @@
 /**
- * Adept powers, Phase B — pure rules (docs/PLAN-adept-powers-phase-b.md; Grimoire p.34, p.44; core p.68–75, p.157).
+ * Adept powers, Phase B — pure rules (docs/archive/plans/PLAN-adept-powers-phase-b.md; Grimoire p.34, p.44; core p.68–75, p.157).
  * No Foundry.
  */
 

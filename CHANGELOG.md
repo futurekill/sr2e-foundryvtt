@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.164.0 — 2026-11-25
+
+### Changed
+- **Thrown weapons are ranged attacks** (SR2E p.87: "firearms, projectile weapons, or thrown weapons … in the same
+  manner"; p.96). A thrown knife or shuriken now uses the ranged attack dialog and target numbers and posts a ranged
+  damage card the target resists; before, it was an opposed melee test. Their ranges are the Weapon Range Table's rows
+  (p.88): knife Strength / ×2 / ×3 / ×5, shuriken Strength / ×2 / ×5 / ×7 — before, the grenade table (×3/×5/×10/×20).
+  A throw past extreme range is refused before the weapon is used up. A thrown item is no longer offered as a melee
+  defence weapon: a knife used in melee is a melee item.
+- **Impact armor against bows, crossbows and thrown weapons** (ruling with the GM; the book calls them "Impact
+  Projectile Weapons", p.238). Firearms and heavy weapons still meet Ballistic armor.
+- Bows and thrown weapons fire single shots only, take no recoil from earlier gunfire, and no smartgun bonus.
+
+### Added
+- **Missile Parry and Extended Missile Parry** (Grimoire p.34; CSH p.104): a "Missile Parry" button on a bow's or a
+  thrown weapon's damage card. The adept (the target, or a protector with Extended Missile Parry within 3 m) rolls
+  Reaction plus Combat Pool dice against 10 − the attack's base range target number; more successes than the attack
+  catch it — the card closes with no damage, and Karma can't revive the attack.
+
 ## 0.163.2 — 2026-11-25
 
 ### Fixed

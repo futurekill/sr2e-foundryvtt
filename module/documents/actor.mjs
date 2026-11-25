@@ -1488,7 +1488,7 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * An adept's declared Centering against a skill test's penalties (Grimoire p.44; docs/PLAN-adept-powers-phase-b.md):
+   * An adept's declared Centering against a skill test's penalties (Grimoire p.44; docs/archive/plans/PLAN-adept-powers-phase-b.md):
    * the reducible penalties are the final test's own modifiers plus a defaulting penalty already in the TN.
    * Returns null when it doesn't apply, else { reduction, note }.
    */
@@ -1944,7 +1944,7 @@ export class SR2EActor extends Actor {
     // ── Defending weapon choices (incl. cyber-implant melee weapons) ──────────
     // Only what this form can wield (shapeshifters, multi-form critters — Companion p.36).
     const meleeWeapons = this.items.filter(
-      i => i.isWeaponLike && ["melee", "throwing"].includes(i.system.weaponType) && weaponUsable(this.type, this.system, i.system)
+      i => i.isWeaponLike && i.system.weaponType === "melee" && weaponUsable(this.type, this.system, i.system)   // a thrown weapon is no melee weapon
     );
     const natural = formWeaponsOnly(this.type, this.system) && meleeWeapons.length;
     const weaponOptions = [
@@ -2047,11 +2047,11 @@ export class SR2EActor extends Actor {
     if (choice.weaponId && !weapon) return ui.notifications.warn("That weapon is no longer there.");
     // Shifted into a natural-weapons form mid-dialog: no generic Unarmed while a natural weapon exists.
     if (!weapon && formWeaponsOnly(this.type, this.system) && this.items.some(i => i.isWeaponLike
-      && ["melee", "throwing"].includes(i.system.weaponType) && weaponUsable(this.type, this.system, i.system))) {
+      && i.system.weaponType === "melee" && weaponUsable(this.type, this.system, i.system))) {
       return ui.notifications.warn(`${this.name} fights with its natural weapons in this form.`);
     }
     const skillKey = weapon
-      ? (weapon.system.weaponType === "throwing" ? "throwing_weapons" : "armed_combat")
+      ? "armed_combat"
       : "unarmed_combat";
     const normalize = s => s.toLowerCase().replace(/[\s/()]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
     const skillItem = this.items.find(i => i.type === "skill" && normalize(i.name) === skillKey);

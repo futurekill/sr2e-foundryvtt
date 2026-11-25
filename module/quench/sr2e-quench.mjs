@@ -1952,7 +1952,7 @@ function stubWorldSettings(keys) {
           assert.isTrue(a.system.adeptPowerProblems.length === 0 || !a.system.adeptPowerProblems.some(p => /Perception/.test(p)));
         });
       });
-      // Phase B (docs/PLAN-adept-powers-phase-b.md).
+      // Phase B (docs/archive/plans/PLAN-adept-powers-phase-b.md).
       describe("Phase B: Centering on skill tests, Attribute Boost", () => {
         const calls = []; let queue = [];
         const stub = (a) => { const orig = a.rollSuccessTest; a.rollSuccessTest = async (d, tn, o = {}) => { calls.push({ d, tn, o }); return { successes: queue.shift() ?? 0 }; }; return () => { a.rollSuccessTest = orig; }; };
@@ -2012,6 +2012,73 @@ function stubWorldSettings(keys) {
             assert.equal(a.getFlag("sr2e", "boostDrain")[boostId].state, "done");
             assert.isAbove(a.system.conditionMonitor.stun.value, stunBefore, "Stun taken once");
           } finally { restore(); }
+        });
+      });
+    });
+
+    // Impact projectiles (docs/archive/plans/PLAN-impact-projectiles.md): thrown weapons are ranged (p.87, p.96), Impact armor, Missile Parry.
+    quench.registerBatch("sr2e.impact-projectiles", (context) => {
+      const { describe, it, assert, after } = context;
+      const made = [], msgs = [];
+      after(async () => { for (const a of made) { try { await a.delete(); } catch (e) {} } try { await ChatMessage.deleteDocuments(msgs.filter(id => game.messages.has(id))); } catch (e) {} });
+      const shooter = async (name, weapon) => {
+        const a = await Actor.create({ name, type: "character", system: { quickness: { base: 4 }, strength: { base: 4 } } }); made.push(a);
+        await a.createEmbeddedDocuments("Item", [
+          { name: "Throwing Weapons", type: "skill", system: { category: "active", rating: 4 } },
+          { name: "Projectile Weapons", type: "skill", system: { category: "active", rating: 4 } },
+          { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } }, weapon]);
+        a.rollSuccessTest = async (d, tn) => ({ successes: 2, targetNumber: tn, testMessageId: "quenchAttackTest00" });
+        return a;
+      };
+      const fire = async (a, name, options) => {
+        const n = game.messages.size;
+        await a.items.getName(name).roll(options);
+        const out = game.messages.contents.slice(n); msgs.push(...out.map(m => m.id));
+        return out;
+      };
+      describe("routing and armor", () => {
+        it("a thrown knife posts a ranged damage card (Impact), not a melee card; a pistol's card is Ballistic", async () => {
+          const a = await shooter("Quench Thrower", { name: "Throwing Knife", type: "weapon", system: { weaponType: "throwing", skill: "throwing_weapons", damageCode: "(Str)L", quantity: 3 } });
+          const out = await fire(a, "Throwing Knife", { range: "long" });
+          const card = out.find(m => m.flags?.sr2e?.rangedDamage)?.flags.sr2e.rangedDamage;
+          assert.ok(card, "a ranged damage card");
+          assert.notOk(out.some(m => m.flags?.sr2e?.melee), "no melee card");
+          assert.equal(card.armorType, "impact");
+          assert.equal(card.parry?.rangeTN, 6, "long range: base TN 6 (p.88)");
+          assert.equal(a.items.getName("Throwing Knife").system.quantity, 2, "one knife thrown");
+          const g = await shooter("Quench Gunner", { name: "Test Pistol", type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "6M", ammo: { current: 10, max: 10 } } });
+          const gc = (await fire(g, "Test Pistol", { range: "short", firingMode: "ss" })).find(m => m.flags?.sr2e?.rangedDamage)?.flags.sr2e.rangedDamage;
+          assert.equal(gc.armorType, "ballistic");
+          assert.isNull(gc.parry ?? null, "no parry against a bullet");
+        });
+      });
+      describe("Missile Parry (Grimoire p.34)", () => {
+        it("the target adept catches it with MORE successes than the attacker; a tie doesn't", async () => {
+          const { parryMissile } = await import("../adept-powers.mjs");
+          const a = await shooter("Quench Archer", { name: "Shuriken", type: "weapon", system: { weaponType: "throwing", skill: "throwing_weapons", damageCode: "(Str)L", quantity: 3, aerodynamic: true } });
+          const adept = await Actor.create({ name: "Quench Parry", type: "character", system: { magic: { type: "physical_adept", value: 4 }, quickness: { base: 5 } } }); made.push(adept);
+          await adept.createEmbeddedDocuments("Item", [{ name: "Missile Parry", type: "adept_power", flags: { sr2e: { power: "missile_parry" } }, system: { level: 1, pointCost: 1 } }]);
+          const post = async () => {
+            const out = await fire(a, "Shuriken", { range: "short" });
+            const m = out.find(x => x.flags?.sr2e?.rangedDamage);
+            await m.update({ "flags.sr2e.rangedDamage.targetUuid": adept.uuid });
+            return m;
+          };
+          const orig = adept.rollSuccessTest;
+          try {
+            let m = await post();
+            adept.rollSuccessTest = async () => ({ successes: 2 });   // = the attacker's 2: ties go to the attacker
+            await parryMissile(m, adept, { pool: 0 });
+            assert.notOk(game.messages.some(x => x.flags?.sr2e?.resolves === m.id), "a tie: not caught");
+            m = await post();
+            adept.rollSuccessTest = async () => ({ successes: 3 });
+            await parryMissile(m, adept, { pool: 0 });
+            const res = game.messages.find(x => x.flags?.sr2e?.resolves === m.id);
+            assert.ok(res, "caught: the card is resolved");
+            msgs.push(res.id);
+            assert.include(res.flags.sr2e.closesTests, m.flags.sr2e.rangedDamage.testMessageId, "Karma can't revive it");
+          } finally { adept.rollSuccessTest = orig; }
+          msgs.push(...game.messages.contents.filter(x => x.speaker?.actor === adept.id).map(x => x.id));
         });
       });
     });

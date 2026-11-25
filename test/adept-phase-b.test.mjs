@@ -1,4 +1,4 @@
-// Adept powers, Phase B (docs/PLAN-adept-powers-phase-b.md): Grimoire p.34, p.44; core p.71, p.157.
+// Adept powers, Phase B (docs/archive/plans/PLAN-adept-powers-phase-b.md): Grimoire p.34, p.44; core p.71, p.157.
 import { describe, it, expect } from "vitest";
 import { skillGroup, adeptCenteringCovers, attributeBoostDrainLevel, attributeBoostDrainTN, suspendedFactor } from "../module/rules/adept-phase-b-rules.mjs";
 

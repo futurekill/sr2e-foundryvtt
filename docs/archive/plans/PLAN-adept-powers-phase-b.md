@@ -111,3 +111,27 @@ allowed), its rating added. Zero successes: "no suspended state" (factor not rep
   carry the combat id, matched in the hook; ending = `once()` → actor update (pending Drain record) → effect delete
   (separate calls), and a GM reconcile on load re-posts a pending Drain whose card is missing; `skipIf` reads the
   actor's CURRENT `flags.sr2e.boostDrain.<boostId>.state` each time.
+
+## B-2 Missile Parry and Extended Missile Parry (Draft 1, 2026-11-25; after B-1/B-3/B-4 shipped in 0.163.0)
+**The books.** Missile Parry (Grimoire p.34, 1 point): pluck a slow missile (arrows, thrown knives, shuriken) from the
+air: Reaction (+ Combat Pool dice by choice) vs 10 − the attack's range-determined base TN (long range: 10 − 8 = 2;
+short: 10 − 4 = 6); it works only with MORE successes than the attacker's Attack Test; ties to the attacker; a Free
+Action. Extended Missile Parry (CSH p.104, 1.5): the same for someone the adept protects, up to 3 m away.
+**What a slow missile is (ruling):** a ranged attack card from a weapon of `weaponType` "projectile" (bows,
+crossbows) or "throwing" (knives, shuriken) — not "grenade" (an explosive on its own card), not firearms.
+1. **Card state.** `_rollWeaponAttack` adds to the `rangedDamage` state `parry: { rangeTN }` (= 4 + the range's
+   `CONFIG.SR2E.rangeTnMods`, the base TN WITHOUT other modifiers) when the weapon is projectile/throwing.
+2. **Button.** `renderRangedDamageCard` shows "Missile Parry" beside Resist while `n > 0`, not resolved, `parry` set.
+3. **Who parries.** The clicking user's acting actor (controlled token, else assigned character), a working physical
+   adept (`adeptPowersWork`): the TARGET itself with Missile Parry or Extended Missile Parry; or another actor with
+   Extended Missile Parry whose token is within 3 m of the target's token (canvas distance). Refused otherwise.
+4. **The roll.** A small dialog: Combat Pool dice (0 … the actor's available Combat Pool). `rollSuccessTest(Reaction,
+   max(2, 10 − rangeTN), { poolDice: { combat: n } })` — the normal TN pipeline (wounds apply). Guards: the live card
+   unresolved and its successes unchanged (Karma), as `resistRangedDamage`'s `beforeRoll`; one attempt per actor per
+   card, `once(actor, "parry:<card id>")`.
+5. **Outcome.** More successes than the card's `successes` → an outcome message `flags.sr2e.resolves = <card id>`
+   ("caught — no damage"), which closes the card through the existing author-side close; else a message "missed the
+   catch — resist normally" (the card stays open).
+6. **Tests.** Vitest: `missileParryTN(rangeTN)`; `isSlowMissile(weaponType)`. Quench: a bow card with `parry`; the
+   target adept parries (stubbed roll) → the card resolves; equal successes → not; a protector 2 m away with Extended →
+   allowed, 4 m → refused; a firearm card → no button.

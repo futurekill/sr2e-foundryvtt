@@ -962,6 +962,23 @@ export function rangeBracketFor(distance, r = {}) {
   return { range: "extreme", outOfRange: true };
 }
 
+/**
+ * A throwing weapon's range brackets (SR2E p.88 Weapon Range Table, rendered 2026-11-25): Thrown Knife 0–Str / to Str×2 /
+ * to Str×3 / to Str×5; Shuriken 0–Str / to Str×2 / to Str×5 / to Str×7. Grenades use `thrownRange` (their own table).
+ * docs/archive/plans/PLAN-impact-projectiles.md.
+ */
+export function throwingWeaponRange(strength, { shuriken = false } = {}) {
+  const s = Math.max(0, Number(strength) || 0);
+  return shuriken ? { short: s, medium: s * 2, long: s * 5, extreme: s * 7 } : { short: s, medium: s * 2, long: s * 3, extreme: s * 5 };
+}
+/** The armor a ranged attack meets (ruling 2026-11-25): Impact against bows, crossbows and thrown weapons — "Impact
+ *  Projectile Weapons" (p.238) — Ballistic against firearms and heavy weapons. */
+export const rangedArmorType = (weaponType) => (weaponType === "projectile" || weaponType === "throwing") ? "impact" : "ballistic";
+/** Missile Parry's target number (Grimoire p.34): 10 − the attack's base range TN (4/5/6/9, p.88), at least 2. */
+export const missileParryTN = (rangeTN) => Math.max(2, 10 - (Number(rangeTN) || 4));
+/** The weapons Missile Parry can catch (a ruling): slow missiles — bows, crossbows, thrown weapons (not grenades). */
+export const isSlowMissile = (weaponType) => weaponType === "projectile" || weaponType === "throwing";
+
 export function thrownRange(strength, aerodynamic = false) {
   const m = aerodynamic ? THROWN_RANGE_MULT.aerodynamic : THROWN_RANGE_MULT.standard;
   const s = Math.max(0, strength);
