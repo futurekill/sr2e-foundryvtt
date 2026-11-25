@@ -8,7 +8,7 @@
     "skill": "firearms",
     "damageCode": "7M",
     "damageType": "physical",
-    "concealability": 3,
+    "concealability": 5,
     "reach": 0,
     "firingModes": {
       "ss": false,
@@ -30,16 +30,17 @@
     },
     "strengthMin": 0,
     "weight": 0,
-    "cost": 800,
-    "availability": "6/72hrs",
+    "cost": 950,
+    "availability": "4/24 hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
     "notes": "SR2E p.232. A compact smartgun-ready SMG. Integral smartgun system adds +2 dice when used with a smartlink.",
     "citation": {
       "book": "sr2",
-      "page": "232"
-    }
+      "page": "279"
+    },
+    "streetIndex": "1"
   },
   "effects": [],
   "flags": {},

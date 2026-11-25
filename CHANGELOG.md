@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.164.3 — 2026-11-25
+
+### Fixed — the core weapons compendium against the book (pages rendered)
+An audit of every core weapon against the Equipment Table (SR2E p.254–255), the melee table (p.101) and the Sourcebook
+Updates appendix (p.278–279):
+- **Ingram Smartgun**: Concealability 5 and 950¥ (it was 3 and 800¥), availability 4/24 hrs, Street Index 1 (p.279).
+- **Ares Light Fire 75 → Ares Light Fire 70**: the book prints the Light Fire 70 (Concealability 5, 16 rounds, SA only,
+  6L, 475¥, p.278); the "75" was the first scaffold's.
+- **Citations**: Colt Manhunter, Mossberg CMDT, Colt M22A2 and HK G12A3Z cite the appendix that prints them
+  (p.278–279), not gear-chapter pages they aren't on. Their stats already matched.
+- **Removed: H&K VP225, Combat Knife, Baseball Bat.** No book prints them (all text-layer books searched, and all
+  twelve scanned books OCR'd page by page); the knife and the bat called themselves "houseruled". Copies already in a
+  world or on an actor keep their data. (Wiki Rulings: "Removed: entries no book prints".)
+- Every other core firearm, bow, crossbow and thrown weapon matched the page.
+
 ## 0.164.2 — 2026-11-25
 
 ### Fixed

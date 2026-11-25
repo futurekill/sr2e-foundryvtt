@@ -1,45 +1,46 @@
 {
-  "_id": "7472489496763103",
-  "name": "Combat Knife",
+  "_id": "f1e9b06afa79c233",
+  "name": "Ares Light Fire 70",
   "type": "weapon",
-  "img": "systems/sr2e/assets/item_icons/weapons/combat-knife.webp",
+  "img": "systems/sr2e/assets/item_icons/weapons/ares-light-fire-75.webp",
   "system": {
-    "weaponType": "melee",
-    "skill": "armed_combat",
-    "damageCode": "(Str+1)M",
+    "weaponType": "firearm",
+    "skill": "firearms",
+    "damageCode": "6L",
     "damageType": "physical",
     "concealability": 5,
     "reach": 0,
     "firingModes": {
       "ss": false,
-      "sa": false,
+      "sa": true,
       "bf": false,
       "fa": false
     },
     "ammo": {
-      "current": 0,
-      "max": 0,
-      "type": ""
+      "current": 16,
+      "max": 16,
+      "type": "pistol"
     },
     "recoilComp": 0,
     "ranges": {
-      "short": 0,
-      "medium": 0,
-      "long": 0,
-      "extreme": 0
+      "short": 5,
+      "medium": 15,
+      "long": 30,
+      "extreme": 50
     },
     "strengthMin": 0,
-    "weight": 0,
-    "cost": 80,
-    "availability": "Always",
+    "weight": 1,
+    "cost": 475,
+    "availability": "3/12 hrs",
     "legality": "Legal",
     "equipped": false,
     "accessories": [],
-    "notes": "SR2E p.228. Military-spec fighting knife with serrated spine and reinforced hilt. Compact and lethal. (Improvised/houseruled — not in the SR2 core Melee Weapons Table.)",
+    "notes": "SR2E p.278 (Sourcebook Updates: Street Samurai Catalog). A light pistol, 16-round clip.",
     "citation": {
       "book": "sr2",
-      "page": "228"
-    }
+      "page": "278"
+    },
+    "streetIndex": ".8"
   },
   "effects": [],
   "flags": {},
@@ -54,10 +55,10 @@
     "duplicateSource": null,
     "exportSource": null
   },
-  "folder": "f052cb5eb3b5a2e2",
+  "folder": "98405438f908d172",
   "sort": 0,
   "ownership": {
     "default": 0
   },
-  "_key": "!items!7472489496763103"
+  "_key": "!items!f1e9b06afa79c233"
 }
