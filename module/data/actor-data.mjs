@@ -15,7 +15,8 @@ import { liveOutcomes, foldPermLoss } from "../rules/permanent-damage-rules.mjs"
 import { bioFunctions } from "../rules/bioware-damage-rules.mjs";
 import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/mbw-rules.mjs";
 import { eventsOf } from "../claims.mjs";
-import { vehicleCapacity, modEffect, applyModEffects, modCounts } from "../rules/vehicle-design.mjs";
+import { vehicleCapacity } from "../rules/vehicle-design.mjs";
+import { vehicleEffective } from "../rules/vehicle-workshop-rules.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -2144,7 +2145,6 @@ export class NPCData extends SR2EDataModel {
  * Data model for Vehicles.
  */
 /** A production vehicle's body category from its driving skill (customization plan C2.8; tires need bike/car). */
-const CATEGORY_BY_SKILL = { bike: "bike", car: "car", hovercraft: "hovercraft", motorboat: "boat", sailboat: "boat", rotor: "rotor", winged: "fixedWing", vectorThrust: "vector" };
 
 export class VehicleData extends SR2EDataModel {
   static defineSchema() {
@@ -2266,41 +2266,19 @@ export class VehicleData extends SR2EDataModel {
     // stored fields every preparation, never written back. A 0.143.0 Workshop design that isn't converted yet
     // (design.baseVersion < 2) still has its design mods baked in, so only Armor/Signature are added, as before.
     // A bought modification whose removal record is written is gone at once, even before its deletion lands (C3.6).
-    const removed = this.parent?.flags?.sr2e?.custDelivery ?? {};
-    const items = (this.parent?.items ?? []).filter(i => i.type === "vehicle_mod" && removed[i.id] !== "removed");
-    const category = this.design.category || CATEGORY_BY_SKILL[this.skill] || (this.vehicleType === "ground" ? "car" : "");
-    // The vehicle's traits, so a customization's per-class CF / Load is the one it was quoted at (plan C2.8).
-    const traits = new Set([...(this.design.traits ?? []), category, ...(this.vehicleType === "drone" ? ["drone"] : []), ...(this.design.transport ? ["transport"] : [])].filter(Boolean));
-    const build = { body: this.body, pilot: this.pilot, traits };
-    const ctx = { category, transport: this.design.transport, build, tires: this.tires };
     // Subsystem damage (R2 p.85–87, optional; 6a.4): each damaged mod's worst level, derived from live records.
     const subsys = r2Option("r2Subsystems") && this.parent ? subsystemState(this.parent) : null;
-    const mods = items.map(i => ({ ...i.system, name: i.name, designMod: !!i.flags?.sr2e?.designMod, subsysLevel: subsys?.items?.[i._id ?? i.id] ?? null }));
-    const pair = this.handlingOffRoad != null;
-    const base = { handling: pair ? { onRoad: this.handling, offRoad: this.handlingOffRoad } : this.handling,
-      speed: this.speed, acceleration: this.acceleration, load: this.load, cargo: this.cargo, armor: this.armor,
-      signature: this.signature, economy: this.economy, sensor: this.sensor, autonav: this.autonav, pilot: this.pilot };
-    this.baseConverted = this.design.version !== 2 || this.design.baseVersion >= 2;
-    let eff;
-    if (this.baseConverted) eff = applyModEffects(base, mods, ctx).stats;
-    else {
-      const add = (k) => mods.filter(modCounts).reduce((t, m) => t + (modEffect(m, k, ctx)?.value ?? 0), 0);
-      eff = { ...base, armor: (Number(this.armor) || 0) + add("armor"), signature: (Number(this.signature) || 0) + add("signature") };
-    }
+    const v = vehicleEffective(this, this.parent?.items ?? [], { removed: this.parent?.flags?.sr2e?.custDelivery ?? {}, subsysItems: subsys?.items ?? null });
+    const { mods, build } = v;
+    this.baseConverted = v.baseConverted;
+    this.effective = v.effective;
     // Fuel grade (R2 p.83, optional r2FuelGrades): Acceleration and Economy, derived each preparation after the mods.
     const grade = r2Option("r2FuelGrades") ? this.parent?.flags?.sr2e?.fuelGrade : null;
     if (grade) {
       const g = fuelGradeEffects(grade.grade, grade.custom);
-      eff = { ...eff, acceleration: Math.max(0, (Number(eff.acceleration) || 0) + g.acceleration),
-        economy: Math.round((Number(eff.economy) || 0) * g.economy * 1000) / 1000 };
+      this.effective.acceleration = Math.max(0, (Number(this.effective.acceleration) || 0) + g.acceleration);
+      this.effective.economy = Math.round((Number(this.effective.economy) || 0) * g.economy * 1000) / 1000;
     }
-    const h = eff.handling;
-    this.effective = {
-      handling: typeof h === "object" && h !== null ? h.onRoad : h, handlingOffRoad: typeof h === "object" && h !== null ? h.offRoad : null,
-      speed: eff.speed, acceleration: eff.acceleration, load: eff.load, cargo: eff.cargo, armor: eff.armor,
-      signature: eff.signature, economy: eff.economy, sensor: eff.sensor, autonav: eff.autonav, pilot: eff.pilot,
-      body: Number(this.body) || 0
-    };
     // Built-in subsystem effects (Handling, engine, Body, Armor), derived — reassigned every preparation.
     if (subsys) applySubsystemEffects(this.effective, subsys, Number(this.body) || 0);
     // Operability (plan 6.0): per item its worst live level; the Control Box's — reassigned every preparation.

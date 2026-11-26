@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.168.0 — 2026-11-26
+
+### Fixed — a design can't buy a rating below 0 (Rigger 2 p.115–117)
+- The Vehicle Workshop let Speed, Acceleration, Load or Cargo be set below the table's start without limit: a Speed of
+  −9,925 was a "valid" design priced at 4,000¥. Those ratings now can't end below 0.
+
+### Changed — the Workshop's pure parts in one rules file (for the chargen app)
+- `module/rules/vehicle-workshop-rules.mjs` (pure): the blank design, `workshopUpdate`, the vehicle type and chassis art,
+  the mod step's rules (`engineMods`, `choiceFor`, `designModProblems`), the effective stats `VehicleData` shows
+  (`vehicleEffective`), and `checkChoices`, the shape of a design. The Workshop and the data model use it; nothing else
+  changes in play. The chargen app's Workshop (part 2 of its Vehicle Workshop) vendors it.
+
 ## 0.167.0 — 2026-11-26
 
 ### Added — the core Vehicle Weapons (SR2E p.253, p.265)

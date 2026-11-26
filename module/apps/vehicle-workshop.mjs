@@ -8,8 +8,11 @@
  * record (their ratings included). Mods added on the sheet later are customizations: shown read-only, counted for
  * capacity and mount points, never touched.
  */
-import { designVehicle, evalCell, modDesignDP, modCf, modLoad, modProblems, isTransport, QUALITY_FACTORS } from "../rules/vehicle-design.mjs";
+import { designVehicle, evalCell, modDesignDP, modCf, modLoad, QUALITY_FACTORS } from "../rules/vehicle-design.mjs";
 import { r2Option } from "../vehicle-mode.mjs";
+import { blankDesign, vehicleTypeFor, chassisArt, workshopUpdate, engineMods, choiceFor, modBuildContext, designModProblems } from "../rules/vehicle-workshop-rules.mjs";
+
+export { vehicleTypeFor, chassisArt, workshopUpdate };   // their old home: callers and Quench import them from here
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
@@ -20,47 +23,14 @@ const STEP_LABELS = { chassis: "Chassis", plant: "Power plant", options: "Design
 const CATEGORIES = { bike: "Bikes", car: "Cars", hovercraft: "Hovercraft", boat: "Boats", fixedWing: "Fixed-wing", rotor: "Rotor craft", vector: "Vectored thrust", special: "Special" };
 const ENGINES = { electric: "Electric", methane: "Methane", gasoline: "Gasoline", diesel: "Diesel", jetPropeller: "Jet propeller", jetTurbine: "Jet turbine", sail: "Sail" };
 
-/** The vehicle type and driving skill a chassis category gives (CONFIG.SR2E.vehicleTypes). */
-export function vehicleTypeFor(ch) {
-  if (!ch) return { vehicleType: "ground", skill: "" };
-  const t = { bike: "ground", car: "ground", hovercraft: "hovercraft", boat: "boat", fixedWing: "aircraft", rotor: "rotor", vector: "vectored_thrust" }[ch.category];
-  if (t) return { vehicleType: ch.drone && t === "ground" ? "drone" : t, skill: ch.category === "bike" ? "bike" : "" };
-  // Special: zeppelins and blimps fly; walkers and anthroforms are drones.
-  return { vehicleType: /zeppelin|blimp/i.test(ch.name) ? "aircraft" : "drone", skill: "" };
-}
-
 /** Pictures a vehicle starts with before anyone picks one: these may be replaced by a chassis' exemplar. */
 const DEFAULT_IMAGES = new Set(["", "icons/svg/car.svg", "icons/svg/mystery-man.svg"]);
-
-/**
- * A chassis' default artwork (Rigger 2 module data `art: { img, aspect }`) as an actor update: the portrait and a token
- * of the house footprint (width from type and Body, length from the trimmed art's aspect; 1 square = 1 m), rotation
- * locked. Null when the chassis has none.
- */
-export function chassisArt(ch) {
-  if (!ch?.art?.img) return null;
-  const b = Number(ch.body) || 0, t = vehicleTypeFor(ch).vehicleType;
-  const w = ch.category === "bike" ? 1
-    : t === "drone" ? (b <= 2 ? 1 : b <= 4 ? 2 : 3)
-    : t === "rotor" ? (b <= 3 ? 8 : 12)
-    : t === "aircraft" || t === "vectored_thrust" ? (/blimp|zeppelin/i.test(ch.name) ? Math.max(8, 4 * b) : 8)
-    : b <= 4 ? 2 : b <= 6 ? 3 : 4;
-  const h = Math.max(1, Math.round(w * (Number(ch.art.aspect) || 1)));
-  return { img: ch.art.img, "prototypeToken.texture.src": ch.art.img, "prototypeToken.texture.fit": "contain",
-    "prototypeToken.width": w, "prototypeToken.height": h, "prototypeToken.lockRotation": true };
-}
 
 /** Whether a vehicle's picture is still one nobody chose (a default, or any chassis' exemplar). */
 export function hasDefaultArt(actor, tables) {
   const exemplars = new Set(Object.values(tables?.chassis ?? {}).map(c => c.art?.img).filter(Boolean));
   return DEFAULT_IMAGES.has(actor?.img ?? "") || exemplars.has(actor?.img);
 }
-
-/** A fresh, empty v2 design. */
-const blankDesign = () => ({ chassisKey: "", powerPlantKey: "", speed: 0, acceleration: 0, load: 0, cargo: 0, handling: 0,
-  handlingTrack: "onRoad", economySteps: 0, fuelSteps: 0, signature: 0, smartMaterials: false, takeoff: "", hydrofoil: false,
-  amenities: { level: "", occupants: 1 }, medicalPatients: 0, structuralAgility: 0, engineCustom: { speed: 0, acceleration: 0, load: 0 },
-  gmDP: 0, markUp: { base: 0, features: {}, multipliers: {}, round: 0 } });
 
 /**
  * Map an old (version 1) Design-tab design onto the Workshop's, by the old keys' names. Returns the design and what
@@ -188,11 +158,7 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
   get tables() { return CONFIG.SR2E.vehicleDesignTables ?? { chassis: {}, powerPlants: {}, fuel: {}, markUp: {} }; }
 
   /** The engine's view of the mods: design mods as design, customizations as `design: false`. */
-  engineMods() {
-    // The design's own DBW split (this.design.dbwSplit) is the one being edited here, not the saved item's choice.
-    return this.mods.map(m => ({ ...m.system, name: m.name, design: !m.customization,
-      custom: { ...(m.system.custom ?? {}), choice: m.customization ? m.system.custom?.choice : {} } }));
-  }
+  engineMods() { return engineMods(this.mods); }
 
   result() { return designVehicle(this.design, this.tables, { mods: this.engineMods() }); }
 
@@ -286,14 +252,11 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async #modsStep(r, ch, pp) {
     this.catalog ??= await VehicleWorkshop.loadCatalog();
-    const build = { body: num(ch?.body), pilot: num(evalCell(ch?.pilot, num(ch?.body))), chassisDP: num(evalCell(ch?.dp, 0)),
-      plantDP: num(evalCell(pp?.dp, num(ch?.body))) };
+    const bc = modBuildContext(this.design, ch, pp, this.mods), build = bc.build;
     const f = this.modFilter.trim().toLowerCase();
-    const ctx = { category: ch?.category, engine: pp?.engine, drone: !!ch?.drone, body: num(ch?.body), sensor: num(ch?.sensor),
-      keys: new Set(this.mods.map(m => m.system.modKey).filter(Boolean)), engineCustomLevels: Object.values(this.design.engineCustom ?? {}).reduce((t, l) => t + num(l), 0) };
     const catalog = this.catalog.filter(m => !f || m.name.toLowerCase().includes(f) || (m.system.modType ?? "").includes(f)).map(m => {
       const s = { ...m.system, rating: Math.max(1, num(m.system.rating) || 1) };
-      const why = m.system.designable === false ? ["customization only (install it after the vehicle is built)"] : modProblems(s, build, ctx);
+      const why = designModProblems(m.system, bc);
       return { uuid: m.uuid, name: m.name, type: m.system.modType, dp: m.system.designNuyen ? `${m.system.cost}¥` : modDesignDP(s, build),
         cf: modCf(s, build), load: modLoad(s, build), blocked: why.join("; "), page: (/Design specifications (p\.\d+)/.exec(m.system.notes ?? "") ?? [])[1] ?? "" };
     });
@@ -509,9 +472,8 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     const keepIds = new Set(mine.map(m => m.itemId).filter(Boolean));
     const toDelete = actor.items.filter(i => i.type === "vehicle_mod" && i.getFlag("sr2e", "designMod") && !keepIds.has(i.id)).map(i => i.id);
     if (toDelete.length) await actor.deleteEmbeddedDocuments("Item", toDelete);
-    const choiceFor = (m) => m.system.modKey === "drive-by-wire" ? { acceleration: 10, speed: 0, load: 0, ...(this.design.dbwSplit ?? {}) } : (m.system.custom?.choice ?? {});
-    for (const m of mine) m.system.custom = { ...(m.system.custom ?? {}), choice: choiceFor(m) };
-    const updates = mine.filter(m => m.itemId && actor.items.get(m.itemId)).map(m => ({ _id: m.itemId, "system.rating": num(m.system.rating), "system.custom.choice": choiceFor(m), "flags.sr2e.designMod": true }));
+    for (const m of mine) m.system.custom = { ...(m.system.custom ?? {}), choice: choiceFor(this.design, m.system) };
+    const updates = mine.filter(m => m.itemId && actor.items.get(m.itemId)).map(m => ({ _id: m.itemId, "system.rating": num(m.system.rating), "system.custom.choice": choiceFor(this.design, m.system), "flags.sr2e.designMod": true }));
     for (const m of mine) m.loadedRating = num(m.system.rating);
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
     const creates = mine.filter(m => !m.itemId).map(m => ({ name: m.name, type: "vehicle_mod", img: m.img, system: m.system, flags: { sr2e: { designMod: true, wsUid: m.uid } } }));
@@ -531,32 +493,6 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
 
 /** An item's system data minus its Rating, to spot edits made on its sheet. */
 const sansRating = (sys) => JSON.stringify({ ...(sys?.toObject?.() ?? sys), rating: 0 });
-
-/** The actor update a design writes: BASE stats (gross Cargo/Load), the vehicle type, the stored design. */
-export function workshopUpdate(design, r, ch, pp, name) {
-  // BASE stats (plan C1): design options only; the sheet applies every mod's effects on top (applyModEffects).
-  const s = { ...r.stats, ...r.baseStats };
-  const t = vehicleTypeFor(ch);
-  const pair = typeof s.handling === "object";
-  return {
-    ...(name ? { name } : {}),
-    "system.vehicleType": t.vehicleType, "system.skill": t.skill ?? "",
-    "system.handling": pair ? s.handling.onRoad : s.handling, "system.handlingOffRoad": pair ? s.handling.offRoad : null,
-    "system.speed": num(s.speed), "system.stallSpeed": num(s.stallSpeed), "system.acceleration": num(s.acceleration),
-    "system.body": num(s.body), "system.armor": num(s.armor), "system.signature": num(s.signature),
-    "system.pilot": num(s.pilot), "system.sensor": num(s.sensor), "system.autonav": num(s.autonav),
-    "system.cargo": num(s.cargo), "system.load": num(s.load),
-    "system.seating": String(s.seating ?? ""), "system.seatingExtra": num(s.seatingExtra), "system.entryPoints": String(s.entryPoints ?? ""),
-    "system.ltProfile": String(s.ltProfile ?? ""), "system.setupTime": String(s.setupTime ?? ""),
-    "system.economy": num(s.economy), "system.economyUnit": String(s.economyUnit ?? ""), "system.economyIdle": String(s.economyIdle ?? ""),
-    "system.fuelType": String(s.fuelType ?? ""), "system.fuelSize": num(s.fuelSize), "system.fuelUnit": String(s.fuelUnit ?? ""),
-    "system.otherFeatures": (s.accessories ?? []).join(", "),
-    "system.designPointValue": num(r.dp), "system.cost": num(r.price),
-    "system.design.version": 2, "system.design.baseVersion": 2, "system.tires": String(design.tires ?? ""), "system.design.category": ch.category ?? "", "system.design.transport": isTransport(ch), "system.design.chassisKey": design.chassisKey, "system.design.powerPlantKey": design.powerPlantKey,
-    "system.design.choices": foundry.utils.deepClone(design),
-    "system.design.optionCf": num(r.options?.cf), "system.design.optionLoad": num(r.options?.load), "system.design.restrictedCf": num(r.options?.restrictedCf)
-  };
-}
 
 /** A small HTML table of the stats an update would change on this actor. */
 function statDiff(actor, update) {

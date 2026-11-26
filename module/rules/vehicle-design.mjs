@@ -679,6 +679,11 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
     economy, economyUnit: pp.economy?.unit ?? "", economyIdle: typeof pp.economy?.idle === "object" ? [pp.economy.idle.start, pp.economy.idle.max].filter(Boolean).join(" / ") : (pp.economy?.idle ?? ""), fuelType: pp.engine, fuelSize: fuel, fuelUnit: pp.fuel?.unit ?? "",
     accessories: ch.accessories ?? []
   };
+  // Floors (the chargen Workshop plan, Codex r1 #3): the maxima above bound what a design buys UP; Speed, Acceleration,
+  // Load and Cargo may also be set below the table's start, and must not end below 0 (Handling has its own floor).
+  for (const [k, label, page] of [["speed", "Speed", "p.117"], ["acceleration", "Acceleration", "p.115"], ["load", "Load", "p.117"], ["cargo", "Cargo", "p.116"]]) {
+    if (stats[k] != null && Number(stats[k]) < 0) problem(`${k}Negative`, `${label} can't be below 0.`, page);
+  }
   return { valid: problems.length === 0, problems, dpLines: lines, dp, stats,
     limits: { speed: speed.max, acceleration: accel.max, load: load.max, cargo: cargoMax, economy: ecoMax },
     options: { cf: Math.round(optCf * 100) / 100, load: optLoad, restrictedCf },
