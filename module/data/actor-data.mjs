@@ -17,6 +17,7 @@ import { foldMbw, wareLevel, complicationDice, COMPLICATION_TN } from "../rules/
 import { eventsOf } from "../claims.mjs";
 import { vehicleCapacity } from "../rules/vehicle-design.mjs";
 import { vehicleEffective } from "../rules/vehicle-workshop-rules.mjs";
+import { mountedWeaponLoad } from "../rules/vehicle-mounts-r2.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -2299,7 +2300,8 @@ export class VehicleData extends SR2EDataModel {
     // Usable Cargo and Load: the effective gross − the design options − every mod's consumption (the one capacity
     // rule, module/rules/vehicle-design.mjs; Rigger 2 p.113, p.115, p.120).
     const cap = vehicleCapacity({ cargo: this.effective.cargo, load: this.effective.load, optionCf: this.design.optionCf,
-      optionLoad: this.design.optionLoad, restrictedCf: this.design.restrictedCf }, mods, build);
+      optionLoad: this.design.optionLoad, restrictedCf: this.design.restrictedCf,
+      weaponLoad: mountedWeaponLoad(this.parent?.items ?? []) }, mods, build);   // weapons on fixed mounts (R2 p.132)
     this.cargoFree = cap.cargoFree;
     this.loadFree = cap.loadFree;
   }

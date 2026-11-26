@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.169.0 — 2026-11-26
+
+### Added — weapons on Rigger 2 mounts, as rules (R2 p.131–135)
+- `module/rules/vehicle-mounts-r2.mjs` (pure): the 19 designable mount mods (fixed, pintle, ring, turrets) with what
+  each holds; the Weapon Values Table; which weapons need a Firearm Conversion Kit; one check of a vehicle's mounted
+  weapons (`mountProblems`). A weapon is on a mount when its item has `flags.sr2e.mountId` = the mount item's id; its
+  kit is a design mod with `flags.sr2e.kitFor` = the weapon's id. The chargen app's Workshop mounts weapons with it.
+- The Vehicle Workshop checks those mounted weapons (a missing kit, a weapon over a turret's Weapon Value…) and
+  refuses to remove a mount that holds weapons, or a kit whose weapon is still mounted.
+- A weapon on a fixed mount weighs on the vehicle's Load ("plus weapon's weight", p.132), in the Workshop and on the
+  vehicle sheet.
+
+### Fixed
+- Colt Manhunter weight 2.5 and Ingram Smartgun weight 3 (they were 0; core p.278–279).
+- The Workshop keeps each modification's compendium source, so mounts and kits added in Foundry are recognized.
+
 ## 0.168.0 — 2026-11-26
 
 ### Fixed — a design can't buy a rating below 0 (Rigger 2 p.115–117)

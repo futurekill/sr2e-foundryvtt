@@ -11,6 +11,7 @@
 import { designVehicle, evalCell, modDesignDP, modCf, modLoad, QUALITY_FACTORS } from "../rules/vehicle-design.mjs";
 import { r2Option } from "../vehicle-mode.mjs";
 import { blankDesign, vehicleTypeFor, chassisArt, workshopUpdate, engineMods, choiceFor, modBuildContext, designModProblems } from "../rules/vehicle-workshop-rules.mjs";
+import { mountProblems, mountedWeaponLoad, removalProblem } from "../rules/vehicle-mounts-r2.mjs";
 
 export { vehicleTypeFor, chassisArt, workshopUpdate };   // their old home: callers and Quench import them from here
 
@@ -119,7 +120,9 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     const mine = !!i.getFlag("sr2e", "designMod") || convert;
     return { uid: foundry.utils.randomID(), itemId: i.id, name: i.name, img: i.img, system: foundry.utils.deepClone(i.system),
       design: mine, customization: !mine, converted: convert && !i.getFlag("sr2e", "designMod"), loadedRating: num(i.system.rating),
-      loadedSys: sansRating(i.system) };
+      loadedSys: sansRating(i.system),
+      // Its identity (R2 mounts and kits are known by it, vehicle-mounts-r2.mjs) and its link to a mounted weapon.
+      flags: foundry.utils.deepClone(i.flags ?? {}), sourceUuid: i._stats?.compendiumSource ?? null };
   }
 
   /**
@@ -141,6 +144,8 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
         if (num(m.system.rating) === m.loadedRating) { m.system.rating = now; adopted.push(`${m.name} is now ${now}`); }
         else adopted.push(`${m.name} was set to ${now} on the sheet; the Workshop's ${m.system.rating} is kept`);
       }
+      // Its identity and links (a kit's kitFor) are the live item's (code review r1 #6).
+      m.flags = foundry.utils.deepClone(item.flags ?? {}); m.sourceUuid = item._stats?.compendiumSource ?? null;
       // Everything but the Rating is edited only on the item's sheet: a change there is always taken in.
       const sys = sansRating(item.system);
       if (sys !== m.loadedSys) { m.system = { ...foundry.utils.deepClone(item.system), rating: m.system.rating }; if (!m.customization) adopted.push(`${m.name} was edited`); }
@@ -160,7 +165,23 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
   /** The engine's view of the mods: design mods as design, customizations as `design: false`. */
   engineMods() { return engineMods(this.mods); }
 
-  result() { return designVehicle(this.design, this.tables, { mods: this.engineMods() }); }
+  /** The vehicle's items as a save would leave them: the staged mods (additions and removals included) and the actor's
+   *  current weapons (R2 mounts, vehicle-mounts-r2.mjs; the chargen plan PLAN-workshop-mounts 0.6). */
+  projectedItems() {
+    const mods = this.mods.map(m => ({ _id: m.itemId ?? `new-${m.uid}`, type: "vehicle_mod", name: m.name, system: m.system,
+      flags: m.flags ?? {}, _stats: { compendiumSource: m.sourceUuid ?? null } }));
+    const weapons = (this.actor?.items ?? []).filter(i => i.type === "weapon").map(i => ({ _id: i.id, type: "weapon", name: i.name,
+      system: i.system, flags: i.flags ?? {}, _stats: { compendiumSource: i._stats?.compendiumSource ?? null } }));
+    return [...mods, ...weapons];
+  }
+
+  result() {
+    const items = this.projectedItems();
+    const r = designVehicle(this.design, this.tables, { mods: this.engineMods(), weaponLoad: mountedWeaponLoad(items) });
+    const mp = mountProblems(items);
+    if (mp.length) { r.problems.push(...mp); r.valid = false; }
+    return r;
+  }
 
   async _prepareContext() {
     const tables = this.tables, d = this.design, r = this.result();
@@ -413,6 +434,9 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
   static #onRemoveMod(event, target) {
     const m = this.mods.find(x => x.uid === target.dataset.uid);
     if (!m || m.customization) return;
+    // An occupied mount, or a kit whose weapon is mounted, stays (PLAN-workshop-mounts 1.3; vehicle-mounts-r2.mjs).
+    const why = removalProblem(this.projectedItems(), m.itemId ?? `new-${m.uid}`);
+    if (why) return ui.notifications.warn(why);
     this.mods = this.mods.filter(x => x !== m);
     if (m.itemId) this.removed.add(m.itemId);
     this.render();
@@ -476,7 +500,8 @@ export class VehicleWorkshop extends HandlebarsApplicationMixin(ApplicationV2) {
     const updates = mine.filter(m => m.itemId && actor.items.get(m.itemId)).map(m => ({ _id: m.itemId, "system.rating": num(m.system.rating), "system.custom.choice": choiceFor(this.design, m.system), "flags.sr2e.designMod": true }));
     for (const m of mine) m.loadedRating = num(m.system.rating);
     if (updates.length) await actor.updateEmbeddedDocuments("Item", updates);
-    const creates = mine.filter(m => !m.itemId).map(m => ({ name: m.name, type: "vehicle_mod", img: m.img, system: m.system, flags: { sr2e: { designMod: true, wsUid: m.uid } } }));
+    const creates = mine.filter(m => !m.itemId).map(m => ({ name: m.name, type: "vehicle_mod", img: m.img, system: m.system, flags: { ...(m.flags ?? {}), sr2e: { ...(m.flags?.sr2e ?? {}), designMod: true, wsUid: m.uid } },
+      ...(m.sourceUuid ? { _stats: { compendiumSource: m.sourceUuid } } : {}) }));   // its identity (R2 mounts and kits are known by it)
     if (creates.length) {
       // Each new item takes its id back, so the next save updates it instead of adding another.
       const made = await actor.createEmbeddedDocuments("Item", creates);

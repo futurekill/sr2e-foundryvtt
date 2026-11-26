@@ -14273,6 +14273,52 @@ function stubWorldSettings(keys) {
       };
       const closeWorkshops = async () => { for (const a of [...foundry.applications.instances.values()]) if (a.id?.startsWith("sr2e-vehicle-workshop")) await a.close(); };
 
+      it("R2 mounts in the Workshop: a mounted rifle needs its kit; the save and the mount's removal are refused until then; its weight is on the Load (R2 p.131–132)", async function () {
+        if (!haveTables() || !game.packs.get("sr2e-rigger-2.r2-vehicle-mods")) this.skip();
+        this.timeout(30000);
+        await closeWorkshops();
+        const R = (await import("../rules/vehicle-mounts-r2.mjs"));
+        const mountDoc = await game.packs.get("sr2e-rigger-2.r2-vehicle-mods").getDocument("9899f9283b954643");   // Fixed Mount (External Firmpoint)
+        const kitDoc = await game.packs.get("sr2e-rigger-2.r2-vehicle-mods").getDocument("678b4d77eb54b3d7");     // kit (Rifle/Shotgun/LMG)
+        const rifleDoc = await game.packs.get("sr2e.weapons").getDocument("9a954abc8f8a3315");                     // AK-97, 4.5 kg
+        const choices = { chassisKey: "sedan", powerPlantKey: "gasoline-cars-sedan" };
+        const v = await Actor.create({ name: "Quench Vehicle R2 Mount", type: "vehicle", system: { design: { version: 2, baseVersion: 2, choices } } });
+        made.push(v);
+        const [mnt] = await v.createEmbeddedDocuments("Item", [{ ...mountDoc.toObject(), flags: { sr2e: { designMod: true } }, _stats: { compendiumSource: mountDoc.uuid } }]);
+        await v.createEmbeddedDocuments("Item", [{ ...rifleDoc.toObject(), flags: { sr2e: { mountId: mnt.id, mount: "firmpoint" } }, _stats: { compendiumSource: rifleDoc.uuid } }]);
+        const rifle = v.items.find(i => i.type === "weapon" && i.flags?.sr2e?.mountId);
+        const ws = await (await W()).VehicleWorkshop.open(v);
+        await pause(600);
+        let r = ws.result();
+        assert.include(r.problems.map(p => p.code), "kitMissing", "a rifle on a fixed mount needs its kit");
+        assert.isFalse(r.valid);
+        const before = v.system.designPointValue;
+        await ws.options.actions.save.call(ws, new Event("click"), document.createElement("button"));   // the handler itself (the button is disabled)
+        await pause(600);
+        assert.equal(v.system.designPointValue, before, "the save is refused while the kit is missing");
+        const staged = ws.mods.find(m => m.itemId === mnt.id);
+        const btn = document.createElement("button"); btn.dataset.uid = staged.uid;
+        await ws.options.actions.removeMod.call(ws, new Event("click"), btn);
+        assert.ok(ws.mods.find(m => m.itemId === mnt.id), "an occupied mount isn't removed");
+        await closeWorkshops();
+        await v.createEmbeddedDocuments("Item", [{ ...kitDoc.toObject(), flags: { sr2e: { designMod: true, kitFor: rifle.id } }, _stats: { compendiumSource: kitDoc.uuid } }]);
+        const ws2 = await (await W()).VehicleWorkshop.open(v);
+        await pause(600);
+        r = ws2.result();
+        assert.deepEqual(r.problems.filter(p => /^(kit|mount|weapon)/.test(p.code)), [], "with its kit, no mount problem");
+        assert.isAtLeast(r.budgets.loadUsed, 4.5, "the rifle's 4.5 kg is on the Load");
+        assert.equal(R.mountedWeaponLoad(v.items.contents), 4.5);
+        if (r.valid) {   // a sedan with a fixed firmpoint and its kit is a finished design: the save writes it, links intact
+          await ws2.options.actions.save.call(ws2, new Event("click"), document.createElement("button"));
+          await pause(1200);
+          assert.equal(v.system.designPointValue, r.dp, "saved at the Workshop's Design Points");
+          const kit = v.items.find(i => i.flags?.sr2e?.kitFor === rifle.id);
+          assert.ok(kit && kit.flags.sr2e.designMod, "the kit keeps its link and stays a design mod");
+          assert.ok(v.items.get(mnt.id), "the mount is kept");
+        } else assert.fail(`expected a finished design, got: ${r.problems.map(p => p.msg).join(" ")}`);
+        await closeWorkshops();
+      });
+
       it("the Workshop builds Rich's sports car through its buttons: 1,214 DP, 303,500¥, flagged design mods (R2 p.111–115)", async function () {
         if (!haveTables()) this.skip();
         this.timeout(30000);

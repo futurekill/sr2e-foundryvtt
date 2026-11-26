@@ -342,7 +342,7 @@ export const modLoad = (m = {}, build = {}) => ratedValue(m.rating, m.loadReduct
  * counted twice or forgotten. `restricted`: CF still usable for gear/passengers but not for mods (living amenities).
  * `build` gives formulas their Body etc.
  */
-export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad = 0, restrictedCf = 0 } = {}, mods = [], build = {}) {
+export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad = 0, restrictedCf = 0, weaponLoad = 0 } = {}, mods = [], build = {}) {
   // Factory equipment is already in a production vehicle's printed figures; a removed item takes nothing (plan C1.3).
   mods = mods.filter(m => !["factory", "removed"].includes(m.custom?.state ?? m.state ?? ""));
   // Each item by its origin's spec (plan C2.4): a customization (bought through the flow) by its Customization
@@ -370,7 +370,8 @@ export function vehicleCapacity({ cargo = 0, load = 0, optionCf = 0, optionLoad 
     modsCf += full.cf - zero.cf; modsLoad += full.ld - zero.ld;
     if (!seen.has(fam)) { seen.add(fam); modsCf += zero.cf; modsLoad += zero.ld; }
   }
-  const cfUsed = num0(optionCf) + modsCf, loadUsed = num0(optionLoad) + modsLoad;
+  // weaponLoad: the weapons on fixed mounts ("plus weapon's weight", R2 p.132; vehicle-mounts-r2.mjs), transient use.
+  const cfUsed = num0(optionCf) + modsCf, loadUsed = num0(optionLoad) + modsLoad + (Number.isFinite(weaponLoad) && weaponLoad > 0 ? weaponLoad : 0);
   const round = (n) => Math.round(n * 100) / 100;
   return { cargo: num0(cargo), load: num0(load), cfUsed: round(cfUsed), loadUsed: round(loadUsed),
     cargoFree: round(num0(cargo) - cfUsed + num0(restrictedCf)), loadFree: round(num0(load) - loadUsed),
@@ -471,7 +472,7 @@ export function designPrice(dp, markUp, round = 0) {
  * @param {object} [o]
  * @param {object[]} [o.mods]  installed mods: { name, key, rating, design (bool), …DP/CF/Load rule fields }
  */
-export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
+export function designVehicle(design = {}, tables = {}, { mods = [], weaponLoad = 0 } = {}) {
   const problems = [], lines = [];
   const add = (label, dp, page) => { if (dp) lines.push({ label, dp: Math.round(dp * 100) / 100, page }); };
   const problem = (code, msg, page) => problems.push({ code, msg, page });
@@ -661,7 +662,10 @@ export function designVehicle(design = {}, tables = {}, { mods = [] } = {}) {
   const sigFinal = eff.stats.signature, dbwSplit = eff.dbwSplit, fx = { cargo: eff.stats.cargo - cargo }, tire = eff.tire;
 
   const cargoFinal = cargo + fx.cargo;
-  const cap = vehicleCapacity({ cargo: cargoFinal, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf }, mods, build);
+  // The weapons on fixed mounts weigh on the Load (R2 p.132): a weight that isn't a number ≥ 0 is refused, never coerced.
+  const wLoadOk = typeof weaponLoad === "number" && Number.isFinite(weaponLoad) && weaponLoad >= 0;
+  if (!wLoadOk) problem("weaponLoad", "The mounted weapons' weight isn't a number of kilograms.", "p.132");
+  const cap = vehicleCapacity({ cargo: cargoFinal, load: load.value ?? 0, optionCf: optCf, optionLoad: optLoad, restrictedCf, weaponLoad: wLoadOk ? weaponLoad : 0 }, mods, build);
   if (cap.modCfFree < -1e-9) problem("cfOver", `The options and mods need ${cap.cfUsed} CF; the vehicle has ${cargoFinal}.`, "p.115");
   if (cap.loadFree < -1e-9) problem("loadOver", `The options and mods weigh ${cap.loadUsed} kg; the vehicle's Load is ${load.value}.`, "p.115");
 
