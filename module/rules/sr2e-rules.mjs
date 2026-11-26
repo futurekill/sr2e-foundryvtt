@@ -1474,6 +1474,16 @@ export function languageSkillRatings(rating, chargen = true) {
  * @param {number|string} streetIndex - Street Index multiplier.
  * @returns {number}
  */
+/**
+ * A vehicle's Street Index by its cost (core p.264, the Vehicles table's note; rendered 2026-11-26): ".75 for Costs less
+ * than 10,000¥, 1 for up to 50,000¥, and 2 for more than 50,000¥." Null for no price (a "Restricted" vehicle).
+ */
+export function vehicleStreetIndex(cost) {
+  const c = Number(cost);
+  if (!Number.isFinite(c) || c <= 0) return null;
+  return c < 10000 ? 0.75 : c <= 50000 ? 1 : 2;
+}
+
 export function streetPrice(cost, streetIndex) {
   const si = parseFloat(streetIndex);
   const c = Math.max(0, cost || 0);

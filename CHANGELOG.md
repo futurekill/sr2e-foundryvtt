@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.170.0 — 2026-11-26
+
+### Added — a vehicle's Street Index (core p.264)
+- `vehicleStreetIndex(cost)` in `module/rules/sr2e-rules.mjs`: .75 under 10,000¥, 1 up to 50,000¥, 2 above, as the
+  Vehicles table's note prints it. The chargen app prices vehicles bought in play with it; Foundry doesn't use it yet.
+
 ## 0.169.0 — 2026-11-26
 
 ### Added — weapons on Rigger 2 mounts, as rules (R2 p.131–135)
