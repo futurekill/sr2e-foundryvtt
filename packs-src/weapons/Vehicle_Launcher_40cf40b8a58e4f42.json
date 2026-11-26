@@ -1,0 +1,64 @@
+{
+  "_id": "40cf40b8a58e4f42",
+  "name": "Vehicle Launcher",
+  "type": "weapon",
+  "img": "systems/sr2e/assets/item_icons/weapons/missile-rocket-launcher.webp",
+  "system": {
+    "weaponType": "heavy",
+    "skill": "gunnery",
+    "damageCode": "16D",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": true,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 6,
+      "max": 6,
+      "type": "missile"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 70,
+      "medium": 150,
+      "long": 450,
+      "extreme": 1500
+    },
+    "strengthMin": 0,
+    "weight": 15,
+    "cost": 15000,
+    "availability": "15/14 days",
+    "legality": "",
+    "equipped": false,
+    "accessories": [],
+    "notes": "\"This small launcher uses the same missiles as a shoulder-fired launcher\" (SR2E p.253); printed as \"Launcher\" under Vehicle Weapons. Damage as the rocket or missile loaded. Vehicle weapon: mounts on a hardpoint. Ammunition 6 (b), 15/14 days, 15,000\u00a5, Street Index 2 (p.265). Weight 15 from Fields of Fire p.110, which the core book does not print.",
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "253"
+    }
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.19.4",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "987834caf0814add",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!40cf40b8a58e4f42"
+}

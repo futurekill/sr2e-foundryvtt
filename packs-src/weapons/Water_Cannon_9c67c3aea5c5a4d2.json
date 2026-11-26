@@ -1,0 +1,64 @@
+{
+  "_id": "9c67c3aea5c5a4d2",
+  "name": "Water Cannon",
+  "type": "weapon",
+  "img": "systems/sr2e/assets/item_icons/weapons/missile-rocket-launcher.webp",
+  "system": {
+    "weaponType": "heavy",
+    "skill": "gunnery",
+    "damageCode": "6M",
+    "damageType": "stun",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": false,
+      "sa": false,
+      "bf": false,
+      "fa": true
+    },
+    "ammo": {
+      "current": 20,
+      "max": 20,
+      "type": "regular"
+    },
+    "recoilComp": 10,
+    "ranges": {
+      "short": 10,
+      "medium": 20,
+      "long": 50,
+      "extreme": 100
+    },
+    "strengthMin": 0,
+    "weight": 12,
+    "cost": 20000,
+    "availability": "15/14 days",
+    "legality": "",
+    "equipped": false,
+    "accessories": [],
+    "notes": "A high-pressure projector (SR2E p.253). It always fires on autofire (10 shots an action) and suffers no recoil penalty. Any hit forces the target to make a Strength Test (Target Number 5) or be knocked over. Connected to a water source, it does not need to reload. Ammunition 20, 6M Stun, 15/14 days, 20,000\u00a5, Street Index 2 (p.265). Ranges as Shotgun and weight 12 from Fields of Fire p.110. Recoil compensation 10 stands for \"no recoil penalty\" on its 10-shot burst. Not automated: the knockdown test is the gamemaster's.",
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "253"
+    }
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.19.4",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "8fe2f01d4ecaee2d",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!9c67c3aea5c5a4d2"
+}

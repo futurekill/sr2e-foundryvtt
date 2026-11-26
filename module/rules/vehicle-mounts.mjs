@@ -29,13 +29,20 @@ export const MOUNT_POINTS = Object.freeze({
   "5af822ac2cddf8b8": { name: "Patrol Vehicle (drone)", page: 253, hardpoints: 1, firmpoints: 1 }
 });
 
+/** The core book's Vehicle Weapons (p.253, p.265): "special weapons designed for vehicles" (p.251). They go on a
+ *  hardpoint and need no adaptation, so their price is not doubled (wiki Rulings). */
+export const VEHICLE_WEAPONS = Object.freeze({
+  "3384fb676d8924f5": "Autocannon", "40cf40b8a58e4f42": "Vehicle Launcher", "9c67c3aea5c5a4d2": "Water Cannon"
+});
+
 /** The heavy weapons in the core catalog that fire from a mount (p.255 Heavy Weapons, p.234 the Panther). Missiles and
  *  rockets are the launcher's ammunition, not mountable weapons; the under-barrel grenade launcher is an accessory. */
 export const HARDPOINT_WEAPONS = Object.freeze({
   "3a53febec6132e84": "Generic MMG",
   ee9947f739c2cac6: "Generic HMG",
   "85d3807a401d11c0": "Panther Assault Cannon",
-  "23e8dcd986f176eb": "Missile/Rocket Launcher"
+  "23e8dcd986f176eb": "Missile/Rocket Launcher",
+  ...VEHICLE_WEAPONS
 });
 
 /** The launcher's ammunition (p.255), carried as cargo on a vehicle. */
@@ -61,5 +68,6 @@ export function mountPointsOf(vehicleId) {
     : { hardpoints: 0, firmpoints: 0, upTo: false, pointCost: 0, page: null };
 }
 
-/** A mounted weapon's price: twice its list price ("Adaptation of a weapon for a vehicle mount doubles its cost"). */
-export const mountedWeaponCost = (listPrice) => 2 * Math.max(0, Number(listPrice) || 0);
+/** A mounted weapon's price: twice its list price ("Adaptation of a weapon for a vehicle mount doubles its cost"),
+ *  except a weapon designed for vehicles (`id` in VEHICLE_WEAPONS), which needs no adaptation. */
+export const mountedWeaponCost = (listPrice, id) => (Object.hasOwn(VEHICLE_WEAPONS, id) ? 1 : 2) * Math.max(0, Number(listPrice) || 0);

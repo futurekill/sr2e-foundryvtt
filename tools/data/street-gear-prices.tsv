@@ -182,3 +182,8 @@ Spell Lock	focus						2/48 hrs	45000	2	254
 Colt M22A2	firearm	3	0	8M	p	4.75	4/3 days	1600	2	279	ammo=40;modes=SA/BF/FA
 HK G12A3Z	firearm	2	0	8M	p	5.25	8/4 days	2200	3	279	ammo=32;modes=SA/BF/FA
 Mossberg CMDT	firearm	2	0	9S	p	4.25	8/8 days	1400	1	279	ammo=8;modes=SA/BF
+# Vehicle Weapons (p.265; descriptions p.253). The printed row "Launcher" ships as "Vehicle Launcher". Weight and
+# concealability are not printed in the core book.
+Autocannon	heavy		0	12D	p		12/14 days	12000	2	265	ammo=10;modes=SS
+Vehicle Launcher	heavy		0		p		15/14 days	15000	2	265	ammo=6;modes=SS
+Water Cannon	heavy		0	6M	s		15/14 days	20000	2	265	ammo=20;modes=FA

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.167.0 — 2026-11-26
+
+### Added — the core Vehicle Weapons (SR2E p.253, p.265)
+- **Autocannon**, **Vehicle Launcher** (printed "Launcher") and **Water Cannon** in the Weapons compendium, at the
+  Street Gear values. Ranges and weights the core book doesn't print come from Fields of Fire p.110 (see Rulings).
+  The Water Cannon is always full-auto with recoil compensation 10 (no recoil penalty); its knockdown test is the GM's.
+- `vehicle-mounts.mjs`: they go on hardpoints, and a mount doesn't double their price (they are built for vehicles).
+
 ## 0.166.0 — 2026-11-26
 
 ### Added — core vehicle weapon mounts as data (SR2E p.251–253)

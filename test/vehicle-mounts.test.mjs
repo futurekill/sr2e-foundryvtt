@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
-import { MOUNT_POINTS, HARDPOINT_WEAPONS, LAUNCHER_MUNITIONS, mountKindFor, mountPointsOf, mountedWeaponCost } from "../module/rules/vehicle-mounts.mjs";
+import { MOUNT_POINTS, HARDPOINT_WEAPONS, LAUNCHER_MUNITIONS, VEHICLE_WEAPONS, mountKindFor, mountPointsOf, mountedWeaponCost } from "../module/rules/vehicle-mounts.mjs";
 
 const pack = (dir) => Object.fromEntries(readdirSync(new URL(`../packs-src/${dir}/`, import.meta.url)).filter(f => f.endsWith(".json"))
   .map(f => JSON.parse(readFileSync(new URL(`../packs-src/${dir}/${f}`, import.meta.url), "utf8"))).filter(d => d._id).map(d => [d._id, d]));
@@ -43,5 +43,15 @@ describe("what goes on which mount (p.251)", () => {
   it("adaptation doubles the weapon's cost", () => {
     expect(mountedWeaponCost(4000)).toBe(8000);
     expect(mountedWeaponCost(undefined)).toBe(0);
+  });
+  it("the Vehicle Weapons (p.253, p.265) go on hardpoints at list price: designed for vehicles, not adapted", () => {
+    expect(Object.values(VEHICLE_WEAPONS).sort()).toEqual(["Autocannon", "Vehicle Launcher", "Water Cannon"]);
+    for (const id of Object.keys(VEHICLE_WEAPONS)) expect(Object.hasOwn(HARDPOINT_WEAPONS, id), id).toBe(true);
+    const ac = weapons["3384fb676d8924f5"].system, wc = weapons["9c67c3aea5c5a4d2"].system;
+    expect([ac.cost, ac.damageCode, ac.ammo.max, ac.firingModes.ss, ac.firingModes.sa]).toEqual([12000, "12D", 10, true, false]);
+    expect([wc.cost, wc.damageCode, wc.damageType, wc.ammo.max, wc.firingModes.fa, wc.recoilComp]).toEqual([20000, "6M", "stun", 20, true, 10]);
+    expect(weapons["40cf40b8a58e4f42"].system).toMatchObject({ cost: 15000, ammo: { max: 6, type: "missile" } });
+    expect(mountedWeaponCost(12000, "3384fb676d8924f5")).toBe(12000);
+    expect(mountedWeaponCost(4000, "ee9947f739c2cac6")).toBe(8000);
   });
 });

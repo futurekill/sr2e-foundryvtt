@@ -1,0 +1,64 @@
+{
+  "_id": "3384fb676d8924f5",
+  "name": "Autocannon",
+  "type": "weapon",
+  "img": "systems/sr2e/assets/item_icons/weapons/panther-assault-cannon.webp",
+  "system": {
+    "weaponType": "heavy",
+    "skill": "gunnery",
+    "damageCode": "12D",
+    "damageType": "physical",
+    "concealability": 99,
+    "reach": 0,
+    "firingModes": {
+      "ss": true,
+      "sa": false,
+      "bf": false,
+      "fa": false
+    },
+    "ammo": {
+      "current": 10,
+      "max": 10,
+      "type": "ac"
+    },
+    "recoilComp": 0,
+    "ranges": {
+      "short": 50,
+      "medium": 150,
+      "long": 450,
+      "extreme": 1300
+    },
+    "strengthMin": 0,
+    "weight": 45,
+    "cost": 12000,
+    "availability": "12/14 days",
+    "legality": "",
+    "equipped": false,
+    "accessories": [],
+    "notes": "A light cannon with an autoloader; single-shot firing only (SR2E p.253). Vehicle weapon: mounts on a hardpoint. Ammunition 10 (c), 12D, 12/14 days, 12,000\u00a5, Street Index 2 (p.265). Ranges as Assault Cannon and weight 45 from Fields of Fire p.110 (type \"Cannon\"), which the core book does not print.",
+    "streetIndex": 2,
+    "citation": {
+      "book": "sr2",
+      "page": "253"
+    }
+  },
+  "effects": [],
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.19.4",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "2cf4944bd0e889c9",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!3384fb676d8924f5"
+}
