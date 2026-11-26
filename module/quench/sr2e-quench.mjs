@@ -1986,6 +1986,33 @@ function stubWorldSettings(keys) {
             assert.equal(calls.length, 2, "with Enhanced Centering (Combat)");
           } finally { restore(); }
         });
+        it("a weapon attack centers against its own penalties too (an aim bonus offsets none), never the range's base TN", async () => {
+          const a = await Actor.create({ name: "Quench Center Gun", type: "character", system: { magic: { type: "physical_adept", value: 4, initiateGrade: 1,
+            metamagic: ["centering"], centeringSkill: "Meditation" } } }); made.push(a);
+          await a.createEmbeddedDocuments("Item", [
+            { name: "Meditation", type: "skill", system: { category: "special", rating: 4 } },
+            { name: "Firearms", type: "skill", system: { category: "active", rating: 4 } },
+            { name: "Quench Center Pistol", type: "weapon", system: { weaponType: "firearm", skill: "firearms", damageCode: "6M", equipped: true, ammo: { current: 10, max: 10 } } }]);
+          twice(a);
+          const gun = a.items.getName("Quench Center Pistol");
+          const n = game.messages.size;
+          const restore = stub(a);
+          try {
+            calls.length = 0; queue = [4, 0];
+            await gun.roll({ range: "medium", firingMode: "ss", otherMod: 3, aimActions: 1, center: true });
+            assert.equal(calls.length, 1, "Combat isn't covered without Enhanced Centering: the attack alone");
+            assert.isUndefined(calls[0].o.centeringReduction);
+            await a.createEmbeddedDocuments("Item", [power("Enhanced Centering", "enhanced_centering", 1, { centeringCategory: "combat" })]);
+            calls.length = 0; queue = [6, 0];
+            await gun.roll({ range: "medium", firingMode: "ss", otherMod: 3, aimActions: 1, center: true });
+            assert.equal(calls.length, 2, "the Centering Test, then the attack");
+            const attackTN = 5 + 3 - 1 + 1;   // medium base 5 (p.88), other +3, aim −1 (p.82), recoil +1 from the first shot (p.93)
+            assert.equal(calls[1].tn, attackTN);
+            assert.equal(calls[0].tn, attackTN - 1, "the attack's TN with its penalties, less the grade");
+            assert.equal(calls[1].o.centeringReduction, 3, "6 successes: −3");
+            assert.equal(calls[1].o.extraReducible, 4, "other +3 and recoil +1: the range is the base, and aim's bonus offsets none");
+          } finally { restore(); ChatMessage.deleteDocuments(game.messages.contents.slice(n).map(m => m.id)).catch(() => {}); }
+        });
         it("Attribute Boost: one per attribute, +level while it runs; ending once posts a Drain resolved once (Grimoire p.34)", async () => {
           const { activateBoost, endBoost, resistBoostDrain } = await import("../adept-powers.mjs");
           const a = await Actor.create({ name: "Quench Boost", type: "character", system: { magic: { type: "physical_adept", value: 5 }, body: { base: 4 } } }); made.push(a);

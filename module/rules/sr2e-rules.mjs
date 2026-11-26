@@ -1286,11 +1286,11 @@ export function shiftRangeBracket(bracket, shift) {
  *
  * @param {Array<{system: object}>} accessories - Gear items linked to the weapon.
  * @param {{deployed?: boolean}} [opts]
- * @returns {{recoilComp:number, tnMod:number, laserMod:number, gyroRating:number,
+ * @returns {{recoilComp:number, tnMod:number, tnPenalty:number, laserMod:number, gyroRating:number,
  *            rangeShift:number, grantsSmartgun:boolean, needsDeployment:string[]}}
  */
 export function accessorySummary(accessories, { deployed = false } = {}) {
-  const out = { recoilComp: 0, tnMod: 0, laserMod: 0, gyroRating: 0,
+  const out = { recoilComp: 0, tnMod: 0, tnPenalty: 0, laserMod: 0, gyroRating: 0,
                 rangeShift: 0, grantsSmartgun: false, needsDeployment: [] };
   for (const a of accessories) {
     const s = a.system ?? a;
@@ -1302,6 +1302,7 @@ export function accessorySummary(accessories, { deployed = false } = {}) {
     }
     if (s.laserSight) out.laserMod += s.combatTnMod ?? 0;
     else              out.tnMod    += s.combatTnMod ?? 0;
+    if (!s.laserSight) out.tnPenalty += Math.max(0, s.combatTnMod ?? 0);   // each accessory's own penalty, for Centering (Grimoire p.44)
     out.gyroRating = Math.max(out.gyroRating, s.gyroRating ?? 0);
     out.rangeShift = Math.max(out.rangeShift, s.rangeShift ?? 0);
     if (s.grantsSmartgun) out.grantsSmartgun = true;

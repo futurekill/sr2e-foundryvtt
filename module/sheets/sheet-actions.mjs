@@ -656,6 +656,14 @@ async function promptWeaponAttackOptions(actor, weapon, skillCap = Infinity, bas
                                          defaultingPenalty = 0, presets = {}) {
   const BASE_TN    = 4;
   const isMelee    = weapon.system.weaponType === "melee";   // thrown weapons are ranged (p.87, p.96)
+  // An initiated adept's Centering against the attack's penalties (Grimoire p.44): the roll checks the skill is covered
+  // (Combat Skills need Enhanced Centering: Combat).
+  const mgC = actor.system.magic;
+  const centerRow = actor.type === "character" && mgC?.type === "physical_adept" && (mgC.initiateGrade ?? 0) >= 1
+    && !!mgC.metamagic?.includes?.("centering") && !!mgC.centeringSkill ? `
+      <label class="sr2e-attack__check" title="Grimoire p.44: a Centering Test lowers the attack's penalties (never the base target number). A Free Action. Combat Skills need Enhanced Centering (Combat).">
+        <input type="checkbox" name="center"> Center first (Free Action)
+      </label>` : "";
   const isRanged   = !isMelee;
   // Moving Target Table (p.108): the target's speed against the firer's — the vehicle a mounted weapon is on, else a
   // vehicle the attacker rides in (picked), else 5 (stationary). Shown when a vehicle is involved; always overridable.
@@ -1397,6 +1405,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
 
                title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
       </div>
+      ${centerRow}
       <div class="sr2e-attack__field">
         <label>Your allies in melee:</label>
         <input type="number" id="sr2e-allies" name="allies" value="0" min="0" max="4"
@@ -1455,6 +1464,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
 
                title="Situational modifiers the sheet does not model — environment, cover you are judging by eye, GM calls. Aim and called shots have their own controls now; do NOT enter them here or they count twice.">
       </div>
+      ${centerRow}
     </div>`;
 
   // TN breakdown rows — differ for ranged vs melee
@@ -1692,6 +1702,7 @@ Pre-filled from hostile tokens within ${ENGAGEMENT_RANGE_M} m of you (p.90 count
             aimActions:      Math.max(0, Math.min(maxAim, parseInt(f.aimActions?.value) || 0)),
             aimMultiPhase:   !!f.aimMultiPhase?.checked,
             calledShot:      !!f.calledShot?.checked,
+            center:          !!f.center?.checked,
             barrierRating:   parseInt(f.barrierRating?.value) || 0,
             barrierMode:     f.barrierMode?.value === "break" ? "break" : "through",
             barrierDoor:     ["regular", "security"].includes(f.barrierDoor?.value) ? f.barrierDoor.value : "none",

@@ -8,6 +8,13 @@ import {
 const gear = (name, system) => ({ name, type: "gear", system });
 
 describe("accessorySummary (p.240–241)", () => {
+  it("tnPenalty keeps each accessory's own penalty, unnetted by a bonus or the laser (Centering, Grimoire p.44)", () => {
+    const acc = accessorySummary([gear("Heavy Barrel", { combatTnMod: 2 }), gear("Fancy Sight", { combatTnMod: -1 }),
+      gear("Laser", { combatTnMod: -1, laserSight: true })]);
+    expect(acc.tnMod).toBe(1);
+    expect(acc.tnPenalty).toBe(2);
+  });
+
   it("stacks gas vent 3 + shock pad 1 to RC 4 — the Wedge example, p.92–93", () => {
     const acc = accessorySummary([
       gear("Gas Vent III", { accessoryRecoilComp: 3 }),

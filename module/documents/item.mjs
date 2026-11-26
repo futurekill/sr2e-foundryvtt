@@ -12,7 +12,8 @@ import { attackSound, spellSound } from "../rules/combat-sound-rules.mjs";
 import { spellBlockedByElemental, elementalHolderOf, detachElementalHolder, elementalTransition, boundElementals, reservedDiceFor } from "../elementals.mjs";
 import { adeptPowerKey, phaseFireBlock, throwingWeaponRange, rangedArmorType, isSlowMissile, burstRounds, burstFired, spellForces, rangedEngagement, rangeBracketFor, thrownRange, shiftRangeBracket, recoilPenalty, burstDamageBonus, tracerRounds, tracerTnMod, drainTargetNumber, netToSteps, quickeningKarmaRange, centeringDrainBonus, centeringPenaltyReduction, centeringTestTN, areaSpellGeometry, successesAtTN, areaTargetEligible, spellCastDice, manipulationDamage, stageLevel, testTotalSuccesses, elementalAidsCategory, planElementalTransition, shotgunSpread, accessorySummary, gyroReduction, biowareHealingTnMod, iceSheetSide, isAntiVehicleOrdnance, appliesBoneLacingPhysical, unarmedPhysicalPower, healingDrainLevel, woundLevel,
          canCallShot, canAim, aimTnReduction, CALLED_SHOT_TN, CALLED_SHOT_STEPS, resolveBarrier, adjustedBarrierRating, focusEligibleFor, clampFocusAllocation, effectiveSkillRating, cyclopsRangedTN} from "../rules/sr2e-rules.mjs";
-import { powerCardButtons } from "../adept-powers.mjs";
+import { powerCardButtons, adeptCentering } from "../adept-powers.mjs";
+import { poolsLocked } from "../chase-state.mjs";
 import { phaseKey, engagedRecord, currentRecoil, enqueueAttack } from "../engagement.mjs";
 import { preCastBlock, fetishCheck, exclusiveBlock } from "../restricted-spells.mjs";
 import { spellEffectKind, igniteFromCast, startPoltergeist, placeIceSheet, endSpellEffect } from "../spell-effects.mjs";
@@ -918,6 +919,9 @@ export class SR2EItem extends Item {
 
     const modParts = [];
     let targetNumber;
+    // The attack's own penalties (positive modifiers), which Centering may lower (Grimoire p.44): never the base TN.
+    let attackPenalties = 0;
+    const penaltySum = (...mods) => mods.reduce((t, m) => t + Math.max(0, Number(m) || 0), 0);
     let label;
     let lead = null;   // melee: leading with one limb (Cybertechnology p.50)
 
@@ -980,6 +984,7 @@ export class SR2EItem extends Item {
         BASE_TN + reachMod + friendsMod + positionMod + multiMod + meleeVisMod + otherMod + cyclopsMod
                 + leadTN + defaultingPenalty
       );
+      attackPenalties = penaltySum(reachMod, friendsMod, positionMod, multiMod, meleeVisMod, otherMod, cyclopsMod, leadTN, defaultingPenalty);
 
       if (skillVariantNote) modParts.push(`using ${skillVariantNote}`);
       if (focusNote)       modParts.push(focusNote);
@@ -1161,6 +1166,10 @@ export class SR2EItem extends Item {
                 + calledShotMod_ - aimCut_ + eng.tnMod + (r2?.mode === "manual" ? r2.extra : 0) + designatorMod_
                 + tracerMod
       );
+      // The range sets the base TN (p.88), so it is no penalty; a bonus (aim, a smartlink) doesn't offset one.
+      attackPenalties = penaltySum(coverMod, attackerMod - gyroMoveCut, targetMod, speedMod, meleeMod, otherMod, weaponDmgMod,
+        cyclopsMod, cyberwareMod, acc.tnPenalty, recoilMod, effVis_, spreadMod, defaultingPenalty, calledShotMod_, eng.tnMod,
+        ...(r2?.mode === "manual" ? r2.extraParts.map(p => p.value) : []), designatorMod_, tracerMod);
       if (r2?.mode === "manual") for (const p of r2.extraParts) modParts.push(`${p.label} ${p.value > 0 ? "+" : ""}${p.value} (R2 p.57)`);
       // Sensor-enhanced (p.58): the target's Signature + the EW term + the table; recoil as manual; min 2. The p.89
       // situational modifiers don't apply ("most standard target modifiers do not apply", p.61).
@@ -1168,6 +1177,7 @@ export class SR2EItem extends Item {
         const st = sensorGunneryTN({ signature: r2.signature, ewTerm: r2.ewTerm, urban: r2.urban, los: r2.los,
           recoil: recoilMod, vehicleDamage: r2.vehicleDamage });
         targetNumber = Math.max(2, st.raw + defaultingPenalty);
+        attackPenalties = penaltySum(defaultingPenalty, ...st.parts.filter(p => p.label !== "Signature").map(p => p.value));   // Signature is the base (R2 p.58)
         modParts.length = 0;
         modParts.push(`sensor-enhanced: ${st.parts.map(p => `${p.label === "ew" ? "EW" : p.label} ${p.label === "Signature" ? "" : p.value > 0 ? "+" : ""}${p.value}`).join(", ")}`);
         modParts.push(r2.mode === "missile" ? `Missile Attack Test (R2 p.59): +${r2.sensorDice} dice (${r2.diceNote})` : `+${r2.sensorDice} sensor dice`);
@@ -1234,8 +1244,21 @@ export class SR2EItem extends Item {
       try { await spendRounds(this, eng.walked + rounds); }
       catch (err) { return ui.notifications.warn(`${this.name}: ${err.message}`); }
     }
+    // Centering against the attack's penalties (Grimoire p.44), declared in the dialog; a Combat Skill needs Enhanced
+    // Centering (Combat). Rolled before the attack, as on a skill test.
+    let center = null;
+    // Not when the attack itself will be refused (pools locked during a round change): no Free Action for nothing (code r1).
+    if (options.center && !resumed && !(Object.values(options.poolDice ?? {}).some(n => n > 0) && poolsLocked(actor))) {
+      // The skill actually rolled, the weapon-name fallback's included (code r1, r2).
+      const test = recSkill ? { key: normalize(recSkill.name), category: recSkill.system.category ?? "active", name: recSkill.name }
+        : { key: tnContext.key, category: "active", name: tnContext.key };
+      if (!adeptCentering(actor, test)) ui.notifications.info(`${actor.name}'s Centering doesn't cover ${test.name || this.name} (Grimoire p.44: Combat Skills need Enhanced Centering).`);
+      else center = await actor._adeptCenter(test, { targetNumber, defaultPenalty: attackPenalties, tnContext });
+      if (center?.note) label += center.note;
+    }
     const result = resumed ? { successes: testTotalSuccesses(resumed.flags.sr2e.test), testMessageId: resumed.id, resumed: true }
       : await actor.rollSuccessTest(dicePool, targetNumber, {
+      ...(center ? { centeringReduction: center.reduction, extraReducible: attackPenalties } : {}),
       label,
       flags: foundry.utils.mergeObject(sfxFlags(attackSfx, ["firearm", "heavy"].includes(this.system.weaponType) ? "gunshot" : null) ?? {},
         foundry.utils.mergeObject(options.testFlags ?? {}, droneFlags ?? {}, { inplace: false }), { inplace: false }),

@@ -33,7 +33,7 @@ core text layer for prose)._
    `centeringReduction = centeringPenaltyReduction(successes, penalty)` to the skill's Success Test (already supported
    by `testTnModifiers`). Automatic, as the spell path (the Free Action is the player's to spend; the card says so).
    Not when the test IS the Centering skill ("no effect on penalties favoring a Centering Test").
-3. Weapon attacks are Combat Skill tests (item.mjs weapon rolls): covered only with Enhanced Centering (Combat). The
+3. _(Built in 0.165.0, not 0.163.0: docs/archive/reviews/REVIEW-weapon-centering.md.)_ Weapon attacks are Combat Skill tests (item.mjs weapon rolls): covered only with Enhanced Centering (Combat). The
    same block in the weapon roll path, reusing one helper `adeptCenteringReduction(actor, { skill, tn, tnContext })`.
 
 ## B-3 Attribute Boost

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.165.0 — 2026-11-25
+
+### Added — an adept's Centering on weapon attacks (Grimoire p.44)
+- The attack dialog's Tactics tab has **Center first (Free Action)** for an initiated adept with the Centering
+  metamagic. The Centering Test lowers the attack's penalties: the character's own modifiers (wounds, drugs…) AND the
+  attack's (recoil, visibility, cover, movement, a called shot, defaulting…), never the range's base target number. A
+  bonus (aim, a smartlink) doesn't use up any of it. Combat Skills need **Enhanced Centering (Combat)**; without it a
+  notice says so and the attack rolls as usual. Melee attacks too.
+
 ## 0.164.3 — 2026-11-25
 
 ### Fixed — the core weapons compendium against the book (pages rendered)
