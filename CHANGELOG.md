@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.166.0 — 2026-11-26
+
+### Added — core vehicle weapon mounts as data (SR2E p.251–253)
+- `module/rules/vehicle-mounts.mjs` (pure): each core vehicle's hardpoints and firmpoints as its description prints
+  them, which weapons a hardpoint or a firmpoint takes, and the doubled price of a mounted weapon ("Adaptation of a
+  weapon for a vehicle mount doubles its cost", p.251). The chargen app's Garage uses it; Foundry play doesn't yet.
+
 ## 0.165.0 — 2026-11-25
 
 ### Added — an adept's Centering on weapon attacks (Grimoire p.44)
