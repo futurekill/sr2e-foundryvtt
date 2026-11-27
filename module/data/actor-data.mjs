@@ -18,6 +18,7 @@ import { eventsOf } from "../claims.mjs";
 import { vehicleCapacity } from "../rules/vehicle-design.mjs";
 import { vehicleEffective } from "../rules/vehicle-workshop-rules.mjs";
 import { mountedWeaponLoad } from "../rules/vehicle-mounts-r2.mjs";
+import { npcDerived } from "../rules/npc-rules.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -1971,6 +1972,9 @@ export class NPCData extends SR2EDataModel {
 
       // Threat Rating
       threatRating: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+      // Dice added to the Combat Pool: a bonus baked into a stat block, e.g. an adept's Combat Sense (core p.169)
+      // on an NPC converted from an archetype (sr2e-chargen's NPC builder). 0 = none.
+      combatPoolBonus: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
 
       // Nuyen
       nuyen: new fields.NumberField({ initial: 0, min: 0 }),
@@ -1985,20 +1989,18 @@ export class NPCData extends SR2EDataModel {
 
   /** @override */
   prepareDerivedData() {
-    // Calculate attribute values
-    for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) {
-      if (this[attr]) {
-        this[attr].value = this[attr].base + this[attr].mod;
-        if (this[attr].value < 1) this[attr].value = 1;
-      }
-    }
+    // The stat-block numbers come from the ONE shared derivation (module/rules/npc-rules.mjs, also the app's).
+    this.awakened = this.magic.type !== "none" || (this.magic.value ?? 0) > 0
+      || (this.parent?.items ?? []).some(i => i.type === "spell");
+    const d = npcDerived(this, { awakened: this.awakened, armorItems: [...(this.parent?.items ?? [])] });
+    for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) this[attr].value = d.attributes[attr];
 
     // Body Index cap = the NPC's natural (unmodified) Body — Shadowtech p.6.
     this.bodyIndex.max = this.body.base;
 
     // Reaction
-    this.reaction.base = Math.floor((this.quickness.value + this.intelligence.value) / 2);
-    this.reaction.value = this.reaction.base + this.reaction.mod;
+    this.reaction.base = d.reactionBase;
+    this.reaction.value = d.reaction;
 
     // Initiative base = Adjusted Reaction. The wound Initiative Modifier reduces
     // Reaction at roll time (SR2E Damage Modifiers Table, p.112).
@@ -2006,28 +2008,22 @@ export class NPCData extends SR2EDataModel {
     this.initiative.value = this.reaction.value;
 
     // Combat Pool — preserve spent dice across re-preparations
-    const combatPool = Math.floor(
-      (this.quickness.value + this.intelligence.value + this.willpower.value) / 2
-    );
+    const combatPool = d.combatPool;
     const npcSpent = this.dicePools.combat.max > 0
       ? Math.max(0, this.dicePools.combat.max - this.dicePools.combat.value)
       : 0;
     this.dicePools.combat.max   = combatPool;
     this.dicePools.combat.value = Math.max(0, combatPool - npcSpent);
 
-    // Awakened: the NPC sheet has no Magic field, and stat-block magicians
+    // Awakened (set above): the NPC sheet has no Magic field, and stat-block magicians
     // carry spells with magic.type "none", so any of the three marks it.
-    // Assigned on every preparation (derived state, never left stale).
-    this.awakened = this.magic.type !== "none" || (this.magic.value ?? 0) > 0
-      || (this.parent?.items ?? []).some(i => i.type === "spell");
     // Astral Combat Pool for the Awakened (p.147), spent dice preserved the
     // same way; and while projecting, Astral Initiative (p.147).
     // Extra Initiative dice from Active Effects (a drug, a spell), as for
     // characters: initiative.mod is the effect hook (it was unused on NPCs).
-    this.initiative.dice = Math.max(1, (this.initiative.dice ?? 1) + (this.initiative.mod ?? 0));
+    this.initiative.dice = d.initiativeDice;
     if (this.awakened) {
-      const astralMax = astralCombatPool({ intelligence: this.intelligence.value,
-        willpower: this.willpower.value, charisma: this.charisma.value });
+      const astralMax = d.astralPool;
       const astralSpent = this.dicePools.astral.max > 0
         ? Math.max(0, this.dicePools.astral.max - this.dicePools.astral.value) : 0;
       this.dicePools.astral.max   = astralMax;
@@ -2046,8 +2042,8 @@ export class NPCData extends SR2EDataModel {
     }
 
     // Movement
-    this.movement.walk = this.quickness.value;
-    this.movement.run = this.quickness.value * 3;
+    this.movement.walk = d.walk;
+    this.movement.run = d.run;
 
     // Condition monitors, less the boxes lost to substances (Shadowtech p.87, p.99).
     // NPC Essence is a stat-block number: its drug loss is reported, not derived.
@@ -2057,11 +2053,8 @@ export class NPCData extends SR2EDataModel {
 
     // Armor = the stat-block base + equipped armor items (highest worn rating
     // + layered pieces, SR2E p.242), so a GM can swap armor on the fly.
-    const npcWorn = wornArmorTotals(
-      (this.parent?.items ?? []).filter(i => i.type === "armor" && i.system.equipped)
-    );
-    this.armor.ballistic += npcWorn.ballistic;
-    this.armor.impact    += npcWorn.impact;
+    this.armor.ballistic = d.armor.ballistic;
+    this.armor.impact    = d.armor.impact;
   }
 
   /**

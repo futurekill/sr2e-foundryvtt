@@ -10,8 +10,8 @@
           <input type="text" name="system.race" value="{{system.race}}" />
         </div>
         <div class="form-group">
-          <label>Professional Rating:</label>
-          <input type="number" name="system.professionalRating" value="{{system.professionalRating}}" min="0" max="6" />
+          <label title="{{localize "SR2E.NPC.PRPage"}}{{#if prInfo}}: {{prInfo}}{{/if}}">Professional Rating:</label>
+          <input type="number" name="system.professionalRating" value="{{system.professionalRating}}" min="0" max="6" title="{{prInfo}}" />
         </div>
         <div class="form-group">
           <label>Threat Rating:</label>
@@ -173,6 +173,11 @@
           <button type="button" data-action="rollInitiative" class="btn-small">
             <i class="fas fa-dice"></i> Roll
           </button>
+        </div>
+        <div class="flexrow">
+          <span>{{localize "SR2E.NPC.CombatPool"}}: {{system.dicePools.combat.value}} / {{system.dicePools.combat.max}}</span>
+          <label title="{{localize "SR2E.NPC.CombatPoolBonusHint"}}">{{localize "SR2E.NPC.CombatPoolBonus"}}
+            <input type="number" name="system.combatPoolBonus" value="{{system.combatPoolBonus}}" min="0" style="max-width:4em" /></label>
         </div>
       </fieldset>
     </div>

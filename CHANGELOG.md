@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.171.0 — 2026-11-27
+
+### Added — NPC rules for the chargen app's NPC builder (core p.187, p.68)
+- `module/rules/npc-rules.mjs` (pure): the experience formula (+10% per two years to 10 years, then per four years;
+  rounded to the nearest, halves up — wiki Rulings), the two Threat Rating helpers (the Skill Success Table, 1 per 100
+  Team Karma) and the four Professionalism Ratings with their withdrawal wounds.
+- `npcDerived`: an NPC's attributes, Reaction, Initiative dice, Combat and Astral Combat Pools, movement and armor in
+  ONE pure function. The NPC data model now calls it (the numbers are unchanged), and the app uses the same function.
+- `npcWithEffects`: an NPC's source with its items' transfer effects applied (ADD changes on the kept keys), for readers
+  outside Foundry. Quench batch `sr2e.npc-derived` checks both against every contact NPC as Foundry prepares it.
+- NPCs get a **Combat Pool bonus** field (0 by default; shown on the NPC sheet with the Combat Pool, which the sheet
+  didn't show before). The Professional Rating's name and withdrawal point show as its tooltip.
+
 ## 0.170.0 — 2026-11-26
 
 ### Added — a vehicle's Street Index (core p.264)

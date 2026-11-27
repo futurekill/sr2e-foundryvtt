@@ -1,4 +1,5 @@
 import * as SSR from "../rules/shapeshift-rules.mjs";
+import * as NPCR from "../rules/npc-rules.mjs";
 /**
  * In-Foundry integration tests, run by the Quench module.
  *
@@ -18314,6 +18315,42 @@ function stubWorldSettings(keys) {
         } finally { seam.force = false; await game.settings.set("sr2e", "healingClockEpoch", prevEpoch); }
       });
     }, { displayName: "SR2E: Bioware damage" });
+
+    // NPC stat-block parity (sr2e-chargen docs/PLAN-npc-builder.md 0.2): the app derives an exported NPC with the
+    // SAME npcDerived as NPCData, from its source + its items' transfer effects (npcWithEffects).
+    quench.registerBatch("sr2e.npc-derived", (context) => {
+      const { it, assert, after } = context;
+      const made = [];
+      after(async function () { for (const a of made) { try { await a.delete(); } catch (e) {} } });
+      const outside = (actor) => {
+        const items = actor.items.map(i => i.toObject());
+        const { system, unsupported } = NPCR.npcWithEffects(actor._source.system, items);
+        return { d: NPCR.npcDerived(system, { awakened: actor.system.awakened, armorItems: items }), unsupported };
+      };
+      const same = (actor) => {
+        const { d, unsupported } = outside(actor), s = actor.system;
+        assert.deepEqual(unsupported, [], `${actor.name}: unsupported effects`);
+        for (const a of NPCR.NPC_ATTRS) assert.equal(s[a].value, d.attributes[a], `${actor.name} ${a}`);
+        assert.deepEqual([s.reaction.value, s.initiative.dice, s.dicePools.combat.max, s.dicePools.astral.max, s.movement.walk, s.movement.run, s.armor.ballistic, s.armor.impact],
+          [d.reaction, d.initiativeDice, d.combatPool, d.astralPool, d.walk, d.run, d.armor.ballistic, d.armor.impact], actor.name);
+      };
+      it("every contact NPC (core p.203–213) prepares as npcDerived says", async function () {
+        this.timeout(20000);
+        const docs = await game.packs.get("sr2e.contact-npcs").getDocuments();
+        assert.equal(docs.length, 22);
+        for (const a of docs) same(a);
+      });
+      it("an NPC with a transfer effect, worn armor and a Combat Pool bonus", async function () {
+        this.timeout(20000);
+        const a = await Actor.create({ name: "Quench NPC Derived", type: "npc", system: { combatPoolBonus: 1, armor: { ballistic: 1, impact: 0 } }, items: [
+          { name: "Quench Wired", type: "gear", effects: [{ name: "Q+2", transfer: true, changes: [{ key: "system.quickness.mod", mode: 2, value: "2" }, { key: "system.initiative.mod", mode: 2, value: "1" }] }] },
+          { name: "Quench Vest", type: "armor", system: { equipped: true, ballistic: 4, impact: 2 } }] });
+        made.push(a);
+        assert.equal(a.system.quickness.value, 5);
+        assert.equal(a.system.dicePools.combat.max, Math.floor((5 + 3 + 3) / 2) + 1);
+        same(a);
+      });
+    });
 
     // NPC Essence above 6 (docs/archive/plans/PLAN-npc-essence.md): critters print 2D6 / 8; the old 0–6 bound
     // silently reset them to 6.

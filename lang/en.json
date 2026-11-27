@@ -497,7 +497,7 @@
   "SR2E.RollLabel.PositionTest": "Position Test",
   "SR2E.RollLabel.CrashTest": "Crash Test",
   "SR2E.RollLabel.VehicleTest": "Vehicle Test",
-  "SR2E.RollLabel.VehicleTest2": "{name} \u2014 {test} [{terrain}{notes}] TN {tn}",
+  "SR2E.RollLabel.VehicleTest2": "{name} — {test} [{terrain}{notes}] TN {tn}",
   "SR2E.RollLabel.NameRating": "{name} (Rating {rating})",
   "SR2E.RollLabel.MinusTotem": " −{n} totem",
   "SR2E.RollLabel.WithheldTag": " −{n} withheld for a {radius} m radius",
@@ -645,5 +645,17 @@
   "SR2E.Sensors.Result.basic": "basic contact: distance, direction, speed and general type (building, aircraft, ground vehicle, life form…)",
   "SR2E.Sensors.Result.general": "general contact: the target's general subtype (radar dish, helicopter, hovertank, dragon…)",
   "SR2E.Sensors.Result.positive": "positive contact: the specific type (an XQ-137 Air Search Radar, a Hughes WQ-2 Stallion…)",
-  "SR2E.Sensors.Result.features": "features that distinguish the target from others of its type"
+  "SR2E.Sensors.Result.features": "features that distinguish the target from others of its type",
+  "SR2E.NPC.PRPage": "Professionalism Rating, core p.187",
+  "SR2E.NPC.PR.average": "Average",
+  "SR2E.NPC.PR.semiTrained": "Semi-Trained",
+  "SR2E.NPC.PR.trained": "Trained",
+  "SR2E.NPC.PR.professional": "Professional",
+  "SR2E.NPC.Withdraw.light": "withdraws after a Light wound",
+  "SR2E.NPC.Withdraw.moderate": "withdraws after a Moderate wound",
+  "SR2E.NPC.Withdraw.serious": "withdraws after a Serious wound",
+  "SR2E.NPC.Withdraw.never": "fights to the end",
+  "SR2E.NPC.CombatPool": "Combat Pool",
+  "SR2E.NPC.CombatPoolBonus": "Bonus",
+  "SR2E.NPC.CombatPoolBonusHint": "Dice added to the Combat Pool, e.g. an adept's Combat Sense (core p.169)"
 }
