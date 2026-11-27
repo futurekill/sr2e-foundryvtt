@@ -5114,9 +5114,11 @@ function stubWorldSettings(keys) {
           await withFaces([6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6], () => medic.firstAid(patient, {}));
           assert.equal(patient.system.conditionMonitor.physical.value, 10);
         });
+        // A medic carries a medkit (docs/archive/plans/PLAN-treatment.md: the medkit comes from the inventory; none → +4).
         const medicWith = async (rating) => {
           const m = await pc();
-          await m.createEmbeddedDocuments("Item", [{ name: "Biotech", type: "skill", system: { rating, category: "active" } }]);
+          await m.createEmbeddedDocuments("Item", [{ name: "Biotech", type: "skill", system: { rating, category: "active" } },
+            { name: "Quench Medkit", type: "gear", system: { quantity: 1, rating: 3 }, flags: { sr2e: { rule: "medkit" } } }]);
           return m;
         };
         it("never more than one level: a second success asks, and declining changes nothing", async () => {
@@ -5136,8 +5138,8 @@ function stubWorldSettings(keys) {
           await mage.update({ "system.conditionMonitor.physical.value": 1 });
           const m0 = mage.system.magic.value;
           assert.isAbove(m0, 2);
-          // Light: TN 4, Body 6 −1 = 3, no +2: three 5s succeed; then the 2D6 come up 1 + 1.
-          await withFaces([5, 5, 5, 1, 1], () => medic.firstAid(mage, { waiveMagician: true }));
+          // Light: TN 4, Body 6 −1 = 3, no +2: three 5s succeed; the medkit's supplies die a 2; then the 2D6 come up 1 + 1.
+          await withFaces([5, 5, 5, 2, 1, 1], () => medic.firstAid(mage, { waiveMagician: true }));
           assert.equal(mage.system.conditionMonitor.physical.value, 0);
           assert.equal(mage.system.magic.value, m0 - 1);
         });
@@ -18351,6 +18353,206 @@ function stubWorldSettings(keys) {
         same(a);
       });
     });
+
+    // Treating the wounded across players (docs/archive/plans/PLAN-treatment.md): roll → Apply → the active GM applies once.
+    quench.registerBatch("sr2e.treatment", (context) => {
+      const { it, assert, after, afterEach } = context;
+      const made = [], tokens = [];
+      let T0 = Date.now() - 1000;
+      afterEach(() => { H.testSeam.force = null; });
+      after(async function () {
+        this.timeout(30000);
+        for (const t of tokens) { try { await t.delete(); } catch (e) {} }
+        const ids = game.messages.contents.filter(m => (m._stats?.createdTime ?? 0) >= T0 && (m.flags?.sr2e?.treatment || m.flags?.sr2e?.treatmentApply
+          || m.flags?.sr2e?.treatmentTest || m.flags?.sr2e?.test || m.flags?.sr2e?.askTreatment || /Quench Tr/.test(m.speaker?.alias ?? "") || /Quench Tr/.test(m.content ?? ""))).map(m => m.id);
+        await ChatMessage.deleteDocuments(ids.filter(id => game.messages.has(id))).catch(() => {});
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      let TR, H;
+      // Instant path unless a test turns the clock on (this world may run Calendaria with the healing clock).
+      const load = async () => { TR ??= await import("../treatment.mjs"); H ??= await import("../healing-clock.mjs"); H.testSeam.force = false; };
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform, q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const pc = async (name, sys = {}) => {
+        const a = await Actor.create({ name: `Quench Tr ${name}`, type: "character", system: foundry.utils.mergeObject({ body: { base: 3 }, quickness: { base: 3 },
+          strength: { base: 3 }, charisma: { base: 3 }, intelligence: { base: 3 }, willpower: { base: 3 } }, sys) });
+        made.push(a); return a;
+      };
+      const medic = async (rating = 3, { kits = 1, patches = 0, karma = 0 } = {}) => {
+        const m = await pc(`Medic ${rating}`, karma ? { karma: { total: karma * 10, poolAdjust: -1 } } : {});
+        const items = [];
+        if (rating) items.push({ name: "Biotech", type: "skill", system: { rating, category: "active" } });
+        if (kits) items.push({ name: "Quench Tr Medkit", type: "gear", system: { quantity: kits, rating: 3 }, flags: { sr2e: { rule: "medkit" } } });
+        if (patches) items.push({ name: "Quench Tr Patch", type: "gear", system: { quantity: patches }, flags: { sr2e: { rule: "traumaPatch" } } });
+        if (items.length) await m.createEmbeddedDocuments("Item", items);
+        return m;
+      };
+      const kit = (m) => m.items.find(i => i.flags?.sr2e?.rule === "medkit");
+      const patchOf = (m) => m.items.find(i => i.flags?.sr2e?.rule === "traumaPatch");
+      const tr = (card) => game.messages.get(card.id)?.flags?.sr2e?.treatment;
+      // Apply, then wait for the GM's hook (this client is the active GM) to finish the card.
+      const apply = async (card) => {
+        await TR.applyTreatment(card);
+        const req = game.messages.find(m => m.flags?.sr2e?.treatmentApply?.cardId === card.id);
+        if (req) await TR.processRequest(req);
+        for (let i = 0; i < 30 && !["applied", "refused"].includes(tr(card)?.phase); i++) await wait(100);
+        return tr(card);
+      };
+      const boxes = (a) => a.system.conditionMonitor.physical.value;
+
+      it("applied by the GM once: a duplicate request and a re-run change nothing (receipt)", async function () {
+        this.timeout(15000); await load();
+        const m = await medic(3), p = await pc("Once");
+        await p.update({ "system.conditionMonitor.physical.value": 3 });          // Moderate: TN 6 with a medkit, Body 3 −0
+        const card = await withFaces([6, 6, 6, 1, 1, 1, 2], async () => { const c = await TR.rollTreatment(m, p, { medkitId: kit(m).id }); await apply(c); return c; });
+        assert.equal(tr(card).phase, "applied", tr(card).reason);
+        assert.equal(boxes(p), 1, "Moderate → Light");
+        assert.ok(p.flags.sr2e.treated?.[card.id], "receipt");
+        const dup = await ChatMessage.create({ content: "dup", flags: { sr2e: { treatmentApply: { cardId: card.id, successes: 3 } } } });
+        await TR.processRequest(dup);
+        await TR.processRequest({ flags: { sr2e: { treatmentApply: { cardId: card.id, successes: 3 } } } });
+        assert.equal(boxes(p), 1, "still one level");
+        await dup.delete().catch(() => {});
+      });
+
+      it("two cards for one wound: the second is refused; a wound changed after the roll (3 → 4 boxes) is refused", async function () {
+        this.timeout(15000); await load();
+        const m = await medic(3), p = await pc("Twice");
+        await p.update({ "system.conditionMonitor.physical.value": 3 });
+        const [a, b] = await withFaces([6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 2], async () => [await TR.rollTreatment(m, p, { medkitId: kit(m).id }), await TR.rollTreatment(m, p, { medkitId: kit(m).id })]);
+        await withFaces([2], () => apply(a));
+        assert.equal(tr(a).phase, "applied");
+        await apply(b);
+        assert.equal(tr(b).phase, "refused");
+        assert.match(tr(b).reason, /wound changed/);
+        const q = await pc("Changed");
+        await q.update({ "system.conditionMonitor.physical.value": 3 });
+        const c = await withFaces([6, 1, 6, 1, 6, 1], () => TR.rollTreatment(m, q, { medkitId: kit(m).id }));
+        await q.update({ "system.conditionMonitor.physical.value": 4 });                  // still Moderate
+        await apply(c);
+        assert.equal(tr(c).phase, "refused");
+        assert.equal(boxes(q), 4);
+      });
+
+      it("Karma before Apply counts; after Apply it is refused", async function () {
+        this.timeout(15000); await load();
+        const m = await medic(3, { karma: 5 }), p = await pc("Karma");
+        await p.update({ "system.conditionMonitor.physical.value": 1 });           // Light: TN 4
+        const card = await withFaces([2, 2, 2], () => TR.rollTreatment(m, p, { medkitId: kit(m).id }));
+        const test = game.messages.get(tr(card).testMessageId);
+        await withFaces([5, 2, 2], () => m.applyKarmaToTest(test, "reroll"));
+        await withFaces([2], () => apply(card));
+        assert.equal(tr(card).phase, "applied", tr(card).reason);
+        assert.equal(boxes(p), 0, "the rerolled success healed it");
+        const pool = m.system.karma.pool;
+        await m.applyKarmaToTest(game.messages.get(test.id), "reroll");
+        assert.equal(m.system.karma.pool, pool, "closed to Karma after Apply");
+      });
+
+      it("Deadly: a failed stabilization (and failed Body vs 10) allows only professional help with a better Biotech", async function () {
+        this.timeout(20000); await load();
+        const m3 = await medic(3), m5 = await medic(5), p = await pc("Dying");
+        await p.update({ "system.conditionMonitor.physical.value": 10 });
+        const c1 = await withFaces([1, 1, 1, 2, 2, 2], async () => { const c = await TR.rollTreatment(m3, p, { medkitId: kit(m3).id, kind: "stabilize" }); await withFaces([2, 2, 2, 2], () => apply(c)); return c; });
+        assert.equal(tr(c1).phase, "applied");
+        assert.equal(p.flags.sr2e.stabilize.attempts.length, 1);
+        assert.isFalse(p.flags.sr2e.stabilize.attempts[0].ok);
+        const c2 = await withFaces([6, 6, 6, 6, 6, 6], () => TR.rollTreatment(m3, p, { medkitId: kit(m3).id, kind: "stabilize" }));
+        await withFaces([2], () => apply(c2));
+        assert.equal(tr(c2).phase, "refused", "a plain retry");
+        const c3 = await withFaces([6, 6, 6, 6, 6, 6], () => TR.rollTreatment(m3, p, { medkitId: kit(m3).id, kind: "professional" }));
+        await withFaces([2], () => apply(c3));
+        assert.equal(tr(c3).phase, "refused", "professional help with an equal Biotech");
+        const c4 = await withFaces([6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 1, 1, 1, 1, 1], () => TR.rollTreatment(m5, p, { medkitId: kit(m5).id, kind: "professional" }));
+        await withFaces([2], () => apply(c4));
+        assert.equal(tr(c4).phase, "applied", tr(c4).reason);
+        assert.isTrue(p.flags.sr2e.stabilize.attempts.at(-1).ok);
+        assert.equal(boxes(p), 10, "stabilized, never healed");
+      });
+
+      it("a trauma patch is used once, kept at 0, even when its request is processed twice", async function () {
+        this.timeout(15000); await load();
+        const m = await medic(0, { kits: 0, patches: 1 }), p = await pc("Patch");
+        await p.update({ "system.conditionMonitor.physical.value": 10 });
+        const card = await TR.rollTreatment(m, p, { kind: "trauma" });
+        await withFaces([6, 6, 6, 6, 6, 6], () => apply(card));                    // Body 3 vs 4: stabilized
+        assert.equal(tr(card).phase, "applied", tr(card).reason);
+        assert.equal(patchOf(m).system.quantity, 0, "used and kept");
+        await TR.processRequest({ flags: { sr2e: { treatmentApply: { cardId: card.id, successes: null } } } });
+        assert.equal(patchOf(m).system.quantity, 0);
+        assert.isTrue(p.flags.sr2e.stabilize.attempts.at(-1).ok);
+      });
+
+      it("medkit supplies: a 1 empties one unit of a stack of two; Restock uses one Medkit Supplies", async function () {
+        this.timeout(15000); await load();
+        const m = await medic(3, { kits: 2 }), p = await pc("Supplies");
+        await p.update({ "system.conditionMonitor.physical.value": 1 });
+        await withFaces([5, 5, 5, 1], async () => { const c = await TR.rollTreatment(m, p, { medkitId: kit(m).id }); await apply(c); });
+        const k = kit(m);
+        assert.equal(k.flags.sr2e.medkitEmpty, 1);
+        const R = await import("../rules/treatment-rules.mjs");
+        assert.isTrue(R.medkitUsable(k), "the other unit still has supplies");
+        await m.createEmbeddedDocuments("Item", [{ name: "Quench Tr Supplies", type: "gear", system: { quantity: 1 }, flags: { sr2e: { rule: "medkitSupplies" } } }]);
+        await TR.restockMedkit(kit(m));
+        assert.equal(kit(m).flags.sr2e.medkitEmpty, 0);
+        assert.equal(m.items.find(i => i.flags?.sr2e?.rule === "medkitSupplies").system.quantity, 0, "used (kept at 0 with its receipt)");
+        const sup = m.items.find(i => i.flags?.sr2e?.rule === "medkitSupplies");
+        const [nonce] = Object.keys(sup.flags.sr2e.debits ?? {});
+        assert.isTrue(kit(m).flags.sr2e.restocked?.[nonce], "the debit's refill landed");
+      });
+
+      it("untrained with a medkit rolls its 3 dice with no defaulting penalty", async function () {
+        this.timeout(10000); await load();
+        const m = await medic(0, { kits: 1 }), p = await pc("Untrained");
+        await p.update({ "system.conditionMonitor.physical.value": 1 });
+        const card = await TR.rollTreatment(m, p, { medkitId: kit(m).id });
+        const test = game.messages.get(tr(card).testMessageId).flags.sr2e.test;
+        assert.equal(test.dice.length, 3);
+        assert.equal(test.baseTn ?? test.tn, 4, "Light TN 4, no +4 and no defaulting");
+      });
+
+      it("an UNLINKED token patient: its synthetic actor heals, the world actor is untouched", async function () {
+        this.timeout(15000); await load();
+        if (!canvas?.ready) return this.skip();
+        const m = await medic(3), base = await pc("Token");
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...base.prototypeToken.toObject(), actorId: base.id, actorLink: false, x: 0, y: 0 }]);
+        tokens.push(t);
+        await t.actor.update({ "system.conditionMonitor.physical.value": 3 });
+        const card = await withFaces([6, 1, 6, 1, 6, 1, 2], async () => { const c = await TR.rollTreatment(m, t.actor, { medkitId: kit(m).id }); await apply(c); return c; });
+        assert.equal(tr(card).phase, "applied", tr(card).reason);
+        assert.equal(t.actor.system.conditionMonitor.physical.value, 1);
+        assert.equal(base.system.conditionMonitor.physical.value, 0);
+      });
+
+      it("healing clock on: a course is written with the receipt; an occupied slot is refused; magically healed refused unless new injuries", async function () {
+        this.timeout(15000); await load();
+        H.testSeam.force = true;
+        const m = await medic(3), p = await pc("Clock");
+        await p.update({ "system.conditionMonitor.physical.value": 3 });
+        const card = await withFaces([6, 1, 6, 1, 6, 1, 2], async () => { const c = await TR.rollTreatment(m, p, { medkitId: kit(m).id }); await apply(c); return c; });
+        assert.equal(tr(card).phase, "applied", tr(card).reason);
+        assert.equal(H.clockState(p).physical?.kind, "aid", "a course");
+        assert.ok(p.flags.sr2e.treated?.[card.id]);
+        const c2 = await withFaces([6, 1, 6, 1, 6, 1], () => TR.rollTreatment(m, p, { medkitId: kit(m).id, newInjuries: true }));
+        await apply(c2);
+        assert.equal(tr(c2).phase, "refused");
+        assert.match(tr(c2).reason, /already healing/);
+        H.testSeam.force = false;
+        const q = await pc("Magic");
+        await q.update({ "system.conditionMonitor.physical.value": 3, "flags.sr2e.magicallyHealed": true });
+        const c3 = await withFaces([6, 1, 6, 1, 6, 1], () => TR.rollTreatment(m, q, { medkitId: kit(m).id }));
+        await apply(c3);
+        assert.equal(tr(c3).phase, "refused");
+        const c4 = await withFaces([6, 1, 6, 1, 6, 1], () => TR.rollTreatment(m, q, { medkitId: kit(m).id, newInjuries: true }));
+        await withFaces([2], () => apply(c4));
+        assert.equal(tr(c4).phase, "applied", tr(c4).reason);
+      });
+    }, { displayName: "SR2E: Treating the wounded (p.115)" });
+
 
     // NPC Threat Ratings in play (core p.187; docs/archive/plans/PLAN-npc-threat.md): Threat dice on every test, no Dice Pools,
     // clean miss, Full Defense. Only this batch's actors, tokens and cards are touched.

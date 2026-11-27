@@ -31,7 +31,7 @@ export const skillTnContext = (key, category = "active") =>
   ({ kind: "skill", key, skillCategory: category, magic: !!CONFIG.SR2E.activeSkills?.[key]?.magical });
 import { clampMiscDice, clampMiscLabel, miscDiceHTML, readMiscDice } from "../dialogs/roll-modifiers.mjs";
 import { resistCombatSpell, decideOops, renderRamCard } from "../combat-spells.mjs";
-import { healingClockOn, reconcileHealing, admitStart, commitStart, clockState, setStable } from "../healing-clock.mjs";
+import { healingClockOn, reconcileHealing, admitStart, commitStart, clockState } from "../healing-clock.mjs";
 import { stunSuccesses, stunBoxSeconds, durationText, goldenHour } from "../rules/healing-clock-rules.mjs";
 import { calendarDate } from "../calendaria.mjs";
 import { currentPenalties } from "../permanent-damage.mjs";
@@ -49,7 +49,7 @@ import { natureDepartNote } from "../nature-spirits.mjs";
 import { usePowerService, statusOf } from "../spirit-services.mjs";
 import { elementalTransition, boundElementals, CLEAR_DEFENSE_AID, isElemental, liveBoundSpirits, mutateBindings } from "../elementals.mjs";
 import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSteps, damageResistArmor, alertAdjustedRating,
-         woundLevel, firstAidBodyMod, meleeOutcome, shieldingBonusDice,
+         woundLevel, meleeOutcome, shieldingBonusDice,
          knockdownOutcome, webDefaultingTN, webNodeForLabel,
          spiritPortraitVariant, dicePoolRefreshUpdates, randomSpiritName,
          healingBaseTime, healingTimeReduced, splitHealingSuccesses, HEALING_TABLE, naturalHealingHours, healingTimeText,
@@ -868,7 +868,12 @@ export class SR2EActor extends Actor {
    * @param {ChatMessage} message - The chat message holding the test state.
    * @param {string} action - "reroll", "avoidGlitch", or "buySuccess".
    */
-  async applyKarmaToTest(message, action, { oopsClaimed = false } = {}) {
+  async applyKarmaToTest(message, action, { oopsClaimed = false, _treatmentQueued = false } = {}) {
+    // A treatment test: only the medic's writer spends Karma on it, serialized with Apply (docs/archive/plans/PLAN-treatment.md 4).
+    if (!_treatmentQueued && message.getFlag("sr2e", "treatmentTest")) {
+      const { treatmentKarmaGate } = await import("../treatment.mjs");
+      return treatmentKarmaGate(this, message, () => this.applyKarmaToTest(message, action, { oopsClaimed, _treatmentQueued: true }));
+    }
     const state = foundry.utils.deepClone(message.getFlag("sr2e", "test"));
     if (!state) return;
     const karmaAvail = this.system.karma?.pool ?? 0;
@@ -4061,8 +4066,8 @@ export class SR2EActor extends Actor {
     // Permanent damage (p.113–114): resolved first; a damaged organ needs continuous care.
     const pen = currentPenalties(this);
     if (pen.pending) return ui.notifications.warn(`${this.name}: roll for permanent damage from the Deadly wound first (SR2E p.113).`);
-    if (pen.doctorRequired && !doctor) {
-      return ui.notifications.warn(`${this.name} has organ damage — healing needs continuous care by a Biotech character: tick "A doctor is involved" (SR2E p.113).`);
+    if (pen.doctorRequired && !doctor && !opts.biotechCare) {
+      return ui.notifications.warn(`${this.name} has organ damage — healing needs continuous care by a character with Biotech: tick "Under continuous care" (SR2E p.113).`);
     }
     let adm = null;
     if (clock) {
@@ -4130,117 +4135,14 @@ export class SR2EActor extends Actor {
   }
 
   /**
-   * Apply First Aid to a patient (SR2E p.115). The acting character is the medic, rolling
-   * Biotech vs the First Aid Table TN for the patient's current wound, with its modifiers.
-   * Physical damage only, within the "golden" first hour, and of no use once magical healing
-   * has been applied. 1+ success reduces the Damage Level by one — never more than one level
-   * through first aid — taking the table's time divided by the successes. A Deadly wound can
-   * only be STABILIZED; if that fails, the patient's natural Body vs 10 may stabilize them.
-   *
-   * @param {Actor}  patient        - Wounded actor (defaults to self).
-   * @param {object} [opts]
-   * @param {number} [opts.conditionMod=0] - Bad +1 / Terrible +3 conditions.
-   * @param {boolean}[opts.noMedkit=false] - +4 with no medkit.
-   * @param {boolean}[opts.waiveMagician=false] - treat a magician without the +2 (Magic loss check).
+   * First Aid (SR2E p.115) by this medic on `patient` — the macro/legacy entry point of the treatment flow
+   * (module/treatment.mjs, docs/archive/plans/PLAN-treatment.md): rolls, applies at once, and the active GM writes the patient.
+   * `opts`: { conditionMod, waiveMagician, newInjuries, kind ("stabilize"|"professional"|"trauma"), betterEquipped,
+   * medkitId; legacy noMedkit: true = treat without the medkit even if one is carried }.
    */
   async firstAid(patient, opts = {}) {
-    patient = patient ?? this;
-    // On the game clock, settle what is due FIRST — the wound read below must be the settled one.
-    const clock = healingClockOn();
-    if (clock && !await reconcileHealing(patient)) return ui.notifications.warn("Bleeding is being settled on another device — try again in a moment.");
-    const cm = patient.system.conditionMonitor?.physical;
-    if (!cm || cm.value <= 0) {
-      return ui.notifications.info(`${patient.name} has no Physical damage for First Aid.`);
-    }
-    const level = SR2EActor.levelForBoxes(cm.value);
-    const deadly = level === "Deadly";
-    const esc = foundry.utils.escapeHTML;
-    // What counts as one set of injuries is the GM's call, so these ask rather than refuse.
-    const already = patient.getFlag("sr2e", "magicallyHealed")
-      ? `${esc(patient.name)} has been magically healed — first aid is no longer of any use for these injuries (SR2E p.115).`
-      : (!deadly && patient.getFlag("sr2e", "firstAided"))
-        ? `First aid has already reduced ${esc(patient.name)}'s wound by one level — it can never reduce it by more (SR2E p.115).` : "";
-    if (already) {
-      const ok = await foundry.applications.api.DialogV2.confirm({ window: { title: "First Aid" },
-        content: `<p>${already}</p><p>Are these new injuries? Treat anyway?</p>` });
-      if (!ok) return;
-    }
-    if (clock && !await goldenHourOk(patient, "First aid", "p.115")) return;
-    const adm = clock && !deadly ? await admitStart(patient, "physical") : null;
-    if (clock && !deadly && !adm) return null;
-
-    // Medic's Biotech (defaults via the Skill Web when untrained, SR2E p.69)
-    const biotech = this.items.find(i => i.type === "skill" && i.name.toLowerCase() === "biotech");
-    let dice = biotech?.system?.rating ?? 0;
-    let defaultMod = 0;
-    if (dice <= 0) {
-      const web = this._webDefaultByKey("biotech");
-      dice = web?.dice ?? Math.max(1, this.system.intelligence?.value ?? 1);
-      defaultMod = web?.penalty ?? CONFIG.SR2E.defaultingPenalty;
-    }
-    dice += this._passiveSkillDice("biotech");   // after the defaulting decision
-
-    // First Aid Table TN + modifiers
-    let tn = CONFIG.SR2E.firstAidTN[level] ?? 6;
-    const parts = [];
-    const magician = patient._medicalMagician?.() ?? false;
-    if (magician && !opts.waiveMagician) { tn += 2; parts.push("magician +2"); }
-    // Patient Body attribute modifier
-    const pBody = patient.system.body?.value ?? 1;
-    const bodyMod = firstAidBodyMod(pBody);
-    if (bodyMod) { tn += bodyMod; parts.push(`Body ${bodyMod}`); }
-    if (opts.conditionMod) { tn += opts.conditionMod; parts.push(`conditions +${opts.conditionMod}`); }
-    if (opts.noMedkit) { tn += 4; parts.push("no medkit +4"); }
-    if (defaultMod) { tn += defaultMod; parts.push(`defaulting +${defaultMod}`); }
-    tn = Math.max(2, tn);
-
-    // First Aid is an action by the medic, so the medic's own injury modifier
-    // applies (rollSuccessTest adds it) — do NOT pass isResistance here.
-    const result = await this.rollSuccessTest(dice, tn, {
-      label: RL("FirstAid", { patient: patient.name, level, mods: parts.length ? " — " + parts.join(", ") : "", tn }),
-      tnContext: skillTnContext("biotech")   // First Aid is a Biotech test: a Technical Skill (p.71)
-    });
-    const succ = result?.successes ?? 0;
-    const speaker = ChatMessage.getSpeaker({ actor: this });
-    const checks = magician && opts.waiveMagician && succ > 0 ? 1 : 0;
-
-    if (deadly) {
-      if (succ > 0) {
-        if (clock) await setStable(patient, "aid");
-        await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>${esc(patient.name)} is stabilized</strong>
-          <em>— no longer taking a box every 10 minutes. First aid can't heal a Deadly wound; keep them stabilized until
-          professional help takes over (SR2E p.115).</em></div>` });
-      } else {
-        const nat = patient._naturalAttrs?.() ?? { body: patient.system.body?.value ?? 1 };
-        const self = await patient.rollSuccessTest(nat.body, 10, {
-          label: RL("StabilizeSelf", { body: nat.body }), isResistance: true, ...(patient._bodyTestOpts?.() ?? {}) });
-        if (clock && (self?.successes ?? 0) > 0) await setStable(patient, "self");
-        await ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result">${(self?.successes ?? 0) > 0
-          ? `<strong>${esc(patient.name)}'s body stabilizes itself</strong> <em>(natural Body vs 10, SR2E p.115).</em>`
-          : `<strong>${esc(patient.name)} is not stabilized</strong> <em>— they take a box every 10 minutes and die once the
-             overflow exceeds their Body (SR2E p.111, p.115).</em>`}</div>` });
-      }
-      return patient._magicLossChecks?.(checks, "first aid without the magician modifier");
-    }
-    if (succ <= 0) {
-      if (adm) await commitStart(patient, "physical", adm, null);
-      return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>First Aid fails</strong>
-        <em>— no successes (SR2E p.115).</em></div>` });
-    }
-    const minutes = { Light: 10, Moderate: 20, Serious: 30 }[level];
-    if (adm) {
-      const now = game.time.worldTime, secs = Math.max(60, Math.round(minutes * 60 / succ));
-      const course = { id: foundry.utils.randomID(), kind: "aid", startedAt: now, dueAt: now + secs, level, successes: succ,
-        doctor: false, waiveMagician: !!opts.waiveMagician, magician, deadly: false };
-      if (!await commitStart(patient, "physical", adm, course)) return null;
-      return ChatMessage.create({ speaker, content: `<div class="sr2e-damage-result"><strong>First Aid by ${esc(this.name)}</strong>
-        — ${esc(patient.name)}'s wound drops a level after ${durationText(secs)} of uninterrupted treatment (${minutes} ÷ ${succ}),
-        ${calendarDate(course.dueAt) ?? ""}. <em>Never more than one level through first aid (SR2E p.115).</em></div>` });
-    }
-    await patient._healOneLevel("physical",
-      `First Aid by ${esc(this.name)}: ${Math.max(1, Math.round(minutes / succ))} uninterrupted minutes (${minutes} ÷ ${succ}).
-       First aid never reduces a wound by more than one level (SR2E p.115).`, { firstAided: true });
-    return patient._magicLossChecks?.(checks, "first aid without the magician modifier");
+    const { treatNow } = await import("../treatment.mjs");
+    return treatNow(this, patient ?? this, opts.noMedkit ? { ...opts, medkitId: null } : opts);
   }
 
   /**

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.173.0 — 2026-11-27
+
+### Added — treating the wounded across players (core p.111–115; docs/archive/plans/PLAN-treatment.md)
+- **Treat…** on character and NPC sheets: First Aid by the medic on ANY wounded character on the scene (a list —
+  no targeting needed), including another player's runner. The medic rolls Biotech, may spend Karma, then clicks
+  **Apply** on the treatment card; the active GM's client heals the patient (a request message, no socket). Each
+  card applies once (a receipt on the patient); a wound that changed after the roll, a second medic on the same
+  wound, an old wound or an already-treated one is **Refused** with the reason.
+- **Ask for treatment** posts a card with a **Treat** button for anyone with Biotech or a medkit.
+- Deadly wounds: stabilize; after a failed attempt only **professional help** (a higher Biotech or the GM's "better
+  equipped") may try again; a **trauma patch** from the medic's gear gives the patient's own Body test (TN 4 + dermal
+  armor + blood filter). The GM can end a stabilization ("Care ends", or **Stabilization ended** with the clock off).
+- **Medkits** come from the medic's gear (none → +4). With no Biotech a medkit rolls its 3 dice (ruling). Supplies run
+  out on a 1 on 1D6 after a treatment; the item sheet's **Restock** uses one new **Medkit Supplies** (50¥).
+
+### Changed
+- **Heal** is now **Recover**: your OWN healing (p.113). "A doctor or clinic is involved" is a professional, not a
+  runner's Biotech (wiki Rulings). Organ damage accepts "Under continuous care by a character with Biotech".
+- `actor.firstAid(patient, opts)` runs the new flow (roll, Apply, GM applies); `opts.noMedkit` still forces +4.
+
+### Fixed
+- Medkit price and stats from the Street Gear list (p.263): 200¥ (was 300¥), weight 3, 2/24 hrs, Street Index 1.5;
+  Trauma Patch 4/48 hrs, Street Index 4.
+
 ## 0.172.0 — 2026-11-27
 
 ### Added — NPC Threat Ratings in play (core p.187)

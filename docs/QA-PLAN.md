@@ -1044,6 +1044,14 @@ If those five all work, the core loop is healthy.
 - [ ] Paranormal Animals' Nosferatu imports from its compendium with Essence 7.
 - [ ] A Heal spell on an Essence-12 critter suggests TN 2.
 
+## Treating the wounded (docs/archive/plans/PLAN-treatment.md, 0.173.0)
+- [ ] Quench `sr2e.treatment` passes (9 tests); `sr2e.healing-guards`, `sr2e.healing-clock`, `sr2e.magical-healing`,
+      `sr2e.permanent-damage`, `sr2e.karma-pool`, `sr2e.damage-karma` still pass.
+- [ ] Two players: player A's medic **Treat…** player B's runner (A does not own it): roll, Apply → B's wound drops a
+      level; the card reads Applied.
+- [ ] B clicks **Ask for treatment**; A clicks **Treat** on the card: the dialog opens with B preselected.
+- [ ] A medkit whose supplies ran out shows "Supplies: 1 used up" and **Restock** with Medkit Supplies in the gear.
+
 ## NPC Threat Ratings (docs/archive/plans/PLAN-npc-threat.md, 0.172.0)
 - [ ] Quench batch `sr2e.npc-threat` passes (8 tests); `sr2e.npc-derived` and `sr2e.npc-essence` still pass.
 - [ ] An NPC sheet: tick "Roll Threat dice" with Threat Rating 3 → the Combat Pool line reads "not used — Threat Rating 3".

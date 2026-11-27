@@ -33,6 +33,7 @@ import { registerDrugHooks, wireDrugButtons, workingImplant } from "./drugs.mjs"
 import { wireAdeptPowerButtons, registerAdeptPowerHooks } from "./adept-powers.mjs";
 import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
 import { registerHealingClockSettings, registerHealingClockHooks } from "./healing-clock.mjs";
+import { registerTreatmentHooks, wireTreatmentButtons } from "./treatment.mjs";
 import { registerPermanentDamage } from "./permanent-damage.mjs";
 import { registerBiowareDamage } from "./bioware-damage.mjs";
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
@@ -569,6 +570,7 @@ Hooks.once("init", async () => {
   registerAdeptPowerHooks();
   registerCalendariaHooks();
   registerHealingClockHooks();     // healing on the game clock (docs/archive/plans/PLAN-healing-clock.md)
+  registerTreatmentHooks();        // treating the wounded across players (docs/archive/plans/PLAN-treatment.md)
   registerPermanentDamage();       // Deadly wounds' permanent damage (core p.113–114)
   registerShapeshifters();         // shapeshifters: forms, regeneration, death checks (Companion pp.36–38)
   registerJackpointBehavior();
@@ -2830,6 +2832,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     html.classList.add("sr2e-roll");
   }
   wireSpellEffectButtons(message, html);
+  wireTreatmentButtons(message, html);
   wireRitualButtons(message, html);
   wireDrugButtons(message, html);
   wireAdeptPowerButtons(message, html);

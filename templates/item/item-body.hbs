@@ -1022,6 +1022,13 @@
     <label>Quantity:</label>
     <input type="number" name="system.quantity" value="{{system.quantity}}" min="0" />
   </div>
+  {{#if medkit}}
+  <div class="form-group">
+    <label title="SR2E p.250: supplies run out on a 1 on 1D6 after a treatment; Medkit Supplies (50¥, p.263) refill one">Supplies:</label>
+    <span>{{#if medkit.empty}}{{medkit.empty}} used up{{else}}stocked{{/if}}</span>
+    {{#if medkit.empty}}{{#if medkit.owned}}<button type="button" class="btn-small" data-action="restockMedkit">Restock</button>{{/if}}{{/if}}
+  </div>
+  {{/if}}
   <div class="form-group">
     <label>Cost:</label>
     {{!-- Authored price: skillsofts price off the Skill Memory Table and

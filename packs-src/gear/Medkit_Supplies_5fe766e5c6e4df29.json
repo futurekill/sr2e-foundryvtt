@@ -1,0 +1,46 @@
+{
+  "_id": "5fe766e5c6e4df29",
+  "name": "Medkit Supplies",
+  "type": "gear",
+  "img": "systems/sr2e/assets/item_icons/gear/medkit.webp",
+  "system": {
+    "category": "medical",
+    "rating": 0,
+    "quantity": 1,
+    "weight": 0,
+    "cost": 50,
+    "availability": "2/24 hrs",
+    "legality": "Legal",
+    "equipped": false,
+    "concealability": 10,
+    "streetIndex": 1.5,
+    "notes": "SR2E p.250, p.263. New drugs and supplies for a medkit whose supplies ran out: the medkit's Restock uses one.",
+    "citation": {
+      "book": "sr2",
+      "page": "263"
+    }
+  },
+  "effects": [],
+  "flags": {
+    "sr2e": {
+      "rule": "medkitSupplies"
+    }
+  },
+  "_stats": {
+    "coreVersion": "13.351",
+    "systemId": "sr2e",
+    "systemVersion": "0.3.7",
+    "createdTime": 1700000000000,
+    "modifiedTime": 1700000000000,
+    "lastModifiedBy": null,
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": null
+  },
+  "folder": "db653a93393074a8",
+  "sort": 0,
+  "ownership": {
+    "default": 0
+  },
+  "_key": "!items!5fe766e5c6e4df29"
+}

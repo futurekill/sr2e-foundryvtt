@@ -149,6 +149,11 @@
           <input type="number" name="system.conditionMonitor.stun.value" value="{{system.conditionMonitor.stun.value}}" min="0" max="{{system.conditionMonitor.stun.max}}" />
           <span>/ {{system.conditionMonitor.stun.max}}</span>
         </div>
+        <div class="heal-actions flexrow">
+          <button type="button" class="btn-small" data-action="firstAid" title="Treat a wounded character with this NPC's Biotech (First Aid, SR2E p.115)"><i class="fas fa-kit-medical"></i> Treat…</button>
+          <button type="button" class="btn-small" data-action="askTreatment" title="Post a card asking for First Aid"><i class="fas fa-hand-holding-medical"></i> Ask for treatment</button>
+          {{#if treatment.canEndStabilization}}<button type="button" class="btn-small" data-action="endStabilization" title="GM: the stabilization ends (SR2E p.115)">Stabilization ended</button>{{/if}}
+        </div>
         {{> "systems/sr2e/templates/actor/parts/healing-clock.hbs"}}
       </fieldset>
 

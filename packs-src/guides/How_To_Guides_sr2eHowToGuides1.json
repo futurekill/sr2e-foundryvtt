@@ -20,6 +20,31 @@
   },
   "pages": [
     {
+      "_id": "bca9e8a8e2c09dc1",
+      "name": "Treat a wounded runner",
+      "type": "text",
+      "title": {
+        "show": true,
+        "level": 1
+      },
+      "image": {},
+      "video": {
+        "controls": true,
+        "volume": 0.5
+      },
+      "src": null,
+      "system": {},
+      "sort": 100000,
+      "ownership": {
+        "default": -1
+      },
+      "flags": {},
+      "text": {
+        "format": 1,
+        "content": "<p><strong>Goal:</strong> a character with <strong>Biotech</strong> (or a medkit) gives First Aid to another player&#39;s runner — or any wounded\ncharacter on the scene (p.115).</p>\n<p><img src=\"systems/sr2e/assets/guides/treat-flow.gif\" alt=\"Treat: pick the patient, roll Biotech, Apply on the card, and the wound drops a level\"></p>\n<p><img src=\"systems/sr2e/assets/guides/treat-buttons.jpg\" alt=\"The sheet: Recover is your own healing; Treat… treats someone else; Ask for treatment posts a card\"></p>\n<p><strong>The medic</strong></p>\n<ol>\n<li>On your sheet, under the Condition Monitor, click <strong>Treat…</strong>. (Or click <strong>Treat</strong> on a patient&#39;s <em>needs\ntreatment</em> card in chat.)</li>\n<li><strong>Pick the patient.</strong> Everyone on the scene with Physical damage is listed, with their wound — no targeting\nneeded. Notes under the list say if first aid was already given, if the wound is over an hour old, or if the\npatient is already healing.</li>\n<li>Set the <strong>conditions</strong> and the <strong>medkit</strong> (your own medkits are offered; without one the TN is +4). With no\nBiotech, a medkit lets you roll its expert system&#39;s <strong>3 dice</strong>. Click <strong>Treat</strong>: your Biotech test is rolled.</li>\n<li>Spend <strong>Karma</strong> on the test now if you want to, then click <strong>Apply</strong> on the treatment card. The GM&#39;s client heals\nthe patient: you don&#39;t need to own their character.</li>\n</ol>\n<p><img src=\"systems/sr2e/assets/guides/treat-dialog.jpg\" alt=\"The treatment dialog\"></p>\n<p><img src=\"systems/sr2e/assets/guides/treat-applied.jpg\" alt=\"The card before and after Apply\"></p>\n<p><strong>A dying patient (Deadly wound)</strong></p>\n<ul>\n<li>First aid can only <strong>stabilize</strong> (stop the box every 10 minutes). If the test fails, the patient gets a natural\nBody test against 10.</li>\n<li>After a failed attempt, only <strong>professional help</strong> may try again: a medic with a higher Biotech, or the GM ticks\n<strong>Better equipped</strong> (a hospital, a DocWagon™ crew).</li>\n<li>A <strong>trauma patch</strong> in your gear gives the patient another Body test (TN 4 + dermal armor + blood filter).</li>\n</ul>\n<p><strong>The patient</strong></p>\n<ul>\n<li><strong>Ask for treatment</strong> posts a card with a <strong>Treat</strong> button for anyone with Biotech or a medkit.</li>\n<li><strong>Recover</strong> is <em>your own</em> healing: natural Body tests to heal a stage, with a doctor or clinic if one is involved.\nA runner&#39;s Biotech is not a doctor (p.113).</li>\n</ul>\n<p><strong>Good to know</strong></p>\n<ul>\n<li>First aid helps a set of injuries once, within the first hour, one level at most. Tick <strong>These are new\ninjuries</strong> when the GM agrees it&#39;s a new set.</li>\n<li>If the wound changes between the roll and <strong>Apply</strong> (more damage, or another medic got there first), the card\nsays <strong>Refused</strong> and nothing changes; spent Karma is not refunded. A medkit or patch it used is given back.</li>\n<li>A medkit&#39;s supplies can run out (a 1 on 1D6 after a treatment). Its item sheet shows <strong>Supplies: used up</strong> with\n<strong>Restock</strong>, which uses one <strong>Medkit Supplies</strong> (50¥).</li>\n<li>With the healing clock on, the wound drops a level when the treatment time has passed.</li>\n</ul>\n"
+      }
+    },
+    {
       "_id": "3ba50808f81a3b66",
       "name": "Design a custom vehicle",
       "type": "text",
@@ -34,7 +59,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 100000,
+      "sort": 200000,
       "ownership": {
         "default": -1
       },
@@ -59,7 +84,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 200000,
+      "sort": 300000,
       "ownership": {
         "default": -1
       },
@@ -84,7 +109,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 300000,
+      "sort": 400000,
       "ownership": {
         "default": -1
       },
@@ -109,7 +134,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 400000,
+      "sort": 500000,
       "ownership": {
         "default": -1
       },
@@ -134,7 +159,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 500000,
+      "sort": 600000,
       "ownership": {
         "default": -1
       },
@@ -159,7 +184,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 600000,
+      "sort": 700000,
       "ownership": {
         "default": -1
       },
@@ -184,7 +209,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 700000,
+      "sort": 800000,
       "ownership": {
         "default": -1
       },
@@ -209,7 +234,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 800000,
+      "sort": 900000,
       "ownership": {
         "default": -1
       },
@@ -234,7 +259,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 900000,
+      "sort": 1000000,
       "ownership": {
         "default": -1
       },
@@ -259,7 +284,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1000000,
+      "sort": 1100000,
       "ownership": {
         "default": -1
       },
@@ -284,7 +309,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1100000,
+      "sort": 1200000,
       "ownership": {
         "default": -1
       },
@@ -309,7 +334,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1200000,
+      "sort": 1300000,
       "ownership": {
         "default": -1
       },
@@ -334,7 +359,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1300000,
+      "sort": 1400000,
       "ownership": {
         "default": -1
       },
@@ -359,7 +384,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1400000,
+      "sort": 1500000,
       "ownership": {
         "default": -1
       },
@@ -384,7 +409,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1500000,
+      "sort": 1600000,
       "ownership": {
         "default": -1
       },
@@ -409,7 +434,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1600000,
+      "sort": 1700000,
       "ownership": {
         "default": -1
       },
@@ -434,7 +459,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1700000,
+      "sort": 1800000,
       "ownership": {
         "default": -1
       },
@@ -459,7 +484,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1800000,
+      "sort": 1900000,
       "ownership": {
         "default": -1
       },
@@ -484,7 +509,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 1900000,
+      "sort": 2000000,
       "ownership": {
         "default": -1
       },
@@ -509,7 +534,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2000000,
+      "sort": 2100000,
       "ownership": {
         "default": -1
       },
@@ -534,7 +559,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2100000,
+      "sort": 2200000,
       "ownership": {
         "default": -1
       },
@@ -559,7 +584,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2200000,
+      "sort": 2300000,
       "ownership": {
         "default": -1
       },
@@ -584,7 +609,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2300000,
+      "sort": 2400000,
       "ownership": {
         "default": -1
       },
@@ -609,7 +634,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2400000,
+      "sort": 2500000,
       "ownership": {
         "default": -1
       },
@@ -634,7 +659,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2500000,
+      "sort": 2600000,
       "ownership": {
         "default": -1
       },
@@ -659,7 +684,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2600000,
+      "sort": 2700000,
       "ownership": {
         "default": -1
       },
@@ -684,7 +709,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2700000,
+      "sort": 2800000,
       "ownership": {
         "default": -1
       },
@@ -709,7 +734,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2800000,
+      "sort": 2900000,
       "ownership": {
         "default": -1
       },
@@ -734,7 +759,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 2900000,
+      "sort": 3000000,
       "ownership": {
         "default": -1
       },
@@ -759,7 +784,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 3000000,
+      "sort": 3100000,
       "ownership": {
         "default": -1
       },
@@ -784,7 +809,7 @@
       },
       "src": null,
       "system": {},
-      "sort": 3100000,
+      "sort": 3200000,
       "ownership": {
         "default": -1
       },

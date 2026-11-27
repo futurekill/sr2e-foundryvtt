@@ -9,18 +9,23 @@
     "quantity": 1,
     "weight": 0,
     "cost": 500,
-    "availability": "Always",
+    "availability": "4/48 hrs",
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.250. Adhesive drug patch that stabilizes a critically wounded patient. Single-use emergency triage.",
+    "notes": "SR2E p.115, p.250, p.263. Placed over the heart: a last-chance natural Body Test (TN 4 + dermal armor + blood filter ratings) to stabilize a dying patient. Single use. +2 to the later permanent-damage test (p.113).",
     "citation": {
       "book": "sr2",
-      "page": "250"
-    }
+      "page": "263"
+    },
+    "streetIndex": 4
   },
   "effects": [],
-  "flags": {},
+  "flags": {
+    "sr2e": {
+      "rule": "traumaPatch"
+    }
+  },
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",

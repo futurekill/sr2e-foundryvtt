@@ -39,6 +39,7 @@ function substanceContext(actor) {
 import { elementalAidsCategory, spiritAttackSummary } from "../rules/sr2e-rules.mjs";
 import { headerBanter } from "../banter.mjs";
 import { clockView } from "../healing-clock.mjs";
+import { canEndStabilization } from "../treatment.mjs";
 import { permView } from "../permanent-damage.mjs";
 import { bioView } from "../bioware-damage.mjs";
 import { attributeBreakdown } from "../util/attribute-breakdown.mjs";
@@ -232,7 +233,11 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Rigger 2 indirect fire (docs/PLAN-vehicles-phase2.md 4b.5): the spotter's Indirect Fire Test.
       r2IndirectFire: async function () { (await import("../vehicle-indirect.mjs")).promptIndirectFire(this.document); },
       healClock: SHARED_ACTIONS.healClock,
-      permDamage: SHARED_ACTIONS.permDamage
+      permDamage: SHARED_ACTIONS.permDamage,
+      // Treating the wounded (docs/archive/plans/PLAN-treatment.md): every actor sheet can treat, ask, and (GM) end a stabilization.
+      firstAid: SHARED_ACTIONS.firstAid,
+      askTreatment: SHARED_ACTIONS.askTreatment,
+      endStabilization: SHARED_ACTIONS.endStabilization
     },
     // V13: register DragDrop so _onDragOver/_onDrop/_onDragStart are bound.
     // Without this, dragover never calls preventDefault(), letting the browser's
@@ -269,6 +274,8 @@ class SR2EBaseActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     context.isGM     = game.user.isGM;
     context.healClock = clockView(this.document);   // healing on the game clock (Calendaria)
     context.permDmg = permView(this.document);      // permanent damage from Deadly wounds (p.113–114)
+    // Clock off, a GM ends a stabilization by hand (p.115; with the clock on, "Care ends" does it).
+    context.treatment = { canEndStabilization: game.user.isGM && canEndStabilization(this.document) };
     context.shift = shiftView(this.document);        // shapeshifters and forms (Companion pp.36–38)
     context.speciesChoices = SPECIES_CHOICES;
     context.vr2      = isVR2();

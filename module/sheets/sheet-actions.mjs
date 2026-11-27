@@ -3766,12 +3766,14 @@ async function onHealPhysical(event) {
   const magician = actor.system.magic?.type && actor.system.magic.type !== "none";
   let opts = null;
   const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: `Heal — ${actor.name}` },
+    window: { title: `Recover — ${actor.name}` },
     rejectClose: false,
     content: `<div>
-      <p class="hint" style="margin:0 0 6px;">One stage of healing (one Damage Level) — SR2E p.113. Without a doctor the
-        wound must first pass a natural Body test; a Deadly wound always needs a doctor.</p>
-      <div class="form-group"><label>A doctor is involved:</label><input type="checkbox" name="doctor" style="width:auto;"></div>
+      <p class="hint" style="margin:0 0 6px;">${foundry.utils.escapeHTML(actor.name)}'s OWN recovery: one stage of healing (one Damage
+        Level) on natural Body — SR2E p.113. Without a doctor the wound must first pass a natural Body test; a Deadly
+        wound always needs a doctor. To treat someone with your Biotech, use <strong>Treat</strong> (First Aid) instead.</p>
+      <div class="form-group"><label title="A professional with a real medical degree, a clinic or hospital — not a runner's Biotech Skill (p.113)">A doctor or clinic is involved:</label><input type="checkbox" name="doctor" style="width:auto;"></div>
+      <div class="form-group"><label title="Organ damage from a Deadly wound: healing needs continuous treatment by a character with Biotech (p.113)">Under continuous care by a character with Biotech:</label><input type="checkbox" name="biotechCare" style="width:auto;"></div>
       <fieldset><legend>Doctoring Table (doctor only)</legend>
         <div class="form-group"><label>Where:</label><select name="condition">
           <option value="hospital">Hospital or clinic (+0)</option><option value="notHospital">Not in a hospital or clinic (+2)</option>
@@ -3785,7 +3787,7 @@ async function onHealPhysical(event) {
     buttons: [
       { action: "go", label: "Heal", default: true, callback: (ev, b) => {
         const el = b.form.elements;
-        opts = { doctor: !!el.doctor.checked, condition: el.condition.value, intensiveCare: !!el.intensiveCare.checked,
+        opts = { doctor: !!el.doctor.checked, biotechCare: !!el.biotechCare.checked, condition: el.condition.value, intensiveCare: !!el.intensiveCare.checked,
           magicalCare: !!el.magicalCare.checked, waiveMagician: !!el.waiveMagician?.checked };
       } },
       { action: "cancel", label: "SR2E.Dialog.Cancel" }
@@ -3796,56 +3798,26 @@ async function onHealPhysical(event) {
 }
 
 /**
- * First Aid (SR2E p.115): treat self or a targeted token's actor. Prompts for
- * the patient and the situational modifiers (conditions, no medkit).
- * @this {ApplicationV2}
+ * Treat a patient (First Aid, SR2E p.115): the medic-driven flow — a list of the wounded, the medic's Biotech roll, and
+ * the GM's client applying it (module/treatment.mjs). @this {ApplicationV2}
  */
 async function onFirstAid(event) {
   event.preventDefault();
-  const medic = this.document;
-  const targetActor = firstTarget()?.actor;
-  const patient = (targetActor && targetActor !== medic) ? targetActor : medic;
+  const { treatDialog } = await import("../treatment.mjs");
+  return treatDialog(this.document);
+}
 
-  let opts = null;
-  const action = await foundry.applications.api.DialogV2.wait({
-    window: { title: `First Aid — ${patient.name}` },
-    rejectClose: false,
-    content: `<div>
-      <p class="hint" style="margin:0 0 6px;">
-        Patient: <strong>${foundry.utils.escapeHTML(patient.name)}</strong>${patient === medic ? " (self)" : ""}.
-        Physical damage only, within the first hour after the injury, and never more than one level (SR2E p.115).
-        A Deadly wound can only be stabilized.
-      </p>
-      <div class="form-group">
-        <label>Conditions:</label>
-        <select name="cond">
-          <option value="0">Normal (+0)</option>
-          <option value="1">Bad (+1)</option>
-          <option value="3">Terrible (+3)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>No medkit (+4):</label>
-        <input type="checkbox" name="noMedkit" style="width:auto;">
-      </div>
-      ${patient.system.magic?.type && patient.system.magic.type !== "none" ? `<div class="form-group">
-        <label title="A magician can be treated without the +2, but then checks for Magic loss (p.115)">Treat without the magician +2:</label>
-        <input type="checkbox" name="waiveMagician" style="width:auto;">
-      </div>` : ""}
-    </div>`,
-    buttons: [
-      { action: "go", label: "Treat", default: true, callback: (event, button) => {
-        opts = {
-          conditionMod: parseInt(button.form.elements.cond?.value) || 0,
-          noMedkit: !!button.form.elements.noMedkit?.checked,
-          waiveMagician: !!button.form.elements.waiveMagician?.checked
-        };
-      }},
-      { action: "cancel", label: "SR2E.Dialog.Cancel" }
-    ]
-  });
-  if (action !== "go" || !opts) return;
-  return medic.firstAid(patient, opts);
+/** Post an "I need treatment" card with a Treat button any medic can answer. @this {ApplicationV2} */
+async function onAskTreatment(event) {
+  event.preventDefault();
+  const { askForTreatment } = await import("../treatment.mjs");
+  return askForTreatment(this.document);
+}
+
+/** GM, healing clock off: the patient's stabilization ends (p.115 — it must be maintained). @this {ApplicationV2} */
+async function onEndStabilization(event) {
+  event.preventDefault();
+  return (await import("../treatment.mjs")).endStabilization(this.document);
 }
 
 /**
@@ -4297,6 +4269,8 @@ const SHARED_ACTIONS = {
   recoverStun: onRecoverStun,
   healPhysical: onHealPhysical,
   firstAid: onFirstAid,
+  askTreatment: onAskTreatment,
+  endStabilization: onEndStabilization,
   contributeTeamKarma: onContributeTeamKarma,
   drawTeamKarma: onDrawTeamKarma,
   bondWeaponFocus: onBondWeaponFocus,

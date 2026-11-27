@@ -44,13 +44,21 @@
           <i class="fas fa-bed"></i> Recover Stun
         </button>
         <button type="button" class="btn-small" data-action="healPhysical"
-                title="Natural healing: Body Test vs wound TN; heals one level (SR2E p.113)">
-          <i class="fas fa-heart-pulse"></i> Heal
+                title="Your own recovery: natural Body tests to heal one Physical stage, with a doctor or clinic if one is involved (SR2E p.113)">
+          <i class="fas fa-heart-pulse"></i> Recover
         </button>
         <button type="button" class="btn-small" data-action="firstAid"
-                title="First Aid (Biotech): treat self or a targeted token; heals one Physical level once per injury (SR2E p.115)">
-          <i class="fas fa-kit-medical"></i> First Aid
+                title="Treat a wounded character with your Biotech (First Aid, SR2E p.115): pick the patient, roll, then Apply on the card">
+          <i class="fas fa-kit-medical"></i> Treat…
         </button>
+        <button type="button" class="btn-small" data-action="askTreatment"
+                title="Post a card asking for First Aid: anyone with Biotech or a medkit can answer it">
+          <i class="fas fa-hand-holding-medical"></i> Ask for treatment
+        </button>
+        {{#if treatment.canEndStabilization}}
+        <button type="button" class="btn-small" data-action="endStabilization"
+                title="GM: the patient's stabilization ends (the care stopped, SR2E p.115)">Stabilization ended</button>
+        {{/if}}
       </div>
 
       {{> "systems/sr2e/templates/actor/parts/healing-clock.hbs"}}

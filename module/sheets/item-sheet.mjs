@@ -36,7 +36,9 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       addEffect:       SR2EItemSheet._addEffect,
       editEffect:      SR2EItemSheet._editEffect,
       deleteEffect:    SR2EItemSheet._deleteEffect,
-      editImage:       SHARED_ACTIONS.editImage
+      editImage:       SHARED_ACTIONS.editImage,
+      // A medkit's supplies (p.250, docs/archive/plans/PLAN-treatment.md): one Medkit Supplies item refills one used-up unit.
+      restockMedkit:   async function() { return (await import("../treatment.mjs")).restockMedkit(this.document); }
     },
     form: {
       submitOnChange: true
@@ -120,6 +122,10 @@ export class SR2EItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     context.item = item;
     context.system = item.system;
     context.isGM = game.user.isGM;
+    if (item.type === "gear") {
+      const { medkitEmpty, medicalGearRule } = await import("../rules/treatment-rules.mjs");
+      if (medicalGearRule(item) === "medkit") context.medkit = { empty: medkitEmpty(item), owned: !!item.parent };
+    }
     // A sourcebook power's choice (Grimoire p.34): which field the sheet shows.
     if (item.type === "adept_power") {
       context.adeptKey = adeptPowerKey(item) ?? "";

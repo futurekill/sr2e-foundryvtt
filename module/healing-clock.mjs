@@ -106,24 +106,39 @@ export async function admitStart(actor, column) {
  */
 export async function commitStart(actor, column, adm, course, { stabilize = null } = {}) {
   const ok = await enqueueAttack(`damage:${actor.uuid}`, async () => {
-    const st = clockState(actor);
-    if ((st.startGen?.[column] ?? 0) !== adm.gen) return false;
-    const same = column === "stun" ? (st.rev.stun === adm.r0.stun && st.restGen === adm.r0.restGen) : st.rev.phys === adm.r0.phys;
-    // Permanent-damage penalties and continuous care must still be what the course was rolled for.
-    const pen = column === "physical" && course?.pk != null ? currentPenalties(actor) : null;
-    const penOk = !pen || (pen.key === course.pk && (!course.careRequired || pen.careGen === course.careGen));
-    const fits = !!course && same && penOk && !(st[column] && courseValid(st, column));
-    st.startGen = { ...(st.startGen ?? {}), [column]: adm.gen + 1 };
-    if (fits) st[column] = column === "stun" ? { ...course, stunRev: st.rev.stun, restGen: st.restGen } : { ...course, rev: st.rev.phys };
-    // A doctor's course on a bleeding patient is professional care: recorded in the SAME write.
-    if (fits && stabilize && st.bleed) st.bleed = { ...st.bleed, pending: [...(st.bleed.pending ?? []), { kind: stabilize, at: game.time.worldTime }] };
-    await write(actor, st);
-    if (course && (!same || !penOk)) await card(actor, `<strong>${esc(actor.name)}: the wound changed while you rolled</strong> — roll again.`);
-    return fits;
+    const r = await commitStartHeld(actor, column, adm, course, { stabilize });
+    if (course && (!r.same || !r.penOk)) await card(actor, `<strong>${esc(actor.name)}: the wound changed while you rolled</strong> — roll again.`);
+    return r.fits;
   });
   if (ok && stabilize) await reconcileHealing(actor);          // outside the queue: it queues itself
   return ok;
 }
+
+/**
+ * commitStart's write, for a caller that ALREADY holds `damage:<uuid>` (docs/archive/plans/PLAN-treatment.md 6). `adm` null = the
+ * active GM's treatment path: no admission marker — it checks the slot itself and bumps the start generation in the
+ * same write, so a "Recover" started meanwhile fails its own fence. `extra` rides in the same update when it fits.
+ * The caller runs reconcileHealing afterwards (outside the queue) when it stabilized.
+ * @returns {Promise<{fits:boolean, same:boolean, penOk:boolean}>}
+ */
+export async function commitStartHeld(actor, column, adm, course, { stabilize = null, extra = {} } = {}) {
+  const st = clockState(actor);
+  if (adm && (st.startGen?.[column] ?? 0) !== adm.gen) return { fits: false, same: true, penOk: true };
+  const same = !adm ? true : column === "stun" ? (st.rev.stun === adm.r0.stun && st.restGen === adm.r0.restGen) : st.rev.phys === adm.r0.phys;
+  // Permanent-damage penalties and continuous care must still be what the course was rolled for.
+  const pen = column === "physical" && course?.pk != null ? currentPenalties(actor) : null;
+  const penOk = !pen || (pen.key === course.pk && (!course.careRequired || pen.careGen === course.careGen));
+  const fits = !!course && same && penOk && !(st[column] && courseValid(st, column));
+  st.startGen = { ...(st.startGen ?? {}), [column]: (st.startGen?.[column] ?? 0) + 1 };
+  if (fits) st[column] = column === "stun" ? { ...course, stunRev: st.rev.stun, restGen: st.restGen } : { ...course, rev: st.rev.phys };
+  // A doctor's course on a bleeding patient is professional care: recorded in the SAME write.
+  if (fits && stabilize && st.bleed) st.bleed = { ...st.bleed, pending: [...(st.bleed.pending ?? []), { kind: stabilize, at: game.time.worldTime }] };
+  await write(actor, st, fits ? extra : {});
+  return { fits, same, penOk };
+}
+
+/** Is the Physical slot taken by a live course? (checked before a treatment spends any gear) */
+export const physicalSlotBusy = (actor) => { const st = clockState(actor); return !!(st.physical && courseValid(st, "physical")); };
 
 // ── Reconciliation (§4, §6, §6a) ───────────────────────────────────────────
 
@@ -320,14 +335,32 @@ export const _test = { applyTicks: (actor, n, claimed) => enqueueAttack(`damage:
  * now or — if another device holds the settlement — on the next reconcile.
  */
 export async function setStable(actor, stable) {
-  await enqueueAttack(`damage:${actor.uuid}`, async () => {
-    const st = clockState(actor);
-    if (!st.bleed) return;
-    st.bleed = { ...st.bleed, pending: [...(st.bleed.pending ?? []), { kind: stable, at: game.time.worldTime }] };
-    await write(actor, st);
-  });
+  await enqueueAttack(`damage:${actor.uuid}`, () => stableHeld(actor, stable));
   await reconcileHealing(actor);
   return true;
+}
+
+/**
+ * setStable's write for a caller that holds `damage:<uuid>`; `extra` rides in the same update (with or without a
+ * bleed record). Ending care (`stable` null) also closes the treatment stabilization record (PLAN-treatment r6 #2).
+ */
+export async function stableHeld(actor, stable, extra = {}) {
+  const st = clockState(actor);
+  const ended = stable === null ? stabilizeEndedUpdate(actor) : {};
+  if (!st.bleed) {
+    const upd = { ...extra, ...ended };
+    if (Object.keys(upd).length) await actor.update(upd);
+    return;
+  }
+  st.bleed = { ...st.bleed, pending: [...(st.bleed.pending ?? []), { kind: stable, at: game.time.worldTime }] };
+  await write(actor, st, { ...extra, ...ended });
+}
+
+/** The update appending an "ended" entry to the current Deadly episode's stabilization record (if it has one). */
+export function stabilizeEndedUpdate(actor) {
+  const attempts = actor.flags?.sr2e?.stabilize?.attempts ?? [];
+  if (!attempts.length || attempts.at(-1)?.kind === "ended") return {};
+  return { "flags.sr2e.stabilize.attempts": [...attempts, { kind: "ended", at: game.time.worldTime }] };
 }
 
 // ── GM controls (§7) ───────────────────────────────────────────────────────

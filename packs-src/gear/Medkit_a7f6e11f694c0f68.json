@@ -7,20 +7,25 @@
     "category": "medical",
     "rating": 3,
     "quantity": 1,
-    "weight": 0,
-    "cost": 300,
-    "availability": "Always",
+    "weight": 3,
+    "cost": 200,
+    "availability": "2/24 hrs",
     "legality": "Legal",
     "equipped": false,
     "concealability": 10,
-    "notes": "SR2E p.250. A 2053 medkit with expert system (Biotech 3). Drug supplies, bandages, and diagnostic AI.",
+    "notes": "SR2E p.250, p.263. A 2053 medkit with an expert system (Biotech 3) that advises the user. Removes the no-medkit +4 from First Aid (p.115); an untrained user rolls its 3 dice (ruling). Supplies run out on a 1 on 1D6 after a treatment: restock with Medkit Supplies.",
     "citation": {
       "book": "sr2",
-      "page": "250"
-    }
+      "page": "263"
+    },
+    "streetIndex": 1.5
   },
   "effects": [],
-  "flags": {},
+  "flags": {
+    "sr2e": {
+      "rule": "medkit"
+    }
+  },
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",
