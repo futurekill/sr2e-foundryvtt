@@ -56,7 +56,9 @@ const VOIDABLE = new Set(["test", "outcome", "tleTreatment", "episode", "seizure
  * (seconds). Returns everything the sheet, the rules and the prompts need.
  */
 export function foldMbw(events = [], now = 0) {
-  const all = [...events].sort((a, b) => (a.at ?? 0) - (b.at ?? 0) || String(a.key).localeCompare(String(b.key)));
+  // Order by the SERVER's wall-clock creation stamp `ct` (docs/archive/plans/PLAN-claim-clock.md 6): `at` is server uptime, which a
+  // restart resets. `at` only for an event without `ct`.
+  const all = [...events].sort((a, b) => (a.ct ?? a.at ?? 0) - (b.ct ?? b.at ?? 0) || String(a.key).localeCompare(String(b.key)));
   const byKey = new Map(all.map(e => [e.key, e]));
   const voided = new Set(all.filter(e => e.type === "void" && VOIDABLE.has(byKey.get(e.target)?.type)).map(e => e.target));
   // Structural dependencies: a record whose parent is missing or void is ignored.

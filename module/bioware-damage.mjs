@@ -6,7 +6,7 @@
  * resumes after an interruption. Damaged bioware heals individually in half the time; with the
  * healing clock it is a course on the ITEM, fenced by `damageRev`, `implantGen` and the owner uuid.
  */
-import { once, markersOf } from "./claims.mjs";
+import { once, markersOf, claimAge, claimAgeFresh } from "./claims.mjs";
 import { STUCK_MS } from "./rules/claim-rules.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { wareRule } from "./rules/ware-rules.mjs";
@@ -65,7 +65,7 @@ export async function cardOp(message, op) {
   if (op === "again") {
     const st = live();
     const m = markersOf(actor).find(x => x.key === `biodmg-roll:${st.receipt}:${st.rollAttempt}`);
-    if (st.results || !m || game.time.serverTime - (Number(m.at) || 0) < STUCK_MS) {
+    if (st.results || !m || ((await claimAgeFresh(m)) ?? 0) < STUCK_MS) {
       return ui.notifications.info("Nothing is stuck: use Roll (or wait — a roll started under 2 minutes ago).");
     }
     st.rollAttempt += 1;                     // supersedes the stuck attempt
@@ -231,7 +231,7 @@ export function bioView(actor, item) {
   const m = markersOf(actor).find(x => x.key === `bioheal:${item.uuid}:${gen}`);
   return { damage: sys.damage ?? 0, level: bioLevel(sys.damage ?? 0) ? LEVEL[bioLevel(sys.damage ?? 0)] : null,
     off: !bioFunctions(sys), destroyed: !!sys.destroyed, healing: c && courseValid(item, c) ? c : null,
-    stuck: !!m && game.time.serverTime - (Number(m.at) || 0) > STUCK_MS };
+    stuck: !!m && (claimAge(m) ?? 0) > STUCK_MS };
 }
 
 export function registerBiowareDamage() {

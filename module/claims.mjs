@@ -3,7 +3,8 @@
  * true only for the ONE call whose marker create the server accepted. Markers are
  * hidden, disabled, change-less ActiveEffects (sheets don't list actor effects).
  */
-import { claimId, MARKER_TTL_MS } from "./rules/claim-rules.mjs";
+import { claimId, MARKER_TTL_MS, wallAge } from "./rules/claim-rules.mjs";
+import { serverNow, freshServerNow, serverClock } from "./server-clock.mjs";
 
 export const markerOf = (e) => e?.flags?.sr2e?.claim ?? null;
 
@@ -47,10 +48,24 @@ export async function recordEvent(actor, key, payload = {}) {
 /** This actor's durable event records whose payload type is in `types` (all if omitted). */
 export const eventsOf = (actor) => markersOf(actor).filter(m => m.durable && m.event).map(m => ({ key: m.key, at: m.at, ct: m.ct, ...m.event }));
 
+/**
+ * A marker's age in ms by the SERVER's wall clock (its `_stats.createdTime` vs serverNow()), or null when unknown
+ * (docs/archive/plans/PLAN-claim-clock.md): unknown is never stuck and never pruned. `game.time.serverTime` is the server's uptime on
+ * Foundry 13 — it resets on a restart — so it must never age a marker.
+ */
+const ctOf = (m) => (serverClock.testMode && m?.testCt != null ? m.testCt : m?.ct);
+/** The age of a server-stamped DOCUMENT (a chat message, a marker effect) — `flags.sr2e.testCt` in Quench's testMode. */
+export async function docAgeFresh(doc) {
+  const t = serverClock.testMode ? (doc?.flags?.sr2e?.testCt ?? doc?.flags?.sr2e?.claim?.testCt) : null;
+  return wallAge(t ?? doc?._stats?.createdTime, await freshServerNow());
+}
+export const claimAge = (m) => wallAge(ctOf(m), serverNow());
+/** claimAge, taking a fresh server sample first when this client has none (an idle world). */
+export async function claimAgeFresh(m) { return wallAge(ctOf(m), await freshServerNow()); }
+
 /** Delete markers older than the retention, except durable records and those `keep(marker)` protects. Never throws. */
 export async function pruneMarkers(actor, keep = () => false) {
-  const now = game.time.serverTime;
-  const ids = markersOf(actor).filter(m => !m.durable && now - (Number(m.at) || 0) > MARKER_TTL_MS && !keep(m)).map(m => m.id);
+  const ids = markersOf(actor).filter(m => { const age = claimAge(m); return !m.durable && age != null && age > MARKER_TTL_MS && !keep(m); }).map(m => m.id);
   if (!ids.length) return;
   try { await actor.deleteEmbeddedDocuments("ActiveEffect", ids.filter(id => actor.effects.has(id))); }
   catch (err) { console.warn("SR2E | pruning step markers failed", err); }

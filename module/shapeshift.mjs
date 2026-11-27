@@ -7,8 +7,8 @@
  * client. Regeneration ticks run on GM clients when a Combat Turn passes, each cursor advance claimed by its
  * starting point. A death check is resolved as a durable record (`recordEvent`), then applied idempotently.
  */
-import { once, recordEvent, eventsOf, markersOf } from "./claims.mjs";
-import { STUCK_MS } from "./rules/claim-rules.mjs";
+import { once, recordEvent, eventsOf, markersOf, claimAgeFresh } from "./claims.mjs";
+import { STUCK_MS, lastAttempt } from "./rules/claim-rules.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { reconcileHealing } from "./healing-clock.mjs";
 import { magicLost } from "./rules/sr2e-rules.mjs";
@@ -198,12 +198,13 @@ async function tickCombatant(actor, cb, newRound, oldRound) {
     if (!(await once(actor, key))) {
       // Claimed elsewhere and never written (that client failed or left): the cursor still sits here after
       // STUCK_MS, so the next numbered attempt takes it over. The attempt number depends only on the cursor,
-      // never on the destination round, so two clients holding different rounds race for ONE claim.
-      const tries = markersOf(actor).filter(x => x.key === key || x.key.startsWith(`${key}:takeover:`));
-      const latest = tries.reduce((m, x) => (Number(x.at) || 0) > (Number(m?.at) || 0) ? x : m, null);
-      if (!latest || game.time.serverTime - (Number(latest.at) || 0) < STUCK_MS) return 0;
-      const n = Math.max(0, ...tries.map(x => Number(x.key.split(":takeover:")[1]) || 0)) + 1;
-      if (!(await once(actor, `${key}:takeover:${n}`))) return 0;
+      // never on the destination round, so two clients holding different rounds race for ONE claim. The LATEST
+      // attempt is aged by the server's wall clock (docs/archive/plans/PLAN-claim-clock.md 7; unknown = not stuck).
+      const ms = markersOf(actor);
+      const n = lastAttempt(ms.map(x => x.key), key, "takeover:");
+      const latest = ms.find(x => x.key === (n <= 0 ? key : `${key}:takeover:${n}`));
+      if (!latest || ((await claimAgeFresh(latest)) ?? 0) < STUCK_MS) return 0;
+      if (!(await once(actor, `${key}:takeover:${n + 1}`))) return 0;
     }
     const st = shiftState(actor);
     if ((st.high[cb.id] ?? cursor) !== cursor) return 0;

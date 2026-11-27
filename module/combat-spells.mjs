@@ -10,6 +10,7 @@
  */
 import { once } from "./claims.mjs";
 import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
+import { docAgeFresh } from "./claims.mjs";
 import { commitVehicleDamage } from "./vehicle-play.mjs";
 import { r2CombatSpellTN } from "./rules/vehicle-combat-rules.mjs";
 import { commitDamage } from "./drugs.mjs";
@@ -505,7 +506,7 @@ async function closeCard(message, name) {
  */
 export async function markSpellResResolved(message) {
   if (!game.user.isGM) return;
-  const now = game.time.serverTime;
+  // Ages by the server's wall clock (docs/archive/plans/PLAN-claim-clock.md 5): unknown = too young to call stuck.
   let p = message.getFlag("sr2e", "spellRes");
   let card = p ? game.messages.get(p.cardId) : message;
   if (!p) {
@@ -518,11 +519,11 @@ export async function markSpellResResolved(message) {
     const marker = target.effects.get(claimId(`spellres:${key}`));
     if (!marker) return ui.notifications.info("Nothing is stuck: no resistance has started for this card.");
     if (game.messages.get(claimId(`spellresmsg:${key}`))) return ui.notifications.info("A resistance is in progress — use Mark resolved on its message.");
-    if (now - (marker.flags?.sr2e?.claim?.at ?? now) < STUCK_MS) return ui.notifications.info("That resistance started under 2 minutes ago — give it time.");
+    if (((await docAgeFresh(marker)) ?? 0) < STUCK_MS) return ui.notifications.info("That resistance started under 2 minutes ago — give it time.");
     p = { key, rid: claimId(key), castTestId: st.testMessageId, cardId: message.id, actorUuid: target.uuid, targetName: target.name, spellName: st.spellName, orphan: true };
   } else {
     if (p.phase === "done") return ui.notifications.info("That resistance already finished.");
-    if (now - (p.at ?? now) < STUCK_MS) return ui.notifications.info("That resistance started under 2 minutes ago — give it time.");
+    if (((await docAgeFresh(message)) ?? 0) < STUCK_MS) return ui.notifications.info("That resistance started under 2 minutes ago — give it time.");
   }
   const actor = fromUuidSync(p.actorUuid);
   const rec = actor ? recordOf(actor, p.rid) : null;

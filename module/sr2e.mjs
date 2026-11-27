@@ -34,6 +34,7 @@ import { wireAdeptPowerButtons, registerAdeptPowerHooks } from "./adept-powers.m
 import { registerCalendariaSettings, registerCalendariaHooks } from "./calendaria.mjs";
 import { registerHealingClockSettings, registerHealingClockHooks } from "./healing-clock.mjs";
 import { registerTreatmentHooks, wireTreatmentButtons } from "./treatment.mjs";
+import { registerServerClock } from "./server-clock.mjs";
 import { registerPermanentDamage } from "./permanent-damage.mjs";
 import { registerBiowareDamage } from "./bioware-damage.mjs";
 import { registerJackpointBehavior, registerJackpointHooks } from "./jackpoints.mjs";
@@ -571,6 +572,7 @@ Hooks.once("init", async () => {
   registerCalendariaHooks();
   registerHealingClockHooks();     // healing on the game clock (docs/archive/plans/PLAN-healing-clock.md)
   registerTreatmentHooks();        // treating the wounded across players (docs/archive/plans/PLAN-treatment.md)
+  registerServerClock();           // the server's wall clock for claim ages (docs/archive/plans/PLAN-claim-clock.md)
   registerPermanentDamage();       // Deadly wounds' permanent damage (core p.113–114)
   registerShapeshifters();         // shapeshifters: forms, regeneration, death checks (Companion pp.36–38)
   registerJackpointBehavior();

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.173.1 — 2026-11-27
+
+### Fixed — stuck claims after a server restart (docs/archive/plans/PLAN-claim-clock.md)
+- On Foundry 13 `game.time.serverTime` is the server's UPTIME: it resets on every restart. Every "is this step stuck?"
+  check (bleeding ticks, shapeshifter regeneration, doses, bioware results, cybermancy, move-by-wire seizures, an
+  interrupted spell resistance, VR2.0 retries) and marker pruning compared ages on that clock, so after a restart a
+  claim left by a closed tab could look "in the future" and block its step for hours.
+- Ages now use the server's WALL clock: a marker's server-stamped creation time against `serverNow()`, estimated
+  from live document stamps on a monotonic clock — never ahead of the server, so a live claim is never taken over
+  early; an unknown age is never stuck and never pruned; an actionable decision takes a fresh sample first.
+- Retry and takeover keys come from the highest existing attempt (never counts, ages or clocks); a superseded
+  cybermancy Apply/Cancel stops before its next write. Move-by-wire and cybermancy records order by the server stamp.
+- The two failing `sr2e.shapeshifters` Quench tests pass (they failed whenever the server had been up < 2 minutes).
+
 ## 0.173.0 — 2026-11-27
 
 ### Added — treating the wounded across players (core p.111–115; docs/archive/plans/PLAN-treatment.md)

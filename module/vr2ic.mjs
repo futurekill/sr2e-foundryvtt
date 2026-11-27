@@ -8,6 +8,7 @@
  * active GM's client, each with a `seq`. Players' clients create REQUESTS; the sequencer
  * admits or refuses them. Monitors and IC are changed only there.
  */
+import { serverNow, freshServerNow } from "./server-clock.mjs";
 import { recordEvent, eventsOf, once } from "./claims.mjs";
 import { foldVr2Ic, liveOpen, grayTN, mpcpLoss, tarWins, programKey, locationTurns, datatrailTurns, openBoundary,
          boundariesToTick, RESPONSE_TIMES, wormInfects, shutdownState, shutdownDice, finalWarning, pcpicMod,
@@ -1751,7 +1752,8 @@ async function recoverResolved(actor) {
   const pending = actor.flags?.sr2e?.vr2AttrPending ?? {};
   const recs = recordsOf(actor);
   const done = new Map(recs.filter(e => e.type === "done").map(e => [e.req, e]));
-  const now = game.time.serverTime;
+  // The server's wall clock (docs/archive/plans/PLAN-claim-clock.md 5), read only when a retry is due to be judged.
+  let now;
   for (const [card, r] of Object.entries(pending)) {
     if (recs.some(e => e.type === "ack" && e.target === `attack:${card}`)) { await actor.update({ [`flags.sr2e.vr2AttrPending.-=${card}`]: null }); continue; }
     if (r?.conn == null || !Number.isInteger(r.lost)) continue;
@@ -1760,8 +1762,16 @@ async function recoverResolved(actor) {
     // the next sequencer pass after that), never abandoned: the loss is committed and must be acked.
     const reqs = recs.filter(e => e.type === "req" && e.kind === "resolved" && e.card === card);
     if (reqs.some(q => !done.has(q.key))) continue;
-    const last = Math.max(0, ...reqs.map(q => Number(done.get(q.key)?.at) || 0));
-    if (reqs.length && now - last < 30000 * 2 ** Math.min(reqs.length - 1, 6)) continue;
+    if (reqs.length) {
+      // An unknown stamp keeps the backoff (code review r1 #3): never retried early.
+      const stamps = reqs.map(q => Number(done.get(q.key)?.ct));
+      if (stamps.some(t => !Number.isFinite(t) || t <= 0)) continue;
+      // Never await a User write inside the sequencer's pass (it stalls the pass): with no sample yet, start one and
+      // judge this retry on the next pass.
+      now ??= serverNow();
+      if (now == null) { freshServerNow(); continue; }
+      if (now - Math.max(...stamps) < 30000 * 2 ** Math.min(reqs.length - 1, 6)) continue;
+    }
     await request(actor, "resolved", { card, conn: r.conn, lost: r.lost, attr: r.attr, rating: r.rating ?? 0, threat: r.threat ?? 0,
       ripper: String(r.program ?? "").startsWith("ripper-") });
   }

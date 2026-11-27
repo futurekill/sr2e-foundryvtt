@@ -10,8 +10,8 @@
  * `sr2eClock` option and decide their state themselves. Completions and bleeding ticks are
  * absolute writes from what was read, so a duplicate writer changes nothing.
  */
-import { once, markersOf } from "./claims.mjs";
-import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
+import { once, markersOf, claimAge, claimAgeFresh } from "./claims.mjs";
+import { claimId, STUCK_MS, lastAttempt } from "./rules/claim-rules.mjs";
 import { enqueueAttack } from "./engagement.mjs";
 import { calendaria, calendarDate } from "./calendaria.mjs";
 import { magicLost } from "./rules/sr2e-rules.mjs";
@@ -223,11 +223,13 @@ export async function reconcileHealing(actor, now = game.time.worldTime, { force
 async function claimTick(actor, bleed, force = false) {
   const base = `bleed:${actor.uuid}:${bleed.id}:${bleed.cursor}`;
   if (await once(actor, base)) return true;
-  const m = markersOf(actor).find(x => x.key === base);
-  const age = m ? game.time.serverTime - (Number(m.at) || 0) : 0;
-  if (force) return once(actor, `${base}:f${game.time.serverTime}`);
-  if (age < STUCK_MS) return false;
-  return once(actor, `${base}:t${Math.floor(age / STUCK_MS)}`);
+  // One attempt sequence for automatic and forced takeovers (docs/archive/plans/PLAN-claim-clock.md 7): the LATEST attempt must be
+  // STUCK_MS old by the server's wall clock (unknown = not stuck); the GM's Settle skips only that test.
+  const ms = markersOf(actor);
+  const n = lastAttempt(ms.map(x => x.key), base);
+  const latest = ms.find(x => x.key === (n <= 0 ? base : `${base}:t${n}`));
+  if (!force && ((latest ? await claimAgeFresh(latest) : null) ?? 0) < STUCK_MS) return false;
+  return once(actor, `${base}:t${Math.max(0, n) + 1}`);
 }
 
 /** Bleeding: `n` boxes onto overflow, never past the first lethal value, never lowering it (§6). */
@@ -297,7 +299,7 @@ async function settleMagicLoss(actor) {
       if (!await once(actor, key)) {
         // Claimed elsewhere and never receipted: the GM takes it over as a manual check.
         const m = markersOf(actor).find(x => x.key === key);
-        if (game.user.isGM && m && game.time.serverTime - (Number(m.at) || 0) > STUCK_MS) {
+        if (game.user.isGM && m && ((await claimAgeFresh(m)) ?? 0) > STUCK_MS) {
           const s2 = clockState(actor);
           if (s2.lossDone?.[id]?.[i]) continue;
           s2.lossDone = { ...s2.lossDone, [id]: { ...(s2.lossDone[id] ?? {}), [i]: "manual" } };
@@ -419,7 +421,7 @@ export function clockView(actor) {
   const stuck = (k) => {
     const gen = st.startGen?.[k] ?? 0;
     const m = markersOf(actor).find(x => x.key === `healstart:${actor.uuid}:${k}:${gen}`);
-    return !!m && game.time.serverTime - (Number(m.at) || 0) > STUCK_MS;
+    return !!m && (claimAge(m) ?? 0) > STUCK_MS;
   };
   const courses = [course("physical"), course("stun")].filter(Boolean);
   const bleed = b ? { stable: b.stable, lethal: b.lethal, label: b.lethal ? "Bled out — the GM decides"

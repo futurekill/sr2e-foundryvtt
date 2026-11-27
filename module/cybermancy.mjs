@@ -4,7 +4,7 @@
  * folded by `foldCym`. Every lethal or permanent outcome is a GM click; periodic events are
  * PROMPTED on the game clock, never applied. The sheet panel is the durable list of what's pending.
  */
-import { recordEvent, eventsOf, once, markersOf } from "./claims.mjs";
+import { recordEvent, eventsOf, once, markersOf, claimAgeFresh } from "./claims.mjs";
 import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
 import { foldCym, survivalTN, cdsBand, cancerDevelops, cdsTreatTN, cdsRecoveryDays, characterTN, perPoint, DAY_S } from "./rules/cym-rules.mjs";
 import { MONTH_S } from "./rules/mbw-rules.mjs";
@@ -133,13 +133,23 @@ export async function rollOperation(uuid, opId) {
 /** The claimed step owner for an operation (Apply, Resume and Cancel share it). */
 async function claimOp(actor, opId, resume) {
   const prefix = `cym:apply:${opId}:`;
-  const claims = markersOf(actor).filter(m => String(m.key).startsWith(prefix));
-  const last = claims.sort((x, y) => (x.at ?? 0) - (y.at ?? 0)).at(-1);
+  // The highest-numbered claim is the latest (never a count — pruning leaves gaps), aged by the server's wall clock
+  // (docs/archive/plans/PLAN-claim-clock.md 7; unknown = still running).
+  const num = (m) => Number(String(m.key).slice(prefix.length));
+  const claims = markersOf(actor).filter(m => String(m.key).startsWith(prefix) && Number.isInteger(num(m)));
+  const last = claims.sort((x, y) => num(x) - num(y)).at(-1);
   if (last && !resume) { ui.notifications.info("That operation is already being applied; if it stopped, use Resume on the sheet."); return false; }
-  if (last && game.time.serverTime - (Number(last.at) || 0) <= STUCK_MS) {
+  if (last && ((await claimAgeFresh(last)) ?? 0) <= STUCK_MS) {
     ui.notifications.info("That operation is still being applied (try again in two minutes if it stopped)."); return false;
   }
-  return once(actor, `${prefix}${claims.length + 1}`);
+  const n = last ? num(last) + 1 : 1;
+  return (await once(actor, `${prefix}${n}`)) ? n : false;
+}
+/** Is attempt `n` still the newest claim on this operation (a later takeover supersedes it, code review r2 #1)? */
+function holdsLatest(actor, opId, n) {
+  const prefix = `cym:apply:${opId}:`;
+  const nums = markersOf(actor).map(m => String(m.key)).filter(k => k.startsWith(prefix)).map(k => Number(k.slice(prefix.length)));
+  return Math.max(0, ...nums.filter(Number.isInteger)) === n;
 }
 const receiptOf = (actor, opId) => actor.flags?.sr2e?.cymReceipts?.[opId] ?? {};
 const itemId = (opId, slot) => claimId(`cym:item:${opId}:${slot}`);
@@ -162,13 +172,17 @@ export async function applyOperation(uuid, opId, { resume = false } = {}) {
   };
   const staleMsg = `${actor.name} changed since the operation was proposed (cyberware, nuyen or Essence): withdraw it and propose it again.`;
   if (stale()) return ui.notifications.warn(staleMsg);
-  if (!await claimOp(actor, opId, resume)) return;
+  const mine = await claimOp(actor, opId, resume);
+  if (!mine) return;
   const pct = o.roll.pct ?? 0;
   const final = r2(s.intended + s.plain - surgicalEssence(s.plain, pct));
   // 1–2. In ONE money-queue entry: re-validate, charge (nuyen, receipt and manual
   // Essence in one update), then the items by deterministic id — so no sale, purchase or
   // reprice on this client lands between the charge and the implants it paid for.
+  // After winning the claim, the operation must still be open: a Cancel may have run meanwhile (code review r1 #2).
+  const open = () => { const lo = cymFold(actor).ops.get(opId); return holdsLatest(actor, opId, mine) && !!lo && !lo.done && !lo.cancelled && !lo.cancelIntent; };
   const applied = await moneyQueue(actor, async () => {
+    if (!open()) return false;
     if (stale()) { ui.notifications.warn(staleMsg); return false; }
     if (!receiptOf(actor, opId).charged) {
       const manual = !autoEssence();
@@ -180,6 +194,7 @@ export async function applyOperation(uuid, opId, { resume = false } = {}) {
     for (const { slot, data } of s.items) {
       const id = itemId(opId, slot);
       if (actor.items.has(id)) continue;
+      if (!open()) return false;                       // checked before EVERY write (r2 #1)
       const d = foundry.utils.deepClone(data);
       d._id = id;
       d.system = { ...(d.system ?? {}), installed: true, ...(slot === "implant" ? { surgeryEssencePct: pct } : {}) };
@@ -191,19 +206,21 @@ export async function applyOperation(uuid, opId, { resume = false } = {}) {
     }
     return true;
   }, "cybermancy apply");
-  if (!applied) return;
+  if (!applied || !open()) return;
   // 3. The surgery wound, receipted in the monitor update.
   if (s.wound && s.woundBoxes > 0) {
     const wounded = () => !!receiptOf(actor, opId).wounded;
-    if (!wounded()) await commitDamage(actor, "physical", s.woundBoxes, { extra: { [`flags.sr2e.cymReceipts.${opId}.wounded`]: true }, skipIf: wounded, source: "cybermancy" });
+    if (!wounded()) await commitDamage(actor, "physical", s.woundBoxes, { extra: { [`flags.sr2e.cymReceipts.${opId}.wounded`]: true }, skipIf: () => wounded() || !open(), source: "cybermancy" });
   }
+  if (!open()) return;
   // 4. Done. Only the FIRST establishes the schedules (later ones append, §2).
   const wt = game.time.worldTime;
   const first = !f.established;
   const band = cdsBand(-final);
   await recordEvent(actor, `cym:op-done:${opId}`, { type: "opDone", opId, wt, final, willpowerBefore: s.willpower,
     nextRefill: wt + REFILL_S, nextCds: wt + (band?.periodS ?? 6 * MONTH_S) });
-  if (first && final >= 0) await recordEvent(actor, "cym:suspend:0", { type: "suspend", wt });
+  // op-done makes open() false; the claim alone must still be this attempt's (r4 #1).
+  if (first && final >= 0 && holdsLatest(actor, opId, mine)) await recordEvent(actor, "cym:suspend:0", { type: "suspend", wt });
   return card(actor, `<strong>${esc(actor.name)}: cybermancy complete</strong>. Essence ${final}; ${s.total.toLocaleString("en-US")}¥ charged.
     <br>Automatic-medication refills: 15,000¥ every 10 days, or death (p.80). Chronic Dissociation Syndrome tests on the game clock (p.83).
     ${first ? `<br>Willpower before cybermancy: ${s.willpower}.` : ""}`);
@@ -227,17 +244,22 @@ export async function cancelOperation(uuid, opId, { resume = false, confirmed = 
   const f = cymFold(actor), o = f.ops.get(opId);
   if (!o || o.done || o.cancelled) return ui.notifications.info("That operation can't be cancelled.");
   if (!confirmed && !await confirm("Cancel the operation", `Refund ${actor.name}'s operation and remove what it installed?`)) return;
-  if (!await claimOp(actor, opId, resume || o.cancelIntent)) return;
+  const mine = await claimOp(actor, opId, resume || o.cancelIntent);
+  if (!mine) return;
+  const open = () => { const lo = cymFold(actor).ops.get(opId); return holdsLatest(actor, opId, mine) && !!lo && !lo.done && !lo.cancelled; };
+  if (!open()) return;                                   // re-check after the claim (r1 #2)
   await recordEvent(actor, `cym:op-cancel-intent:${opId}`, { type: "opCancelIntent", opId, wt: game.time.worldTime });
   const notes = [];
   // One money-queue entry: the operation's items go first (checked), then the refund
   // with its receipt — never a refund while its implants are still on the character.
   const undone = await moneyQueue(actor, async () => {
+    if (!open()) return false;
     const ids = o.proposal.snapshot.items.map(({ slot }) => itemId(opId, slot)).filter(id => actor.items.has(id));
     if (ids.length && !(await deleted(actor, actor.deleteEmbeddedDocuments("Item", ids), ids, "cybermancy cancel"))) {
       ui.notifications.error("The operation's implants couldn't all be removed: nothing was refunded. Try Cancel again.", { permanent: true });
       return false;
     }
+    if (!open()) return false;                           // re-checked before the refund too (r3 #1)
     const r = receiptOf(actor, opId);
     if (!r.charged || r.refunded) return true;
     const restore = !autoEssence() && r.charged.manualAfter != null;
@@ -250,7 +272,7 @@ export async function cancelOperation(uuid, opId, { resume = false, confirmed = 
     }
     return true;
   }, "cybermancy cancel");
-  if (!undone) return;
+  if (!undone || !open()) return;
   await recordEvent(actor, `cym:op-cancelled:${opId}`, { type: "opCancelled", opId, wt: game.time.worldTime });
   return card(actor, `<strong>${esc(actor.name)}</strong>: the cybermantic operation was cancelled${receiptOf(actor, opId).refunded ? " and refunded" : ""}.${notes.map(n => ` <em>${esc(n)}</em>`).join("")}`);
 }

@@ -17,7 +17,8 @@ import { enqueueAttack } from "./engagement.mjs";
 import { drugDuration, toxinLevel, drugDamage, damageUpdateFor, halveBonus, testTotalSuccesses } from "./rules/sr2e-rules.mjs";
 import { substanceState, nextStamp, EVENT_VERSION, stepId } from "./rules/substances.mjs";
 import { doseKey, doseHoldState, STUCK_MS } from "./rules/claim-rules.mjs";
-import { once, markersOf, pruneMarkers } from "./claims.mjs";
+import { once, markersOf, pruneMarkers, claimAge } from "./claims.mjs";
+import { freshServerNow } from "./server-clock.mjs";
 import { moneyQueue, updated } from "./money.mjs";
 import { RL, AL } from "./util/roll-label.mjs";
 
@@ -225,7 +226,7 @@ async function completeDose(actor, item, exposureId, gen) {
   // this one (a mitigation: it can't recall a write already sent).
   const go = async (step) => {
     await stepHook?.(exposureId, gen, step);
-    return doseHoldState(markersOf(actor), exposureId, game.time.serverTime).gen <= gen;
+    return doseHoldState(markersOf(actor), exposureId, claimAge).gen <= gen;
   };
   if (!(await go("event"))) return "superseded";
   // 1. The ledger event and the absorption counter, ONE update (R4 #3). The
@@ -741,7 +742,7 @@ export async function resumeDoses(actor) {
     try {
       // Run it only as the holder of its newest claim: one this client already holds,
       // or g0 of a commit no one has claimed (written before markers existed).
-      const st = doseHoldState(markersOf(actor), exposureId, game.time.serverTime);
+      const st = doseHoldState(markersOf(actor), exposureId, claimAge);
       let gen = HELD.get(exposureId) === st.gen ? st.gen : null;
       if (gen === null && st.gen === -1 && await once(actor, doseKey(exposureId, 0))) HELD.set(exposureId, gen = 0);
       if (gen === null) { ok = false; continue; }                // another client is finishing it
@@ -772,9 +773,9 @@ export function _forgetHeldForTests() { HELD.clear(); }
 
 /** The sheets' "Unfinished doses": every open commit and who holds it. */
 export function unfinishedDoses(actor) {
-  const markers = markersOf(actor), now = game.time.serverTime;
+  const markers = markersOf(actor);
   return openCommits(actor).map(({ item, exposureId, plan }) => {
-    const st = doseHoldState(markers, exposureId, now, stuckMs);
+    const st = doseHoldState(markers, exposureId, claimAge, stuckMs);
     const user = game.users.get(st.holder);
     return { exposureId, name: plan.card?.name ?? item.name, holder: user?.name ?? "an unknown device",
       holderOnline: !!user?.active, minutes: Math.floor(st.ageMs / 60000),
@@ -788,6 +789,7 @@ export function unfinishedDoses(actor) {
  */
 export async function forceFinishDose(actor, exposureId) {
   if (!game.user.isGM || !actor) return;
+  await freshServerNow();     // ages need the server's wall clock (docs/archive/plans/PLAN-claim-clock.md 2)
   const row = unfinishedDoses(actor).find(d => d.exposureId === exposureId);
   if (!row?.overridable) return ui.notifications.info("Nothing to force-finish yet.");
   const ok = await foundry.applications.api.DialogV2.confirm({
@@ -802,7 +804,7 @@ export async function forceFinishDose(actor, exposureId) {
   return queue(actor, async () => {
     const commit = openCommits(actor).find(c => c.exposureId === exposureId);
     if (!commit) return ui.notifications.info("That dose is already finished.");
-    const st = doseHoldState(markersOf(actor), exposureId, game.time.serverTime, stuckMs);
+    const st = doseHoldState(markersOf(actor), exposureId, claimAge, stuckMs);
     if (st.gen !== -1 && !st.overridable) return ui.notifications.info("Another device just took it over.");
     const gen = st.gen + 1;
     if (!(await once(actor, doseKey(exposureId, gen)))) return ui.notifications.info("Another device just took it over.");

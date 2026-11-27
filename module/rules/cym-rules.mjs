@@ -49,7 +49,9 @@ export const cdsRecoveryDays = (successes) => Math.max(0, 7 - (successes || 0));
 const VOIDABLE = new Set(["opRoll", "refill", "cds", "cdsTreat", "overflowOut"]);
 /** Records that ARE a death (never voidable; `revive` is the only correction). */
 const LETHAL = (e) => e.type === "death" || (e.type === "refill" && e.outcome === "died") || (e.type === "overflowOut" && e.outcome === "died");
-const order = (a, b) => (a.wt ?? 0) - (b.wt ?? 0) || (a.at ?? 0) - (b.at ?? 0) || String(a.key).localeCompare(String(b.key));
+// World time, then the SERVER's wall-clock creation stamp `ct` (docs/archive/plans/PLAN-claim-clock.md 6: `at` is uptime, reset by a
+// restart), then the key. `at` only for an event without `ct`.
+const order = (a, b) => (a.wt ?? 0) - (b.wt ?? 0) || (a.ct ?? a.at ?? 0) - (b.ct ?? b.at ?? 0) || String(a.key).localeCompare(String(b.key));
 
 /**
  * Fold the cybermancy log. `receipts`: the actor's `flags.sr2e.cymReceipts` (charge/refund

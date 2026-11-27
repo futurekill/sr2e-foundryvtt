@@ -5,7 +5,8 @@
  * ONE event each, after checking admission against the current state; cards are only
  * notifications rendered from records, and the sheet is the durable control panel.
  */
-import { recordEvent, eventsOf, once, markersOf } from "./claims.mjs";
+import { freshServerNow } from "./server-clock.mjs";
+import { recordEvent, eventsOf, once, markersOf, claimAge } from "./claims.mjs";
 import { claimId, STUCK_MS } from "./rules/claim-rules.mjs";
 import { foldMbw, proposal, ccssRow, CCSS_ROWS, ccssRehab, seizureBoxes, tleTreatTN } from "./rules/mbw-rules.mjs";
 import { SR2ESuccessRoll } from "./dice/sr2e-roll.mjs";
@@ -169,7 +170,7 @@ export function stuckSeizures(actor) {
     const rk = `mbw:seizure-result:${s.key}`;
     if (foundry.utils.getProperty(actor, `flags.sr2e.mbwApplied.${claimId(rk)}`)) continue;
     const claim = markersOf(actor).find(m => m.key === `${rk}:apply`);
-    out.push({ key: rk, stun: s.result.stun, claimed: !!claim, stuck: !!claim && game.time.serverTime - (Number(claim.at) || 0) > STUCK_MS });
+    out.push({ key: rk, stun: s.result.stun, claimed: !!claim, stuck: !!claim && (claimAge(claim) ?? 0) > STUCK_MS });
   }
   return out;
 }
@@ -297,7 +298,7 @@ export async function mbwOp(uuid, op, arg = "") {
     if (await recordEvent(a, key, { type: "seizure", boxes: 0, manual: true })) return resolveSeizure(uuid, key);
     return;
   }
-  if (op === "applyAnyway") { const a = await actorFor(uuid); if (!a) return; const s = stuckSeizures(a).find(x => x.key === arg && x.stuck); if (s) return applySeizureDamage(a, s.key, s.stun, { anyway: true }); return; }
+  if (op === "applyAnyway") { const a = await actorFor(uuid); if (!a) return; await freshServerNow(); const s = stuckSeizures(a).find(x => x.key === arg && x.stuck); if (s) return applySeizureDamage(a, s.key, s.stun, { anyway: true }); return; }
   if (op === "ccssTreat") return beginCcssTreatment(uuid, arg);
   if (op === "ccssRecovery") {
     const n = await foundry.applications.api.DialogV2.prompt({ window: { title: "CCSS recovery" },

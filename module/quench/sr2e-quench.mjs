@@ -3740,11 +3740,13 @@ function stubWorldSettings(keys) {
         } finally { await game.settings.set("sr2e", "mbwComplications", was); }
         // An OLD durable record and an old ordinary marker: pruning removes only the latter.
         const { MARKER_TTL_MS } = await import("../rules/claim-rules.mjs");
-        const old = game.time.serverTime - MARKER_TTL_MS - 60000;   // the server clock can be young
+        const SC = await import("../server-clock.mjs");
+        const old = (await SC.freshServerNow()) - MARKER_TTL_MS - 60000;   // ages by the server's wall clock (testCt seam)
         await a.createEmbeddedDocuments("ActiveEffect", [
-          { name: "old durable", disabled: true, flags: { sr2e: { claim: { key: "mbw:old", at: old, durable: true, event: { type: "episode", on: false } } } } },
-          { name: "old marker", disabled: true, flags: { sr2e: { claim: { key: "x:old", at: old } } } }]);
-        await pruneMarkers(a, () => false);
+          { name: "old durable", disabled: true, flags: { sr2e: { claim: { key: "mbw:old", at: 0, testCt: old, durable: true, event: { type: "episode", on: false } } } } },
+          { name: "old marker", disabled: true, flags: { sr2e: { claim: { key: "x:old", at: 0, testCt: old } } } }]);
+        SC.serverClock.testMode = true;
+        try { await pruneMarkers(a, () => false); } finally { SC.serverClock.testMode = false; }
         assert.ok(a.effects.find(e => e.name === "old durable"), "durable records are never pruned");
         assert.notOk(a.effects.find(e => e.name === "old marker"), "ordinary markers still are");
         const npc = await mk({ name: "Quench MBW NPC", type: "npc" });
@@ -3924,11 +3926,15 @@ function stubWorldSettings(keys) {
         const { recordEvent } = await C();
         await recordEvent(a, `cym:apply:${op2}:1`, {});   // a claim marker, then made stale below
         const m = a.effects.get(claimId(`cym:apply:${op2}:1`));
-        await m.update({ "flags.sr2e.claim.at": game.time.serverTime - 10 * 60 * 1000, "flags.sr2e.claim.durable": false });
-        await y.applyOperation(a.uuid, op2);
-        assert.isNotOk(y.cymFold(a).ops.get(op2).done, "Apply refuses: in progress");
-        await y.applyOperation(a.uuid, op2, { resume: true });
-        await y.applyOperation(a.uuid, op2, { resume: true });
+        const SC = await import("../server-clock.mjs");
+        await m.update({ "flags.sr2e.claim.testCt": (await SC.freshServerNow()) - 10 * 60 * 1000, "flags.sr2e.claim.durable": false });
+        SC.serverClock.testMode = true;
+        try {
+          await y.applyOperation(a.uuid, op2);
+          assert.isNotOk(y.cymFold(a).ops.get(op2).done, "Apply refuses: in progress");
+          await y.applyOperation(a.uuid, op2, { resume: true });
+          await y.applyOperation(a.uuid, op2, { resume: true });
+        } finally { SC.serverClock.testMode = false; }
         assert.ok(y.cymFold(a).ops.get(op2).done);
         assert.equal(a.items.filter(i => i.flags?.sr2e?.cymOp === op2).length, 1);
         assert.equal(y.cymFold(a).nextRefill, before, "the first operation's schedules stay");
@@ -9719,11 +9725,13 @@ function stubWorldSettings(keys) {
         // Pruning: an orphan marker past the retention goes; a fresh one stays.
         const { claimId, MARKER_TTL_MS } = await import("../rules/claim-rules.mjs");
         const b = await mk("character");
-        const at = game.time.serverTime;
+        const SC = await import("../server-clock.mjs");
+        const at = await SC.freshServerNow();
         await b.createEmbeddedDocuments("ActiveEffect", [
-          { _id: claimId("quench.old"), name: "m", disabled: true, flags: { sr2e: { claim: { key: "quench.old", at: at - MARKER_TTL_MS - 1000, user: "x" } } } },
-          { _id: claimId("quench.new"), name: "m", disabled: true, flags: { sr2e: { claim: { key: "quench.new", at, user: "x" } } } }], { keepId: true });
-        assert.isTrue(await D.settleSubstances(b));
+          { _id: claimId("quench.old"), name: "m", disabled: true, flags: { sr2e: { claim: { key: "quench.old", at: 0, testCt: at - MARKER_TTL_MS - 1000, user: "x" } } } },
+          { _id: claimId("quench.new"), name: "m", disabled: true, flags: { sr2e: { claim: { key: "quench.new", at: 0, testCt: at, user: "x" } } } }], { keepId: true });
+        SC.serverClock.testMode = true;
+        try { assert.isTrue(await D.settleSubstances(b)); } finally { SC.serverClock.testMode = false; }
         assert.isFalse(b.effects.has(claimId("quench.old")), "pruned");
         assert.isTrue(b.effects.has(claimId("quench.new")), "kept");
       });
@@ -17705,10 +17713,13 @@ function stubWorldSettings(keys) {
           const pending = since(n0).find(m => m.flags?.sr2e?.spellRes);
           since(n0).forEach(m => msgs.push(m.id));
           assert.equal(pending.flags.sr2e.spellRes.phase, "pending");
-          await pending.update({ "flags.sr2e.spellRes.at": game.time.serverTime - 10 * 60 * 1000 });
+          // The pending message is aged by its own server stamp (testCt seam in testMode, never a shared clock shift).
+          const SC = await import("../server-clock.mjs");
+          await pending.update({ "flags.sr2e.testCt": (await SC.freshServerNow()) - 10 * 60 * 1000 });
+          SC.serverClock.testMode = true;
           const confirm = foundry.applications.api.DialogV2.confirm;
           foundry.applications.api.DialogV2.confirm = async () => true;
-          try { await markSpellResResolved(game.messages.get(pending.id)); } finally { foundry.applications.api.DialogV2.confirm = confirm; }
+          try { await markSpellResResolved(game.messages.get(pending.id)); } finally { foundry.applications.api.DialogV2.confirm = confirm; SC.serverClock.testMode = false; }
           assert.equal(game.messages.get(pending.id).flags.sr2e.spellRes.phase, "done");
           assert.equal(target.system.conditionMonitor.physical.value, 0, "no damage invented");
           const n1 = game.messages.size;
@@ -18275,8 +18286,10 @@ function stubWorldSettings(keys) {
           const { markersOf } = await import("../claims.mjs");
           const key = `biodmg-roll:${card.flags.sr2e.biodmg.receipt}:0`;
           const m = markersOf(a).find(x => x.key === key);
-          await a.effects.get(m.id).update({ "flags.sr2e.claim.at": game.time.serverTime - 10 * 60 * 1000 });
-          await withFaces([4, 3], () => B.cardOp(game.messages.get(card.id), "again"));   // Moderate
+          const SC = await import("../server-clock.mjs");
+          await a.effects.get(m.id).update({ "flags.sr2e.claim.testCt": (await SC.freshServerNow()) - 10 * 60 * 1000 });
+          SC.serverClock.testMode = true;
+          try { await withFaces([4, 3], () => B.cardOp(game.messages.get(card.id), "again")); } finally { SC.serverClock.testMode = false; }   // Moderate
           assert.equal(it.system.damage, 3);
         } finally { proto.evaluate = orig; }
         release();
@@ -19347,10 +19360,39 @@ function stubWorldSettings(keys) {
         const cb = c.combatants.contents[0];
         await a.applyDamage("physical", 9);
         const key = `regen:${cb.id}:1`;                                          // another client claimed it, then died
+        const SC = await import("../server-clock.mjs");
+        const now = await SC.freshServerNow();
         await a.createEmbeddedDocuments("ActiveEffect", [{ _id: claimId(key), name: "SR2E step marker", disabled: true, transfer: false,
-          flags: { sr2e: { claim: { key, at: game.time.serverTime - STUCK_MS - 1000, user: "someoneElse" } } } }], { keepId: true });
+          flags: { sr2e: { claim: { key, at: game.time.serverTime + 9e9, testCt: now - STUCK_MS - 1000, user: "someoneElse" } } } }], { keepId: true });
+        SC.serverClock.testMode = true;      // aged by the server's wall clock; `at` (uptime) is ignored — even a pre-restart one
+        try {
+          await c.update({ round: 2 });
+          assert.ok(await settle(() => a.system.conditionMonitor.physical.value === 3, 3000), `taken over (now ${a.system.conditionMonitor.physical.value})`);
+        } finally { SC.serverClock.testMode = false; }
+      });
+
+      it("server clock: a marker carries a server ct; a YOUNG claim with a pre-restart `at` is not taken over", async function () {
+        this.timeout(10000);
+        const { claimId } = await import("../rules/claim-rules.mjs");
+        const SC = await import("../server-clock.mjs");
+        const C = await import("../claims.mjs");
+        const a = await shifter("Quench SS Young", "wolf");
+        await SS.shiftForm(a, "animal");
+        assert.isTrue(await C.once(a, "quench:ct-check"));
+        const now = await SC.freshServerNow();
+        const mk = C.markersOf(a).find(x => x.key === "quench:ct-check");
+        assert.ok(mk.ct && Math.abs(now - mk.ct) < 5000, `ct ${mk.ct} near the server clock ${now}`);
+        const c = await Combat.create({ scene: null }); combats.push(c);
+        await c.createEmbeddedDocuments("Combatant", [{ actorId: a.id }]);
+        await c.startCombat();
+        const cb = c.combatants.contents[0];
+        await a.applyDamage("physical", 9);
+        const key = `regen:${cb.id}:1`;   // claimed a moment ago, stamped with a (pre-restart) uptime far ahead of now
+        await a.createEmbeddedDocuments("ActiveEffect", [{ _id: claimId(key), name: "SR2E step marker", disabled: true, transfer: false,
+          flags: { sr2e: { claim: { key, at: game.time.serverTime + 9e9, user: "someoneElse" } } } }], { keepId: true });
         await c.update({ round: 2 });
-        assert.ok(await settle(() => a.system.conditionMonitor.physical.value === 3, 3000), `taken over (now ${a.system.conditionMonitor.physical.value})`);
+        await new Promise(r => setTimeout(r, 1500));
+        assert.equal(a.system.conditionMonitor.physical.value, 9, "a live claim is left alone");
       });
 
       it("NPC regeneration: wounds vanish; a full monitor opens a check (dies on 1)", async () => {
@@ -19456,11 +19498,16 @@ function stubWorldSettings(keys) {
         const cb = c.combatants.contents[0];
         await a.applyDamage("physical", 9);
         const key = `regen:${cb.id}:1`;
+        const SC = await import("../server-clock.mjs");
+        const now = await SC.freshServerNow();
         await a.createEmbeddedDocuments("ActiveEffect", [{ _id: claimId(key), name: "SR2E step marker", disabled: true, transfer: false,
-          flags: { sr2e: { claim: { key, at: game.time.serverTime - STUCK_MS - 1000, user: "someoneElse" } } } }], { keepId: true });
-        await Promise.all([c.update({ round: 3 }), c.update({ round: 5 })]);
-        assert.ok(await settle(() => stOf(a).high?.[cb.id] === 5, 4000), `cursor ${stOf(a).high?.[cb.id]}`);
-        await new Promise(r => setTimeout(r, 500));
+          flags: { sr2e: { claim: { key, at: 0, testCt: now - STUCK_MS - 1000, user: "someoneElse" } } } }], { keepId: true });
+        SC.serverClock.testMode = true;
+        try {
+          await Promise.all([c.update({ round: 3 }), c.update({ round: 5 })]);
+          assert.ok(await settle(() => stOf(a).high?.[cb.id] === 5, 4000), `cursor ${stOf(a).high?.[cb.id]}`);
+          await new Promise(r => setTimeout(r, 500));
+        } finally { SC.serverClock.testMode = false; }
         assert.equal(stOf(a).high[cb.id], 5, "never regressed");
         assert.equal(a.system.conditionMonitor.physical.value, 0);
       });

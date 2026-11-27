@@ -29,18 +29,57 @@ export function claimId(key) {
 export const doseKey = (exposureId, gen) => `dose.${exposureId}.g${gen}`;
 
 /**
- * Who holds a dose: the newest generation's marker among `markers` ({key, at, user}).
- * gen -1 = no marker (a commit written before markers existed).
+ * Who holds a dose: the newest generation's marker among `markers` ({key, at, ct, user}).
+ * gen -1 = no marker (a commit written before markers existed). `ageOf(marker)` gives its age in ms, or null when
+ * unknown (docs/archive/plans/PLAN-claim-clock.md 4) — an unknown age is never overridable.
  */
-export function doseHoldState(markers, exposureId, now, stuckMs = STUCK_MS) {
+export function doseHoldState(markers, exposureId, ageOf, stuckMs = STUCK_MS) {
   const prefix = `dose.${exposureId}.g`;
   let best = null;
   for (const m of markers ?? []) {
     if (typeof m?.key !== "string" || !m.key.startsWith(prefix)) continue;
     const gen = Number(m.key.slice(prefix.length));
-    if (Number.isInteger(gen) && gen >= 0 && (!best || gen > best.gen)) best = { gen, user: m.user ?? null, at: Number(m.at) || 0 };
+    if (Number.isInteger(gen) && gen >= 0 && (!best || gen > best.gen)) best = { gen, marker: m };
   }
   if (!best) return { gen: -1, holder: null, ageMs: 0, overridable: false, msUntil: 0 };
-  const ageMs = Math.max(0, now - best.at);
-  return { gen: best.gen, holder: best.user, ageMs, overridable: ageMs >= stuckMs, msUntil: Math.max(0, stuckMs - ageMs) };
+  const age = typeof ageOf === "function" ? ageOf(best.marker) : null;
+  const ageMs = age == null ? 0 : Math.max(0, age);
+  return { gen: best.gen, holder: best.marker.user ?? null, ageMs, overridable: age != null && ageMs >= stuckMs,
+    msUntil: age == null ? stuckMs : Math.max(0, stuckMs - ageMs) };
+}
+
+/** Age (ms) of something the SERVER stamped at wall-clock `ct`, at server wall-clock `now`; null when unknown. */
+export function wallAge(ct, now) {
+  const c = Number(ct);
+  if (now == null || !Number.isFinite(c) || c <= 0) return null;
+  return Math.max(0, now - c);
+}
+
+/**
+ * The server's wall clock from samples {wall, mono, date} at monotonic `mono` / wall `date` now: the max of
+ * wall + monotonic elapsed over samples younger than `windowMs` whose two clocks still agree (within 5 s — a sleep
+ * stops the monotonic clock). Rejected samples are marked `dead`. Null when none is left.
+ */
+export function pickServerNow(samples, { mono, date, windowMs }) {
+  let best = null;
+  for (const s of samples ?? []) {
+    const dm = mono - s.mono, dd = date - s.date;
+    if (dm < 0 || dm > windowMs || Math.abs(dd - dm) > 5000) { s.dead = true; continue; }
+    const v = s.wall + dm;
+    if (best == null || v > best) best = v;
+  }
+  return best;
+}
+
+/** The highest attempt number among keys `base` (attempt 0) and `${base}:${sep}N`; -1 when none. */
+export function lastAttempt(keys, base, sep = "t") {
+  let n = -1;
+  for (const k of keys ?? []) {
+    if (k === base) n = Math.max(n, 0);
+    else if (typeof k === "string" && k.startsWith(`${base}:${sep}`)) {
+      const v = Number(k.slice(base.length + sep.length + 1));
+      if (Number.isInteger(v) && v >= 0) n = Math.max(n, v);
+    }
+  }
+  return n;
 }
