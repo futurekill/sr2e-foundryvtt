@@ -57,7 +57,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
          spellLearningTN, spellLearningDays, canonicalSpellName, elementalAidsCategory, testTotalSuccesses as _testTotal,
          skillRollRating, effectiveSkillRating,
          diceSourceRuns, attributeDice, isCompleteMiss, knockdownPrompt, knockdownTestTN,
-         successesFromSource, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost, totemConjuringBonus, spiritAttackSummary, karmaRerollCost, reflexRecorderDice } from "../rules/sr2e-rules.mjs";
+         successesFromSource, cleanMissSuccesses, testTotalSuccesses, damageUpdateFor, drugTnFor, vehicleHit, allocateKarmaSpend, stageByNet, MELEE_VISIBILITY, conjuringLimit, elementalMaterialsCost, totemConjuringBonus, spiritAttackSummary, karmaRerollCost, reflexRecorderDice } from "../rules/sr2e-rules.mjs";
 
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
@@ -69,6 +69,7 @@ const stages0 = ["L", "M", "S", "D"];
 import { riggerSimsenseMod } from "../ew.mjs";
 import { gmCall, controllerOf, riggedInto, commitVehicleDamage, resolveCrash, spendPool, spendPosition, positionReserved, renderVehicleRamCard, worstControlledInitMod, isPoolClient } from "../vehicle-play.mjs";
 import { vehicleOperationMod, vehicleSkillDice, positionOutcomes, manipulationVsVehicle } from "../rules/vehicle-play-rules.mjs";
+import { npcThreat } from "../rules/npc-rules.mjs";
 /** An attribute's display name ("Quickness"); Reaction isn't in the attribute list. */
 const attrName = (k) => (CONFIG.SR2E.attributes?.[k] ? game.i18n.localize(CONFIG.SR2E.attributes[k]) : "") || (k.charAt(0).toUpperCase() + k.slice(1));
 
@@ -547,6 +548,13 @@ export class SR2EActor extends Actor {
   }
 
   async rollSuccessTest(dicePool, targetNumber, options = {}) {
+    // p.187 Threat Ratings, resolved FIRST: a threat-mode NPC uses no standard Dice Pools (requested or pre-paid pool
+    // dice are dropped) and adds its Threat dice — except on a Full Defense test, which gives them up (`noThreat`).
+    const threatMode = npcThreat(this.type, this.system) > 0;
+    const threatDice = threatMode && !options.noThreat ? npcThreat(this.type, this.system) : 0;
+    const droppedPools = threatMode && [...Object.values(options.poolDice ?? {}), ...Object.values(options.paidPoolDice ?? {})]
+      .some(n => Number(n) > 0);
+    if (threatMode) options = { ...options, poolDice: {}, paidPoolDice: {} };
     // A staged round change is refreshing this actor's pools: a spend now would be wiped (docs/PLAN-vehicles-phase2.md 3.0).
     if (Object.values(options.poolDice ?? {}).some(n => n > 0) && poolsLocked(this)) {
       ui.notifications.warn("SR2E | The Combat Turn is changing — try again in a moment.");
@@ -621,7 +629,7 @@ export class SR2EActor extends Actor {
     // ZERO, not one: a penalty that wipes the pool is an automatic failure (the
     // roll engine handles 0 dice), and the pre-existing callers that need a
     // 1-die minimum already apply their own Math.max(1, …). Never negative.
-    const totalDice = Math.max(0, dicePool + poolDiceTotal + karmaDice + miscDice);
+    const totalDice = Math.max(0, dicePool + threatDice + poolDiceTotal + karmaDice + miscDice);
     const testResult = await SR2ESuccessRoll.successTest(totalDice, effectiveTN);
     const successes = testResult.successes;
 
@@ -647,19 +655,22 @@ export class SR2EActor extends Actor {
       : `${effectiveTN}`;
 
     let diceNote = `${dicePool}`;
-    if (poolDiceTotal > 0 || karmaDice > 0 || miscDice !== 0) {
-      const parts = [...poolsUsed, ...paidPools].map(p => `+${p.amount} ${p.label}`);
+    const threatLabel = i18n.localize("SR2E.Roll.Threat");
+    if (threatDice > 0 || poolDiceTotal > 0 || karmaDice > 0 || miscDice !== 0) {
+      const parts = [...(threatDice > 0 ? [`+${threatDice} ${threatLabel}`] : []),
+        ...[...poolsUsed, ...paidPools].map(p => `+${p.amount} ${p.label}`)];
       if (karmaDice > 0) parts.push(`+${karmaDice} ${i18n.localize("SR2E.Roll.Karma")}`);
       if (miscDice !== 0) {
         const sign = miscDice > 0 ? "+" : "−";
         const tag  = miscLabel ? ` ${i18n.localize("SR2E.Roll.Misc")} (${foundry.utils.escapeHTML(miscLabel)})` : ` ${i18n.localize("SR2E.Roll.Misc")}`;
         // If a penalty took the pool below zero, the shown total is the 0 floor,
         // not the raw arithmetic — say so rather than imply e.g. 4 − 9 = 0.
-        const floored = (dicePool + poolDiceTotal + karmaDice + miscDice) < 0;
+        const floored = (dicePool + threatDice + poolDiceTotal + karmaDice + miscDice) < 0;
         parts.push(`${sign}${Math.abs(miscDice)}${tag}${floored ? ` ${i18n.localize("SR2E.Roll.Floored")}` : ""}`);
       }
       diceNote = i18n.format("SR2E.Roll.DiceBreakdown", { dice: dicePool, parts: parts.join(", "), total: totalDice });
     }
+    if (droppedPools) diceNote += ` (${i18n.localize("SR2E.Roll.ThreatNoPools")})`;
 
     // Card state — persisted in message flags so the Karma Pool buttons can
     // reroll failures / buy successes and re-render the card in place.
@@ -678,7 +689,7 @@ export class SR2EActor extends Actor {
         // RAW, not the pre-escaped `label` — renderDie/cap escape it themselves,
         // and escaping twice renders visible &amp; entities.
         baseDice: dicePool, baseLabel: options.sourceLabel || options.label || "",
-        poolsUsed: [...poolsUsed, ...paidPools], karmaDice, miscDice, miscLabel,
+        poolsUsed: [...poolsUsed, ...paidPools], karmaDice, miscDice, miscLabel, threatDice, threatLabel,
         karmaLabel: game.i18n.localize("SR2E.Roll.Karma"),
         miscDefaultLabel: game.i18n.localize("SR2E.Roll.Misc")
       })),
@@ -1955,6 +1966,8 @@ export class SR2EActor extends Actor {
 
     const combatAvail = this.system.dicePools?.combat?.value ?? 0;
     const karmaAvail  = this.system.karma?.pool ?? 0;
+    // A threat-mode NPC (p.187) may declare Full Defense too: it gives up its Threat dice on this test instead.
+    const threatFD = npcThreat(this.type, this.system) > 0;
 
     let choice = null;
     const action = await foundry.applications.api.DialogV2.wait({
@@ -2000,7 +2013,7 @@ export class SR2EActor extends Actor {
           <input type="number" name="karma_dice" value="0" min="0" max="${karmaAvail}"
                  style="width:52px;text-align:center;">
         </div>` : ""}
-        ${combatAvail > 0 ? `
+        ${combatAvail > 0 || threatFD ? `
         <label class="sr2e-attack__check" style="margin:5px 0 0;"
                title="SR2E p.103. Defend only yourself: you may NOT add Combat Pool to this Attack Success Test, but you MAY add it to your Damage Resistance Test — and if your Combat Pool successes alone beat the attacker's, it is a clean miss regardless of the weapon's Damage Code.">
           <input type="checkbox" name="full_defense"> Full Defense (p.103)
@@ -2096,6 +2109,7 @@ export class SR2EActor extends Actor {
       label: RL("MeleeDefend", { attacker: state.attackerName, weapon: defWeaponName, tn,
         notes: `${defaultingNote}${choice.meleeVis ? RL("VisibilityTag", { n: choice.meleeVis }) : ""}` }),
       poolDice: choice.poolDice > 0 ? { combat: choice.poolDice } : {},
+      noThreat: !!choice.fullDefense,   // Full Defense: a threat-mode NPC rolls this test without its Threat dice
       karmaDice: choice.karmaDice,
       miscDice: choice.miscDice, miscLabel: choice.miscLabel
     });
@@ -2886,14 +2900,16 @@ export class SR2EActor extends Actor {
     // Skipped entirely when the attacker's success count is unknown (a macro
     // roll, or a card posted before this shipped), rather than assuming 0 —
     // assuming 0 would turn any single pool success into a miss.
-    const poolHits = successesFromSource(resistResult?.dice ?? [], "pool:combat");
+    // An NPC's Threat dice count as Combat Pool dice here (p.187).
+    const poolHits = cleanMissSuccesses(resistResult?.dice ?? [], "combat");
+    const threatHit = successesFromSource(resistResult?.dice ?? [], "threat") > 0;
     if (isCompleteMiss(poolHits, options.attackerSuccesses,
                        { melee: !!options.melee, fullDefense: !!options.fullDefense })) {
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="sr2e-damage-result">
           <strong>Complete miss — no damage.</strong>
-          <br><em>${poolHits} Combat Pool success${poolHits === 1 ? "" : "es"} alone beat the
+          <br><em>${poolHits} ${threatHit ? "Combat Pool / Threat" : "Combat Pool"} success${poolHits === 1 ? "" : "es"} alone beat the
           attacker's ${options.attackerSuccesses}${options.melee
             ? " under Full Defense (SR2E p.103)" : " (SR2E p.91)"}.</em>
         </div>`,

@@ -18,7 +18,7 @@ import { eventsOf } from "../claims.mjs";
 import { vehicleCapacity } from "../rules/vehicle-design.mjs";
 import { vehicleEffective } from "../rules/vehicle-workshop-rules.mjs";
 import { mountedWeaponLoad } from "../rules/vehicle-mounts-r2.mjs";
-import { npcDerived } from "../rules/npc-rules.mjs";
+import { npcDerived, npcThreat } from "../rules/npc-rules.mjs";
 import { claimId } from "../rules/claim-rules.mjs";
 import { programmingState } from "../programming.mjs";
 import { foldDeck, programKey, liveOpen, restoreState } from "../rules/vr2ic-rules.mjs";
@@ -1972,6 +1972,9 @@ export class NPCData extends SR2EDataModel {
 
       // Threat Rating
       threatRating: new fields.NumberField({ integer: true, initial: 1, min: 0 }),
+      // p.187 "If using Threat Ratings": the GM's per-NPC switch. On (with a rating above 0), the NPC adds its Threat
+      // dice to every test and uses no standard Dice Pools (npcThreat). Off by default: existing NPCs are unchanged.
+      threatDice: new fields.BooleanField({ initial: false }),
       // Dice added to the Combat Pool: a bonus baked into a stat block, e.g. an adept's Combat Sense (core p.169)
       // on an NPC converted from an archetype (sr2e-chargen's NPC builder). 0 = none.
       combatPoolBonus: new fields.NumberField({ integer: true, initial: 0, min: 0 }),
@@ -1992,7 +1995,8 @@ export class NPCData extends SR2EDataModel {
     // The stat-block numbers come from the ONE shared derivation (module/rules/npc-rules.mjs, also the app's).
     this.awakened = this.magic.type !== "none" || (this.magic.value ?? 0) > 0
       || (this.parent?.items ?? []).some(i => i.type === "spell");
-    const d = npcDerived(this, { awakened: this.awakened, armorItems: [...(this.parent?.items ?? [])] });
+    const d = npcDerived(this, { awakened: this.awakened, armorItems: [...(this.parent?.items ?? [])],
+      threat: npcThreat("npc", this) });
     for (const attr of ["body", "quickness", "strength", "charisma", "intelligence", "willpower"]) this[attr].value = d.attributes[attr];
 
     // Body Index cap = the NPC's natural (unmodified) Body — Shadowtech p.6.
@@ -2014,6 +2018,11 @@ export class NPCData extends SR2EDataModel {
       : 0;
     this.dicePools.combat.max   = combatPool;
     this.dicePools.combat.value = Math.max(0, combatPool - npcSpent);
+    // The typed Magic Pool: 0 in threat mode (p.187), else the stored one — reassigned from _source in BOTH
+    // directions, so switching threat mode off brings it back.
+    const srcMagic = this.parent?._source?.system?.dicePools?.magic;
+    this.dicePools.magic.max = d.threat ? 0 : (srcMagic?.max ?? this.dicePools.magic.max);
+    this.dicePools.magic.value = d.threat ? 0 : (srcMagic?.value ?? this.dicePools.magic.value);
 
     // Awakened (set above): the NPC sheet has no Magic field, and stat-block magicians
     // carry spells with magic.type "none", so any of the three marks it.

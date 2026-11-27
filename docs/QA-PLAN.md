@@ -1044,6 +1044,12 @@ If those five all work, the core loop is healthy.
 - [ ] Paranormal Animals' Nosferatu imports from its compendium with Essence 7.
 - [ ] A Heal spell on an Essence-12 critter suggests TN 2.
 
+## NPC Threat Ratings (docs/archive/plans/PLAN-npc-threat.md, 0.172.0)
+- [ ] Quench batch `sr2e.npc-threat` passes (8 tests); `sr2e.npc-derived` and `sr2e.npc-essence` still pass.
+- [ ] An NPC sheet: tick "Roll Threat dice" with Threat Rating 3 → the Combat Pool line reads "not used — Threat Rating 3".
+- [ ] That NPC fires a gun: no Combat Pool spinner; the card shows "+3 Threat".
+- [ ] Untick it: the Combat Pool is back, full.
+
 ## Spirit attack Power and group totem bonuses (docs/archive/plans/PLAN-ancestor-spirit.md)
 - [ ] Quench batch `sr2e.spirit-attack-power` passes (4 tests).
 - [ ] A Rat shaman conjuring a city spirit: the card shows +2 totem dice on Conjuring and Drain.

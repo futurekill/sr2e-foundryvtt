@@ -111,6 +111,8 @@
   "SR2E.Roll.DumpShock": "dump shock",
   "SR2E.Roll.Centering": "centering",
   "SR2E.Roll.Karma": "Karma",
+  "SR2E.Roll.Threat": "Threat",
+  "SR2E.Roll.ThreatNoPools": "Threat Rating NPC: no Dice Pools, p.187",
   "SR2E.Roll.TnBreakdown": "{tn} (base {base} {parts})",
   "SR2E.Roll.DiceBreakdown": "{dice} {parts} = {total} total",
   "SR2E.Armor.Label": "Armor",
@@ -656,6 +658,9 @@
   "SR2E.NPC.Withdraw.serious": "withdraws after a Serious wound",
   "SR2E.NPC.Withdraw.never": "fights to the end",
   "SR2E.NPC.CombatPool": "Combat Pool",
+  "SR2E.NPC.ThreatDice": "Roll Threat dice",
+  "SR2E.NPC.ThreatDiceHint": "Core p.187: the NPC adds its Threat Rating in dice to every test, offensive or defensive. They never refresh and count as Combat Pool for a clean miss. With this on, the NPC uses no standard Dice Pools (Combat, Astral, Magic). Not added to Initiative.",
+  "SR2E.NPC.PoolsNotUsed": "not used — Threat Rating {n}",
   "SR2E.NPC.CombatPoolBonus": "Bonus",
   "SR2E.NPC.CombatPoolBonusHint": "Dice added to the Combat Pool, e.g. an adept's Combat Sense (core p.169)"
 }

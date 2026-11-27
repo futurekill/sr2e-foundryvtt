@@ -3749,8 +3749,11 @@ export function countEngagingFoes(attackerDisposition, others = []) {
  */
 export function diceSourceRuns({ baseDice = 0, baseLabel = "", poolsUsed = [],
                                  karmaDice = 0, miscDice = 0, miscLabel = "",
-                                 karmaLabel = "Karma", miscDefaultLabel = "Misc" } = {}) {
+                                 karmaLabel = "Karma", miscDefaultLabel = "Misc",
+                                 threatDice = 0, threatLabel = "Threat" } = {}) {
   const runs = [{ key: "base", label: baseLabel, count: Math.max(0, baseDice) }];
+  // An NPC's Threat dice (p.187), tagged so the clean miss can count them (cleanMissSuccesses).
+  if (threatDice > 0) runs.push({ key: "threat", label: threatLabel, count: threatDice });
   for (const p of poolsUsed) {
     if (p?.amount > 0) runs.push({ key: `pool:${p.key}`, label: p.label, count: p.amount });
   }
@@ -3865,6 +3868,13 @@ export function isCompleteMiss(poolSuccesses, attackerSuccesses, opts = {}) {
 export function successesFromSource(dice = [], sourceKey = "") {
   return dice.filter(d => d?.success && d.sourceKey === sourceKey).length;
 }
+
+/**
+ * The successes that count toward a clean miss (p.91, p.103; astral p.147): the pool's own dice (`pool` = "combat" or
+ * "astral") plus an NPC's Threat dice, which p.187 says are "treated as Combat Pool dice for determining a clean miss".
+ */
+export const cleanMissSuccesses = (dice = [], pool = "combat") =>
+  successesFromSource(dice, `pool:${pool}`) + successesFromSource(dice, "threat");
 
 /**
  * Should a knockdown test even be offered? (SR2E p.91 / p.103)

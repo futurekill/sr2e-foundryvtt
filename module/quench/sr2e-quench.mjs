@@ -18325,7 +18325,7 @@ function stubWorldSettings(keys) {
       const outside = (actor) => {
         const items = actor.items.map(i => i.toObject());
         const { system, unsupported } = NPCR.npcWithEffects(actor._source.system, items);
-        return { d: NPCR.npcDerived(system, { awakened: actor.system.awakened, armorItems: items }), unsupported };
+        return { d: NPCR.npcDerived(system, { awakened: actor.system.awakened, armorItems: items, threat: NPCR.npcThreat("npc", system) }), unsupported };
       };
       const same = (actor) => {
         const { d, unsupported } = outside(actor), s = actor.system;
@@ -18351,6 +18351,186 @@ function stubWorldSettings(keys) {
         same(a);
       });
     });
+
+    // NPC Threat Ratings in play (core p.187; docs/archive/plans/PLAN-npc-threat.md): Threat dice on every test, no Dice Pools,
+    // clean miss, Full Defense. Only this batch's actors, tokens and cards are touched.
+    quench.registerBatch("sr2e.npc-threat", (context) => {
+      const { it, assert, after } = context;
+      const made = [], msgs = [], tokens = [];
+      let T0 = Date.now() - 1000;
+      after(async function () {
+        this.timeout(20000);
+        for (const t of tokens) { try { await t.delete(); } catch (e) {} }
+        const mine = game.messages.contents.filter(m => (m._stats?.createdTime ?? 0) >= T0 && (m.speaker?.alias ?? "").startsWith("Quench Threat"));
+        for (const m of [...msgs, ...mine]) { try { await m.delete(); } catch (e) {} }
+        for (const a of made) { try { await a.delete(); } catch (e) {} }
+      });
+      const wait = (ms) => new Promise(r => setTimeout(r, ms));
+      const withFaces = async (faces, fn) => {
+        const orig = CONFIG.Dice.randomUniform, q = [...faces];
+        CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : orig();
+        try { return await fn(); } finally { CONFIG.Dice.randomUniform = orig; }
+      };
+      const npc = async (name, sys = {}) => {
+        const a = await Actor.create({ name, type: "npc", system: { body: { base: 3 }, quickness: { base: 4 }, intelligence: { base: 4 },
+          willpower: { base: 3 }, charisma: { base: 3 }, threatRating: 3, threatDice: true, ...sys } });
+        made.push(a); return a;
+      };
+      const keys = (dice) => dice.map(d => d.sourceKey);
+      const pools = (a) => ["combat", "astral", "magic"].map(k => [a.system.dicePools[k].value, a.system.dicePools[k].max]);
+      // Confirm the next dialog, after an optional tweak of its form.
+      const onDialog = (tweak = () => {}) => Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+        tweak(app.element); app.element.querySelector('button[data-action="roll"]')?.click();
+      }, 80));
+
+      it("a threat-mode NPC adds its Threat dice as their own run; pool requests (asked or pre-paid) add nothing", async () => {
+        const a = await npc("Quench Threat A");
+        assert.deepEqual(pools(a), [[0, 0], [0, 0], [0, 0]], "no standard Dice Pools (p.187)");
+        const r = await a.rollSuccessTest(4, 4, { label: "Quench", poolDice: { combat: 3 }, paidPoolDice: { combat: 2 } });
+        assert.deepEqual(keys(r.dice), ["base", "base", "base", "base", "threat", "threat", "threat"]);
+        const msg = game.messages.get(r.testMessageId); msgs.push(msg);
+        assert.deepEqual(keys(msg.flags.sr2e.test.dice), keys(r.dice), "persisted on the card");
+        assert.include(msg.flags.sr2e.test.diceNote, game.i18n.localize("SR2E.Roll.ThreatNoPools"));
+        assert.deepEqual(pools(a), [[0, 0], [0, 0], [0, 0]], "no pool changed");
+      });
+
+      it("the switch off (and an existing NPC: stored Threat 1, no switch) rolls as before: pools, no Threat dice", async () => {
+        const off = await npc("Quench Threat Off", { threatDice: false });
+        const legacy = await Actor.create({ name: "Quench Threat Legacy", type: "npc", system: { quickness: { base: 4 }, intelligence: { base: 4 }, willpower: { base: 3 } } });
+        made.push(legacy);
+        assert.equal(legacy.system.threatRating, 1);
+        for (const a of [off, legacy]) {
+          assert.equal(a.system.dicePools.combat.max, 5, a.name);
+          const r = await a.rollSuccessTest(2, 4, { label: "Quench", poolDice: { combat: 2 } });
+          msgs.push(game.messages.get(r.testMessageId));
+          assert.deepEqual(keys(r.dice), ["base", "base", "pool:combat", "pool:combat"], a.name);
+          assert.equal(a.system.dicePools.combat.value, 3, `${a.name} spent its pool`);
+        }
+      });
+
+      it("a real NPC spell: the cast and its Drain take Threat dice and no Magic Pool; the stored Magic Pool comes back when the switch goes off", async function () {
+        this.timeout(15000);
+        const a = await npc("Quench Threat Mage", { magic: { value: 5, type: "full_magician" }, dicePools: { magic: { value: 4, max: 4 } } });
+        assert.deepEqual(pools(a)[2], [0, 0]);
+        const [spell] = await a.createEmbeddedDocuments("Item", [{ name: "Quench Threat Spell", type: "spell", system: { force: 3 } }]);
+        const n = game.messages.size;
+        await spell.roll({ force: 3, targetNumber: 4, poolDice: { magic: 3 }, drainPoolDice: { magic: 2 } });
+        await wait(300);
+        const tests = game.messages.contents.slice(n).filter(m => m.flags?.sr2e?.test);
+        msgs.push(...game.messages.contents.slice(n));
+        assert.isAtLeast(tests.length, 2, "the cast and the Drain");
+        for (const t of tests) {
+          const k = keys(t.flags.sr2e.test.dice);
+          assert.equal(k.filter(x => x === "threat").length, 3, t.flags.sr2e.test.label);
+          assert.notInclude(k, "pool:magic", t.flags.sr2e.test.label);
+        }
+        await a.refreshDicePools();
+        assert.deepEqual(pools(a), [[0, 0], [0, 0], [0, 0]], "a refresh refills to 0");
+        await a.update({ "system.threatDice": false });
+        assert.deepEqual(pools(a)[2], [4, 4], "the typed Magic Pool is back");
+        assert.isAbove(a.system.dicePools.combat.max, 0);
+        assert.isAbove(a.system.dicePools.astral.max, 0, "Awakened: Astral Pool back");
+      });
+
+      it("Initiative is unchanged by Threat (p.187): the same initiative roll formula on and off", async () => {
+        const a = await npc("Quench Threat Init");
+        const on = a.getInitiativeRoll().formula;
+        await a.update({ "system.threatDice": false });
+        assert.equal(a.getInitiativeRoll().formula, on);
+      });
+
+      it("a damage resistance where only Threat successes beat the attacker's is a clean miss (p.91 via p.187)", async function () {
+        this.timeout(10000);
+        const a = await npc("Quench Threat Resist");
+        const n = game.messages.size;
+        onDialog();
+        // Body 3 base dice fail, the 3 Threat dice succeed: 3 > the attacker's 2.
+        await withFaces([1, 1, 1, 6, 6, 6], () => a.rollDamageResistance(6, "M", "ballistic", "physical", { attackerSuccesses: 2 }));
+        await wait(300);
+        const out = game.messages.contents.slice(n); msgs.push(...out);
+        assert.ok(out.some(m => /Complete miss/.test(m.content) && /Threat/.test(m.content)), "clean miss posted");
+        assert.equal(a.system.conditionMonitor.physical.value, 0, "no damage");
+      });
+
+      it("melee, the whole exchange: Full Defense offered, its test has no Threat dice, the resist button carries it, Threat successes give the clean miss", async function () {
+        this.timeout(15000);
+        const atk = await Actor.create({ name: "Quench Threat Attacker", type: "character" }); made.push(atk);
+        const def = await npc("Quench Threat Defender");
+        const state = { attackerUuid: atk.uuid, attackerName: atk.name, weaponName: "Quench Blade",
+          successes: 2, power: 5, level: "M", damageType: "physical", resolved: false };
+        const { renderMeleeAttackCard } = await import("../documents/item.mjs");
+        const c = await ChatMessage.create({ content: renderMeleeAttackCard(state), flags: { sr2e: { melee: state } } });
+        msgs.push(c);
+        let offered = false;
+        onDialog((el) => { const fd = el.querySelector('[name="full_defense"]'); offered = !!fd; if (fd) fd.checked = true; });
+        let n = game.messages.size;
+        await withFaces(Array(12).fill(1), () => def.rollMeleeDefense(c));   // the attacker wins, 2 vs 0
+        await wait(300);
+        let out = game.messages.contents.slice(n); msgs.push(...out);
+        assert.isTrue(offered, "Full Defense offered without a Combat Pool");
+        const test = out.find(m => m.flags?.sr2e?.test && m.speaker?.actor === def.id);
+        assert.ok(test, "the defence test");
+        assert.notInclude(keys(test.flags.sr2e.test.dice), "threat", "no Threat dice on a Full Defense test");
+        const btn = out.map(m => new DOMParser().parseFromString(m.content, "text/html").querySelector("button.sr2e-resist-btn")).find(Boolean);
+        assert.ok(btn, "the resist button");
+        assert.deepEqual([btn.dataset.fullDefense, btn.dataset.attackerSuccesses], ["1", "2"], "Full Defense carried to the resistance");
+        onDialog();
+        n = game.messages.size;
+        await withFaces([1, 1, 1, 6, 6, 6], () => def.rollDamageResistance(Number(btn.dataset.power), btn.dataset.level, "impact", "physical",
+          { melee: true, fullDefense: btn.dataset.fullDefense === "1", attackerSuccesses: Number(btn.dataset.attackerSuccesses) }));
+        await wait(300);
+        out = game.messages.contents.slice(n); msgs.push(...out);
+        assert.ok(out.some(m => /Complete miss/.test(m.content) && /Full Defense/.test(m.content)), "clean miss under Full Defense");
+        assert.equal(def.system.conditionMonitor.physical.value, 0, "no damage");
+      });
+
+      it("astral, the whole exchange: Full Defense offered, its test has no Threat dice, the resist card carries it, Threat successes give the clean miss", async function () {
+        this.timeout(15000);
+        const def = await npc("Quench Threat Astral Def", { dualNatured: true });
+        const { promptAstralOptions, astralDefend, astralResist, renderAstralMeleeCard } = await import("../astral-combat.mjs");
+        let offered = false;
+        Hooks.once("renderDialogV2", (app) => setTimeout(() => {
+          offered = !!app.element.querySelector('[name="fullDefense"]');
+          const b = app.element.querySelector('button[data-action="cancel"]'); if (b) b.click(); else app.close();
+        }, 80));
+        await promptAstralOptions(def, "defend", {});
+        assert.isTrue(offered, "the astral dialog offers Full Defense");
+        const state = { attackerUuid: def.uuid, attackerName: "Quench Astral Foe", targetUuid: def.uuid, successes: 2,
+          damage: { power: 4, level: "M" }, damageType: "physical", resolved: false };
+        const c = await ChatMessage.create({ content: renderAstralMeleeCard(state), flags: { sr2e: { astralMelee: state } } });
+        msgs.push(c);
+        let n = game.messages.size;
+        await withFaces(Array(12).fill(1), () => astralDefend(c, { fullDefense: true }));
+        await wait(300);
+        let out = game.messages.contents.slice(n); msgs.push(...out);
+        const test = out.find(m => m.flags?.sr2e?.test);
+        assert.ok(test, "the defence test");
+        assert.notInclude(keys(test.flags.sr2e.test.dice), "threat", "no Threat dice on a Full Defense test");
+        const card = out.find(m => m.flags?.sr2e?.astralResist);
+        assert.ok(card, "the resist card");
+        assert.deepEqual([card.flags.sr2e.astralResist.fullDefense, card.flags.sr2e.astralResist.strikerSuccesses], [true, 2]);
+        n = game.messages.size;
+        await withFaces([1, 1, 1, 6, 6, 6], () => astralResist(card, {}));
+        await wait(300);
+        out = game.messages.contents.slice(n); msgs.push(...out);
+        assert.ok(out.some(m => /Clean miss/.test(m.content) && /Threat/.test(m.content)), "astral clean miss counts Threat");
+      });
+
+      it("an UNLINKED token NPC rolls its own Threat dice", async function () {
+        this.timeout(10000);
+        if (!canvas?.ready) return this.skip();
+        const base = await npc("Quench Threat Token", { threatDice: false });
+        await base.update({ "prototypeToken.actorLink": false });
+        const [t] = await canvas.scene.createEmbeddedDocuments("Token", [{ ...base.prototypeToken.toObject(), actorId: base.id, actorLink: false, x: 0, y: 0 }]);
+        tokens.push(t);
+        await t.actor.update({ "system.threatDice": true });
+        assert.isFalse(base.system.threatDice, "the base actor is untouched");
+        const r = await t.actor.rollSuccessTest(2, 4, { label: "Quench token" });
+        msgs.push(game.messages.get(r.testMessageId));
+        assert.deepEqual(keys(r.dice), ["base", "base", "threat", "threat", "threat"]);
+      });
+    }, { displayName: "SR2E: NPC Threat Ratings (p.187)" });
+
 
     // NPC Essence above 6 (docs/archive/plans/PLAN-npc-essence.md): critters print 2D6 / 8; the old 0–6 bound
     // silently reset them to 6.

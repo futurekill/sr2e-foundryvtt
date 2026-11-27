@@ -44,6 +44,15 @@ export const PROFESSIONAL_RATINGS = Object.freeze({
   4: { key: "professional", withdraw: null }
 });
 
+/**
+ * p.187 Threat Ratings: the Threat dice an NPC adds to every test (0 = it uses standard Dice Pools). ONE predicate for
+ * derivation, rolling, the sheet and the app: an NPC, the GM's switch on, a rating above 0.
+ */
+export function npcThreat(type, system) {
+  if (type !== "npc" || !system?.threatDice) return 0;
+  return Math.max(0, Math.floor(Number(system.threatRating) || 0));
+}
+
 /** The keys the derived-data pipeline keeps from Active Effects on an NPC (CLAUDE.md "Active Effects"). */
 const EFFECT_KEYS = new Set([...NPC_ATTRS.map(a => `system.${a}.mod`), "system.reaction.mod", "system.initiative.mod",
   "system.armor.ballistic", "system.armor.impact"]);
@@ -75,8 +84,10 @@ export function npcWithEffects(system, items = []) {
  * effect dice); Combat Pool = ⌊(Q+I+W)/2⌋ + `combatPoolBonus`; Astral Combat Pool when Awakened; walk Q, run 3×Q;
  * armor = the stat block's (after effects) + worn armor items. `sys` holds the values AFTER Active Effects.
  * Fresh numbers only: spent pools, projection and substances stay with NPCData.
+ * In threat mode (`npcThreat`, p.187: "do not use standard Dice Pools") the Combat, Astral and Magic Pools are 0;
+ * otherwise `magicPool` is the stat block's typed Magic Pool.
  */
-export function npcDerived(sys, { awakened = false, armorItems = [] } = {}) {
+export function npcDerived(sys, { awakened = false, armorItems = [], threat = 0 } = {}) {
   const v = {};
   for (const a of NPC_ATTRS) v[a] = Math.max(1, (sys[a]?.base ?? 0) + (sys[a]?.mod ?? 0));
   const reactionBase = Math.floor((v.quickness + v.intelligence) / 2);
@@ -85,8 +96,10 @@ export function npcDerived(sys, { awakened = false, armorItems = [] } = {}) {
   return {
     attributes: v, reactionBase, reaction,
     initiativeDice: Math.max(1, (sys.initiative?.dice ?? 1) + (sys.initiative?.mod ?? 0)),
-    combatPool: Math.max(0, Math.floor((v.quickness + v.intelligence + v.willpower) / 2) + (sys.combatPoolBonus ?? 0)),
-    astralPool: awakened ? astralCombatPool({ intelligence: v.intelligence, willpower: v.willpower, charisma: v.charisma }) : 0,
+    threat,
+    combatPool: threat ? 0 : Math.max(0, Math.floor((v.quickness + v.intelligence + v.willpower) / 2) + (sys.combatPoolBonus ?? 0)),
+    astralPool: awakened && !threat ? astralCombatPool({ intelligence: v.intelligence, willpower: v.willpower, charisma: v.charisma }) : 0,
+    magicPool: threat ? 0 : Math.max(0, Number(sys.dicePools?.magic?.max) || 0),
     walk: v.quickness, run: v.quickness * 3,
     armor: { ballistic: (sys.armor?.ballistic ?? 0) + worn.ballistic, impact: (sys.armor?.impact ?? 0) + worn.impact }
   };

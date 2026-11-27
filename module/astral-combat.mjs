@@ -17,10 +17,11 @@
  */
 import { weaponUsable, isDualNaturedSys, shapeshifterAstral } from "./rules/shapeshift-rules.mjs";
 import { targetTokens } from "./targeting.mjs";
-import { astralProfile, meleeOutcome, netToSteps, testTotalSuccesses, successesFromSource } from "./rules/sr2e-rules.mjs";
+import { astralProfile, meleeOutcome, netToSteps, testTotalSuccesses, successesFromSource, cleanMissSuccesses } from "./rules/sr2e-rules.mjs";
 import { evaluateDamageCode } from "./documents/item.mjs";
 import { magicalSkillBlock } from "./restricted-spells.mjs";
 import { RL } from "./util/roll-label.mjs";
+import { npcThreat } from "./rules/npc-rules.mjs";
 
 const STAGES = ["L", "M", "S", "D"];
 const IN_FLIGHT = new Set();
@@ -290,6 +291,7 @@ export async function astralDefend(message, choice = {}) {
       tnContext: astralCtx(opt.key),
       label: RL("AstralDefend", { attacker: state.attackerName, option: opt.label, full: choice.fullDefense ? RL("FullDefenseTag") : "", tn }),
       poolDice: pool > 0 ? { astral: pool } : {},
+      noThreat: !!choice.fullDefense,   // Full Defense: a threat-mode NPC gives up its Threat dice here (p.187 ruling)
       karmaDice: choice.karmaDice
     });
     if (!defense) return;
@@ -346,9 +348,9 @@ export async function astralResist(message, choice = {}) {
     if (!res) return;
     const closes = [res.testMessageId];
     let outcome;
-    const poolHits = successesFromSource(res.dice ?? [], "pool:astral");
+    const poolHits = cleanMissSuccesses(res.dice ?? [], "astral");   // + Threat dice (p.187)
     if (st.fullDefense && poolHits > st.strikerSuccesses) {
-      outcome = `Clean miss — ${poolHits} Astral Pool success${poolHits === 1 ? "" : "es"} beat the attacker's ${st.strikerSuccesses} (Full Defense).`;
+      outcome = `Clean miss — ${poolHits} ${successesFromSource(res.dice ?? [], "threat") ? "Astral Pool / Threat" : "Astral Pool"} success${poolHits === 1 ? "" : "es"} beat the attacker's ${st.strikerSuccesses} (Full Defense).`;
     } else {
       const idx = STAGES.indexOf(st.level) - netToSteps(res.successes ?? 0);
       if (idx < 0) outcome = "Damage fully resisted.";
@@ -399,7 +401,7 @@ export async function promptAstralOptions(actor, mode, context = {}) {
   const pool = poolAvail > 0 ? `
     <div class="form-group"><label>Astral Pool <span style="color:#aaa1c0;font-size:10px;">(${poolAvail} left)</span>:</label>
       <input type="number" name="pool" value="0" min="0" max="${poolAvail}" style="width:52px;text-align:center;"></div>` : "";
-  const fullDef = mode === "defend" && poolAvail > 0 ? `
+  const fullDef = mode === "defend" && (poolAvail > 0 || npcThreat(actor.type, actor.system) > 0) ? `
     <label class="sr2e-attack__check" title="p.103 via p.147: no pool on this test, no counterstrike; the pool is saved for resistance, where pool successes alone beating the attacker's are a clean miss.">
       <input type="checkbox" name="fullDefense"> Full Defense</label>` : "";
   const other = mode === "resist" ? "" : `

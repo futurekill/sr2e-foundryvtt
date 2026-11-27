@@ -4,7 +4,7 @@ import { classOf } from "../chase.mjs";
 import { VEHICLE_POINTS, R2_CLASS_LABELS } from "../rules/vehicle-combat-rules.mjs";
 import { shiftView } from "../shapeshift.mjs";
 import { skInitDice } from "../rules/vr2-frames.mjs";
-import { PROFESSIONAL_RATINGS } from "../rules/npc-rules.mjs";
+import { PROFESSIONAL_RATINGS, npcThreat } from "../rules/npc-rules.mjs";
 import { shapeshifterOf, SHAPESHIFTER_PRIORITIES, SPECIES_CHOICES, weaponUsable, activeFormOf, humanFormMod } from "../rules/shapeshift-rules.mjs";
 import { qualityAudit } from "../rules/quality-rules.mjs";
 import { mbwOn, mbwFold, stuckSeizures } from "../mbw.mjs";
@@ -1965,6 +1965,7 @@ export class SR2ENPCSheet extends SR2EBaseActorSheet {
     context.skills = actor.items.filter(i => i.type === "skill");
     // The Professionalism Rating's name and withdrawal point (core p.187); 0, 5 and 6 aren't the book's.
     const pr = PROFESSIONAL_RATINGS[actor.system.professionalRating];
+    context.threatMode = npcThreat(actor.type, actor.system) > 0;   // p.187: pools shown as not used
     context.prInfo = pr ? game.i18n.localize(`SR2E.NPC.PR.${pr.key}`) + " · " + game.i18n.localize(`SR2E.NPC.Withdraw.${pr.withdraw ?? "never"}`) : "";
     // Weapons this form can't use stay listed (to edit) but marked (Companion p.36, core p.234).
     context.weapons = actor.items.filter(i => i.isWeaponLike)

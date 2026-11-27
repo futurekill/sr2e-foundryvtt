@@ -2,7 +2,7 @@
 //   "If the target's Combat Pool dice alone are enough to exceed the attacker's
 //    successes, the attack is a complete miss."
 import { describe, it, expect } from "vitest";
-import { isCompleteMiss, successesFromSource, attributeDice, diceSourceRuns }
+import { isCompleteMiss, successesFromSource, attributeDice, diceSourceRuns, cleanMissSuccesses }
   from "../module/rules/sr2e-rules.mjs";
 
 describe("isCompleteMiss (SR2E p.91)", () => {
@@ -105,5 +105,19 @@ describe("melee clean miss requires Full Defense (SR2E p.103)", () => {
   it("leaves ranged unconditional — p.91 has no such precondition", () => {
     expect(isCompleteMiss(4, 2)).toBe(true);
     expect(isCompleteMiss(4, 2, { melee: false })).toBe(true);
+  });
+});
+
+describe("Threat dice and the clean miss (p.187: treated as Combat Pool dice)", () => {
+  const d = (n, success) => Array.from({ length: n }, () => ({ result: success ? 6 : 1, success }));
+  it("the Threat run sits right after the base dice and is tagged `threat`", () => {
+    const runs = diceSourceRuns({ baseDice: 2, threatDice: 3, poolsUsed: [{ key: "combat", label: "Combat", amount: 1 }] });
+    expect(runs.map(r => [r.key, r.count])).toEqual([["base", 2], ["threat", 3], ["pool:combat", 1]]);
+  });
+  it("cleanMissSuccesses counts the pool's dice plus Threat dice, nothing else", () => {
+    const dice = attributeDice([...d(2, true), ...d(2, true), ...d(1, true), ...d(1, true)],
+      diceSourceRuns({ baseDice: 2, threatDice: 2, poolsUsed: [{ key: "combat", amount: 1 }], karmaDice: 1 }));
+    expect(cleanMissSuccesses(dice, "combat")).toBe(3);
+    expect(cleanMissSuccesses(dice, "astral")).toBe(2);
   });
 });

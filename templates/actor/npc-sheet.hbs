@@ -16,6 +16,7 @@
         <div class="form-group">
           <label>Threat Rating:</label>
           <input type="number" name="system.threatRating" value="{{system.threatRating}}" min="0" />
+          <label title="{{localize "SR2E.NPC.ThreatDiceHint"}}"><input type="checkbox" name="system.threatDice" {{checked system.threatDice}} /> {{localize "SR2E.NPC.ThreatDice"}}</label>
         </div>
         <div class="form-group">
           <label title="Present on both planes at once: fights and can be fought in astral space, keeping its Attributes and physical armor (SR2E p.148)">Dual-natured:</label>
@@ -175,7 +176,7 @@
           </button>
         </div>
         <div class="flexrow">
-          <span>{{localize "SR2E.NPC.CombatPool"}}: {{system.dicePools.combat.value}} / {{system.dicePools.combat.max}}</span>
+          <span>{{localize "SR2E.NPC.CombatPool"}}: {{#if threatMode}}{{localize "SR2E.NPC.PoolsNotUsed" n=system.threatRating}}{{else}}{{system.dicePools.combat.value}} / {{system.dicePools.combat.max}}{{/if}}</span>
           <label title="{{localize "SR2E.NPC.CombatPoolBonusHint"}}">{{localize "SR2E.NPC.CombatPoolBonus"}}
             <input type="number" name="system.combatPoolBonus" value="{{system.combatPoolBonus}}" min="0" style="max-width:4em" /></label>
         </div>

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.172.0 — 2026-11-27
+
+### Added — NPC Threat Ratings in play (core p.187)
+- NPC sheet: a **Roll Threat dice** box beside Threat Rating (`system.threatDice`, off by default — existing NPCs are
+  unchanged). With it on and a Threat Rating above 0, the NPC adds its Threat Rating in dice to every test it rolls,
+  shown as a "Threat" run on the card; they never refresh.
+- In that mode the NPC uses no standard Dice Pools: Combat, Astral and Magic Pools are 0, and requested or pre-paid
+  pool dice are dropped (the card says so). The sheet's Combat Pool line reads "not used — Threat Rating N".
+- Threat successes count toward a clean miss like Combat Pool dice (p.91), and like Astral Pool dice in astral combat
+  (`cleanMissSuccesses`). Full Defense is offered to such an NPC; its own defence test then rolls without Threat dice
+  (wiki Rulings). Initiative is unchanged. An NPC driver's Rigger 2 Driver Points Open Test adds them too.
+- `npcThreat(type, system)` in `module/rules/npc-rules.mjs` is the one predicate; `npcDerived` takes `threat` and
+  returns `magicPool`. Quench batch `sr2e.npc-threat`.
+
 ## 0.171.0 — 2026-11-27
 
 ### Added — NPC rules for the chargen app's NPC builder (core p.187, p.68)

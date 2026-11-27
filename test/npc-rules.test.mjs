@@ -1,6 +1,6 @@
 // NPC rules (core p.187, p.68 rendered 2026-11-27): experience, Threat Rating helpers, Professional Ratings, npcDerived.
 import { describe, it, expect } from "vitest";
-import { npcExperiencePct, npcExperienced, threatFromDifficulty, threatFromTeamKarma, PROFESSIONAL_RATINGS, SKILL_SUCCESS_TABLE, npcDerived, npcWithEffects } from "../module/rules/npc-rules.mjs";
+import { npcExperiencePct, npcExperienced, threatFromDifficulty, threatFromTeamKarma, PROFESSIONAL_RATINGS, SKILL_SUCCESS_TABLE, npcDerived, npcWithEffects, npcThreat } from "../module/rules/npc-rules.mjs";
 
 describe("experience (p.187)", () => {
   it("the book's example: 25 years = 80%", () => expect(npcExperiencePct(25)).toBe(80));
@@ -50,6 +50,26 @@ describe("npcDerived", () => {
     expect(d.combatPool).toBe(6);
     expect(d.astralPool).toBeGreaterThan(0);
     expect(d.armor).toEqual({ ballistic: 6, impact: 3 });
+  });
+});
+
+describe("Threat dice (p.187 Threat Ratings)", () => {
+  it("npcThreat: off by default; needs the switch AND a rating above 0; never for other actor types", () => {
+    expect(npcThreat("npc", { threatRating: 1 })).toBe(0);                    // an existing NPC: the old default 1, no switch
+    expect(npcThreat("npc", { threatRating: 3, threatDice: true })).toBe(3);
+    expect(npcThreat("npc", { threatRating: 0, threatDice: true })).toBe(0);
+    expect(npcThreat("character", { threatRating: 3, threatDice: true })).toBe(0);
+    expect(npcThreat("vehicle", { threatRating: 3, threatDice: true })).toBe(0);
+  });
+  it("npcDerived in threat mode: no Combat, Astral or Magic Pool; everything else unchanged", () => {
+    const base = { body: { base: 4 }, quickness: { base: 5 }, strength: { base: 3 }, charisma: { base: 4 }, intelligence: { base: 5 },
+      willpower: { base: 6 }, initiative: { dice: 1 }, dicePools: { magic: { max: 5 } } };
+    const off = npcDerived(base, { awakened: true });
+    const on = npcDerived(base, { awakened: true, threat: 3 });
+    expect([off.combatPool, off.magicPool, off.astralPool > 0]).toEqual([8, 5, true]);
+    expect([on.combatPool, on.astralPool, on.magicPool, on.threat]).toEqual([0, 0, 0, 3]);
+    expect(on.initiativeDice).toBe(off.initiativeDice);   // not added to Initiative
+    expect(on.reaction).toBe(off.reaction);
   });
 });
 

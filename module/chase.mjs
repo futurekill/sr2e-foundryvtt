@@ -18,6 +18,7 @@ import { chaseOf, findEntry, findAboard, activeChases, actionOf, poolsLocked, ch
 import * as RCN from "./rc-net.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 import { testTotalSuccesses } from "./rules/sr2e-rules.mjs";
+import { npcThreat } from "./rules/npc-rules.mjs";
 import { VEHICLE_POINTS, TERRAIN_POINTS, r2ClassFor, speedPoints, maneuverScore, accelerateTN, positioningTN, hidingTN,
          relocatingTN, applySpeedChange, ramEntitled, stopAtPoint, closeDistance, NPC_RELOCATE_TURNS,
          fastestMember, passengerMayAttack, ramTN, ramDamage, pedestrianImpact, r2Impact, movingCastTN,
@@ -1093,10 +1094,11 @@ export async function rollDriverPoints(combat, eid) {
     // A pilot-only drone's own Learning / IVIS Pool dice (R2 p.67; c5a r1 #10).
     const dp = pilotOnly(e) ? await (await import("./learning-pool.mjs")).askDronePools(fromUuidSync(e.uuid), { scopedOk: game.user.isGM }) ?? { n: 0, label: "" } : { n: 0, label: "" };
     await gmCall("chaseArm", { combatId: combat.id, aid });
-    const n = inputs.skill + paid + inputs.pr + dp.n;
+    const threat = npcThreat(driver.type, driver.system);   // an NPC's Threat dice go on every test (core p.187)
+    const n = inputs.skill + paid + inputs.pr + dp.n + threat;
     const roll = await new Roll(n > 0 ? `{${Array(n).fill("1d6x6").join(",")}}kh` : "0").evaluate();
     const msg = await roll.toMessage({ speaker: speakerFor(driver),
-      flavor: `<strong>Driver Points</strong> — Open Test, ${inputs.skill} skill${paid ? ` + ${paid} Control Pool` : ""}${inputs.pr ? ` + ${inputs.pr} Professional Rating` : ""}${esc(inputs.note)}${esc(dp.label)} (R2 p.42)`,
+      flavor: `<strong>Driver Points</strong> — Open Test, ${inputs.skill} skill${paid ? ` + ${paid} Control Pool` : ""}${inputs.pr ? ` + ${inputs.pr} Professional Rating` : ""}${threat ? ` + ${threat} Threat` : ""}${esc(inputs.note)}${esc(dp.label)} (R2 p.42)`,
       flags: { sr2e: { chaseAction: { combatId: combat.id, aid }, ...(dp.flags ?? {}) } } });   // the GM's scope veto (c5a r2 #3)
     await gmCall("chaseResolve", { combatId: combat.id, aid, messageId: msg.id });
   } catch (err) { notify(err); }
