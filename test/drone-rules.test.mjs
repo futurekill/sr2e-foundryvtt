@@ -79,3 +79,25 @@ describe("CCSS (Rigger 2 p.77–80)", () => {
     expect(ccssPerceptionTn("nonsense")).toBeNull();
   });
 });
+
+import { ccssEncrypted, ccssNextStep, ccssStepOutcome } from "../module/rules/drone-rules.mjs";
+describe("Accessing a security system (R2 p.79–80)", () => {
+  it("Amber and Red systems are always encrypted (p.79 Vigilance table)", () => {
+    expect([ccssEncrypted({ vigilance: "green" }), ccssEncrypted({ vigilance: "green", encrypted: true }), ccssEncrypted({ vigilance: "amber" }), ccssEncrypted({ vigilance: "red" })])
+      .toEqual([false, true, true, true]);
+  });
+  it("the step order: tap (not at an open slave port) → decrypt (if encrypted) → protocols → rigger combat", () => {
+    const green = { vigilance: "green" }, red = { vigilance: "red" };
+    expect(ccssNextStep(green, {})).toBe("tap");
+    expect(ccssNextStep(green, { slavePort: true })).toBe("protocols");
+    expect(ccssNextStep(red, { tap: true })).toBe("decrypt");
+    expect(ccssNextStep(red, { tap: true, decrypt: true })).toBe("protocols");
+    expect(ccssNextStep(red, { tap: true, decrypt: true, protocols: true })).toBe("combat");
+  });
+  it("a step passes at the Vigilance count; a failed decrypt or protocol test alerts the system, a failed tap does not", () => {
+    expect(ccssStepOutcome("tap", 2, "green")).toEqual({ passed: true, alert: false });
+    expect(ccssStepOutcome("tap", 1, "green")).toEqual({ passed: false, alert: false });
+    expect(ccssStepOutcome("decrypt", 2, "amber")).toEqual({ passed: false, alert: true });
+    expect(ccssStepOutcome("protocols", 4, "red")).toEqual({ passed: true, alert: false });
+  });
+});

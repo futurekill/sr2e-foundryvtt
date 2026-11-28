@@ -81,7 +81,8 @@ export const RC_ITEM_SOURCES = Object.freeze({
   [R2("r2-cyberware", "dcf4e3de552be1dc")]: "rc-encryption", [R2("r2-sensors", "4c60b0e537ad3b3d")]: "rc-encryption",
   [R2("r2-cyberware", "4b5b045f8e6a960d")]: "rc-eccm", [R2("r2-sensors", "374ee094513653e6")]: "rc-eccm",
   [R2("r2-sensors", "1248dd786a64f11d")]: "storage-memory", [R2("r2-sensors", "f1ea71293c020c76")]: "signal-amplifier",
-  [R2("r2-sensors", "b66660e8b69306df")]: "hitcher-jacks"
+  [R2("r2-sensors", "b66660e8b69306df")]: "hitcher-jacks",
+  "Compendium.sr2e.gear.Item.e30b5b70921a8e3a": "dataline-tap"   // core p.258; R2 p.80 access step 2
 });
 /** The remote-control rule key of an item: its `flags.sr2e.rule`, else its compendium source (RC_ITEM_SOURCES), else "". */
 export function rcRuleOf(item) {
@@ -105,6 +106,29 @@ export function ccssComponentRefusal(c) {
   if (c?.kind === "corridor" && !(size > 0 && size < 25)) return "a corridor section must be under 25 meters long (Rigger 2 p.78)";
   return null;
 }
+/** A CCSS's communications are encrypted: marked so, or Amber/Red ("all network communications are encrypted", p.79). */
+export const ccssEncrypted = (sys) => !!sys?.encrypted || ["amber", "red"].includes(sys?.vigilance);
+/**
+ * Accessing a security system (p.79–80): the next step for an intruder whose progress is `state`
+ * ({ tap, decrypt, protocols: true once passed; slavePort: connected at an open slave port }). Step 1 (finding a
+ * hardwire access point) is the GM's narration; step 2 is skipped at an open slave port; step 3 only for an encrypted
+ * system; then rigger combat (step 5).
+ */
+export function ccssNextStep(sys, state = {}) {
+  if (!state.slavePort && !state.tap) return "tap";
+  if (ccssEncrypted(sys) && !state.decrypt) return "decrypt";
+  if (!state.protocols) return "protocols";
+  return "combat";
+}
+/**
+ * An access step's result (p.80): passed when the successes equal or exceed the Vigilance Code's count; a failed
+ * Decryption (step 3) or Protocol (step 4) Test puts the system on alert. A failed tap has no stated consequence.
+ */
+export function ccssStepOutcome(step, successes, vigilance) {
+  const passed = (Number(successes) || 0) >= vigilanceCount(vigilance);
+  return { passed, alert: !passed && (step === "decrypt" || step === "protocols") };
+}
+
 /** The security rigger's control mode (p.78): jumped into a drone, into one component, else assuming the body. */
 export const ccssMode = (net) => (net?.primary ? "drone" : net?.ccssComponent ? "component" : "body");
 /**

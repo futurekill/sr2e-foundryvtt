@@ -14,7 +14,7 @@ import * as RC from "./rc-net.mjs";
 import * as EW from "./rules/ew-rules.mjs";
 import { rcRuleOf } from "./rules/drone-rules.mjs";
 import { fluxRange } from "./rules/vehicle-sensor-rules.mjs";
-import { comprehensionTest, SKILL_SUCCESS_TABLE } from "./rules/drone-rules.mjs";
+import { comprehensionTest, SKILL_SUCCESS_TABLE, ccssNextStep, ccssStepOutcome, vigilanceCount } from "./rules/drone-rules.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 
 const num = (n) => Number(n) || 0;
@@ -179,7 +179,57 @@ function loadPair(intruderDeckUuid, targetDeckUuid, user) {
 
 /* ── Ops ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
+/* ── Accessing a security system (Rigger 2 p.79–80; plan 5d) ──────────────────────────────────────────────────── */
+
+/** The intruder's progress on a CCSS: `flags.sr2e.ccssAccess.<intruder deck key>` on the CCSS item, GM-written. */
+export const ccssAccessOf = (ccss, intruderDeck) => ccss?.flags?.sr2e?.ccssAccess?.[netKey(intruderDeck)] ?? {};
+/** The general Electronics Skill's dice (step 2 uses the skill itself, p.80). */
+const electronicsDice = (actor) => concentrationDice(actor, /(?!)/);
+/** The most dice an access step allows (p.80), the gear's rating included; and the gear it needs. */
+export function ccssStepDice(step, op, intruderDeck) {
+  const owner = RC.deckActor(intruderDeck);
+  const tap = (owner?.items ?? []).filter(i => rcRuleOf(i) === "dataline-tap").reduce((m, i) => Math.max(m, num(i.system.rating)), 0);
+  const int = num(op?.system?.intelligence?.value);
+  if (step === "tap") return { gear: tap, dice: tap ? tap + electronicsDice(op) : 0, need: "a dataline tap" };
+  if (step === "decrypt") { const g = moduleRating(intruderDeck, "decryption"); return { gear: g, dice: g ? g + int : 0, need: "a rigger decryption module" }; }
+  if (step === "protocols") { const g = moduleRating(intruderDeck, "protocol-emulation"); return { gear: g, dice: g ? g + int : 0, need: "a rigger protocol emulation module" }; }
+  return { gear: 0, dice: 0, need: "" };
+}
+
 export function registerEw() {
+  // 5d: an access step (p.80) — the intruder's card vs the system's Technical Rating, the Vigilance count to pass.
+  gmOp("ccssAccess", ({ intruderDeckUuid, ccssUuid, step, messageId }, user) => RC.rcQueue(async () => {
+    const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
+    if (!intruder || !RC.isRcDeck(intruder) || RC.isCcss(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your remote-control deck");
+    if (!RC.isCcss(ccss)) throw new Error("that isn't a security system");
+    const op = fromUuidSync(RC.netOf(intruder)?.operator ?? "") ?? RC.deckActor(intruder);
+    const state = ccssAccessOf(ccss, intruder);
+    const next = ccssNextStep(ccss.system, state);
+    if (step !== next) throw new Error(next === "combat" ? "access is complete: next is rigger combat (Rigger 2 p.80)" : `the next step is ${next}`);
+    if (step === "protocols" && !state.protocolsKnown) throw new Error("the protocols must be found out first — the GM marks them known (Rigger 2 p.80)");
+    const { dice, need } = ccssStepDice(step, op, intruder);
+    if (!dice) throw new Error(`step needs ${need}`);
+    const net = RC.freshNet(ccss);
+    const test = checkCard(net, messageId, { kind: `ccss-${step}`, actor: op, maxDice: dice, minTn: num(ccss.system.technicalRating), bind: { ccss: ccss.uuid } });
+    const s = await successesOf(test);
+    const out = ccssStepOutcome(step, s, ccss.system.vigilance);
+    await RC.save(ccss, net);
+    await ccss.update({ [`flags.sr2e.ccssAccess.${netKey(intruder)}.${step}`]: out.passed, ...(out.alert ? { "system.onAlert": true } : {}) });
+    const label = { tap: "Tap into a dataline", decrypt: "Defeat encryption", protocols: "Adjust to system protocols" }[step];
+    await card(`${esc(label)} on ${esc(ccss.name)}: ${s} success${s === 1 ? "" : "es"}, ${vigilanceCount(ccss.system.vigilance)} needed — ${out.passed ? "done" : out.alert ? "<strong>failed: the system goes on alert</strong>" : "failed"} (Rigger 2 p.80).`, op);
+    return out;
+  }));
+  // 5d: the GM marks what the intruder knows (the protocols, p.80) or where they are (an open slave port: no tap, p.80).
+  gmOp("ccssMark", ({ intruderDeckUuid, ccssUuid, key, on }, user) => RC.rcQueue(async () => {
+    if (!user.isGM) throw new Error("the GM decides this");
+    if (!["protocolsKnown", "slavePort"].includes(key)) throw new Error("unknown mark");
+    const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
+    if (!RC.isRcDeck(intruder) || !RC.isCcss(ccss)) throw new Error("a remote-control deck and a security system");
+    await ccss.update({ [`flags.sr2e.ccssAccess.${netKey(intruder)}.${key}`]: !!on });
+    return ccssAccessOf(ccss, intruder);
+  }));
+
+
   // 5b.1a: break the target's encryption before intercepting (p.69; R5-2). A failure alerts the target (+2 per failure).
   gmOp("ewDecrypt", ({ intruderDeckUuid, targetDeckUuid, messageId }, user) => RC.rcQueue(async () => {
     const { intruder, target, op } = loadPair(intruderDeckUuid, targetDeckUuid, user);

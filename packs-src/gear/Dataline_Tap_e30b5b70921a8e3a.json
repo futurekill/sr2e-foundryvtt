@@ -27,7 +27,11 @@
     }
   },
   "effects": [],
-  "flags": {},
+  "flags": {
+    "sr2e": {
+      "rule": "dataline-tap"
+    }
+  },
   "_stats": {
     "coreVersion": "13.351",
     "systemId": "sr2e",

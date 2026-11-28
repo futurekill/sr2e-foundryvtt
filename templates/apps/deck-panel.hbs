@@ -79,6 +79,24 @@
     {{/each}}
   </section>
   {{/if}}
+  {{#if connected}}{{#if access.length}}
+  <section class="deck-ccss-access">
+    <h4>Access a security system <small>(Rigger 2 p.79–80)</small></h4>
+    <p class="hint">Step 1 (finding a hardwire access point) is the GM's. Each step is a Complex Action vs the system's Technical Rating; it needs the Vigilance count in successes. A failed decryption or protocol test puts the system on alert.</p>
+    <table class="deck-table">
+      <thead><tr><th>System</th><th>Next</th><th></th></tr></thead>
+      <tbody>
+        {{#each access}}
+        <tr><td>{{name}}<br><small>TN {{tn}} · {{count}} needed{{#if slavePort}} · open slave port{{/if}}</small></td>
+          <td>{{label}}{{#if blocked}}<br><em>{{blocked}}</em>{{/if}}</td>
+          <td>{{#if (eq next "combat")}}<em>access complete</em>{{else}}{{#unless blocked}}<button type="button" data-action="ccssAccess" data-uuid="{{uuid}}">Roll ({{dice}} dice)</button>{{/unless}}{{/if}}
+            {{#if ../gm}}<button type="button" data-action="ccssMark" data-uuid="{{uuid}}" data-key="protocolsKnown" title="GM: the intruder found out the system's protocols (p.80)">{{#if protocolsKnown}}Protocols known ✓{{else}}Protocols known?{{/if}}</button>
+            <button type="button" data-action="ccssMark" data-uuid="{{uuid}}" data-key="slavePort" title="GM: connected at an open slave port — no dataline tap needed (p.80)">{{#if slavePort}}Slave port ✓{{else}}Slave port?{{/if}}</button>{{/if}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+  {{/if}}{{/if}}
   {{#if connected}}{{#unless ccss}}
   <section class="deck-ew">
     <h4>Electronic warfare <small>(Rigger 2 p.68–72)</small></h4>

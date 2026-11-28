@@ -20434,6 +20434,47 @@ function stubWorldSettings(keys) {
         });
       });
 
+      describe("Accessing a security system (Part 5d-2, R2 p.79–80)", function () {
+        it("tap → decrypt (Red: encrypted) → protocols (GM marks them known) → rigger combat; a failed decrypt alerts", async function () {
+          this.timeout(30000);
+          const EWX = await import("../ew.mjs");
+          const withFaces = async (faces, fn) => { const o = CONFIG.Dice.randomUniform, q = [...faces]; CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : o(); try { return await fn(); } finally { CONFIG.Dice.randomUniform = o; } };
+          const site = await Actor.create({ name: "Quench Site", type: "npc" }); made.push(site);
+          const [ccss] = await site.createEmbeddedDocuments("Item", [{ name: "Quench Red CCSS", type: "ccss", system: { technicalRating: 4, vigilance: "red" } }]);
+          const intr = await Actor.create({ name: "Quench Access Rigger", type: "character", system: { rigging: true, vehicleControlRig: 1, intelligence: { base: 5 } } }); made.push(intr);
+          const [deck] = await intr.createEmbeddedDocuments("Item", [{ name: "Quench Access Deck", type: "gear", system: { rating: 4 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          await intr.createEmbeddedDocuments("Item", [
+            { name: "Electronics", type: "skill", system: { rating: 4, category: "active" } },
+            { name: "Quench Tap", type: "gear", system: { rating: 3 }, flags: { sr2e: { rule: "dataline-tap" } } },
+            { name: "Quench Decryption", type: "gear", system: { rating: 4 }, flags: { sr2e: { rule: "decryption", deckId: deck.id } } },
+            { name: "Quench Emulation", type: "gear", system: { rating: 4 }, flags: { sr2e: { rule: "protocol-emulation", deckId: deck.id } } }]);
+          await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: intr.uuid });
+          const roll = (step, faces) => withFaces(faces, () => intr.rollSuccessTest(EWX.ccssStepDice(step, intr, deck).dice, 4,
+            { label: `Quench ${step}`, flags: { sr2e: { ew: { kind: `ccss-${step}`, ccss: ccss.uuid } } } })).then(r => r.testMessageId);
+          const step = async (st, faces) => call("ccssAccess", { intruderDeckUuid: deck.uuid, ccssUuid: ccss.uuid, step: st, messageId: await roll(st, faces) });
+          assert.equal(EWX.ccssStepDice("tap", intr, deck).dice, 7, "tap 3 + Electronics 4");
+          let err = null;
+          try { await step("decrypt", [6]); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /next step is tap/, "in order");
+          const t = await step("tap", [5, 5, 5, 5, 1, 1, 1]);
+          assert.isTrue(t.passed, "4 successes ≥ Red's 4");
+          const d = await step("decrypt", [5, 1, 1, 1, 1, 1, 1, 1, 1]);
+          assert.isFalse(d.passed);
+          assert.isTrue(ccss.system.onAlert, "a failed decryption alerts the system");
+          await step("decrypt", [5, 5, 5, 5, 1, 1, 1, 1, 1]);
+          err = null;
+          try { await step("protocols", [5, 5, 5, 5, 5, 5, 5, 5, 5]); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /protocols must be found out/, "not before the GM marks them known");
+          await call("ccssMark", { intruderDeckUuid: deck.uuid, ccssUuid: ccss.uuid, key: "protocolsKnown", on: true });
+          await step("protocols", [5, 5, 5, 5, 1, 1, 1, 1, 1]);
+          const st = EWX.ccssAccessOf(ccss, deck);
+          assert.deepInclude(st, { tap: true, decrypt: true, protocols: true });
+          err = null;
+          try { await step("tap", [5]); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /rigger combat/, "access complete");
+        });
+      });
+
       describe("Remote-control networks in a chase (Part 5.0)", function () {
         it("a networked drone is acted for by its operator on its own Pilot; no crew driver; a jump makes a reserved roll stale", async function () {
           this.timeout(30000);

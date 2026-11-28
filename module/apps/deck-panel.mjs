@@ -5,7 +5,7 @@
  */
 import * as RCX from "../rc-net.mjs";
 import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBalance, hasIvisMaster, ivisPaths, nmpDice } from "../rc-net.mjs";
-import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit, ccssMode, ccssComponentRefusal, ccssPerceptionTn, vigilanceCount } from "../rules/drone-rules.mjs";
+import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit, ccssMode, ccssComponentRefusal, ccssPerceptionTn, vigilanceCount, ccssNextStep } from "../rules/drone-rules.mjs";
 import { RL } from "../util/roll-label.mjs";
 import { fluxRange } from "../rules/vehicle-sensor-rules.mjs";
 import * as EWX from "../ew.mjs";
@@ -22,7 +22,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     classes: ["sr2e", "sr2e-deck"], tag: "div",
     window: { title: "Remote-control deck", icon: "fas fa-gamepad", resizable: true },
     position: { width: 640, height: 560 },
-    actions: { ccssControl: DeckPanel.#ccssControl, ccssPerception: DeckPanel.#ccssPerception, connect: DeckPanel.#connect, disconnect: DeckPanel.#disconnect, subscribe: DeckPanel.#subscribe,
+    actions: { ccssControl: DeckPanel.#ccssControl, ccssPerception: DeckPanel.#ccssPerception, ccssAccess: DeckPanel.#ccssAccess, ccssMark: DeckPanel.#ccssMark, connect: DeckPanel.#connect, disconnect: DeckPanel.#disconnect, subscribe: DeckPanel.#subscribe,
       unsubscribe: DeckPanel.#unsubscribe, affiliate: DeckPanel.#affiliate, jump: DeckPanel.#jump, ret: DeckPanel.#return,
       command: DeckPanel.#command, hardwire: DeckPanel.#hardwire, groupCommand: DeckPanel.#groupCommand, ivisEnd: DeckPanel.#ivisEnd,
       ewDecrypt: DeckPanel.#ewDecrypt, ewIntercept: DeckPanel.#ewIntercept, ewChoose: DeckPanel.#ewChoose, ewRead: DeckPanel.#ewRead,
@@ -76,7 +76,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         const vs = (g.drones ?? []).map(k => rows.find(r => vKey(r.uuid) === k)).filter(Boolean);
         return { gid, task: g.task, pool: g.pool, balance: vs.length ? ivisBalance(fromUuidSync(vs[0].uuid)) : 0, drones: vs.map(r => r.name).join(", ") };
       }),
-      ew: RCX.isCcss(d) ? {} : this.#ewContext(net), ccss: this.#ccssContext(net),
+      ew: RCX.isCcss(d) ? {} : this.#ewContext(net), ccss: this.#ccssContext(net), access: RCX.isCcss(d) ? [] : this.#accessContext(),
       onVehicle: this.holder?.type === "vehicle", holderName: this.holder?.name ?? "", hardwired: !!net.affiliated?.[vKey(this.holder?.uuid ?? "")]?.hardwired, linked: linked.map(v => ({ uuid: v.uuid, name: v.name })), gm: game.user.isGM };
   }
 
@@ -91,6 +91,35 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       decryptionRating: s.decryptionRating, onAlert: s.onAlert,
       components: (s.components ?? []).map(c => ({ ...c, current: net.ccssComponent === c.id && !net.primary, refusal: ccssComponentRefusal(c),
         unit: c.kind === "room" ? "m²" : c.kind === "corridor" ? "m" : "" })) };
+  }
+  /** Accessing a security system (5d, p.79–80): every CCSS in the world (and on this scene's tokens) and its next step. */
+  #accessContext() {
+    const op = this.#op, seen = new Set(), rows = [];
+    const actors = [...(game.actors ?? []), ...(canvas?.scene?.tokens ?? []).filter(t => !t.actorLink).map(t => t.actor).filter(Boolean)];
+    for (const a of actors) for (const c of a?.items ?? []) {
+      if (!RCX.isCcss(c) || seen.has(c.uuid)) continue;
+      seen.add(c.uuid);
+      const st = EWX.ccssAccessOf(c, this.deck), next = ccssNextStep(c.system, st);
+      const d = next === "combat" ? { dice: 0, need: "" } : EWX.ccssStepDice(next, op, this.deck);
+      rows.push({ uuid: c.uuid, name: `${a.name} — ${c.name}`, next, label: { tap: "Tap into a dataline", decrypt: "Defeat encryption",
+        protocols: "Adjust to system protocols", combat: "Rigger combat" }[next], dice: d.dice, need: d.need,
+        tn: c.system.technicalRating, count: vigilanceCount(c.system.vigilance), protocolsKnown: !!st.protocolsKnown, slavePort: !!st.slavePort,
+        blocked: next === "protocols" && !st.protocolsKnown ? "the GM must mark the protocols known first" : (next !== "combat" && !d.dice ? `needs ${d.need}` : "") });
+    }
+    return rows;
+  }
+  static async #ccssAccess(_e, el) {
+    const ccss = fromUuidSync(el.dataset.uuid), op = this.#op;
+    if (!op) return warn("connect the deck first");
+    const st = EWX.ccssAccessOf(ccss, this.deck), step = ccssNextStep(ccss.system, st);
+    const { dice } = EWX.ccssStepDice(step, op, this.deck);
+    const label = `${{ tap: "Tap into a dataline", decrypt: "Defeat encryption", protocols: "Adjust to system protocols" }[step]} — ${ccss.parent?.name} (Rigger 2 p.80)`;
+    const id = await EWX.rollEwCard(op, { kind: `ccss-${step}`, dice, tn: Number(ccss.system.technicalRating) || 2, label, extra: { ccss: ccss.uuid } });
+    if (id) return rc("ccssAccess", { intruderDeckUuid: this.deck.uuid, ccssUuid: ccss.uuid, step, messageId: id }).catch(warn);
+  }
+  static #ccssMark(_e, el) {
+    const ccss = fromUuidSync(el.dataset.uuid), key = el.dataset.key;
+    return rc("ccssMark", { intruderDeckUuid: this.deck.uuid, ccssUuid: ccss.uuid, key, on: !EWX.ccssAccessOf(ccss, this.deck)[key] }).catch(warn);
   }
   static #ccssControl(_e, el) { return rc("ccssControl", { deckUuid: this.deck.uuid, componentId: el.dataset.id }).catch(warn); }
   /** The GM's secret Rigger Perception Test (p.78): the operator's Intelligence vs the table's TN; a triggered alarm needs none. */
