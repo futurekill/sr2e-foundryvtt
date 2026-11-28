@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.174.0 — 2026-11-27
 
 ### Added — the security rigger (Rigger 2 p.77–80; Part 5d, docs/PLAN-vehicles-phase2.md)
 - A **CCSS** item type (closed-circuit simsense security system): Technical Rating, Vigilance Code, encryption,
