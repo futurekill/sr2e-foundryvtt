@@ -119,3 +119,10 @@ describe("Rigger combat (R2 p.80)", () => {
     expect([rcombatOutcome(4, 2), rcombatOutcome(1, 3), rcombatOutcome(2, 2)]).toEqual([{ winner: "attacker", net: 2 }, { winner: "defender", net: 2 }, { winner: null, net: 0 }]);
   });
 });
+
+import { rcombatSchedule } from "../module/rules/drone-rules.mjs";
+it("rigger combat order (R2 p.80): every ten phases, highest first, ties to the defender", () => {
+  expect(rcombatSchedule({ intruder: 23, defender: 12 })).toEqual(["intruder", "intruder", "defender", "intruder", "defender"]);
+  expect(rcombatSchedule({ intruder: 8, defender: 8 })).toEqual(["defender", "intruder"]);
+  expect(rcombatSchedule({ intruder: 0, defender: 5 })).toEqual(["defender"]);
+});

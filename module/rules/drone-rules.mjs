@@ -151,6 +151,17 @@ export function rcombatOutcome(attacker, defender) {
   if (a === d) return { winner: null, net: 0 };
   return a > d ? { winner: "attacker", net: a - d } : { winner: "defender", net: d - a };
 }
+/**
+ * The rigger-combat action order for one Combat Turn (p.80: rigged Initiative "per the standard rules … during every
+ * tenth phase"): each side acts at its score, score − 10, … while above 0; highest first; a tie goes to the defender
+ * (the system's own rigger). Returns the sides in order.
+ */
+export function rcombatSchedule(init = {}) {
+  const phases = [];
+  for (const side of ["intruder", "defender"]) for (let p = Number(init[side]) || 0; p > 0; p -= 10) phases.push({ side, p });
+  return phases.sort((a, b) => b.p - a.p || (a.side === "defender" ? -1 : 1)).map(x => x.side);
+}
+
 /** A decker in rigger combat (p.80): +2 TN on all tests, Initiative −2, no Response Increase dice. */
 export const DECKER_RCOMBAT = Object.freeze({ tnMod: 2, initiativeMod: -2, responseDice: false });
 

@@ -20502,6 +20502,7 @@ function stubWorldSettings(keys) {
           const b = await setup(true);
           await call("rcombatStart", { intruderDeckUuid: b.deck.uuid, ccssUuid: b.ccss.uuid });
           assert.ok(EWX.rcombatOf(b.ccss), "combat open");
+          assert.isAbove(EWX.rcombatOf(b.ccss).order.length, 0, "its own Initiative order was rolled (p.80)");
           assert.equal(EWX.rcombatCap(b.ccss, "intruder", "willpower"), 0, "an intruding rigger: Karma Pool only (p.78)");
           assert.equal(EWX.rcombatCap(b.ccss, "defender", "willpower"), 0, "a security rigger assuming the body: Karma Pool only");
           // Players act only for their own side (code review r1 #2/#3): a non-owner player is refused.

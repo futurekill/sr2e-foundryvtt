@@ -115,6 +115,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const other = side === "intruder" ? "defender" : "intruder";
     return { side, ccss: ccss.uuid, foe: fromUuidSync(c[other]?.actorUuid ?? "")?.name ?? "?",
       mustResist: c.pending?.side === side, pendingOther: !!c.pending && c.pending.side !== side,
+      // The rigger combat's own Initiative order (p.80): whose action it is now; a used-up turn re-rolls on the next attack.
+      canAttack: game.user.isGM || !(c.order ?? [])[Number(c.pos) || 0] || (c.order ?? [])[Number(c.pos) || 0] === side,
       mustDefend: !c.pending && !!c.exchange && c.exchange.attacker === other, waiting: !!c.exchange && c.exchange.attacker === side };
   }
   /** Rigger combat actions (p.80): engage, attack (Complex), defend, disengage (Free). */

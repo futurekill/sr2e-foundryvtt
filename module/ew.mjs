@@ -15,7 +15,7 @@ import * as EW from "./rules/ew-rules.mjs";
 import { rcRuleOf } from "./rules/drone-rules.mjs";
 import { fluxRange } from "./rules/vehicle-sensor-rules.mjs";
 import { comprehensionTest, SKILL_SUCCESS_TABLE, ccssNextStep, ccssStepOutcome, vigilanceCount, rcombatControlCap, rcombatDamage,
-  rcombatOutcome } from "./rules/drone-rules.mjs";
+  rcombatOutcome, rcombatSchedule } from "./rules/drone-rules.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 
 const num = (n) => Number(n) || 0;
@@ -257,10 +257,12 @@ export function deckerPoolLeft(c) {
 function combatLive(ccss, c) {
   const net = RC.netOf(ccss);
   if (net?.connection?.state !== "connected" || net.operator !== c.defender.actorUuid || num(net.connection.gen) !== num(c.defender.gen)) return false;
+  if (!RC.rigEligible(fromUuidSync(c.defender.actorUuid))) return false;   // jacked out (r2 #1)
   const deck = fromUuidSync(c.intruder.deckUuid);
   if (c.intruder.decker) return !!deck?.system?.deck?.active && !!fromUuidSync(c.intruder.actorUuid)?.system?.matrixMode;
   const inet = RC.netOf(deck);
-  return inet?.connection?.state === "connected" && inet.operator === c.intruder.actorUuid && num(inet.connection.gen) === num(c.intruder.gen);
+  return inet?.connection?.state === "connected" && inet.operator === c.intruder.actorUuid && num(inet.connection.gen) === num(c.intruder.gen)
+    && RC.rigEligible(fromUuidSync(c.intruder.actorUuid));
 }
 /** The live combat, or an error; a combat whose sides changed is voided (no takeover). */
 async function liveCombat(ccss) {
@@ -272,6 +274,25 @@ async function liveCombat(ccss) {
   }
   return c;
 }
+/**
+ * Rigger combat's own Initiative (p.80; r2 #2): both sides' rigged Initiative rolled by the GM (a decker's −2 and no
+ * Response Increase dice apply, since the combat is recorded first), the Combat Turn's action order from
+ * rcombatSchedule. Rolled when a combat starts and when a Combat Turn's actions are used up.
+ */
+async function initiativeUpdate(c) {
+  const init = {};
+  for (const side of ["intruder", "defender"]) {
+    const a = fromUuidSync(c[side].actorUuid);
+    init[side] = a ? (await a.getInitiativeRoll().evaluate()).total : 0;
+  }
+  return { "flags.sr2e.rcombat.init": init, "flags.sr2e.rcombat.order": rcombatSchedule(init), "flags.sr2e.rcombat.pos": 0,
+    "flags.sr2e.rcombat.turn": num(c.turn) + 1 };
+}
+/** Whose action it is now (null: the turn's actions are used up — a new Combat Turn rolls Initiative again). */
+const actingSide = (c) => (c.order ?? [])[num(c.pos)] ?? null;
+/** An exchange finished: the next action in the order. */
+const advance = (c) => ({ "flags.sr2e.rcombat.pos": num(c.pos) + 1 });
+
 /** May this user act for that side (its owner, or the GM)? */
 const mayAct = (user, c, side) => user.isGM || !!fromUuidSync(c?.[side]?.actorUuid ?? "")?.testUserPermission(user, "OWNER");
 /**
@@ -351,10 +372,20 @@ export function registerEw() {
     if (rcombatOf(ccss)) throw new Error("a rigger combat is already under way here");
     const emulation = decker ? moduleRating(intruder, "protocol-emulation") : 0;
     const net = RC.netOf(ccss), def = net?.connection?.state === "connected" ? fromUuidSync(net.operator ?? "") : null;
-    await ccss.update({ "flags.sr2e.rcombat": { id: foundry.utils.randomID(), state: "open", winner: null, exchange: null, pending: null, seq: 0,
+    const record = { id: foundry.utils.randomID(), state: "open", winner: null, exchange: null, pending: null, seq: 0, turn: 0, pos: 0, order: [], init: null,
       intruder: { actorUuid: iop.uuid, deckUuid: intruder.uuid, decker, emulation, gen, pool: null, poolTurn: null },
-      defender: { actorUuid: def?.uuid ?? null, gen: num(net?.connection?.gen) } } });
-    if (!def) { await rcombatEnd(fromUuidSync(ccssUuid), "intruder", "no security rigger was jacked in"); return { took: true }; }
+      defender: { actorUuid: def?.uuid ?? null, gen: num(net?.connection?.gen) } };
+    if (!def) {
+      // Nobody jacked in: the intruder takes it — the operator change and the ended record in ONE update (r2 #3).
+      const n2 = RC.freshNet(ccss);
+      n2.operator = iop.uuid; n2.primary = null; delete n2.ccssComponent;
+      n2.connection = { state: "connected", gen: num(n2.connection?.gen) + 1 };
+      await RC.save(ccss, n2, { "flags.sr2e.rcombat": { ...record, state: "ended", winner: "intruder" } });
+      await card(`${esc(iop.name)} takes ${esc(ccss.name)}: no security rigger was jacked in (Rigger 2 p.80).`, iop);
+      return { took: true };
+    }
+    await ccss.update({ "flags.sr2e.rcombat": record });
+    await ccss.update(await initiativeUpdate(record));
     await card(`${esc(iop.name)} engages ${esc(def.name)} in rigger combat for ${esc(ccss.name)}: rigged Initiative as standard; the winner attacks (Complex) or disengages (Free) — Rigger 2 p.80.${decker
       ? ` A decker: no Matrix programs, +2 TN on all tests, Initiative −2 and no Response Increase dice, a Control Pool of ${Math.ceil(emulation / 2)}, damage as non-lethal black IC.` : ""}`, def);
     return { took: false };
@@ -367,9 +398,10 @@ export function registerEw() {
     if (c.exchange) throw new Error("an attack is already waiting for its defense");
     if (c.pending) throw new Error("the last hit hasn't been resisted yet");
     const actor = fromUuidSync(c[side].actorUuid);
-    // The Initiative winner acts (p.80): in a started combat with both, only on the attacker's turn (the GM may override).
-    const cb = game.combats?.find(x => x.started && x.combatants.some(k => k.actor?.uuid === actor.uuid));
-    if (!user.isGM && cb && cb.combatant?.actor?.uuid !== actor.uuid) throw new Error("not your Initiative: wait for your turn (Rigger 2 p.80)");
+    // The rigger combat's own Initiative order (p.80; r2 #2): a used-up Combat Turn rolls again first.
+    let cur = c;
+    if (!actingSide(cur)) { await ccss.update(await initiativeUpdate(cur)); cur = rcombatOf(fromUuidSync(ccssUuid)); }
+    if (!user.isGM && actingSide(cur) !== side) throw new Error(`not your action: ${fromUuidSync(cur[actingSide(cur)]?.actorUuid ?? "")?.name ?? "the other rigger"} acts now (Rigger 2 p.80)`);
     const net = RC.freshNet(ccss), seq = num(c.seq) + 1;
     const aTest = rcombatCard(ccss, c, side, net, messageId, seq);
     await RC.save(ccss, net, { "flags.sr2e.rcombat.exchange": { attacker: side, attackMsg: messageId, seq }, "flags.sr2e.rcombat.seq": seq,
@@ -397,7 +429,8 @@ export function registerEw() {
       pending = { id: foundry.utils.randomID(), side: loseSide, power: dmg.power, level: dmg.level, decker: !!c[loseSide].decker };
     }
     // The defense card's receipt, the end of the exchange and the hit to resist: ONE update (r1 #11).
-    await RC.save(ccss, net, { "flags.sr2e.rcombat.exchange": null, "flags.sr2e.rcombat.pending": pending, ...deckerPoolUpdate(c, dTest.deckerUsed) });
+    await RC.save(ccss, net, { "flags.sr2e.rcombat.exchange": null, "flags.sr2e.rcombat.pending": pending, ...deckerPoolUpdate(c, dTest.deckerUsed),
+      ...(pending ? {} : advance(c)) });
     if (!out.winner) { await card(`Rigger combat: a tie — no damage (Rigger 2 p.80).`, actor); return out; }
     const winner = fromUuidSync(c[winSide].actorUuid), loser = fromUuidSync(c[pending.side].actorUuid);
     await card(`Rigger combat: ${esc(winner.name)} wins by ${out.net} — ${dmg.power}${dmg.level} Stun to ${esc(loser.name)}, resisted with Body${pending.decker ? " (as non-lethal black IC: Hardening lowers the Power, +2 TN)" : ""} — the Resist button is on ${esc(loser.name)}'s deck panel (Rigger 2 p.80).`, loser);
@@ -427,7 +460,7 @@ export function registerEw() {
       const { commitDamage } = await import("./drugs.mjs");
       await commitDamage(actor, "stun", boxes, { extra: { [`flags.sr2e.rcombatHits.${hits}`]: true }, skipIf: () => !!actor.flags?.sr2e?.rcombatHits?.[hits], source: "rigger combat" });
     }
-    await RC.save(ccss, net, { "flags.sr2e.rcombat.pending": null, ...deckerPoolUpdate(c, used) });
+    await RC.save(ccss, net, { "flags.sr2e.rcombat.pending": null, ...deckerPoolUpdate(c, used), ...advance(c) });
     await card(`${esc(actor.name)} resists: ${s} success${s === 1 ? "" : "es"} — ${boxes ? `${levels[idx]} Stun (${boxes} box${boxes === 1 ? "" : "es"})` : "no damage"} (Rigger 2 p.80).`, actor);
     const loser = ["intruder", "defender"].find(sd => passedOut(fromUuidSync(c[sd].actorUuid)));
     if (loser) await rcombatEnd(fromUuidSync(ccssUuid), loser === "intruder" ? "defender" : "intruder", `${fromUuidSync(c[loser].actorUuid)?.name} passed out`);
