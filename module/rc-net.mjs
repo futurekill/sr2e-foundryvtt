@@ -232,11 +232,24 @@ export function useCard(net, ...ids) {
 }
 export const freshNet = (deck) => foundry.utils.deepClone(netOf(deck) ?? { rev: 0, operator: null, connection: { state: "disconnected", gen: 0 },
   subscribers: [], affiliated: {}, primary: null, standingOrders: {} });
-export async function save(deck, net) {
+export async function save(deck, net, extra = {}) {
   net.rev = num(net.rev) + 1;
-  await deck.update({ "flags.sr2e.==rcNet": net });
+  // `extra` lands in the SAME update as the network record (5d code review r1 #11: a card receipt and its state change
+  // are one write).
+  await deck.update({ ...extra, "flags.sr2e.==rcNet": net });
   invalidate();
   return net;
+}
+
+/**
+ * A decker fighting in a rigged system (Rigger 2 p.80): Initiative −2 and no dice from the deck's Response Increase.
+ * Scans the open rigger combats (CCSS items) for this actor as the decker intruder.
+ */
+export function deckerInRiggerCombat(actor) {
+  if (!actor?.uuid || !isRigger2()) return false;
+  const docs = [...(game.actors ?? []), ...(canvas?.scene?.tokens ?? []).filter(t => !t.actorLink).map(t => t.actor).filter(Boolean)];
+  return docs.some(a => (a.items ?? []).some(i => isCcss(i) && i.flags?.sr2e?.rcombat?.state === "open"
+    && i.flags.sr2e.rcombat.intruder?.decker && i.flags.sr2e.rcombat.intruder.actorUuid === actor.uuid));
 }
 function load(deckUuid, user) {
   const deck = fromUuidSync(deckUuid);
@@ -624,6 +637,8 @@ export function registerRcNet() {
     if (!isCcss(deck)) throw new Error("not a security system");
     if (net.connection?.state !== "connected" || !net.operator) throw new Error("connect the system first");
     const op = fromUuidSync(net.operator);
+    // Only the jacked-in operator moves themself (or the GM) — never the system's holder (5d code review r1 #2).
+    if (!user.isGM && !op?.testUserPermission(user, "OWNER")) throw new Error("only the security rigger at the controls jumps");
     if (!rigEligible(op)) throw new Error(`${op?.name} must be jacked in with a vehicle control rig (Rigger 2 p.77)`);
     const c = (deck.system.components ?? []).find(x => x.id === componentId);
     if (!c) throw new Error("no such component");

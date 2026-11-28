@@ -114,7 +114,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
   #combatRow(ccss, c, side) {
     const other = side === "intruder" ? "defender" : "intruder";
     return { side, ccss: ccss.uuid, foe: fromUuidSync(c[other]?.actorUuid ?? "")?.name ?? "?",
-      mustDefend: !!c.exchange && c.exchange.attacker === other, waiting: !!c.exchange && c.exchange.attacker === side };
+      mustResist: c.pending?.side === side, pendingOther: !!c.pending && c.pending.side !== side,
+      mustDefend: !c.pending && !!c.exchange && c.exchange.attacker === other, waiting: !!c.exchange && c.exchange.attacker === side };
   }
   /** Rigger combat actions (p.80): engage, attack (Complex), defend, disengage (Free). */
   static async #rcombat(_e, el) {
@@ -125,8 +126,10 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const c = EWX.rcombatOf(ccss);
     if (!c) return warn("no rigger combat here");
     const actor = fromUuidSync(c[side].actorUuid), foe = fromUuidSync(c[side === "intruder" ? "defender" : "intruder"].actorUuid);
-    const tn = (Number(foe?.system?.willpower?.value) || 0) + (c[side].decker ? 2 : 0);
-    const cap = Math.min(EWX.rcombatCap(ccss, side, "willpower"), actor?.system?.dicePools?.control?.value ?? 0);
+    const resist = act === "resist", p = c.pending;
+    const attr = resist ? "body" : "willpower";
+    const tn = resist ? Math.max(2, (Number(p?.power) || 0)) : (Number(foe?.system?.willpower?.value) || 0);
+    const cap = Math.min(EWX.rcombatCap(ccss, side, attr), actor?.system?.dicePools?.control?.value ?? 0);
     let control = 0;
     if (cap > 0) {
       control = await foundry.applications.api.DialogV2.prompt({ window: { title: "Rigger combat" },
@@ -134,11 +137,16 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
         ok: { label: "Roll", callback: (_e2, b) => Math.min(cap, Math.max(0, Number(b.form.elements.n.value) || 0)) }, rejectClose: false }).catch(() => null);
       if (control == null) return;
     }
-    const res = await actor.rollSuccessTest(Number(actor.system.willpower?.value) || 0, tn, {
-      label: `Rigger combat — ${act === "attack" ? "attack" : "defense"}: Willpower vs ${foe?.name}'s Willpower ${tn} (Rigger 2 p.80)`,
-      poolDice: control ? { control } : {}, flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: c.id } } } });
+    // Every card is bound to the combat, its side and exchange (or the hit it resists) — code review r1 #4.
+    const bind = resist ? { kind: "rcombat-resist", ccss: ccss.uuid, combat: c.id, pending: p?.id }
+      : { kind: "rcombat", ccss: ccss.uuid, combat: c.id, side, seq: act === "attack" ? (Number(c.seq) || 0) + 1 : c.exchange?.seq };
+    const res = await actor.rollSuccessTest(Number(actor.system[attr]?.value) || 0, tn, {
+      label: resist ? `Rigger combat — resist ${p?.power}${p?.level} Stun with Body (Rigger 2 p.80)`
+        : `Rigger combat — ${act === "attack" ? "attack" : "defense"}: Willpower vs ${foe?.name}'s Willpower ${tn} (Rigger 2 p.80)`,
+      ...(resist ? { isResistance: true } : {}), poolDice: control ? { control } : {}, flags: { sr2e: { ew: bind } } });
     if (!res?.testMessageId) return;
-    return rc(act === "attack" ? "rcombatAttack" : "rcombatDefend", { ccssUuid: ccss.uuid, side, messageId: res.testMessageId }).catch(warn);
+    const op = resist ? "rcombatResist" : act === "attack" ? "rcombatAttack" : "rcombatDefend";
+    return rc(op, { ccssUuid: ccss.uuid, side, messageId: res.testMessageId }).catch(warn);
   }
   static async #ccssAccess(_e, el) {
     const ccss = fromUuidSync(el.dataset.uuid), op = this.#op;
@@ -146,7 +154,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const st = EWX.ccssAccessOf(ccss, this.deck), step = ccssNextStep(ccss.system, st);
     const { dice } = EWX.ccssStepDice(step, op, this.deck);
     const label = `${{ tap: "Tap into a dataline", decrypt: "Defeat encryption", protocols: "Adjust to system protocols" }[step]} — ${ccss.parent?.name} (Rigger 2 p.80)`;
-    const id = await EWX.rollEwCard(op, { kind: `ccss-${step}`, dice, tn: Number(ccss.system.technicalRating) || 2, label, extra: { ccss: ccss.uuid } });
+    const id = await EWX.rollEwCard(op, { kind: `ccss-${step}`, dice, tn: Number(ccss.system.technicalRating) || 2, label,
+      extra: { ccss: ccss.uuid, deck: this.deck.uuid, try: Number(st.tries) || 0 } });
     if (id) return rc("ccssAccess", { intruderDeckUuid: this.deck.uuid, ccssUuid: ccss.uuid, step, messageId: id }).catch(warn);
   }
   static #ccssMark(_e, el) {

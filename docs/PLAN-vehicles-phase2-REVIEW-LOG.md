@@ -1522,3 +1522,46 @@ The Arm Test and arm skill dialogs select the arm (when there are several) and a
 Commit 9065bb5c addresses the round 3 finding: both dialogs let the user select an arm when several are working, and each roll uses that arm’s damage TN. I found no material bug introduced by the fix.
 
 VERDICT: APPROVED
+
+## 5d code review round 1 — Codex (gpt-6-sol, high), 2026-11-27
+1. **Disconnected decks can complete an intrusion.** `loadIntruder` falls back to the deck holder when an RC deck has no connected operator; `ccssAccess` and `rcombatStart` then accept that actor without checking a live connection or VCR. A rigger can tap and take over a CCSS while jacked out. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:190)  
+   Fix: Require a connected RC deck whose current operator is rig eligible at every access and combat transition.
+
+2. **The CCSS holder can move someone else’s rigger.** `ccssControl` uses `load`/`mayRun`, which accepts ownership of the CCSS or its holder even when another actor operates it. A site owner can force that operator into a component and change their pool eligibility. [rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:202) [ccssControl](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:622)  
+   Fix: Authorize `ccssControl` against the connected operator, with a GM override.
+
+3. **Combat survives a change of operator.** The combat record snapshots both actors, but attack, defense, disengage and check never verify the CCSS operator or either connection again. After `rcConnect` replaces the defender, the old defender can still fight or disengage; an old intruder can still win and overwrite the new operator. `rcombatCheck` also has no caller authorization. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:269) [rc-net.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rc-net.mjs:412)  
+   Fix: Bind the combat to both actors and connection generations, invalidate it on control changes, and authorize `rcombatCheck`.
+
+4. **Cards are insufficiently bound to their action.** An access card names the CCSS but not the intruding deck or access revision, so an actor with two decks can apply a card rolled for one to the other. A combat card names the combat but not its side or exchange, so an unused earlier defense card can answer a later attack. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:252) [ccssAccess](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:344)  
+   Fix: Stamp and verify deck, side, exchange ID, and the relevant access or combat revision on each card.
+
+5. **Combat accepts forbidden dice sources.** `checkCard` checks base, Task Pool and misc dice, but allows other pool sources; `rcombatCard` only limits `pool:control`. A decker can submit a Willpower card with Hacking Pool dice, and a rigger can use Task Pool dice in combat. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:144) [rcombatCard](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:252)  
+   Fix: Validate an explicit source-key allowlist for each CCSS step and combat role.
+
+6. **A legal defender Control Pool spend is rejected after it is paid.** `rollSuccessTest` debits the actor’s pool before the GM checks the card, while `rcombatCap` reads the *remaining* value. A defender jumped into a room with 4 Control Pool dice who spends 3 has only 1 left, so the GM rejects the three-die card after charging it. [deck-panel.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/apps/deck-panel.mjs:129) [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:221)  
+   Fix: Validate against an authorized pre-roll balance or reserve and receipt the spend through the GM operation.
+
+7. **The decker’s Control Pool can remain depleted indefinitely.** Outside an active combat, `deckerPoolLeft` uses `null` as the round key both before and after a spend; subsequent exchanges never refill it. It also keys off the client’s global `game.combat`, even if that combat is unrelated to the CCSS fight. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:247)  
+   Fix: Give rigger combat its own turn key and advance or refill that key explicitly.
+
+8. **Deckers bypass required entry and combat rules.** The GM accepts any cyberdeck with an emulation module, including an inactive one with no checked software; `DECKER_RCOMBAT`’s Initiative −2 and no Response Increase dice are only declared, never applied. An initiative loser can call `rcombatAttack` because the operation does not check the winner. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:187) [drone-rules.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/rules/drone-rules.mjs:155)  
+   Fix: Validate the active deck and software, then use a recorded initiative result to gate attacks and apply decker modifiers.
+
+9. **Resistance omits legal dice and the decker penalty.** The Resist button calls damage resistance with `noCombatPool: true` and offers no Control Pool for a defender jumped into a room or for a decker. It also omits the decker’s +2 TN on that Body test. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:670)  
+   Fix: Route resistance through a receipted rigger-combat resistance path that offers eligible Control Pool dice and applies the decker TN modifier.
+
+10. **Resist claims the card before the roll exists.** Clicking Resist creates a `once()` marker before the damage dialog; canceling the dialog, failing the roll call, or reloading then makes the button say the damage was already resisted. The button also accepts an old result card after combat state changes. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:674) [claims.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/claims.mjs:15)  
+   Fix: Bind resistance to a live result ID and commit its durable receipt with the damage outcome, leaving cancellation retryable.
+
+11. **GM operations can strand half-committed results.** `ccssAccess` saves `usedCards` before writing progress and alert; attack and defense save the used card before writing the exchange; takeover saves the new operator before ending combat. An interrupted update leaves a spent card with no step, or a new operator with combat still open, and replay cannot repair it. [ew.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:228) [ccssAccess](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:343)  
+   Fix: Commit each operation’s card receipt and state transition in one CCSS update, with resumable delivery for result cards.
+
+12. **The CCSS model and Quench coverage leave plan requirements unverified.** Components have no `devices` field or device operation, and `decryptionRating` is displayed but never used in a radio test. The new Quench cases call `gmCall` as the GM and do not exercise non-GM authority, stale/replayed cards, interrupted writes, the Resist button, or a real Control Pool spend. [item-data.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/data/item-data.mjs:1695) [sr2e-quench.mjs](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/quench/sr2e-quench.mjs:20401)  
+   Fix: Implement the missing component and radio behavior, then add Quench cases through non-GM handlers and the actual card flows.
+
+Review was read-only; `git diff --check main...HEAD` reported no whitespace errors.
+
+VERDICT: REVISE
+### Claude's response
+Fixed: #1 intruders checked live (RC deck connected, operator VCR-eligible; decker: active deck + jacked in + module). #2 ccssControl only by the operator's owner or GM. #3 combat bound to both sides' connection generations; a changed side voids it (no takeover); rcombatCheck authorized. #4 cards bound: access {deck, try}, combat {side, seq}, resist {pending}. #5 source allowlists (access: base+task; combat/resist: base+control). #6 Control Pool cap by eligibility and attribute only (the roll already limited to what was left). #7 decker pool keyed to the tracker turn the decker is in, else the exchange. #8 decker needs an active deck and to be jacked in; Initiative −2 / no Response Increase dice applied in the matrix initiative; attacks gated to the attacker's turn when both are in a started combat (GM overrides). #9/#10 resistance is a GM op (rcombatResist) on a bound card: Body (+eligible Control Pool; decker: pool and +2 TN, Power − Hardening), the stun and its receipt in one commitDamage. #11 card receipts and state transitions in one CCSS update (RC.save extra); takeover + end in one update. #12 components gained a devices field; radio decryption stays equipment for the rigger's own radio tests (core p.184), not automated; Quench now covers a non-owner player (gmOpHandler), stale/mis-bound cards, voiding, and once-only resistance.

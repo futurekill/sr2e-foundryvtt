@@ -20450,7 +20450,7 @@ function stubWorldSettings(keys) {
             { name: "Quench Emulation", type: "gear", system: { rating: 4 }, flags: { sr2e: { rule: "protocol-emulation", deckId: deck.id } } }]);
           await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: intr.uuid });
           const roll = (step, faces) => withFaces(faces, () => intr.rollSuccessTest(EWX.ccssStepDice(step, intr, deck).dice, 4,
-            { label: `Quench ${step}`, flags: { sr2e: { ew: { kind: `ccss-${step}`, ccss: ccss.uuid } } } })).then(r => r.testMessageId);
+            { label: `Quench ${step}`, flags: { sr2e: { ew: { kind: `ccss-${step}`, ccss: ccss.uuid, deck: deck.uuid, try: Number(EWX.ccssAccessOf(ccss, deck).tries) || 0 } } } })).then(r => r.testMessageId);
           const step = async (st, faces) => call("ccssAccess", { intruderDeckUuid: deck.uuid, ccssUuid: ccss.uuid, step: st, messageId: await roll(st, faces) });
           assert.equal(EWX.ccssStepDice("tap", intr, deck).dice, 7, "tap 3 + Electronics 4");
           let err = null;
@@ -20490,8 +20490,9 @@ function stubWorldSettings(keys) {
             await ccss.update({ [`flags.sr2e.ccssAccess.${EWX.netKey(deck)}`]: { slavePort: true, protocolsKnown: true, protocols: true } });
             return { ccss, deck };
           };
-          const card = (actor, ccss, faces, extra = {}) => withFaces(faces, () => actor.rollSuccessTest(4, 4,
-            { label: "Quench rcombat", flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: EWX.rcombatOf(ccss).id } } }, ...extra })).then(r => r.testMessageId);
+          const card = (actor, ccss, faces, side, attack) => { const c = EWX.rcombatOf(ccss);
+            return withFaces(faces, () => actor.rollSuccessTest(4, 4, { label: "Quench rcombat", flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid,
+              combat: c.id, side, seq: attack ? (Number(c.seq) || 0) + 1 : c.exchange?.seq } } } })).then(r => r.testMessageId); };
           // Nobody jacked in: the intruder takes the system at once.
           const a = await setup(false);
           const took = await call("rcombatStart", { intruderDeckUuid: a.deck.uuid, ccssUuid: a.ccss.uuid });
@@ -20503,13 +20504,38 @@ function stubWorldSettings(keys) {
           assert.ok(EWX.rcombatOf(b.ccss), "combat open");
           assert.equal(EWX.rcombatCap(b.ccss, "intruder", "willpower"), 0, "an intruding rigger: Karma Pool only (p.78)");
           assert.equal(EWX.rcombatCap(b.ccss, "defender", "willpower"), 0, "a security rigger assuming the body: Karma Pool only");
-          await call("rcombatAttack", { ccssUuid: b.ccss.uuid, side: "intruder", messageId: await card(intr, b.ccss, [5, 5, 5, 5]) });
+          // Players act only for their own side (code review r1 #2/#3): a non-owner player is refused.
+          const player = game.users.find(u => !u.isGM && !sec.testUserPermission(u, "OWNER") && !intr.testUserPermission(u, "OWNER"));
+          if (player) {
+            const H = (await import("../vehicle-play.mjs")).gmOpHandler;
+            let perr = null;
+            try { await H("rcombatAttack")({ ccssUuid: b.ccss.uuid, side: "defender", messageId: "x" }, player); } catch (e) { perr = e.message; }
+            assert.match(perr ?? "", /not your rigger/, "a player can't fight for someone else");
+            perr = null;
+            try { await H("ccssControl")({ deckUuid: b.ccss.uuid, componentId: "x" }, player); } catch (e) { perr = e.message; }
+            assert.ok(perr, "a player can't move someone else's security rigger");
+          }
+          await call("rcombatAttack", { ccssUuid: b.ccss.uuid, side: "intruder", messageId: await card(intr, b.ccss, [5, 5, 5, 5], "intruder", true) });
           let err = null;
-          try { await call("rcombatAttack", { ccssUuid: b.ccss.uuid, side: "defender", messageId: await card(sec, b.ccss, [1, 1, 1, 1]) }); } catch (e) { err = e.message; }
+          try { await call("rcombatAttack", { ccssUuid: b.ccss.uuid, side: "defender", messageId: await card(sec, b.ccss, [1, 1, 1, 1], "defender", true) }); } catch (e) { err = e.message; }
           assert.match(err ?? "", /already waiting/, "one exchange at a time");
-          const r = await call("rcombatDefend", { ccssUuid: b.ccss.uuid, messageId: await card(sec, b.ccss, [1, 1, 1, 1]) });
+          const staleDef = await card(sec, b.ccss, [1, 1, 1, 1], "intruder", false);
+          err = null;
+          try { await call("rcombatDefend", { ccssUuid: b.ccss.uuid, messageId: staleDef }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /before the network changed|not counted/, "a card bound to the other side doesn't count");
+          const r = await call("rcombatDefend", { ccssUuid: b.ccss.uuid, messageId: await card(sec, b.ccss, [1, 1, 1, 1], "defender", false) });
           assert.equal(r.winSide, "intruder");
           assert.deepEqual(r.damage, { power: 4, level: "S", type: "stun" }, "4 net: (Willpower 4) staged up two levels");
+          // The loser resists once (r1 #9/#10): Body 4 vs TN 4, two successes → staged down one level, Moderate (3 boxes).
+          const pid = EWX.rcombatOf(b.ccss).pending.id;
+          const resistId = await withFaces([5, 5, 1, 1], () => sec.rollSuccessTest(4, 4, { label: "Quench resist", isResistance: true,
+            flags: { sr2e: { ew: { kind: "rcombat-resist", ccss: b.ccss.uuid, combat: EWX.rcombatOf(b.ccss).id, pending: pid } } } })).then(x => x.testMessageId);
+          await call("rcombatResist", { ccssUuid: b.ccss.uuid, messageId: resistId });
+          assert.equal(sec.system.conditionMonitor.stun.value, 3, "Moderate Stun");
+          err = null;
+          try { await call("rcombatResist", { ccssUuid: b.ccss.uuid, messageId: resistId }); } catch (e) { err = e.message; }
+          assert.ok(err, "once");
+          assert.equal(sec.system.conditionMonitor.stun.value, 3);
           // The defender passes out: the intruder controls the system.
           await sec.update({ "system.conditionMonitor.stun.value": 10 });
           await call("rcombatCheck", { ccssUuid: b.ccss.uuid });
@@ -20517,6 +20543,14 @@ function stubWorldSettings(keys) {
           assert.equal(b.ccss.flags.sr2e.rcombat.winner, "intruder");
           assert.equal(RCN.netOf(b.ccss).operator, intr.uuid);
           await sec.update({ "system.conditionMonitor.stun.value": 0 });
+          // A side leaving its controls voids the combat (r1 #3).
+          const v = await setup(true);
+          await call("rcombatStart", { intruderDeckUuid: v.deck.uuid, ccssUuid: v.ccss.uuid });
+          await call("rcDisconnect", { deckUuid: v.ccss.uuid });
+          err = null;
+          try { await call("rcombatAttack", { ccssUuid: v.ccss.uuid, side: "intruder", messageId: "x" }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /left its controls/, "voided");
+          assert.equal(v.ccss.flags.sr2e.rcombat.state, "void");
           // Disengaging surrenders control.
           const c = await setup(true);
           await call("rcombatStart", { intruderDeckUuid: c.deck.uuid, ccssUuid: c.ccss.uuid });
@@ -20536,6 +20570,7 @@ function stubWorldSettings(keys) {
           await call("rcConnect", { deckUuid: ccss.uuid, operatorUuid: sec.uuid });
           const dk = await Actor.create({ name: "Quench Decker", type: "character", system: { willpower: { base: 4 }, intelligence: { base: 5 } } }); made.push(dk);
           const [cd] = await dk.createEmbeddedDocuments("Item", [{ name: "Quench Cyberdeck", type: "gear", system: { category: "cyberdeck", deck: { active: true, mpcp: 6 } } }]);
+          await dk.update({ "system.matrixMode": true });
           let err = null;
           try { await call("ccssAccess", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid, step: "tap", messageId: "x" }); } catch (e) { err = e.message; }
           assert.match(err ?? "", /protocol emulation module/, "a decker needs the module");
@@ -20543,14 +20578,14 @@ function stubWorldSettings(keys) {
             { name: "Quench Tap", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "dataline-tap" } } },
             { name: "Electronics", type: "skill", system: { rating: 3, category: "active" } }]);
           assert.equal(EWX.moduleRating(cd, "protocol-emulation"), 5, "a module in the only cyberdeck needs no binding");
-          const tapId = await withFaces([5, 5, 5, 5, 5], () => dk.rollSuccessTest(5, 4, { label: "Quench decker tap", flags: { sr2e: { ew: { kind: "ccss-tap", ccss: ccss.uuid } } } })).then(r => r.testMessageId);
+          const tapId = await withFaces([5, 5, 5, 5, 5], () => dk.rollSuccessTest(5, 4, { label: "Quench decker tap", flags: { sr2e: { ew: { kind: "ccss-tap", ccss: ccss.uuid, deck: cd.uuid, try: 0 } } } })).then(r => r.testMessageId);
           await call("ccssAccess", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid, step: "tap", messageId: tapId });
           await call("rcombatStart", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid });
           const c = EWX.rcombatOf(ccss);
           assert.ok(c?.intruder?.decker, "steps 1–3 done: rigger combat, as a decker (no protocols step)");
           assert.equal(EWX.deckerPoolLeft(c), 3, "⌈5 ÷ 2⌉");
           const roll = (dice, tn) => withFaces(Array(dice).fill(5), () => dk.rollSuccessTest(dice, tn, { label: "Quench decker rcombat",
-            flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: c.id } } } })).then(r => r.testMessageId);
+            flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: c.id, side: "intruder", seq: 1 } } } })).then(r => r.testMessageId);
           err = null;
           try { await call("rcombatAttack", { ccssUuid: ccss.uuid, side: "intruder", messageId: await roll(4, 4) }); } catch (e) { err = e.message; }
           assert.match(err ?? "", /TN 6 or more/, "+2 TN for a decker");

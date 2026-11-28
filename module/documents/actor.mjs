@@ -62,7 +62,7 @@ import { damageBoxes as boxesForLevel, systemOperationTN, escalateAlert, netToSt
 /** A localized roll label (SR2E.RollLabel.*); the English text is the label as it always read. */
 import { RL, AL } from "../util/roll-label.mjs";
 import { poolsLocked, drivenEntry, findEntry, findAboard } from "../chase-state.mjs";
-import { ccssKarmaOnly, CCSS_KARMA_ONLY } from "../rc-net.mjs";
+import { ccssKarmaOnly, CCSS_KARMA_ONLY, deckerInRiggerCombat } from "../rc-net.mjs";
 import { r2VehicleHit, terrainControlCap, passengerShotPower } from "../rules/vehicle-combat-rules.mjs";
 import { spendStep } from "../vehicle-damage.mjs";
 const eventKey = (id) => String(id).replace(/[^\w-]/g, "_");
@@ -1161,11 +1161,14 @@ export class SR2EActor extends Actor {
       const bonus = plusReaction ? 2 * response : 0;
       // VR2.0 part 7c (p.30): satlink signal lag, off the final Matrix Reaction (plan R1 #3).
       const lag = isVR2() && system.vr2Conn?.jackpoint?.kind === "satellite" ? 2 : 0;
-      const base = Math.max(0, naturalReaction + bonus - lag - woundPenalty);
+      // Decking a rigged system (Rigger 2 p.80): Initiative −2, no dice from the deck's Response Increase.
+      const rigged = deckerInRiggerCombat(this);
+      const base = Math.max(0, naturalReaction + bonus - lag - woundPenalty - (rigged ? 2 : 0));
       notes.unshift(`Matrix: Reaction ${naturalReaction}${bonus ? ` +${bonus} response` : ""}`);
       if (lag) notes.push("satlink lag −2");
+      if (rigged) notes.push("decking a rigged system: −2, no Response Increase dice");
       if (woundPenalty) notes.push(`−${woundPenalty} wound`);
-      return { base, dice: Math.max(1, 1 + response - lessDice), rigged: false, matrix: true, notes };
+      return { base, dice: Math.max(1, 1 + (rigged ? 0 : response) - lessDice), rigged: false, matrix: true, notes };
     }
 
     // Astrally projecting (SR2E p.147): initiative = Astral Reaction + 15,

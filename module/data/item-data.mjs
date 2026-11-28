@@ -1715,7 +1715,9 @@ export class CcssData extends SR2EDataModel {
         id: new fields.StringField({ required: true, blank: false }),
         name: new fields.StringField({ initial: "", blank: true }),
         kind: new fields.StringField({ initial: "room", choices: ["room", "corridor", "device"] }),
-        size: new fields.NumberField({ initial: 0, min: 0 })   // room m² / corridor m (p.78 limits); devices 0
+        size: new fields.NumberField({ initial: 0, min: 0 }),   // room m² / corridor m (p.78 limits); devices 0
+        // What the rigger operates there once jumped in (p.78: doors, climate control, gun ports, gas vents…).
+        devices: new fields.StringField({ initial: "", blank: true })
       })),
       notes: new fields.StringField({ initial: "", blank: true })
     };
