@@ -339,6 +339,8 @@ export function registerEw() {
     const next = ccssNextStep(ccss.system, state, { decker });
     if (step !== next) throw new Error(next === "combat" ? "access is complete: next is rigger combat (Rigger 2 p.80)" : `the next step is ${next}`);
     if (step === "protocols" && !state.protocolsKnown) throw new Error("the protocols must be found out first — the GM marks them known (Rigger 2 p.80)");
+    // A decker needs the module AND its software (p.80); the system models no software item, so the GM confirms it (r3 #2).
+    if (decker && !state.software) throw new Error("the GM must confirm the protocol emulation software is running first (Rigger 2 p.80)");
     const { dice, need } = ccssStepDice(step, op, intruder);
     if (!dice) throw new Error(`step needs ${need}`);
     const net = RC.freshNet(ccss);
@@ -358,7 +360,7 @@ export function registerEw() {
   // 5d: the GM marks what the intruder knows (the protocols, p.80) or where they are (an open slave port: no tap, p.80).
   gmOp("ccssMark", ({ intruderDeckUuid, ccssUuid, key, on }, user) => RC.rcQueue(async () => {
     if (!user.isGM) throw new Error("the GM decides this");
-    if (!["protocolsKnown", "slavePort"].includes(key)) throw new Error("unknown mark");
+    if (!["protocolsKnown", "slavePort", "software"].includes(key)) throw new Error("unknown mark");
     const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
     if (!(RC.isRcDeck(intruder) || isCyberdeck(intruder)) || !RC.isCcss(ccss)) throw new Error("an intruding deck and a security system");
     await ccss.update({ [`flags.sr2e.ccssAccess.${netKey(intruder)}.${key}`]: !!on });
@@ -371,7 +373,10 @@ export function registerEw() {
     if (ccssNextStep(ccss.system, ccssAccessOf(ccss, intruder), { decker }) !== "combat") throw new Error("finish accessing the system first (Rigger 2 p.79–80)");
     if (rcombatOf(ccss)) throw new Error("a rigger combat is already under way here");
     const emulation = decker ? moduleRating(intruder, "protocol-emulation") : 0;
-    const net = RC.netOf(ccss), def = net?.connection?.state === "connected" ? fromUuidSync(net.operator ?? "") : null;
+    // A connected system whose rigger jacked out has nobody at the controls (r3 #1).
+    const net = RC.netOf(ccss), dop = net?.connection?.state === "connected" ? fromUuidSync(net.operator ?? "") : null;
+    const def = dop && RC.rigEligible(dop) ? dop : null;
+    if (decker && !ccssAccessOf(ccss, intruder).software) throw new Error("the GM hasn't confirmed the protocol emulation software is running (Rigger 2 p.80)");
     const record = { id: foundry.utils.randomID(), state: "open", winner: null, exchange: null, pending: null, seq: 0, turn: 0, pos: 0, order: [], init: null,
       intruder: { actorUuid: iop.uuid, deckUuid: intruder.uuid, decker, emulation, gen, pool: null, poolTurn: null },
       defender: { actorUuid: def?.uuid ?? null, gen: num(net?.connection?.gen) } };
@@ -818,7 +823,7 @@ export async function deckRiggedSystem(actor) {
   const rows = all.map(c => {
     const next = ccssNextStep(c.system, ccssAccessOf(c, deck), { decker: true }), rc = rcombatOf(c);
     return `<tr><td>${esc(c.parent?.name)} — ${esc(c.name)}<br><small>TN ${num(c.system.technicalRating)} · ${vigilanceCount(c.system.vigilance)} needed</small></td>
-      <td>${next === "combat" ? (rc?.intruder?.deckUuid === deck.uuid ? `<em>rigger combat: use the buttons below</em>` : `<button type="button" data-uuid="${c.uuid}" data-act="engage">Engage</button>`)
+      <td>${game.user.isGM ? `<button type="button" data-uuid="${c.uuid}" data-act="software" title="GM: the decker's rigger protocol emulation software is running (Rigger 2 p.80)">${ccssAccessOf(c, deck).software ? "Software ✓" : "Software running?"}</button> ` : (ccssAccessOf(c, deck).software ? "" : "<em>the GM confirms the emulation software first</em> ")}${next === "combat" ? (rc?.intruder?.deckUuid === deck.uuid ? `<em>rigger combat: use the buttons below</em>` : `<button type="button" data-uuid="${c.uuid}" data-act="engage">Engage</button>`)
         : `<button type="button" data-uuid="${c.uuid}" data-act="${next}">${next === "tap" ? "Tap into a dataline" : "Defeat encryption"}</button>`}
       ${rc?.intruder?.deckUuid === deck.uuid ? `${rc.pending?.side === "intruder" ? `<button type="button" data-uuid="${c.uuid}" data-act="resist">Resist ${rc.pending.power}${rc.pending.level}</button>`
         : rc.pending ? "<em>they are resisting</em>" : `<button type="button" data-uuid="${c.uuid}" data-act="${rc.exchange && rc.exchange.attacker === "defender" ? "defend" : "attack"}">${rc.exchange && rc.exchange.attacker === "defender" ? "Defend" : "Attack"}</button>`}
@@ -834,6 +839,7 @@ export async function deckRiggedSystem(actor) {
   if (!pick) return;
   const ccss = fromUuidSync(pick.uuid);
   try {
+    if (pick.act === "software") return await gmCall("ccssMark", { intruderDeckUuid: deck.uuid, ccssUuid: ccss.uuid, key: "software", on: !ccssAccessOf(ccss, deck).software });
     if (pick.act === "engage") return await gmCall("rcombatStart", { intruderDeckUuid: deck.uuid, ccssUuid: ccss.uuid });
     if (pick.act === "disengage") return await gmCall("rcombatDisengage", { ccssUuid: ccss.uuid, side: "intruder" });
     if (pick.act === "tap" || pick.act === "decrypt") {

@@ -20579,6 +20579,10 @@ function stubWorldSettings(keys) {
             { name: "Quench Tap", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "dataline-tap" } } },
             { name: "Electronics", type: "skill", system: { rating: 3, category: "active" } }]);
           assert.equal(EWX.moduleRating(cd, "protocol-emulation"), 5, "a module in the only cyberdeck needs no binding");
+          err = null;
+          try { await call("ccssAccess", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid, step: "tap", messageId: "x" }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /software/, "the GM confirms the emulation software first");
+          await call("ccssMark", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid, key: "software", on: true });
           const tapId = await withFaces([5, 5, 5, 5, 5], () => dk.rollSuccessTest(5, 4, { label: "Quench decker tap", flags: { sr2e: { ew: { kind: "ccss-tap", ccss: ccss.uuid, deck: cd.uuid, try: 0 } } } })).then(r => r.testMessageId);
           await call("ccssAccess", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid, step: "tap", messageId: tapId });
           await call("rcombatStart", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid });

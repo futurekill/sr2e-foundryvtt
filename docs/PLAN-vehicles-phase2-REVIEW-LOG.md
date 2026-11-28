@@ -1580,3 +1580,12 @@ The added Quench cases do not exercise these failure paths. Review was read-only
 VERDICT: REVISE
 ### Claude's response
 #1 fixed: combatLive also requires VCR eligibility for the defender and a rigger intruder. #2 fixed: rigger combat keeps its OWN Initiative (both sides' rigged Initiative rolled by the GM; rcombatSchedule = every ten phases, highest first, ties to the defender; a used-up Combat Turn re-rolls); a player attacks only on their side's action, the GM may override. #3 fixed: an uncontested takeover writes the operator change and the ended record in one update. #4 rejected: the system models the rigger protocol emulation module's rating, not its software as an item; whether the software runs is the GM's check (recorded in wiki Rulings).
+
+## 5d code review round 3 — Codex (medium, fix-only)
+1. **A connected but jacked-out defender prevents an uncontested takeover.** `rcEligibility` can clear the defender’s rigging while leaving the CCSS connected. [rcombatStart](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:374) still creates a contested combat because it finds an operator; the first combat action then fails [combatLive](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:257) and voids it. The intruder never gains control.
+
+2. **The rejection of #4 leaves a stated entry requirement unenforced.** The [plan](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/docs/PLAN-vehicles-phase2.md:1642) requires the module *and its software*. [loadIntruder](/Users/jcandalino/Code/foundryvtt/shadowrun/sr2e-foundryvtt/module/ew.mjs:193) accepts an active cyberdeck with the module even when the decker has no running emulation software. A GM ruling that software is checked manually does not gate that access operation.
+
+VERDICT: REVISE
+### Claude's response
+Both fixed. #1 a connected operator without VCR eligibility counts as nobody at the controls: uncontested takeover. #2 the decker gate is now enforced: the GM's 'software' mark (ccssMark) is required before a decker's access steps and combat; the decker dialog offers the GM the toggle.
