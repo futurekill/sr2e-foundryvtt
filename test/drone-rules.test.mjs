@@ -50,3 +50,32 @@ describe("remote-control equipment identity", () => {
     expect(rcRuleOf({ name: "Remote Control Deck" })).toBe("");
   });
 });
+
+// The security rigger (Rigger 2 p.77–80, read from 120-dpi renders; docs/PLAN-vehicles-phase2.md 5d).
+import { VIGILANCE, vigilanceCount, ccssComponentRefusal, ccssMode, ccssPerceptionTn } from "../module/rules/drone-rules.mjs";
+describe("CCSS (Rigger 2 p.77–80)", () => {
+  it("Vigilance Code Criteria Table (p.79): Blue 1, Green 2, Amber 3, Red 4 successes; unknown → Green", () => {
+    expect(["blue", "green", "amber", "red"].map(vigilanceCount)).toEqual([1, 2, 3, 4]);
+    expect(vigilanceCount("mauve")).toBe(2);
+    expect(Object.keys(VIGILANCE)).toEqual(["blue", "green", "amber", "red"]);
+  });
+  it("jump limits (p.78): a room under 100 m², a corridor under 25 m; a device group always", () => {
+    expect(ccssComponentRefusal({ kind: "room", size: 99 })).toBeNull();
+    expect(ccssComponentRefusal({ kind: "room", size: 100 })).toMatch(/100 square meters/);
+    expect(ccssComponentRefusal({ kind: "room", size: 0 })).toMatch(/100/);
+    expect(ccssComponentRefusal({ kind: "corridor", size: 24.5 })).toBeNull();
+    expect(ccssComponentRefusal({ kind: "corridor", size: 25 })).toMatch(/25 meters/);
+    expect(ccssComponentRefusal({ kind: "device", size: 0 })).toBeNull();
+  });
+  it("the rigger's mode: a drone, else a component, else assuming the body", () => {
+    expect([ccssMode({ primary: "x" }), ccssMode({ ccssComponent: "c" }), ccssMode({}), ccssMode(null)]).toEqual(["drone", "component", "body", "body"]);
+  });
+  it("Rigger Perception Tests Table (p.78): door 5, tamper no alarm 3, tamper 3 × successes, destroyed 4, deactivated 6; alert −2; alarm no test", () => {
+    expect(["door", "tamper-no-alarm", "destroyed", "deactivated"].map(e => ccssPerceptionTn(e))).toEqual([5, 3, 4, 6]);
+    expect(ccssPerceptionTn("tamper-success", { tamperSuccesses: 3 })).toBe(9);
+    expect(ccssPerceptionTn("door", { onAlert: true })).toBe(3);
+    expect(ccssPerceptionTn("tamper-no-alarm", { onAlert: true })).toBe(2, "floor 2");
+    expect(ccssPerceptionTn("alarm")).toBeNull();
+    expect(ccssPerceptionTn("nonsense")).toBeNull();
+  });
+});

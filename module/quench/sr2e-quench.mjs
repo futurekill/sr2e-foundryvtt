@@ -20398,6 +20398,42 @@ function stubWorldSettings(keys) {
         });
       });
 
+      describe("The security rigger (Part 5d-1, R2 p.77–80)", function () {
+        it("a CCSS: assuming the body is Karma Pool only; Control a Room within the limits returns the pools; hardwired against EW", async function () {
+          this.timeout(30000);
+          const RCN = await import("../rc-net.mjs");
+          const sec = await Actor.create({ name: "Quench Security Rigger", type: "character", system: { rigging: true, vehicleControlRig: 1 } }); made.push(sec);
+          const [ccss] = await sec.createEmbeddedDocuments("Item", [{ name: "Quench CCSS", type: "ccss", system: { rating: 4, technicalRating: 6, vigilance: "amber",
+            components: [{ id: "lobby", name: "Lobby", kind: "room", size: 80 }, { id: "hall", name: "Hall", kind: "room", size: 150 },
+              { id: "c1", name: "East corridor", kind: "corridor", size: 20 }] } }]);
+          assert.isTrue(RCN.isCcss(ccss) && RCN.isRcDeck(ccss), "a CCSS is its own deck");
+          await call("rcConnect", { deckUuid: ccss.uuid, operatorUuid: sec.uuid });
+          assert.isTrue(RCN.ccssKarmaOnly(sec), "assuming the body (p.78)");
+          await sec.update({ "system.dicePools.combat.value": 4 });
+          const refused = await sec.rollSuccessTest(3, 4, { label: "Quench CCSS pool", poolDice: { combat: 2 } });
+          assert.isNull(refused, "no Dice Pools while assuming the body");
+          const karmaOnly = await sec.rollSuccessTest(3, 4, { label: "Quench CCSS plain" });
+          assert.ok(karmaOnly, "a test without pool dice still rolls");
+          let err = null;
+          try { await call("ccssControl", { deckUuid: ccss.uuid, componentId: "hall" }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /100 square meters/, "a room of 150 m² is too big");
+          await call("ccssControl", { deckUuid: ccss.uuid, componentId: "lobby" });
+          assert.equal(RCN.ccssComponentOf(ccss)?.id, "lobby");
+          assert.isFalse(RCN.ccssKarmaOnly(sec), "jumped into a room: the pools return");
+          await call("ccssControl", { deckUuid: ccss.uuid, componentId: "c1" });
+          assert.equal(RCN.ccssComponentOf(ccss)?.id, "c1", "a corridor under 25 m");
+          // Hardwired (p.79): no Signal Interception or MIJI against it.
+          const intr = await Actor.create({ name: "Quench Intruder", type: "character", system: { rigging: true, vehicleControlRig: 1 } }); made.push(intr);
+          const [deck] = await intr.createEmbeddedDocuments("Item", [{ name: "Quench Intruder Deck", type: "gear", system: { rating: 4 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+          err = null;
+          try { await call("ewIntercept", { intruderDeckUuid: deck.uuid, targetDeckUuid: ccss.uuid, messageId: "x" }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /hardwired/, "no interception");
+          await call("rcDisconnect", { deckUuid: ccss.uuid });
+          assert.isFalse(RCN.ccssKarmaOnly(sec), "disconnected: no restriction");
+          assert.notOk(RCN.netOf(ccss).ccssComponent, "the jump ends with the connection");
+        });
+      });
+
       describe("Remote-control networks in a chase (Part 5.0)", function () {
         it("a networked drone is acted for by its operator on its own Pilot; no crew driver; a jump makes a reserved roll stale", async function () {
           this.timeout(30000);
