@@ -5,7 +5,7 @@
  */
 import * as RCX from "../rc-net.mjs";
 import { netOf, rc, vKey, deckFlux, droneModeOf, primaryOf, rigEligible, ivisBalance, hasIvisMaster, ivisPaths, nmpDice } from "../rc-net.mjs";
-import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit, ccssMode, ccssComponentRefusal, ccssPerceptionTn, vigilanceCount, ccssNextStep } from "../rules/drone-rules.mjs";
+import { deckLimits, SKILL_SUCCESS_TABLE, comprehensionTest, groupPilot, ivisSplit, ccssMode, ccssComponentRefusal, ccssPerceptionTn, vigilanceCount, ccssNextStep, ccssEncrypted } from "../rules/drone-rules.mjs";
 import { RL } from "../util/roll-label.mjs";
 import { fluxRange } from "../rules/vehicle-sensor-rules.mjs";
 import * as EWX from "../ew.mjs";
@@ -88,7 +88,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const rcb = EWX.rcombatOf(d);
     return { combat: rcb ? this.#combatRow(d, rcb, "defender") : null, mode, modeLabel: mode === "body" ? "assuming the body (Karma Pool only)" : mode === "component"
       ? `jumped into ${RCX.ccssComponentOf(d)?.name || "a component"}` : "jumped into a drone",
-      technicalRating: s.technicalRating, vigilance: s.vigilance, vigilanceCount: vigilanceCount(s.vigilance), encrypted: s.encrypted,
+      technicalRating: s.technicalRating, vigilance: s.vigilance, vigilanceCount: vigilanceCount(s.vigilance), encrypted: ccssEncrypted(s),
       decryptionRating: s.decryptionRating, onAlert: s.onAlert,
       components: (s.components ?? []).map(c => ({ ...c, current: net.ccssComponent === c.id && !net.primary, refusal: ccssComponentRefusal(c),
         unit: c.kind === "room" ? "m²" : c.kind === "corridor" ? "m" : "" })) };

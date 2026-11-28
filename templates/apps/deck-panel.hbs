@@ -28,7 +28,7 @@
       <tbody>
         {{#each ccss.components}}
         <tr class="{{#if current}}primary{{/if}}">
-          <td>{{name}}</td><td>{{kind}}</td><td>{{#if unit}}{{size}} {{unit}}{{/if}}</td>
+          <td>{{name}}{{#if devices}}<br><small>{{devices}}</small>{{/if}}</td><td>{{kind}}</td><td>{{#if unit}}{{size}} {{unit}}{{/if}}</td>
           <td>{{#if ../connected}}{{#unless current}}{{#if refusal}}<em title="{{refusal}}">too large</em>{{else}}<button type="button" data-action="ccssControl" data-id="{{id}}" title="Control a Room: Complex Action — perception shifts there, its devices are yours, your pools return (p.78)">Control</button>{{/if}}{{/unless}}{{/if}}</td>
         </tr>
         {{else}}<tr><td colspan="4"><em>No components: add them on the item sheet.</em></td></tr>{{/each}}
