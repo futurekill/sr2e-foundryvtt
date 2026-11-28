@@ -27,7 +27,9 @@ export const netKey = (deck) => RC.vKey(deck.uuid);
 /** The rating of a deck module (`protocol-emulation`, `decryption`, `rc-encryption`, `rc-eccm`) bound to this deck. */
 export function moduleRating(deck, rule) {
   const owner = RC.deckActor(deck);
-  return (owner?.items ?? []).filter(i => rcRuleOf(i) === rule && (i.flags?.sr2e?.deckId ?? RC.soleDeckId(owner)) === deck.id)
+  // A module in a cyberdeck (a decker decking a rigged system, p.80) needs no binding when the actor has one cyberdeck.
+  const sole = isCyberdeck(deck) ? ((owner?.items ?? []).filter(isCyberdeck).length === 1 ? deck.id : null) : RC.soleDeckId(owner);
+  return (owner?.items ?? []).filter(i => rcRuleOf(i) === rule && (i.flags?.sr2e?.deckId ?? sole) === deck.id)
     .reduce((m, i) => Math.max(m, num(i.system.rating)), 0);
 }
 /** The holder's working ECM suite rating (a vehicle's transmitters, Part 4a), else 0. */
@@ -182,6 +184,20 @@ function loadPair(intruderDeckUuid, targetDeckUuid, user) {
 
 /* ── Accessing a security system (Rigger 2 p.79–80; plan 5d) ──────────────────────────────────────────────────── */
 
+/** A decker's cyberdeck (gear or a cranial deck) used to deck a rigged system (p.80; 5d). */
+export const isCyberdeck = (item) => (item?.type === "gear" && item.system?.category === "cyberdeck") || (item?.type === "cyberware" && !!item.system?.cranialDeck);
+/** The intruding device: an RC deck, or a cyberdeck carrying a rigger protocol emulation module (p.80). */
+function loadIntruder(uuid, user) {
+  const d = fromUuidSync(uuid);
+  if (d && isCyberdeck(d)) {
+    if (!user.isGM && !RC.deckActor(d)?.testUserPermission(user, "OWNER")) throw new Error("not your cyberdeck");
+    if (!moduleRating(d, "protocol-emulation")) throw new Error("decking a rigged system needs a rigger protocol emulation module in the cyberdeck (Rigger 2 p.80)");
+    return { deck: d, op: RC.deckActor(d), decker: true };
+  }
+  if (!d || !RC.isRcDeck(d) || RC.isCcss(d) || !RC.mayRun(user, d)) throw new Error("not your remote-control deck");
+  return { deck: d, op: fromUuidSync(RC.netOf(d)?.operator ?? "") ?? RC.deckActor(d), decker: false };
+}
+
 /** The intruder's progress on a CCSS: `flags.sr2e.ccssAccess.<intruder deck key>` on the CCSS item, GM-written. */
 export const ccssAccessOf = (ccss, intruderDeck) => ccss?.flags?.sr2e?.ccssAccess?.[netKey(intruderDeck)] ?? {};
 /** The general Electronics Skill's dice (step 2 uses the skill itself, p.80). */
@@ -224,30 +240,45 @@ async function rcombatEnd(ccss, winnerSide, why) {
 }
 
 /** A rigger-combat card (p.80): Willpower dice vs the opponent's Willpower (+2 for a decker), Control Pool ≤ the cap. */
+/**
+ * A decker's Control Pool in rigger combat (p.80): ⌈emulation ÷ 2⌉ per Combat Turn — a decker's sheet has no Control
+ * Pool, so it lives on the combat record, refilled when the combat's round changes (outside combat, per exchange).
+ */
+export function deckerPoolLeft(c) {
+  const cap = Math.ceil(num(c?.intruder?.emulation) / 2), round = game.combat?.started ? game.combat.round : null;
+  return c?.intruder?.pool == null || c.intruder.poolRound !== round ? cap : num(c.intruder.pool);
+}
+/** A rigger-combat card (p.80): Willpower dice vs the opponent's Willpower (+2 for a decker), Control Pool ≤ the cap. */
 function rcombatCard(ccss, c, side, net, messageId) {
   const actor = fromUuidSync(c[side].actorUuid), other = fromUuidSync(c[side === "intruder" ? "defender" : "intruder"].actorUuid);
   const tn = num(other?.system?.willpower?.value) + (c[side].decker ? 2 : 0);
-  const test = checkCard(net, messageId, { kind: "rcombat", actor, maxDice: num(actor.system.willpower?.value), minTn: tn, bind: { ccss: ccss.uuid, combat: c.id } });
+  const will = num(actor.system.willpower?.value);
+  const deckerLeft = c[side].decker ? Math.min(deckerPoolLeft(c), will) : 0;
+  const test = checkCard(net, messageId, { kind: "rcombat", actor, maxDice: will + deckerLeft, minTn: tn, bind: { ccss: ccss.uuid, combat: c.id } });
   const control = (test.dice ?? []).filter(d => d.sourceKey === "pool:control").length;
   if (control > rcombatCap(ccss, side, "willpower")) throw new Error(`at most ${rcombatCap(ccss, side, "willpower")} Control Pool dice here (Rigger 2 p.78, p.80)`);
-  return test;
+  // A decker's extra dice above Willpower come out of the per-turn pool (returned for the caller to write).
+  const used = c[side].decker ? Math.max(0, (test.dice ?? []).filter(d => d.sourceKey === "base").length - will) : 0;
+  return Object.assign(test, { deckerUsed: used });
 }
+const deckerPoolUpdate = (c, used) => used ? { "flags.sr2e.rcombat.intruder.pool": deckerPoolLeft(c) - used,
+  "flags.sr2e.rcombat.intruder.poolRound": game.combat?.started ? game.combat.round : null } : {};
 
 export function registerEw() {
   // 5d: rigger combat starts once access is complete (p.80). No security rigger jacked in: the intruder takes it.
   gmOp("rcombatStart", ({ intruderDeckUuid, ccssUuid }, user) => RC.rcQueue(async () => {
-    const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
-    if (!intruder || !RC.isRcDeck(intruder) || RC.isCcss(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your remote-control deck");
+    const { deck: intruder, op: iop, decker } = loadIntruder(intruderDeckUuid, user), ccss = fromUuidSync(ccssUuid);
     if (!RC.isCcss(ccss)) throw new Error("that isn't a security system");
-    if (ccssNextStep(ccss.system, ccssAccessOf(ccss, intruder)) !== "combat") throw new Error("finish accessing the system first (Rigger 2 p.79–80)");
+    if (ccssNextStep(ccss.system, ccssAccessOf(ccss, intruder), { decker }) !== "combat") throw new Error("finish accessing the system first (Rigger 2 p.79–80)");
     if (rcombatOf(ccss)) throw new Error("a rigger combat is already under way here");
-    const iop = fromUuidSync(RC.netOf(intruder)?.operator ?? "");
     if (!iop) throw new Error("connect your deck first");
+    const emulation = decker ? moduleRating(intruder, "protocol-emulation") : 0;
     const net = RC.netOf(ccss), def = net?.connection?.state === "connected" ? fromUuidSync(net.operator ?? "") : null;
     await ccss.update({ "flags.sr2e.rcombat": { id: foundry.utils.randomID(), state: "open", winner: null, exchange: null,
-      intruder: { actorUuid: iop.uuid, deckUuid: intruder.uuid, decker: false, emulation: 0 }, defender: { actorUuid: def?.uuid ?? null } } });
+      intruder: { actorUuid: iop.uuid, deckUuid: intruder.uuid, decker, emulation, pool: null, poolRound: null }, defender: { actorUuid: def?.uuid ?? null } } });
     if (!def) { await rcombatEnd(fromUuidSync(ccssUuid), "intruder", "no security rigger was jacked in"); return { took: true }; }
-    await card(`${esc(iop.name)} engages ${esc(def.name)} in rigger combat for ${esc(ccss.name)}: rigged Initiative as standard; the winner attacks (Complex) or disengages (Free) — Rigger 2 p.80.`, def);
+    await card(`${esc(iop.name)} engages ${esc(def.name)} in rigger combat for ${esc(ccss.name)}: rigged Initiative as standard; the winner attacks (Complex) or disengages (Free) — Rigger 2 p.80.${decker
+      ? ` A decker: no Matrix programs, +2 TN on all tests, Initiative −2 and no Response Increase dice, a Control Pool of ${Math.ceil(emulation / 2)}, damage as non-lethal black IC.` : ""}`, def);
     return { took: false };
   }));
   // An attack (Complex): the attacker's Willpower card; the defender answers with theirs (rcombatDefend).
@@ -259,9 +290,9 @@ export function registerEw() {
     if (!user.isGM && !actor?.testUserPermission(user, "OWNER")) throw new Error("not your rigger");
     if (c.exchange) throw new Error("an attack is already waiting for its defense");
     const net = RC.freshNet(ccss);
-    rcombatCard(ccss, c, side, net, messageId);
+    const aTest = rcombatCard(ccss, c, side, net, messageId);
     await RC.save(ccss, net);
-    await ccss.update({ "flags.sr2e.rcombat.exchange": { attacker: side, attackMsg: messageId } });
+    await ccss.update({ "flags.sr2e.rcombat.exchange": { attacker: side, attackMsg: messageId }, ...deckerPoolUpdate(c, aTest.deckerUsed) });
     const other = side === "intruder" ? "defender" : "intruder";
     await card(`${esc(actor.name)} attacks in rigger combat (opposed Willpower Tests, Rigger 2 p.80): ${esc(fromUuidSync(c[other].actorUuid)?.name ?? "?")} defends from the deck panel.`, fromUuidSync(c[other].actorUuid));
     return { ok: true };
@@ -278,7 +309,7 @@ export function registerEw() {
     const aMsg = game.messages.get(c.exchange.attackMsg)?.flags?.sr2e?.test;
     const out = rcombatOutcome(await successesOf(aMsg), await successesOf(dTest));
     await RC.save(ccss, net);
-    await ccss.update({ "flags.sr2e.rcombat.exchange": null });
+    await ccss.update({ "flags.sr2e.rcombat.exchange": null, ...deckerPoolUpdate(c, dTest.deckerUsed) });
     if (!out.winner) { await card(`Rigger combat: a tie — no damage (Rigger 2 p.80).`, actor); return out; }
     const winSide = out.winner === "attacker" ? c.exchange.attacker : side, loseSide = winSide === "intruder" ? "defender" : "intruder";
     const winner = fromUuidSync(c[winSide].actorUuid), loser = fromUuidSync(c[loseSide].actorUuid);
@@ -311,12 +342,10 @@ export function registerEw() {
 
   // 5d: an access step (p.80) — the intruder's card vs the system's Technical Rating, the Vigilance count to pass.
   gmOp("ccssAccess", ({ intruderDeckUuid, ccssUuid, step, messageId }, user) => RC.rcQueue(async () => {
-    const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
-    if (!intruder || !RC.isRcDeck(intruder) || RC.isCcss(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your remote-control deck");
+    const { deck: intruder, op, decker } = loadIntruder(intruderDeckUuid, user), ccss = fromUuidSync(ccssUuid);
     if (!RC.isCcss(ccss)) throw new Error("that isn't a security system");
-    const op = fromUuidSync(RC.netOf(intruder)?.operator ?? "") ?? RC.deckActor(intruder);
     const state = ccssAccessOf(ccss, intruder);
-    const next = ccssNextStep(ccss.system, state);
+    const next = ccssNextStep(ccss.system, state, { decker });
     if (step !== next) throw new Error(next === "combat" ? "access is complete: next is rigger combat (Rigger 2 p.80)" : `the next step is ${next}`);
     if (step === "protocols" && !state.protocolsKnown) throw new Error("the protocols must be found out first — the GM marks them known (Rigger 2 p.80)");
     const { dice, need } = ccssStepDice(step, op, intruder);
@@ -336,7 +365,7 @@ export function registerEw() {
     if (!user.isGM) throw new Error("the GM decides this");
     if (!["protocolsKnown", "slavePort"].includes(key)) throw new Error("unknown mark");
     const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
-    if (!RC.isRcDeck(intruder) || !RC.isCcss(ccss)) throw new Error("a remote-control deck and a security system");
+    if (!(RC.isRcDeck(intruder) || isCyberdeck(intruder)) || !RC.isCcss(ccss)) throw new Error("an intruding deck and a security system");
     await ccss.update({ [`flags.sr2e.ccssAccess.${netKey(intruder)}.${key}`]: !!on });
     return ccssAccessOf(ccss, intruder);
   }));
@@ -668,4 +697,58 @@ export function bindEwCard(message, html) {
       if (id) await gmCall("ewMijiRoll", { targetDeckUuid: target.uuid, aid: r.aid, side: "defender", messageId: id });
     } catch (err) { ui.notifications.warn(err.message); }
   });
+}
+
+/* ── A decker decking a rigged system (Rigger 2 p.80; plan 5d) ───────────────────────────────────────────────── */
+
+/** The active cyberdeck of a decker (gear or cranial, `deck.active`), or null. */
+export const activeCyberdeck = (actor) => (actor?.items ?? []).find(i => isCyberdeck(i) && i.system?.deck?.active) ?? null;
+
+/** The decker's dialog: every CCSS with the next step (steps 1–3, then rigger combat), rolled and sent from here. */
+export async function deckRiggedSystem(actor) {
+  const deck = activeCyberdeck(actor);
+  if (!deck) return ui.notifications.warn(`${actor.name} has no active cyberdeck.`);
+  if (!moduleRating(deck, "protocol-emulation")) return ui.notifications.warn("Decking a rigged system needs a rigger protocol emulation module in the cyberdeck (Rigger 2 p.80).");
+  const all = [];
+  for (const a of [...(game.actors ?? []), ...(canvas?.scene?.tokens ?? []).filter(t => !t.actorLink).map(t => t.actor).filter(Boolean)]) {
+    for (const c of a?.items ?? []) if (RC.isCcss(c) && !all.some(x => x.uuid === c.uuid)) all.push(c);
+  }
+  if (!all.length) return ui.notifications.info("No security system (CCSS) in this world.");
+  const rows = all.map(c => {
+    const next = ccssNextStep(c.system, ccssAccessOf(c, deck), { decker: true }), rc = rcombatOf(c);
+    return `<tr><td>${esc(c.parent?.name)} — ${esc(c.name)}<br><small>TN ${num(c.system.technicalRating)} · ${vigilanceCount(c.system.vigilance)} needed</small></td>
+      <td>${next === "combat" ? (rc?.intruder?.deckUuid === deck.uuid ? `<em>rigger combat: use the buttons below</em>` : `<button type="button" data-uuid="${c.uuid}" data-act="engage">Engage</button>`)
+        : `<button type="button" data-uuid="${c.uuid}" data-act="${next}">${next === "tap" ? "Tap into a dataline" : "Defeat encryption"}</button>`}
+      ${rc?.intruder?.deckUuid === deck.uuid ? `<button type="button" data-uuid="${c.uuid}" data-act="${rc.exchange && rc.exchange.attacker === "defender" ? "defend" : "attack"}">${rc.exchange && rc.exchange.attacker === "defender" ? "Defend" : "Attack"}</button>
+        <button type="button" data-uuid="${c.uuid}" data-act="disengage">Disengage</button>` : ""}</td></tr>`;
+  }).join("");
+  let pick = null;
+  await foundry.applications.api.DialogV2.wait({ window: { title: `Deck a rigged system — ${actor.name}` }, position: { width: 560 }, rejectClose: false,
+    content: `<p class="hint">Rigger 2 p.80: steps 1–3 of accessing a security system, then rigger combat — no Matrix programs, +2 TN on all
+      tests, Initiative −2 and no Response Increase dice, a Control Pool of ${Math.ceil(moduleRating(deck, "protocol-emulation") / 2)} (half the emulation module, rounded up) each Combat Turn.</p>
+      <table class="deck-table">${rows}</table>`,
+    render: (_e, dialog) => dialog.element.querySelectorAll("button[data-act]").forEach(b => b.addEventListener("click", () => { pick = { uuid: b.dataset.uuid, act: b.dataset.act }; dialog.close(); })),
+    buttons: [{ action: "close", label: "Close" }] });
+  if (!pick) return;
+  const ccss = fromUuidSync(pick.uuid);
+  try {
+    if (pick.act === "engage") return await gmCall("rcombatStart", { intruderDeckUuid: deck.uuid, ccssUuid: ccss.uuid });
+    if (pick.act === "disengage") return await gmCall("rcombatDisengage", { ccssUuid: ccss.uuid, side: "intruder" });
+    if (pick.act === "tap" || pick.act === "decrypt") {
+      const { dice } = ccssStepDice(pick.act, actor, deck);
+      const id = await rollEwCard(actor, { kind: `ccss-${pick.act}`, dice, tn: num(ccss.system.technicalRating), label: `${pick.act === "tap" ? "Tap into a dataline" : "Defeat encryption"} — ${ccss.parent?.name} (decker, Rigger 2 p.80)`, extra: { ccss: ccss.uuid } });
+      if (id) return await gmCall("ccssAccess", { intruderDeckUuid: deck.uuid, ccssUuid: ccss.uuid, step: pick.act, messageId: id });
+      return;
+    }
+    const c = rcombatOf(ccss), foe = fromUuidSync(c.defender.actorUuid);
+    const will = num(actor.system.willpower?.value), left = Math.min(deckerPoolLeft(c), will);
+    const extra = left ? await foundry.applications.api.DialogV2.prompt({ window: { title: "Rigger combat" },
+      content: `<div class="form-group"><label>Control Pool dice (${left} left this Combat Turn)</label><input type="number" name="n" value="0" min="0" max="${left}" style="width:52px"></div>`,
+      ok: { label: "Roll", callback: (_e2, b) => Math.min(left, Math.max(0, num(b.form.elements.n.value))) }, rejectClose: false }).catch(() => null) : 0;
+    if (extra == null) return;
+    const res = await actor.rollSuccessTest(will + extra, num(foe?.system?.willpower?.value) + 2, {
+      label: `Rigger combat — ${pick.act}: Willpower${extra ? ` + ${extra} Control Pool` : ""} vs ${foe?.name}'s Willpower +2 (decker, Rigger 2 p.80)`,
+      flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: c.id } } } });
+    if (res?.testMessageId) return await gmCall(pick.act === "attack" ? "rcombatAttack" : "rcombatDefend", { ccssUuid: ccss.uuid, side: "intruder", messageId: res.testMessageId });
+  } catch (err) { ui.notifications.warn(`SR2E | ${err?.message ?? err}`); }
 }

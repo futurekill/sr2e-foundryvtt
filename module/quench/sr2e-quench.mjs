@@ -20526,6 +20526,39 @@ function stubWorldSettings(keys) {
         });
       });
 
+      describe("Decking a rigged system (Part 5d-3b, R2 p.80)", function () {
+        it("a decker: steps 1–3 only, then rigger combat at +2 TN with a per-turn Control Pool of ⌈emulation ÷ 2⌉", async function () {
+          this.timeout(40000);
+          const EWX = await import("../ew.mjs");
+          const withFaces = async (faces, fn) => { const o = CONFIG.Dice.randomUniform, q = [...faces]; CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : o(); try { return await fn(); } finally { CONFIG.Dice.randomUniform = o; } };
+          const sec = await Actor.create({ name: "Quench Deck Sec", type: "character", system: { rigging: true, vehicleControlRig: 1, willpower: { base: 4 } } }); made.push(sec);
+          const [ccss] = await sec.createEmbeddedDocuments("Item", [{ name: "Quench Decked CCSS", type: "ccss", system: { technicalRating: 4, vigilance: "green" } }]);
+          await call("rcConnect", { deckUuid: ccss.uuid, operatorUuid: sec.uuid });
+          const dk = await Actor.create({ name: "Quench Decker", type: "character", system: { willpower: { base: 4 }, intelligence: { base: 5 } } }); made.push(dk);
+          const [cd] = await dk.createEmbeddedDocuments("Item", [{ name: "Quench Cyberdeck", type: "gear", system: { category: "cyberdeck", deck: { active: true, mpcp: 6 } } }]);
+          let err = null;
+          try { await call("ccssAccess", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid, step: "tap", messageId: "x" }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /protocol emulation module/, "a decker needs the module");
+          await dk.createEmbeddedDocuments("Item", [{ name: "Quench Emulation", type: "gear", system: { rating: 5 }, flags: { sr2e: { rule: "protocol-emulation" } } },
+            { name: "Quench Tap", type: "gear", system: { rating: 2 }, flags: { sr2e: { rule: "dataline-tap" } } },
+            { name: "Electronics", type: "skill", system: { rating: 3, category: "active" } }]);
+          assert.equal(EWX.moduleRating(cd, "protocol-emulation"), 5, "a module in the only cyberdeck needs no binding");
+          const tapId = await withFaces([5, 5, 5, 5, 5], () => dk.rollSuccessTest(5, 4, { label: "Quench decker tap", flags: { sr2e: { ew: { kind: "ccss-tap", ccss: ccss.uuid } } } })).then(r => r.testMessageId);
+          await call("ccssAccess", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid, step: "tap", messageId: tapId });
+          await call("rcombatStart", { intruderDeckUuid: cd.uuid, ccssUuid: ccss.uuid });
+          const c = EWX.rcombatOf(ccss);
+          assert.ok(c?.intruder?.decker, "steps 1–3 done: rigger combat, as a decker (no protocols step)");
+          assert.equal(EWX.deckerPoolLeft(c), 3, "⌈5 ÷ 2⌉");
+          const roll = (dice, tn) => withFaces(Array(dice).fill(5), () => dk.rollSuccessTest(dice, tn, { label: "Quench decker rcombat",
+            flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: c.id } } } })).then(r => r.testMessageId);
+          err = null;
+          try { await call("rcombatAttack", { ccssUuid: ccss.uuid, side: "intruder", messageId: await roll(4, 4) }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /TN 6 or more/, "+2 TN for a decker");
+          await call("rcombatAttack", { ccssUuid: ccss.uuid, side: "intruder", messageId: await roll(6, 6) });
+          assert.equal(EWX.deckerPoolLeft(EWX.rcombatOf(ccss)), 1, "2 Control Pool dice spent");
+        });
+      });
+
       describe("Remote-control networks in a chase (Part 5.0)", function () {
         it("a networked drone is acted for by its operator on its own Pilot; no crew driver; a jump makes a reserved roll stale", async function () {
           this.timeout(30000);

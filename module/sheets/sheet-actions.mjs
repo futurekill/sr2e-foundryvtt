@@ -4270,6 +4270,7 @@ const SHARED_ACTIONS = {
   healPhysical: onHealPhysical,
   firstAid: onFirstAid,
   askTreatment: onAskTreatment,
+  deckRiggedSystem: async function (event) { event.preventDefault(); return (await import("../ew.mjs")).deckRiggedSystem(this.document); },
   endStabilization: onEndStabilization,
   contributeTeamKarma: onContributeTeamKarma,
   drawTeamKarma: onDrawTeamKarma,

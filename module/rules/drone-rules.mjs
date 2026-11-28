@@ -114,10 +114,11 @@ export const ccssEncrypted = (sys) => !!sys?.encrypted || ["amber", "red"].inclu
  * hardwire access point) is the GM's narration; step 2 is skipped at an open slave port; step 3 only for an encrypted
  * system; then rigger combat (step 5).
  */
-export function ccssNextStep(sys, state = {}) {
+export function ccssNextStep(sys, state = {}, { decker = false } = {}) {
   if (!state.slavePort && !state.tap) return "tap";
   if (ccssEncrypted(sys) && !state.decrypt) return "decrypt";
-  if (!state.protocols) return "protocols";
+  // A DECKER "performs steps 1–3" (p.80): their protocol emulation module and its software stand in for step 4.
+  if (!decker && !state.protocols) return "protocols";
   return "combat";
 }
 /**
