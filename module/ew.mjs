@@ -14,7 +14,8 @@ import * as RC from "./rc-net.mjs";
 import * as EW from "./rules/ew-rules.mjs";
 import { rcRuleOf } from "./rules/drone-rules.mjs";
 import { fluxRange } from "./rules/vehicle-sensor-rules.mjs";
-import { comprehensionTest, SKILL_SUCCESS_TABLE, ccssNextStep, ccssStepOutcome, vigilanceCount } from "./rules/drone-rules.mjs";
+import { comprehensionTest, SKILL_SUCCESS_TABLE, ccssNextStep, ccssStepOutcome, vigilanceCount, rcombatControlCap, rcombatDamage,
+  rcombatOutcome } from "./rules/drone-rules.mjs";
 import { isRigger2 } from "./vehicle-mode.mjs";
 
 const num = (n) => Number(n) || 0;
@@ -196,7 +197,118 @@ export function ccssStepDice(step, op, intruderDeck) {
   return { gear: 0, dice: 0, need: "" };
 }
 
+/* ── Rigger combat (Rigger 2 p.80; plan 5d) ─────────────────────────────────────────────────────────────────── */
+
+/** The open rigger combat on a CCSS (`flags.sr2e.rcombat`, GM-written), or null. */
+export const rcombatOf = (ccss) => { const c = ccss?.flags?.sr2e?.rcombat; return c?.state === "open" ? c : null; };
+/** The Control Pool a combatant may add (attack: Willpower; resistance: Body), filtered by p.78/p.80. */
+export function rcombatCap(ccss, side, attrKey) {
+  const c = ccss?.flags?.sr2e?.rcombat ?? {};
+  const actor = fromUuidSync(c[side]?.actorUuid ?? "");
+  return rcombatControlCap({ role: side, decker: !!c[side]?.decker, emulation: c[side]?.emulation ?? 0,
+    karmaOnly: side === "defender" ? RC.ccssKarmaOnly(actor) : true, attr: num(actor?.system?.[attrKey]?.value),
+    pool: num(actor?.system?.dicePools?.control?.value) });
+}
+/** The winner takes the system (p.80): they become its connected operator; the combat ends. */
+async function rcombatEnd(ccss, winnerSide, why) {
+  const c = ccss.flags.sr2e.rcombat;
+  const net = RC.freshNet(ccss);
+  if (winnerSide === "intruder") {
+    net.operator = c.intruder.actorUuid; net.primary = null; delete net.ccssComponent;
+    net.connection = { state: "connected", gen: num(net.connection?.gen) + 1 };
+  }
+  await RC.save(ccss, net);
+  await ccss.update({ "flags.sr2e.rcombat.state": "ended", "flags.sr2e.rcombat.winner": winnerSide, "flags.sr2e.rcombat.exchange": null });
+  const w = fromUuidSync(c[winnerSide]?.actorUuid ?? "");
+  await card(`Rigger combat for ${esc(ccss.name)} ends — ${esc(why)}. <strong>${esc(w?.name ?? "?")} controls the system</strong>${winnerSide === "intruder" ? " and gets everything the defeated rigger knew" : ""} (Rigger 2 p.80).`, w);
+}
+
+/** A rigger-combat card (p.80): Willpower dice vs the opponent's Willpower (+2 for a decker), Control Pool ≤ the cap. */
+function rcombatCard(ccss, c, side, net, messageId) {
+  const actor = fromUuidSync(c[side].actorUuid), other = fromUuidSync(c[side === "intruder" ? "defender" : "intruder"].actorUuid);
+  const tn = num(other?.system?.willpower?.value) + (c[side].decker ? 2 : 0);
+  const test = checkCard(net, messageId, { kind: "rcombat", actor, maxDice: num(actor.system.willpower?.value), minTn: tn, bind: { ccss: ccss.uuid, combat: c.id } });
+  const control = (test.dice ?? []).filter(d => d.sourceKey === "pool:control").length;
+  if (control > rcombatCap(ccss, side, "willpower")) throw new Error(`at most ${rcombatCap(ccss, side, "willpower")} Control Pool dice here (Rigger 2 p.78, p.80)`);
+  return test;
+}
+
 export function registerEw() {
+  // 5d: rigger combat starts once access is complete (p.80). No security rigger jacked in: the intruder takes it.
+  gmOp("rcombatStart", ({ intruderDeckUuid, ccssUuid }, user) => RC.rcQueue(async () => {
+    const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
+    if (!intruder || !RC.isRcDeck(intruder) || RC.isCcss(intruder) || !RC.mayRun(user, intruder)) throw new Error("not your remote-control deck");
+    if (!RC.isCcss(ccss)) throw new Error("that isn't a security system");
+    if (ccssNextStep(ccss.system, ccssAccessOf(ccss, intruder)) !== "combat") throw new Error("finish accessing the system first (Rigger 2 p.79–80)");
+    if (rcombatOf(ccss)) throw new Error("a rigger combat is already under way here");
+    const iop = fromUuidSync(RC.netOf(intruder)?.operator ?? "");
+    if (!iop) throw new Error("connect your deck first");
+    const net = RC.netOf(ccss), def = net?.connection?.state === "connected" ? fromUuidSync(net.operator ?? "") : null;
+    await ccss.update({ "flags.sr2e.rcombat": { id: foundry.utils.randomID(), state: "open", winner: null, exchange: null,
+      intruder: { actorUuid: iop.uuid, deckUuid: intruder.uuid, decker: false, emulation: 0 }, defender: { actorUuid: def?.uuid ?? null } } });
+    if (!def) { await rcombatEnd(fromUuidSync(ccssUuid), "intruder", "no security rigger was jacked in"); return { took: true }; }
+    await card(`${esc(iop.name)} engages ${esc(def.name)} in rigger combat for ${esc(ccss.name)}: rigged Initiative as standard; the winner attacks (Complex) or disengages (Free) — Rigger 2 p.80.`, def);
+    return { took: false };
+  }));
+  // An attack (Complex): the attacker's Willpower card; the defender answers with theirs (rcombatDefend).
+  gmOp("rcombatAttack", ({ ccssUuid, side, messageId }, user) => RC.rcQueue(async () => {
+    const ccss = fromUuidSync(ccssUuid), c = rcombatOf(ccss);
+    if (!c) throw new Error("no rigger combat here");
+    if (!["intruder", "defender"].includes(side)) throw new Error("which side?");
+    const actor = fromUuidSync(c[side].actorUuid);
+    if (!user.isGM && !actor?.testUserPermission(user, "OWNER")) throw new Error("not your rigger");
+    if (c.exchange) throw new Error("an attack is already waiting for its defense");
+    const net = RC.freshNet(ccss);
+    rcombatCard(ccss, c, side, net, messageId);
+    await RC.save(ccss, net);
+    await ccss.update({ "flags.sr2e.rcombat.exchange": { attacker: side, attackMsg: messageId } });
+    const other = side === "intruder" ? "defender" : "intruder";
+    await card(`${esc(actor.name)} attacks in rigger combat (opposed Willpower Tests, Rigger 2 p.80): ${esc(fromUuidSync(c[other].actorUuid)?.name ?? "?")} defends from the deck panel.`, fromUuidSync(c[other].actorUuid));
+    return { ok: true };
+  }));
+  // The defense: opposed Willpower; the side with more successes deals (Willpower)L Stun +1 level per 2 net.
+  gmOp("rcombatDefend", ({ ccssUuid, messageId }, user) => RC.rcQueue(async () => {
+    const ccss = fromUuidSync(ccssUuid), c = rcombatOf(ccss);
+    if (!c?.exchange) throw new Error("no attack is waiting");
+    const side = c.exchange.attacker === "intruder" ? "defender" : "intruder";
+    const actor = fromUuidSync(c[side].actorUuid);
+    if (!user.isGM && !actor?.testUserPermission(user, "OWNER")) throw new Error("not your rigger");
+    const net = RC.freshNet(ccss);
+    const dTest = rcombatCard(ccss, c, side, net, messageId);
+    const aMsg = game.messages.get(c.exchange.attackMsg)?.flags?.sr2e?.test;
+    const out = rcombatOutcome(await successesOf(aMsg), await successesOf(dTest));
+    await RC.save(ccss, net);
+    await ccss.update({ "flags.sr2e.rcombat.exchange": null });
+    if (!out.winner) { await card(`Rigger combat: a tie — no damage (Rigger 2 p.80).`, actor); return out; }
+    const winSide = out.winner === "attacker" ? c.exchange.attacker : side, loseSide = winSide === "intruder" ? "defender" : "intruder";
+    const winner = fromUuidSync(c[winSide].actorUuid), loser = fromUuidSync(c[loseSide].actorUuid);
+    const dmg = rcombatDamage(num(winner.system.willpower?.value), out.net);
+    await card(`Rigger combat: ${esc(winner.name)} wins by ${out.net} — ${dmg.power}${dmg.level} Stun to ${esc(loser.name)}, resisted with Body (Rigger 2 p.80).
+      <div class="sr2e-karma-actions"><button type="button" class="sr2e-rcombat-resist" data-ccss="${esc(ccss.uuid)}" data-actor="${esc(loser.uuid)}"
+        data-power="${dmg.power}" data-level="${dmg.level}">Resist</button></div>`, loser);
+    return { ...out, winSide, damage: dmg };
+  }));
+  // After a resistance (or any time): a combatant who passed out loses; the other takes the system.
+  gmOp("rcombatCheck", ({ ccssUuid }, user) => RC.rcQueue(async () => {
+    const ccss = fromUuidSync(ccssUuid), c = rcombatOf(ccss);
+    if (!c) return { open: false };
+    const out = (a) => { const cm = a?.system?.conditionMonitor; return !!cm && ((cm.stun?.value ?? 0) >= (cm.stun?.max ?? 10) || (cm.physical?.value ?? 0) >= (cm.physical?.max ?? 10)); };
+    for (const side of ["intruder", "defender"]) {
+      if (out(fromUuidSync(c[side].actorUuid))) { await rcombatEnd(ccss, side === "intruder" ? "defender" : "intruder", `${fromUuidSync(c[side].actorUuid)?.name} passed out`); return { open: false }; }
+    }
+    return { open: true };
+  }));
+  // Disengaging (Free): jacking out of the system surrenders control to the other rigger (p.80).
+  gmOp("rcombatDisengage", ({ ccssUuid, side }, user) => RC.rcQueue(async () => {
+    const ccss = fromUuidSync(ccssUuid), c = rcombatOf(ccss);
+    if (!c) throw new Error("no rigger combat here");
+    const actor = fromUuidSync(c[side]?.actorUuid ?? "");
+    if (!user.isGM && !actor?.testUserPermission(user, "OWNER")) throw new Error("not your rigger");
+    await rcombatEnd(ccss, side === "intruder" ? "defender" : "intruder", `${actor?.name} disengaged`);
+    return { open: false };
+  }));
+
+
   // 5d: an access step (p.80) — the intruder's card vs the system's Technical Rating, the Vigilance count to pass.
   gmOp("ccssAccess", ({ intruderDeckUuid, ccssUuid, step, messageId }, user) => RC.rcQueue(async () => {
     const intruder = fromUuidSync(intruderDeckUuid), ccss = fromUuidSync(ccssUuid);
@@ -528,9 +640,23 @@ export async function rollEwCard(actor, { kind, dice, tn, label, extra = {} }) {
 
 /** The resist button on a MIJI card: the defending operator rolls their deck's Flux. */
 export function bindEwCard(message, html) {
+  const root = html instanceof HTMLElement ? html : html?.[0];
+  // Rigger combat (p.80): the loser resists (Willpower)L+ Stun with Body — once per card (claimed), then the GM checks.
+  root?.querySelector(".sr2e-rcombat-resist")?.addEventListener("click", async (ev) => {
+    const b = ev.currentTarget, loser = fromUuidSync(b.dataset.actor), ccss = fromUuidSync(b.dataset.ccss);
+    if (!loser?.isOwner) return ui.notifications.warn("Only the rigger's owner resists.");
+    const { once } = await import("./claims.mjs");
+    if (!(await once(loser, `rcombat-resist:${message.id}`))) return ui.notifications.info("That damage was already resisted.");
+    const c = ccss?.flags?.sr2e?.rcombat ?? {};
+    const side = c.intruder?.actorUuid === loser.uuid ? "intruder" : "defender";
+    // A decker takes it as from non-lethal black IC (p.80; VR2.0 p.49): Body, Hardening lowering the Power.
+    const hardening = c[side]?.decker ? num(loser.system?.cyberdeck?.hardening) : 0;
+    await loser.rollDamageResistance(Math.max(0, num(b.dataset.power) - hardening), b.dataset.level, "impact", "stun",
+      { environmental: { attr: "body", armorFraction: 0, source: "rigger combat" }, noCombatPool: true });
+    if (ccss) await gmCall("rcombatCheck", { ccssUuid: ccss.uuid }).catch(() => {});
+  });
   const r = message.flags?.sr2e?.ewResist;
   if (!r) return;
-  const root = html instanceof HTMLElement ? html : html?.[0];
   root?.querySelector(".sr2e-ew-resist")?.addEventListener("click", async () => {
     try {
       const target = fromUuidSync(r.targetDeckUuid), x = RC.netOf(target)?.ew?.[r.aid];

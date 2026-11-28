@@ -1,3 +1,5 @@
+{{#*inline "rcombatButtons"}}{{#if mustDefend}}<button type="button" data-action="rcombat" data-act="defend" data-side="{{side}}" data-ccss="{{ccss}}" title="Opposed Willpower Test against the attack (Rigger 2 p.80)"><strong>Defend</strong></button>{{else}}{{#if waiting}}<em>attack waiting for {{foe}}'s defense</em>{{else}}<button type="button" data-action="rcombat" data-act="attack" data-side="{{side}}" data-ccss="{{ccss}}" title="Complex Action, if you won the Initiative: opposed Willpower Tests (Rigger 2 p.80)">Attack {{foe}}</button>{{/if}}{{/if}}
+<button type="button" data-action="rcombat" data-act="disengage" data-side="{{side}}" data-ccss="{{ccss}}" title="Free Action: jack out and surrender control to {{foe}} (Rigger 2 p.80)">Disengage</button>{{/inline~}}
 <div class="deck-body sensor-body">
   <section class="deck-head">
     <h3>{{name}} <small>Rating {{rating}}{{#if ccss}} · hardwired{{else}} · Flux {{flux}} ({{range}}){{/if}}</small></h3>
@@ -19,6 +21,7 @@
     <p>Technical Rating {{ccss.technicalRating}} · Vigilance {{ccss.vigilance}} ({{ccss.vigilanceCount}} success{{#unless (eq ccss.vigilanceCount 1)}}es{{/unless}} per access step){{#if ccss.encrypted}} · <i class="fas fa-lock"></i> encrypted{{/if}}{{#if ccss.decryptionRating}} · radio decryption {{ccss.decryptionRating}}{{/if}}{{#if ccss.onAlert}} · <strong>on alert</strong>{{/if}}</p>
     {{#if connected}}<p>The rigger is <strong>{{ccss.modeLabel}}</strong>.
       {{#if (eq ccss.mode "component")}}<button type="button" data-action="ret" title="Leave the component: back to the whole system"><i class="fas fa-building"></i> Assume the body</button>{{/if}}
+      {{#if ccss.combat}}<br>Rigger combat against <strong>{{ccss.combat.foe}}</strong>: {{> rcombatButtons ccss.combat}}{{/if}}
       {{#if gm}}<button type="button" data-action="ccssPerception" title="The GM's secret roll when a significant trigger occurs (p.78)"><i class="fas fa-eye"></i> Perception Test</button>{{/if}}</p>{{/if}}
     <table class="deck-table">
       <thead><tr><th>Component</th><th>Kind</th><th>Size</th><th></th></tr></thead>
@@ -89,7 +92,7 @@
         {{#each access}}
         <tr><td>{{name}}<br><small>TN {{tn}} · {{count}} needed{{#if slavePort}} · open slave port{{/if}}</small></td>
           <td>{{label}}{{#if blocked}}<br><em>{{blocked}}</em>{{/if}}</td>
-          <td>{{#if (eq next "combat")}}<em>access complete</em>{{else}}{{#unless blocked}}<button type="button" data-action="ccssAccess" data-uuid="{{uuid}}">Roll ({{dice}} dice)</button>{{/unless}}{{/if}}
+          <td>{{#if (eq next "combat")}}{{#if combat}}{{> rcombatButtons combat}}{{else}}<button type="button" data-action="rcombat" data-act="engage" data-ccss="{{uuid}}" title="Step 5: fight the security rigger for control (Rigger 2 p.80)">Engage (rigger combat)</button>{{/if}}{{else}}{{#unless blocked}}<button type="button" data-action="ccssAccess" data-uuid="{{uuid}}">Roll ({{dice}} dice)</button>{{/unless}}{{/if}}
             {{#if ../gm}}<button type="button" data-action="ccssMark" data-uuid="{{uuid}}" data-key="protocolsKnown" title="GM: the intruder found out the system's protocols (p.80)">{{#if protocolsKnown}}Protocols known ✓{{else}}Protocols known?{{/if}}</button>
             <button type="button" data-action="ccssMark" data-uuid="{{uuid}}" data-key="slavePort" title="GM: connected at an open slave port — no dataline tap needed (p.80)">{{#if slavePort}}Slave port ✓{{else}}Slave port?{{/if}}</button>{{/if}}</td></tr>
         {{/each}}

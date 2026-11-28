@@ -20475,6 +20475,57 @@ function stubWorldSettings(keys) {
         });
       });
 
+      describe("Rigger combat (Part 5d-3, R2 p.80)", function () {
+        it("engage, opposed Willpower, damage card; Control Pool refused to an intruder; passing out or disengaging hands over control", async function () {
+          this.timeout(40000);
+          const EWX = await import("../ew.mjs"), RCN = await import("../rc-net.mjs");
+          const withFaces = async (faces, fn) => { const o = CONFIG.Dice.randomUniform, q = [...faces]; CONFIG.Dice.randomUniform = () => q.length ? (6.5 - q.shift()) / 6 : o(); try { return await fn(); } finally { CONFIG.Dice.randomUniform = o; } };
+          const mkRigger = async (name) => { const a = await Actor.create({ name, type: "character", system: { rigging: true, vehicleControlRig: 1, willpower: { base: 4 }, body: { base: 4 } } }); made.push(a); return a; };
+          const sec = await mkRigger("Quench Sec Rigger"), intr = await mkRigger("Quench RC Intruder");
+          const setup = async (connectSec) => {
+            const [ccss] = await sec.createEmbeddedDocuments("Item", [{ name: "Quench Combat CCSS", type: "ccss", system: { technicalRating: 4, vigilance: "green" } }]);
+            const [deck] = await intr.createEmbeddedDocuments("Item", [{ name: "Quench Combat Deck", type: "gear", system: { rating: 4 }, flags: { sr2e: { rule: "rc-deck" } } }]);
+            await call("rcConnect", { deckUuid: deck.uuid, operatorUuid: intr.uuid });
+            if (connectSec) await call("rcConnect", { deckUuid: ccss.uuid, operatorUuid: sec.uuid });
+            await ccss.update({ [`flags.sr2e.ccssAccess.${EWX.netKey(deck)}`]: { slavePort: true, protocolsKnown: true, protocols: true } });
+            return { ccss, deck };
+          };
+          const card = (actor, ccss, faces, extra = {}) => withFaces(faces, () => actor.rollSuccessTest(4, 4,
+            { label: "Quench rcombat", flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: EWX.rcombatOf(ccss).id } } }, ...extra })).then(r => r.testMessageId);
+          // Nobody jacked in: the intruder takes the system at once.
+          const a = await setup(false);
+          const took = await call("rcombatStart", { intruderDeckUuid: a.deck.uuid, ccssUuid: a.ccss.uuid });
+          assert.isTrue(took.took);
+          assert.equal(RCN.netOf(a.ccss).operator, intr.uuid, "the intruder operates it");
+          // With a security rigger: a full exchange.
+          const b = await setup(true);
+          await call("rcombatStart", { intruderDeckUuid: b.deck.uuid, ccssUuid: b.ccss.uuid });
+          assert.ok(EWX.rcombatOf(b.ccss), "combat open");
+          assert.equal(EWX.rcombatCap(b.ccss, "intruder", "willpower"), 0, "an intruding rigger: Karma Pool only (p.78)");
+          assert.equal(EWX.rcombatCap(b.ccss, "defender", "willpower"), 0, "a security rigger assuming the body: Karma Pool only");
+          await call("rcombatAttack", { ccssUuid: b.ccss.uuid, side: "intruder", messageId: await card(intr, b.ccss, [5, 5, 5, 5]) });
+          let err = null;
+          try { await call("rcombatAttack", { ccssUuid: b.ccss.uuid, side: "defender", messageId: await card(sec, b.ccss, [1, 1, 1, 1]) }); } catch (e) { err = e.message; }
+          assert.match(err ?? "", /already waiting/, "one exchange at a time");
+          const r = await call("rcombatDefend", { ccssUuid: b.ccss.uuid, messageId: await card(sec, b.ccss, [1, 1, 1, 1]) });
+          assert.equal(r.winSide, "intruder");
+          assert.deepEqual(r.damage, { power: 4, level: "S", type: "stun" }, "4 net: (Willpower 4) staged up two levels");
+          // The defender passes out: the intruder controls the system.
+          await sec.update({ "system.conditionMonitor.stun.value": 10 });
+          await call("rcombatCheck", { ccssUuid: b.ccss.uuid });
+          assert.isNull(EWX.rcombatOf(b.ccss), "ended");
+          assert.equal(b.ccss.flags.sr2e.rcombat.winner, "intruder");
+          assert.equal(RCN.netOf(b.ccss).operator, intr.uuid);
+          await sec.update({ "system.conditionMonitor.stun.value": 0 });
+          // Disengaging surrenders control.
+          const c = await setup(true);
+          await call("rcombatStart", { intruderDeckUuid: c.deck.uuid, ccssUuid: c.ccss.uuid });
+          await call("rcombatDisengage", { ccssUuid: c.ccss.uuid, side: "intruder" });
+          assert.equal(c.ccss.flags.sr2e.rcombat.winner, "defender");
+          assert.equal(RCN.netOf(c.ccss).operator, sec.uuid, "the security rigger keeps it");
+        });
+      });
+
       describe("Remote-control networks in a chase (Part 5.0)", function () {
         it("a networked drone is acted for by its operator on its own Pilot; no crew driver; a jump makes a reserved roll stale", async function () {
           this.timeout(30000);

@@ -101,3 +101,21 @@ describe("Accessing a security system (R2 p.79–80)", () => {
     expect(ccssStepOutcome("protocols", 4, "red")).toEqual({ passed: true, alert: false });
   });
 });
+
+import { rcombatControlCap, rcombatDamage, rcombatOutcome } from "../module/rules/drone-rules.mjs";
+describe("Rigger combat (R2 p.80)", () => {
+  it("Control Pool: none for an intruding rigger or a security rigger assuming the body; up to the attribute otherwise; a decker ⌈emulation ÷ 2⌉", () => {
+    expect(rcombatControlCap({ role: "intruder", attr: 6, pool: 6 })).toBe(0);
+    expect(rcombatControlCap({ role: "defender", karmaOnly: true, attr: 6, pool: 6 })).toBe(0);
+    expect(rcombatControlCap({ role: "defender", attr: 4, pool: 6 })).toBe(4);
+    expect(rcombatControlCap({ role: "intruder", decker: true, emulation: 5, attr: 6 })).toBe(3);
+    expect(rcombatControlCap({ role: "intruder", decker: true, emulation: 8, attr: 2 })).toBe(2, "capped by the attribute");
+  });
+  it("damage: (Willpower)L Stun, +1 level per 2 net successes, Deadly the most", () => {
+    expect([1, 2, 3, 4, 6, 9].map(n => rcombatDamage(5, n).level)).toEqual(["L", "M", "M", "S", "D", "D"]);
+    expect(rcombatDamage(5, 1)).toEqual({ power: 5, level: "L", type: "stun" });
+  });
+  it("the opposed Willpower Tests: more successes wins by the difference; a tie, nothing", () => {
+    expect([rcombatOutcome(4, 2), rcombatOutcome(1, 3), rcombatOutcome(2, 2)]).toEqual([{ winner: "attacker", net: 2 }, { winner: "defender", net: 2 }, { winner: null, net: 0 }]);
+  });
+});

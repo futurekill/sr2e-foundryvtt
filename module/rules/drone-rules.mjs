@@ -129,6 +129,30 @@ export function ccssStepOutcome(step, successes, vigilance) {
   return { passed, alert: !passed && (step === "decrypt" || step === "protocols") };
 }
 
+/**
+ * Rigger combat (p.80). The Control Pool a side may add to its Willpower Test (and to its Body Test against the damage):
+ * an intruding RIGGER battling a security rigger has the Karma Pool only (p.78), so none; a security rigger assuming the
+ * body has the Karma Pool only (p.78), so none; jumped into a drone or room, up to Willpower (Body for the
+ * resistance). A DECKER's printed exception: a Control Pool of ⌈emulation rating ÷ 2⌉ (p.80).
+ */
+export function rcombatControlCap({ role, decker = false, emulation = 0, karmaOnly = false, attr = 0, pool = 0 }) {
+  if (role === "intruder") return decker ? Math.min(Math.ceil((Number(emulation) || 0) / 2), Number(attr) || 0) : 0;
+  return karmaOnly ? 0 : Math.max(0, Math.min(Number(pool) || 0, Number(attr) || 0));
+}
+/** Rigger combat damage (p.80): (winner's Willpower)L Stun, +1 Damage Level per 2 net successes (Deadly the most). */
+export function rcombatDamage(willpower, net) {
+  const levels = ["L", "M", "S", "D"];
+  return { power: Math.max(0, Number(willpower) || 0), level: levels[Math.min(3, Math.floor(Math.max(0, Number(net) || 0) / 2))], type: "stun" };
+}
+/** The opposed Willpower Tests (p.80): the side with more successes wins by the difference; a tie deals nothing. */
+export function rcombatOutcome(attacker, defender) {
+  const a = Number(attacker) || 0, d = Number(defender) || 0;
+  if (a === d) return { winner: null, net: 0 };
+  return a > d ? { winner: "attacker", net: a - d } : { winner: "defender", net: d - a };
+}
+/** A decker in rigger combat (p.80): +2 TN on all tests, Initiative −2, no Response Increase dice. */
+export const DECKER_RCOMBAT = Object.freeze({ tnMod: 2, initiativeMod: -2, responseDice: false });
+
 /** The security rigger's control mode (p.78): jumped into a drone, into one component, else assuming the body. */
 export const ccssMode = (net) => (net?.primary ? "drone" : net?.ccssComponent ? "component" : "body");
 /**

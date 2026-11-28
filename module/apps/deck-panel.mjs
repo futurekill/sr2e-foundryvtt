@@ -22,7 +22,7 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     classes: ["sr2e", "sr2e-deck"], tag: "div",
     window: { title: "Remote-control deck", icon: "fas fa-gamepad", resizable: true },
     position: { width: 640, height: 560 },
-    actions: { ccssControl: DeckPanel.#ccssControl, ccssPerception: DeckPanel.#ccssPerception, ccssAccess: DeckPanel.#ccssAccess, ccssMark: DeckPanel.#ccssMark, connect: DeckPanel.#connect, disconnect: DeckPanel.#disconnect, subscribe: DeckPanel.#subscribe,
+    actions: { ccssControl: DeckPanel.#ccssControl, ccssPerception: DeckPanel.#ccssPerception, ccssAccess: DeckPanel.#ccssAccess, ccssMark: DeckPanel.#ccssMark, rcombat: DeckPanel.#rcombat, connect: DeckPanel.#connect, disconnect: DeckPanel.#disconnect, subscribe: DeckPanel.#subscribe,
       unsubscribe: DeckPanel.#unsubscribe, affiliate: DeckPanel.#affiliate, jump: DeckPanel.#jump, ret: DeckPanel.#return,
       command: DeckPanel.#command, hardwire: DeckPanel.#hardwire, groupCommand: DeckPanel.#groupCommand, ivisEnd: DeckPanel.#ivisEnd,
       ewDecrypt: DeckPanel.#ewDecrypt, ewIntercept: DeckPanel.#ewIntercept, ewChoose: DeckPanel.#ewChoose, ewRead: DeckPanel.#ewRead,
@@ -85,7 +85,8 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const d = this.deck;
     if (!RCX.isCcss(d)) return null;
     const mode = ccssMode(net), s = d.system;
-    return { mode, modeLabel: mode === "body" ? "assuming the body (Karma Pool only)" : mode === "component"
+    const rcb = EWX.rcombatOf(d);
+    return { combat: rcb ? this.#combatRow(d, rcb, "defender") : null, mode, modeLabel: mode === "body" ? "assuming the body (Karma Pool only)" : mode === "component"
       ? `jumped into ${RCX.ccssComponentOf(d)?.name || "a component"}` : "jumped into a drone",
       technicalRating: s.technicalRating, vigilance: s.vigilance, vigilanceCount: vigilanceCount(s.vigilance), encrypted: s.encrypted,
       decryptionRating: s.decryptionRating, onAlert: s.onAlert,
@@ -101,12 +102,43 @@ export class DeckPanel extends HandlebarsApplicationMixin(ApplicationV2) {
       seen.add(c.uuid);
       const st = EWX.ccssAccessOf(c, this.deck), next = ccssNextStep(c.system, st);
       const d = next === "combat" ? { dice: 0, need: "" } : EWX.ccssStepDice(next, op, this.deck);
-      rows.push({ uuid: c.uuid, name: `${a.name} — ${c.name}`, next, label: { tap: "Tap into a dataline", decrypt: "Defeat encryption",
+      const rc = EWX.rcombatOf(c), mine = rc?.intruder?.deckUuid === this.deck.uuid ? rc : null;
+      rows.push({ uuid: c.uuid, name: `${a.name} — ${c.name}`, next, combat: mine ? this.#combatRow(c, mine, "intruder") : null, label: { tap: "Tap into a dataline", decrypt: "Defeat encryption",
         protocols: "Adjust to system protocols", combat: "Rigger combat" }[next], dice: d.dice, need: d.need,
         tn: c.system.technicalRating, count: vigilanceCount(c.system.vigilance), protocolsKnown: !!st.protocolsKnown, slavePort: !!st.slavePort,
         blocked: next === "protocols" && !st.protocolsKnown ? "the GM must mark the protocols known first" : (next !== "combat" && !d.dice ? `needs ${d.need}` : "") });
     }
     return rows;
+  }
+  /** One side's view of a rigger combat (p.80): who, whether an attack waits for this side's defense. */
+  #combatRow(ccss, c, side) {
+    const other = side === "intruder" ? "defender" : "intruder";
+    return { side, ccss: ccss.uuid, foe: fromUuidSync(c[other]?.actorUuid ?? "")?.name ?? "?",
+      mustDefend: !!c.exchange && c.exchange.attacker === other, waiting: !!c.exchange && c.exchange.attacker === side };
+  }
+  /** Rigger combat actions (p.80): engage, attack (Complex), defend, disengage (Free). */
+  static async #rcombat(_e, el) {
+    const { act, side } = el.dataset, ccss = fromUuidSync(el.dataset.ccss);
+    if (act === "engage") return rc("rcombatStart", { intruderDeckUuid: this.deck.uuid, ccssUuid: ccss.uuid })
+      .then(r => r?.took && ui.notifications.info("No security rigger was jacked in: the system is yours.")).catch(warn);
+    if (act === "disengage") return rc("rcombatDisengage", { ccssUuid: ccss.uuid, side }).catch(warn);
+    const c = EWX.rcombatOf(ccss);
+    if (!c) return warn("no rigger combat here");
+    const actor = fromUuidSync(c[side].actorUuid), foe = fromUuidSync(c[side === "intruder" ? "defender" : "intruder"].actorUuid);
+    const tn = (Number(foe?.system?.willpower?.value) || 0) + (c[side].decker ? 2 : 0);
+    const cap = Math.min(EWX.rcombatCap(ccss, side, "willpower"), actor?.system?.dicePools?.control?.value ?? 0);
+    let control = 0;
+    if (cap > 0) {
+      control = await foundry.applications.api.DialogV2.prompt({ window: { title: "Rigger combat" },
+        content: `<div class="form-group"><label>Control Pool dice (max ${cap})</label><input type="number" name="n" value="0" min="0" max="${cap}" style="width:52px"></div>`,
+        ok: { label: "Roll", callback: (_e2, b) => Math.min(cap, Math.max(0, Number(b.form.elements.n.value) || 0)) }, rejectClose: false }).catch(() => null);
+      if (control == null) return;
+    }
+    const res = await actor.rollSuccessTest(Number(actor.system.willpower?.value) || 0, tn, {
+      label: `Rigger combat — ${act === "attack" ? "attack" : "defense"}: Willpower vs ${foe?.name}'s Willpower ${tn} (Rigger 2 p.80)`,
+      poolDice: control ? { control } : {}, flags: { sr2e: { ew: { kind: "rcombat", ccss: ccss.uuid, combat: c.id } } } });
+    if (!res?.testMessageId) return;
+    return rc(act === "attack" ? "rcombatAttack" : "rcombatDefend", { ccssUuid: ccss.uuid, side, messageId: res.testMessageId }).catch(warn);
   }
   static async #ccssAccess(_e, el) {
     const ccss = fromUuidSync(el.dataset.uuid), op = this.#op;
