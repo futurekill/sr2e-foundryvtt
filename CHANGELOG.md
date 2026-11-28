@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added — the security rigger (Rigger 2 p.77–80; Part 5d, docs/PLAN-vehicles-phase2.md)
+- A **CCSS** item type (closed-circuit simsense security system): Technical Rating, Vigilance Code, encryption,
+  components (rooms, corridor sections, device groups with their devices). It is its own hardwired remote-control deck,
+  so no interception or MIJI reaches it. **Needs a Foundry server restart** (a new item type).
+- The security rigger: **assuming the body** = Karma Pool only; **Control a Room** (under 100 m² / corridor under 25 m)
+  returns the pools; the GM's secret **Rigger Perception Test** (the p.78 table).
+- **Accessing a security system** from an intruder's deck panel: tap a dataline, defeat encryption, adjust to
+  protocols, each vs the Technical Rating needing the Vigilance count; a failed decrypt/protocol test alerts the system.
+  The GM marks an open slave port and known protocols.
+- **Rigger combat**: its own Initiative order, opposed Willpower Tests, (Willpower)L Stun +1 level per 2 net, Body
+  resistance; passing out or disengaging hands over the system. **Decking a rigged system** (Matrix tab → Rigged
+  system): steps 1–3, +2 TN, Initiative −2 and no Response Increase dice, a Control Pool of ⌈emulation ÷ 2⌉ per turn,
+  non-lethal black IC damage.
+- The core Dataline Tap carries its rule flag.
+
 ## 0.173.1 — 2026-11-27
 
 ### Fixed — stuck claims after a server restart (docs/archive/plans/PLAN-claim-clock.md)

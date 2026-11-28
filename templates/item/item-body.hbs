@@ -1305,6 +1305,7 @@
     <input type="text" name="system.components.{{i}}.name" value="{{c.name}}" placeholder="Name" />
     <select name="system.components.{{i}}.kind">{{#each @root.ccssKinds as |k|}}<option value="{{k}}" {{selected c.kind k}}>{{k}}</option>{{/each}}</select>
     <input type="number" name="system.components.{{i}}.size" value="{{c.size}}" min="0" title="Room m² / corridor m" style="flex:0 0 60px;" />
+    <input type="text" name="system.components.{{i}}.devices" value="{{c.devices}}" placeholder="Devices (doors, gun port…)" title="What the rigger operates there once jumped in (p.78)" />
     <input type="hidden" name="system.components.{{i}}.id" value="{{c.id}}" />
     <a data-action="removeComponent" data-id="{{c.id}}" title="Remove" style="flex:0 0 16px;"><i class="fas fa-trash"></i></a>
   </div>

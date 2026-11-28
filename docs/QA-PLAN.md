@@ -1044,6 +1044,12 @@ If those five all work, the core loop is healthy.
 - [ ] Paranormal Animals' Nosferatu imports from its compendium with Essence 7.
 - [ ] A Heal spell on an Essence-12 critter suggests TN 2.
 
+## The security rigger (Rigger 2 p.77–80, Part 5d)
+- [ ] Quench `sr2e.r2-advanced` passes (34 tests, incl. CCSS, access, rigger combat, decking).
+- [ ] After a server restart, create a CCSS item; its deck panel opens from the item; components accept devices.
+- [ ] Two players: an intruder's deck panel lists the CCSS; tap → (decrypt) → protocols (GM marks) → Engage; each side
+      sees Attack/Defend/Resist only on its own action; disengaging hands over control.
+
 ## Treating the wounded (docs/archive/plans/PLAN-treatment.md, 0.173.0)
 - [ ] Quench `sr2e.treatment` passes (9 tests); `sr2e.healing-guards`, `sr2e.healing-clock`, `sr2e.magical-healing`,
       `sr2e.permanent-damage`, `sr2e.karma-pool`, `sr2e.damage-karma` still pass.

@@ -306,7 +306,7 @@ function rcombatCard(ccss, c, side, net, messageId, seq) {
   const deckerLeft = c[side].decker ? Math.min(deckerPoolLeft(c), will) : 0;
   const test = checkCard(net, messageId, { kind: "rcombat", actor, maxDice: will + deckerLeft, minTn: tn,
     bind: { ccss: ccss.uuid, combat: c.id, side, seq } });
-  onlySources(test, ["base", "pool:control"]);
+  onlySources(test, ["base", "pool:control", "threat"]);   // an NPC rigger's Threat dice (p.78)
   const control = (test.dice ?? []).filter(d => d.sourceKey === "pool:control").length;
   if (control > rcombatCap(ccss, side, "willpower")) throw new Error(`at most ${rcombatCap(ccss, side, "willpower")} Control Pool dice here (Rigger 2 p.78, p.80)`);
   const used = c[side].decker ? Math.max(0, (test.dice ?? []).filter(d => d.sourceKey === "base").length - will) : 0;
@@ -347,7 +347,7 @@ export function registerEw() {
     // Bound to this deck, step and attempt (r1 #4): a card rolled for another deck or an earlier try doesn't count.
     const test = checkCard(net, messageId, { kind: `ccss-${step}`, actor: op, maxDice: dice, minTn: num(ccss.system.technicalRating),
       bind: { ccss: ccss.uuid, deck: intruder.uuid, try: num(state.tries) } });
-    onlySources(test, ["base", "pool:task"]);
+    onlySources(test, ["base", "pool:task", "threat"]);
     const s = await successesOf(test);
     const out = ccssStepOutcome(step, s, ccss.system.vigilance);
     const k = `flags.sr2e.ccssAccess.${netKey(intruder)}`;
@@ -453,7 +453,7 @@ export function registerEw() {
     const net = RC.freshNet(ccss);
     const test = checkCard(net, messageId, { kind: "rcombat-resist", actor, maxDice: body + (p.decker ? Math.min(deckerPoolLeft(c), body) : 0), minTn: tn,
       bind: { ccss: ccss.uuid, combat: c.id, pending: p.id } });
-    onlySources(test, ["base", "pool:control"]);
+    onlySources(test, ["base", "pool:control", "threat"]);   // an NPC rigger's Threat dice (p.78)
     const control = (test.dice ?? []).filter(d => d.sourceKey === "pool:control").length;
     if (control > rcombatCap(ccss, p.side, "body")) throw new Error(`at most ${rcombatCap(ccss, p.side, "body")} Control Pool dice here (Rigger 2 p.80)`);
     const used = p.decker ? Math.max(0, (test.dice ?? []).filter(d => d.sourceKey === "base").length - body) : 0;
